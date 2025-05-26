@@ -14,6 +14,8 @@ import UIKit
 
 class ShareViewController: SLComposeServiceViewController {
 
+    private var pendingImageData: (data: Data, url: URL?)?
+
     override func viewDidLoad() {
         super.viewDidLoad()
         handleIncomingImage()
@@ -21,27 +23,16 @@ class ShareViewController: SLComposeServiceViewController {
 
     private func handleIncomingImage() {
         guard let extensionItem = extensionContext?.inputItems.first as? NSExtensionItem,
-            let attachments = extensionItem.attachments
+              let attachments = extensionItem.attachments
         else { return }
 
         for provider in attachments {
             if provider.hasItemConformingToTypeIdentifier(kUTTypeImage as String) {
-                provider.loadItem(forTypeIdentifier: kUTTypeImage as String, options: nil) {
-                    (item, error) in
-                    if let url = item as? URL {
-                        // Load image data from URL and save to Core Data
-                        if let data = try? Data(contentsOf: url) {
-                            self.saveImageDataToCoreData(imageData: data, url: url)
-                        } else {
-                            print("Failed to load image data from URL: \(String(describing: url))")
-                        }
-                    } else if let image = item as? UIImage {
-                        // Save UIImage as JPEG data to Core Data
-                        if let data = image.jpegData(compressionQuality: 0.9) {
-                            self.saveImageDataToCoreData(imageData: data, url: nil)
-                        } else {
-                            print("Failed to convert UIImage to JPEG data")
-                        }
+                provider.loadItem(forTypeIdentifier: kUTTypeImage as String, options: nil) { (item, error) in
+                    if let url = item as? URL, let data = try? Data(contentsOf: url) {
+                        self.pendingImageData = (data, url)
+                    } else if let image = item as? UIImage, let data = image.jpegData(compressionQuality: 0.9) {
+                        self.pendingImageData = (data, nil)
                     }
                 }
                 break
@@ -54,12 +45,10 @@ class ShareViewController: SLComposeServiceViewController {
         let scaledData: Data
 
         if let url = url, let downsampled = downsampleImage(at: url, to: 1024),
-            let jpeg = downsampled.jpegData(compressionQuality: 0.9)
-        {
+           let jpeg = downsampled.jpegData(compressionQuality: 0.9) {
             scaledData = jpeg
         } else if let image = UIImage(data: imageData),
-            let jpeg = image.jpegData(compressionQuality: 0.9)
-        {
+                  let jpeg = image.jpegData(compressionQuality: 0.9) {
             scaledData = jpeg
         } else {
             scaledData = imageData
@@ -71,11 +60,13 @@ class ShareViewController: SLComposeServiceViewController {
             sharedImage.setValue(scaledData, forKey: "imageData")
             sharedImage.setValue(url?.absoluteString, forKey: "url")
             sharedImage.setValue(Date(), forKey: "dateAdded")
+            sharedImage.setValue(self.contentText, forKey: "post")
             if let url = url, let coordinate = self.extractLocation(from: url) {
                 let locationData = try? NSKeyedArchiver.archivedData(
                     withRootObject: coordinate, requiringSecureCoding: false)
                 sharedImage.setValue(locationData, forKey: "location")
             }
+            // Store reference to last inserted Place for use in didSelectPost
             do {
                 try context.save()
                 print("Saved image data to Core Data")
@@ -110,8 +101,10 @@ class ShareViewController: SLComposeServiceViewController {
     }
 
     override func didSelectPost() {
-        // This is called after the user selects Post. Do the upload of contentText and/or NSExtensionContext attachments.
-
+        // Store the image and text when the user posts
+        if let (data, url) = pendingImageData {
+            self.saveImageDataToCoreData(imageData: data, url: url)
+        }
         // Inform the host that we're done, so it un-blocks its UI. Note: Alternatively you could call super's -didSelectPost, which will similarly complete the extension context.
         self.extensionContext!.completeRequest(returningItems: [], completionHandler: nil)
     }

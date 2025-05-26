@@ -7,7 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		49F151FC2DE4BF3200573F48 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F151FB2DE4BF3200573F48 /* Persistence.swift */; };
 		49F1522F2DE4C42400573F48 /* WahiShareExt.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 49F152252DE4C42400573F48 /* WahiShareExt.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		49F1523D2DE4CE0700573F48 /* places.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */; };
+		49F1523E2DE4CE0700573F48 /* places.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */; };
+		49F1523F2DE4D0CF00573F48 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F151FB2DE4BF3200573F48 /* Persistence.swift */; };
+		49F152442DE4F3CA00573F48 /* CoreData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 49F152432DE4F3CA00573F48 /* CoreData.framework */; };
+		49F152452DE4F3D200573F48 /* CoreData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 49F152432DE4F3CA00573F48 /* CoreData.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,9 +56,12 @@
 
 /* Begin PBXFileReference section */
 		49F151EF2DE4BF3100573F48 /* wahi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = wahi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		49F151FB2DE4BF3200573F48 /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
 		49F152042DE4BF3200573F48 /* wahiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = wahiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		49F1520E2DE4BF3200573F48 /* wahiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = wahiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		49F152252DE4C42400573F48 /* WahiShareExt.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WahiShareExt.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		49F1523C2DE4CE0700573F48 /* places.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = places.xcdatamodel; sourceTree = "<group>"; };
+		49F152432DE4F3CA00573F48 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -96,6 +105,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				49F152442DE4F3CA00573F48 /* CoreData.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -117,6 +127,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				49F152452DE4F3D200573F48 /* CoreData.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -126,10 +137,13 @@
 		49F151E62DE4BF3100573F48 = {
 			isa = PBXGroup;
 			children = (
+				49F152412DE4F29E00573F48 /* shared */,
+				49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */,
 				49F151F12DE4BF3100573F48 /* wahi */,
 				49F152072DE4BF3200573F48 /* wahiTests */,
 				49F152112DE4BF3200573F48 /* wahiUITests */,
 				49F152262DE4C42400573F48 /* WahiShareExt */,
+				49F152422DE4F3CA00573F48 /* Frameworks */,
 				49F151F02DE4BF3100573F48 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -143,6 +157,22 @@
 				49F152252DE4C42400573F48 /* WahiShareExt.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		49F152412DE4F29E00573F48 /* shared */ = {
+			isa = PBXGroup;
+			children = (
+				49F151FB2DE4BF3200573F48 /* Persistence.swift */,
+			);
+			path = shared;
+			sourceTree = "<group>";
+		};
+		49F152422DE4F3CA00573F48 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				49F152432DE4F3CA00573F48 /* CoreData.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -324,6 +354,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				49F151FC2DE4BF3200573F48 /* Persistence.swift in Sources */,
+				49F1523E2DE4CE0700573F48 /* places.xcdatamodeld in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -345,6 +377,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				49F1523F2DE4D0CF00573F48 /* Persistence.swift in Sources */,
+				49F1523D2DE4CE0700573F48 /* places.xcdatamodeld in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -493,9 +527,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = wahi/wahi.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"wahi/Preview Content\"";
+				DEVELOPMENT_TEAM = W292XJZS37;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -521,9 +557,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = wahi/wahi.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"wahi/Preview Content\"";
+				DEVELOPMENT_TEAM = W292XJZS37;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -615,8 +653,10 @@
 		49F152322DE4C42400573F48 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = WahiShareExt/WahiShareExt.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = W292XJZS37;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WahiShareExt/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = WahiShareExt;
@@ -639,8 +679,10 @@
 		49F152332DE4C42400573F48 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = WahiShareExt/WahiShareExt.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = W292XJZS37;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = WahiShareExt/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = WahiShareExt;
@@ -709,6 +751,19 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCVersionGroup section */
+		49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */ = {
+			isa = XCVersionGroup;
+			children = (
+				49F1523C2DE4CE0700573F48 /* places.xcdatamodel */,
+			);
+			currentVersion = 49F1523C2DE4CE0700573F48 /* places.xcdatamodel */;
+			path = places.xcdatamodeld;
+			sourceTree = "<group>";
+			versionGroupType = wrapper.xcdatamodel;
+		};
+/* End XCVersionGroup section */
 	};
 	rootObject = 49F151E72DE4BF3100573F48 /* Project object */;
 }

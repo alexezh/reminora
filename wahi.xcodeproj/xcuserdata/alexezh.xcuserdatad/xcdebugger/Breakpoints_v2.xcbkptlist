@@ -82,36 +82,6 @@
             endingLineNumber = "27"
             landmarkName = "handleIncomingImage()"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "BD3C6881-F4CF-4112-950E-E8F07C35E9FB - 4c458db79ae8e1df"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "WahiShareExt.ShareViewController.handleIncomingImage() -&gt; ()"
-                  moduleName = "WahiShareExt.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/WahiShareExt/ShareViewController.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "27"
-                  endingLineNumber = "27">
-               </Location>
-               <Location
-                  uuid = "BD3C6881-F4CF-4112-950E-E8F07C35E9FB - 589cc258bae451b4"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 @Sendable (Swift.Optional&lt;__C.NSSecureCoding&gt;, Swift.Optional&lt;Swift.Error&gt;) -&gt; () in WahiShareExt.ShareViewController.handleIncomingImage() -&gt; ()"
-                  moduleName = "WahiShareExt.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/WahiShareExt/ShareViewController.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "27"
-                  endingLineNumber = "27">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -198,7 +168,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "F40B75CD-681E-417B-84DA-1127A45D5491"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "shared/Persistence.swift"
@@ -208,36 +178,6 @@
             endingLineNumber = "54"
             landmarkName = "init(inMemory:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "F40B75CD-681E-417B-84DA-1127A45D5491 - 6f774c1a798e925c"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "wahi.PersistenceController.init(inMemory: Swift.Bool) -&gt; wahi.PersistenceController"
-                  moduleName = "wahi.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/shared/Persistence.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "54"
-                  endingLineNumber = "54">
-               </Location>
-               <Location
-                  uuid = "F40B75CD-681E-417B-84DA-1127A45D5491 - e882dfd8d8042377"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "WahiShareExt.PersistenceController.init(inMemory: Swift.Bool) -&gt; WahiShareExt.PersistenceController"
-                  moduleName = "WahiShareExt.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/shared/Persistence.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "54"
-                  endingLineNumber = "54">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -260,7 +200,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "EA36D695-9364-436E-BC15-DA6728551E36"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "shared/Persistence.swift"
@@ -270,43 +210,13 @@
             endingLineNumber = "61"
             landmarkName = "init(inMemory:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "EA36D695-9364-436E-BC15-DA6728551E36 - 9739d3e41471d0c1"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 (__C.NSPersistentStoreDescription, Swift.Optional&lt;Swift.Error&gt;) -&gt; () in wahi.PersistenceController.init(inMemory: Swift.Bool) -&gt; wahi.PersistenceController"
-                  moduleName = "wahi.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/shared/Persistence.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "61"
-                  endingLineNumber = "61">
-               </Location>
-               <Location
-                  uuid = "EA36D695-9364-436E-BC15-DA6728551E36 - e3337b166df46c5a"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 (__C.NSPersistentStoreDescription, Swift.Optional&lt;Swift.Error&gt;) -&gt; () in WahiShareExt.PersistenceController.init(inMemory: Swift.Bool) -&gt; WahiShareExt.PersistenceController"
-                  moduleName = "WahiShareExt.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/shared/Persistence.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "61"
-                  endingLineNumber = "61">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "55342A1A-5E77-4E1F-8FCD-551886BBD5CD"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "shared/Persistence.swift"
@@ -316,64 +226,6 @@
             endingLineNumber = "58"
             landmarkName = "init(inMemory:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "55342A1A-5E77-4E1F-8FCD-551886BBD5CD - 9739d3e41471d026"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 (__C.NSPersistentStoreDescription, Swift.Optional&lt;Swift.Error&gt;) -&gt; () in wahi.PersistenceController.init(inMemory: Swift.Bool) -&gt; wahi.PersistenceController"
-                  moduleName = "wahi.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/shared/Persistence.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "58"
-                  endingLineNumber = "58">
-               </Location>
-               <Location
-                  uuid = "55342A1A-5E77-4E1F-8FCD-551886BBD5CD - 9739d3e41471d026"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 (__C.NSPersistentStoreDescription, Swift.Optional&lt;Swift.Error&gt;) -&gt; () in wahi.PersistenceController.init(inMemory: Swift.Bool) -&gt; wahi.PersistenceController"
-                  moduleName = "wahi.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/shared/Persistence.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "58"
-                  endingLineNumber = "58">
-               </Location>
-               <Location
-                  uuid = "55342A1A-5E77-4E1F-8FCD-551886BBD5CD - e3337b166df46cbd"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 (__C.NSPersistentStoreDescription, Swift.Optional&lt;Swift.Error&gt;) -&gt; () in WahiShareExt.PersistenceController.init(inMemory: Swift.Bool) -&gt; WahiShareExt.PersistenceController"
-                  moduleName = "WahiShareExt.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/shared/Persistence.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "58"
-                  endingLineNumber = "58">
-               </Location>
-               <Location
-                  uuid = "55342A1A-5E77-4E1F-8FCD-551886BBD5CD - e3337b166df46cbd"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 (__C.NSPersistentStoreDescription, Swift.Optional&lt;Swift.Error&gt;) -&gt; () in WahiShareExt.PersistenceController.init(inMemory: Swift.Bool) -&gt; WahiShareExt.PersistenceController"
-                  moduleName = "WahiShareExt.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/shared/Persistence.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "58"
-                  endingLineNumber = "58">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy

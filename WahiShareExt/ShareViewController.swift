@@ -6,6 +6,8 @@
 //
 
 import CoreData
+import CoreLocation
+import ImageIO
 import MobileCoreServices
 import Social
 import UIKit
@@ -49,6 +51,11 @@ class ShareViewController: SLComposeServiceViewController {
             let sharedImage = NSManagedObject(entity: entity, insertInto: context)
             sharedImage.setValue(url.absoluteString, forKey: "url")
             sharedImage.setValue(Date(), forKey: "dateAdded")
+            if let coordinate = self.extractLocation(from: url) {
+                // Assuming Place.location is of type CLLocation or CLLocationCoordinate2D stored as Data
+                let locationData = try? NSKeyedArchiver.archivedData(withRootObject: coordinate, requiringSecureCoding: false)
+                sharedImage.setValue(locationData, forKey: "location")
+            }
             do {
                 try context.save()
                 print("Saved image URL to Core Data: \(url)")
@@ -56,6 +63,24 @@ class ShareViewController: SLComposeServiceViewController {
                 print("Failed to save image URL: \(error)")
             }
         }
+    }
+
+    // Extract GPS coordinates from image at URL
+    private func extractLocation(from url: URL) -> CLLocation? {
+        guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any],
+              let gps = properties[kCGImagePropertyGPSDictionary] as? [CFString: Any],
+              let latitude = gps[kCGImagePropertyGPSLatitude] as? Double,
+              let latitudeRef = gps[kCGImagePropertyGPSLatitudeRef] as? String,
+              let longitude = gps[kCGImagePropertyGPSLongitude] as? Double,
+              let longitudeRef = gps[kCGImagePropertyGPSLongitudeRef] as? String
+        else {
+            return nil
+        }
+
+        let lat = (latitudeRef == "S") ? -latitude : latitude
+        let lon = (longitudeRef == "W") ? -longitude : longitude
+        return CLLocation(latitude: lat, longitude: lon)
     }
 
     // Optionally save UIImage to disk and return file URL

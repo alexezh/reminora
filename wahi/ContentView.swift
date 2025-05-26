@@ -5,8 +5,8 @@
 //  Created by alexezh on 5/26/25.
 //
 
-import SwiftUI
 import CoreData
+import SwiftUI
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -82,5 +82,6 @@ private let itemFormatter: DateFormatter = {
 }()
 
 #Preview {
-    ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+    ContentView().environment(
+        \.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

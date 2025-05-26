@@ -5,8 +5,8 @@
 //  Created by alexezh on 5/26/25.
 //
 
-import CoreData
 import SwiftUI
+import CoreData
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -20,11 +20,41 @@ struct ContentView: View {
         NavigationView {
             List {
                 ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.dateAdded!, formatter: itemFormatter)")
-                    } label: {
-                        Text(item.dateAdded!, formatter: itemFormatter)
+                    HStack(alignment: .center, spacing: 12) {
+                        if let imageData = item.imageData, let image = UIImage(data: imageData) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 56, height: 56)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else if let urlString = item.url, let url = URL(string: urlString), let image = loadImage(from: url) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 56, height: 56)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        } else {
+                            Image(systemName: "photo")
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 56, height: 56)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .foregroundColor(.gray)
+                        }
+                        VStack(alignment: .leading, spacing: 4) {
+                            if let date = item.dateAdded {
+                                Text(date, formatter: itemFormatter)
+                                    .font(.headline)
+                            }
+                            if let urlString = item.url {
+                                Text(urlString)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
                     }
+                    .padding(.vertical, 4)
                 }
                 .onDelete(perform: deleteItems)
             }
@@ -46,12 +76,11 @@ struct ContentView: View {
         withAnimation {
             let newItem = Place(context: viewContext)
             newItem.dateAdded = Date()
+            newItem.url = nil // Or set a default image URL if desired
 
             do {
                 try viewContext.save()
             } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
                 let nsError = error as NSError
                 fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
             }
@@ -65,12 +94,20 @@ struct ContentView: View {
             do {
                 try viewContext.save()
             } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
                 let nsError = error as NSError
                 fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
             }
         }
+    }
+
+    // Helper to load image from file URL
+    private func loadImage(from url: URL) -> UIImage? {
+        if url.isFileURL {
+            return UIImage(contentsOfFile: url.path)
+        } else if let data = try? Data(contentsOf: url) {
+            return UIImage(data: data)
+        }
+        return nil
     }
 }
 
@@ -82,6 +119,5 @@ private let itemFormatter: DateFormatter = {
 }()
 
 #Preview {
-    ContentView().environment(
-        \.managedObjectContext, PersistenceController.preview.container.viewContext)
+    ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

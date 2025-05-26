@@ -29,13 +29,18 @@ class ShareViewController: SLComposeServiceViewController {
                 provider.loadItem(forTypeIdentifier: kUTTypeImage as String, options: nil) {
                     (item, error) in
                     if let url = item as? URL {
-                        print("Received image URL: \(url)")
-                        self.saveImageURLToCoreData(url: url)
+                        // Load image data from URL and save to Core Data
+                        if let data = try? Data(contentsOf: url) {
+                            self.saveImageDataToCoreData(imageData: data, url: url)
+                        } else {
+                            print("Failed to load image data from URL: \(String(describing: url))")
+                        }
                     } else if let image = item as? UIImage {
-                        print("Received UIImage: \(image)")
-                        // Optionally save UIImage to disk and persist its file URL
-                        if let fileURL = self.saveUIImageToDisk(image: image) {
-                            self.saveImageURLToCoreData(url: fileURL)
+                        // Save UIImage as JPEG data to Core Data
+                        if let data = image.jpegData(compressionQuality: 0.9) {
+                            self.saveImageDataToCoreData(imageData: data, url: nil)
+                        } else {
+                            print("Failed to convert UIImage to JPEG data")
                         }
                     }
                 }
@@ -44,23 +49,38 @@ class ShareViewController: SLComposeServiceViewController {
         }
     }
 
-    // Save the image URL string to Core Data
-    private func saveImageURLToCoreData(url: URL) {
+    // Save the image data and optional URL string to Core Data
+    private func saveImageDataToCoreData(imageData: Data, url: URL?) {
+        let scaledData: Data
+
+        if let url = url, let downsampled = downsampleImage(at: url, to: 1024),
+            let jpeg = downsampled.jpegData(compressionQuality: 0.9)
+        {
+            scaledData = jpeg
+        } else if let image = UIImage(data: imageData),
+            let jpeg = image.jpegData(compressionQuality: 0.9)
+        {
+            scaledData = jpeg
+        } else {
+            scaledData = imageData
+        }
+
         PersistenceController.shared.withStore { context in
             let entity = NSEntityDescription.entity(forEntityName: "Place", in: context)!
             let sharedImage = NSManagedObject(entity: entity, insertInto: context)
-            sharedImage.setValue(url.absoluteString, forKey: "url")
+            sharedImage.setValue(scaledData, forKey: "imageData")
+            sharedImage.setValue(url?.absoluteString, forKey: "url")
             sharedImage.setValue(Date(), forKey: "dateAdded")
-            if let coordinate = self.extractLocation(from: url) {
-                // Assuming Place.location is of type CLLocation or CLLocationCoordinate2D stored as Data
-                let locationData = try? NSKeyedArchiver.archivedData(withRootObject: coordinate, requiringSecureCoding: false)
+            if let url = url, let coordinate = self.extractLocation(from: url) {
+                let locationData = try? NSKeyedArchiver.archivedData(
+                    withRootObject: coordinate, requiringSecureCoding: false)
                 sharedImage.setValue(locationData, forKey: "location")
             }
             do {
                 try context.save()
-                print("Saved image URL to Core Data: \(url)")
+                print("Saved image data to Core Data")
             } catch {
-                print("Failed to save image URL: \(error)")
+                print("Failed to save image data: \(error)")
             }
         }
     }
@@ -68,12 +88,13 @@ class ShareViewController: SLComposeServiceViewController {
     // Extract GPS coordinates from image at URL
     private func extractLocation(from url: URL) -> CLLocation? {
         guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any],
-              let gps = properties[kCGImagePropertyGPSDictionary] as? [CFString: Any],
-              let latitude = gps[kCGImagePropertyGPSLatitude] as? Double,
-              let latitudeRef = gps[kCGImagePropertyGPSLatitudeRef] as? String,
-              let longitude = gps[kCGImagePropertyGPSLongitude] as? Double,
-              let longitudeRef = gps[kCGImagePropertyGPSLongitudeRef] as? String
+            let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil)
+                as? [CFString: Any],
+            let gps = properties[kCGImagePropertyGPSDictionary] as? [CFString: Any],
+            let latitude = gps[kCGImagePropertyGPSLatitude] as? Double,
+            let latitudeRef = gps[kCGImagePropertyGPSLatitudeRef] as? String,
+            let longitude = gps[kCGImagePropertyGPSLongitude] as? Double,
+            let longitudeRef = gps[kCGImagePropertyGPSLongitudeRef] as? String
         else {
             return nil
         }
@@ -81,27 +102,6 @@ class ShareViewController: SLComposeServiceViewController {
         let lat = (latitudeRef == "S") ? -latitude : latitude
         let lon = (longitudeRef == "W") ? -longitude : longitude
         return CLLocation(latitude: lat, longitude: lon)
-    }
-
-    // Optionally save UIImage to disk and return file URL
-    private func saveUIImageToDisk(image: UIImage) -> URL? {
-        let appGroupID = "group.com.alexezh.wahi"  // Replace with your App Group ID
-        guard
-            let containerURL = FileManager.default.containerURL(
-                forSecurityApplicationGroupIdentifier: appGroupID)
-        else { return nil }
-        let fileName = UUID().uuidString + ".jpg"
-        let fileURL = containerURL.appendingPathComponent(fileName)
-        if let jpegData = image.jpegData(compressionQuality: 0.9) {
-            do {
-                try jpegData.write(to: fileURL)
-                print("Saved UIImage to disk: \(fileURL)")
-                return fileURL
-            } catch {
-                print("Failed to save UIImage to disk: \(error)")
-            }
-        }
-        return nil
     }
 
     override func isContentValid() -> Bool {
@@ -121,4 +121,18 @@ class ShareViewController: SLComposeServiceViewController {
         return []
     }
 
+}
+
+private func downsampleImage(at url: URL, to targetWidth: CGFloat) -> UIImage? {
+    let options: [CFString: Any] = [
+        kCGImageSourceShouldCache: false,
+        kCGImageSourceCreateThumbnailFromImageAlways: true,
+        kCGImageSourceThumbnailMaxPixelSize: Int(targetWidth),
+    ]
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+        let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+    else {
+        return nil
+    }
+    return UIImage(cgImage: cgImage)
 }

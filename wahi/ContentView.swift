@@ -56,118 +56,70 @@ struct ContentView: View {
             }
             .ignoresSafeArea()
 
-            // Sliding pane (bottom sheet)
-            VStack {
-                Spacer()
-                ExpandableSearchView(
-                    isOpen: $showSheet,
-                    isExpanded: $isSheetExpanded,
-                    minHeight: 80,
-                    maxHeight: UIScreen.main.bounds.height * 0.95
-                ) {
-                    VStack(spacing: 0) {
-                        // Drag handle and expand/collapse button
-                        HStack {
-                            Capsule()
-                                .frame(width: 40, height: 6)
-                                .foregroundColor(.gray.opacity(0.4))
+            // Sliding expandable search/list pane
+            ExpandableSearchView(
+                isOpen: $showSheet,
+                isExpanded: $isSheetExpanded,
+                minHeight: 80,
+                maxHeight: UIScreen.main.bounds.height * 0.95
+            ) {
+                VStack(spacing: 0) {
+                    // Drag handle and expand/collapse button
+                    HStack {
+                        Capsule()
+                            .frame(width: 40, height: 6)
+                            .foregroundColor(.gray.opacity(0.4))
+                            .padding(.top, 8)
+                        Spacer()
+                        Button(action: {
+                            withAnimation {
+                                isSheetExpanded.toggle()
+                            }
+                        }) {
+                            Image(systemName: isSheetExpanded ? "chevron.down" : "chevron.up")
                                 .padding(.top, 8)
-                            Spacer()
-                            Button(action: {
-                                withAnimation {
-                                    isSheetExpanded.toggle()
-                                }
-                            }) {
-                                Image(systemName: isSheetExpanded ? "chevron.down" : "chevron.up")
-                                    .padding(.top, 8)
-                                    .padding(.trailing, 16)
-                            }
+                                .padding(.trailing, 16)
                         }
-                        // Search bar
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(.gray)
-                            TextField("Search...", text: $searchText)
-                                .textFieldStyle(PlainTextFieldStyle())
-                                .padding(8)
-                        }
-                        .background(Color(.systemGray6))
-                        .cornerRadius(10)
-                        .padding([.top, .horizontal])
+                    }
+                    // Search bar
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                        TextField("Search...", text: $searchText)
+                            .textFieldStyle(PlainTextFieldStyle())
+                            .padding(8)
+                    }
+                    .background(Color(.systemGray6))
+                    .cornerRadius(10)
+                    .padding([.top, .horizontal])
 
-                        // List of items
-                        List {
-                            ForEach(filteredItems) { item in
-                                HStack(alignment: .center, spacing: 12) {
-                                    if let imageData = item.imageData,
-                                        let image = UIImage(data: imageData)
-                                    {
-                                        Image(uiImage: image)
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: 56, height: 56)
-                                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    } else if let urlString = item.url,
-                                        let url = URL(string: urlString),
-                                        let image = loadImage(from: url)
-                                    {
-                                        Image(uiImage: image)
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: 56, height: 56)
-                                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    } else {
-                                        Image(systemName: "photo")
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: 56, height: 56)
-                                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                                            .foregroundColor(.gray)
-                                    }
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        if let date = item.dateAdded {
-                                            Text(date, formatter: itemFormatter)
-                                                .font(.headline)
-                                        }
-                                        if let post = item.post, !post.isEmpty {
-                                            Text(post)
-                                                .font(.body)
-                                                .lineLimit(1)
-                                        } else if let urlString = item.url {
-                                            Text(urlString)
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                                .lineLimit(1)
-                                        }
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                                .onTapGesture {
-                                    selectedPlace = item
-                                    showSheet = false
-                                    let coord = coordinate(for: item)
-                                    region.center = coord
-                                }
-                            }
-                            .onDelete(perform: deleteItems)
+                    // Move the list to a separate control
+                    PlaceListView(
+                        items: filteredItems,
+                        onSelect: { item in
+                            selectedPlace = item
+                            showSheet = false
+                            let coord = coordinate(for: item)
+                            region.center = coord
+                        },
+                        onDelete: deleteItems
+                    )
+
+                    // Bottom toolbar
+                    HStack {
+                        Spacer()
+                        Button(action: addItem) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 28))
                         }
-                        .listStyle(PlainListStyle())
+                        Spacer()
+                        EditButton()
+                            .font(.system(size: 18))
+                        Spacer()
                     }
+                    .padding()
+                    .background(.ultraThinMaterial)
                 }
-                // Bottom toolbar
-                HStack {
-                    Spacer()
-                    Button(action: addItem) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 28))
-                    }
-                    Spacer()
-                    EditButton()
-                        .font(.system(size: 18))
-                    Spacer()
-                }
-                .padding()
-                .background(.ultraThinMaterial)
             }
         }
     }
@@ -200,16 +152,6 @@ struct ContentView: View {
         }
     }
 
-    // Helper to load image from file URL
-    private func loadImage(from url: URL) -> UIImage? {
-        if url.isFileURL {
-            return UIImage(contentsOfFile: url.path)
-        } else if let data = try? Data(contentsOf: url) {
-            return UIImage(data: data)
-        }
-        return nil
-    }
-
     // Helper to get coordinate from Place
     private func coordinate(for item: Place) -> CLLocationCoordinate2D {
         if let locationData = item.value(forKey: "location") as? Data,
@@ -222,13 +164,6 @@ struct ContentView: View {
         return CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
     }
 }
-
-private let itemFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .medium
-    return formatter
-}()
 
 #Preview {
     ContentView().environment(

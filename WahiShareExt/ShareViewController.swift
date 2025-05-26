@@ -43,7 +43,7 @@ class ShareViewController: SLComposeServiceViewController {
     // Save the image URL string to Core Data
     private func saveImageURLToCoreData(url: URL) {
         guard let context = persistentContainer?.viewContext else { return }
-        let entity = NSEntityDescription.entity(forEntityName: "SharedImage", in: context)!
+        let entity = NSEntityDescription.entity(forEntityName: "Place", in: context)!
         let sharedImage = NSManagedObject(entity: entity, insertInto: context)
         sharedImage.setValue(url.absoluteString, forKey: "url")
         sharedImage.setValue(Date(), forKey: "dateAdded")
@@ -75,12 +75,12 @@ class ShareViewController: SLComposeServiceViewController {
 
     // MARK: - Core Data stack for App Group
     lazy var persistentContainer: NSPersistentContainer? = {
-        let appGroupID = "group.com.yourcompany.wahi" // Replace with your App Group ID
+        let appGroupID = "group.com.alexezh.wahi" // Replace with your App Group ID
         guard let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) else { return nil }
-        let storeURL = containerURL.appendingPathComponent("SharedImages.sqlite")
-        let modelURL = Bundle.main.url(forResource: "SharedImages", withExtension: "momd") // Your Core Data model name
+        let storeURL = containerURL.appendingPathComponent("places.sqlite")
+        let modelURL = Bundle.main.url(forResource: "places", withExtension: "momd") // Your Core Data model name
         guard let model = modelURL.flatMap({ NSManagedObjectModel(contentsOf: $0) }) else { return nil }
-        let container = NSPersistentContainer(name: "SharedImages", managedObjectModel: model)
+        let container = NSPersistentContainer(name: "places", managedObjectModel: model)
         let description = NSPersistentStoreDescription(url: storeURL)
         container.persistentStoreDescriptions = [description]
         var loadError: Error?

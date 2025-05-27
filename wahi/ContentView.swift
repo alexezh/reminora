@@ -7,6 +7,7 @@
 
 import CoreData
 import MapKit
+import PhotosUI
 import SwiftUI
 
 struct ContentView: View {
@@ -34,6 +35,8 @@ struct ContentView: View {
     @GestureState private var dragOffset: CGFloat = 0
 
     @StateObject private var locationManager = LocationManager()
+
+    @State private var showPhotoLibrary = false
 
     var filteredItems: [Place] {
         let center = region.center
@@ -66,22 +69,30 @@ struct ContentView: View {
     }
 
     var body: some View {
-        MapView(
-            region: $region,
-            filteredItems: filteredItems,
-            selectedPlace: $selectedPlace,
-            showSheet: $showSheet,
-            coordinate: coordinate(for:),
-            locationManager: locationManager
-        )
+        ZStack {
+            MapView(
+                region: $region,
+                filteredItems: filteredItems,
+                selectedPlace: $selectedPlace,
+                showSheet: $showSheet,
+                coordinate: coordinate(for:),
+                locationManager: locationManager
+            )
+
+            // Show the system photo picker as a sheet when showPhotoLibrary is true
+            if showPhotoLibrary {
+                PhotoLibraryView(isPresented: $showPhotoLibrary)
+                    .ignoresSafeArea()
+                    .transition(.move(edge: .bottom))
+            }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
                 Spacer()
                 Button(action: {
-                    // Map button action
-                    // Example: center on user location
-                    if let userLoc = locationManager.lastLocation {
-                        region.center = userLoc.coordinate
+                    // Map button action: hide photo library, show map
+                    withAnimation {
+                        showPhotoLibrary = false
                     }
                 }) {
                     VStack {
@@ -93,10 +104,9 @@ struct ContentView: View {
                 }
                 Spacer()
                 Button(action: {
-                    // Places button action
-                    // Example: show/hide places list
+                    // Places button action: show full photo library
                     withAnimation {
-                        showSheet.toggle()
+                        showPhotoLibrary = true
                     }
                 }) {
                     VStack {
@@ -109,7 +119,6 @@ struct ContentView: View {
                 Spacer()
                 Button(action: {
                     // Camera button action
-                    // Example: trigger camera or add new place
                     addItem()
                 }) {
                     VStack {

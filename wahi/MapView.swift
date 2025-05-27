@@ -2,6 +2,34 @@ import CoreData
 import MapKit
 import SwiftUI
 
+func convertRegionToRect(from region: MKCoordinateRegion) -> MKMapRect {
+    let center = MKMapPoint(region.center)
+
+    let span = region.span
+    let deltaLat = span.latitudeDelta
+    let deltaLon = span.longitudeDelta
+
+    let topLeftCoord = CLLocationCoordinate2D(
+        latitude: region.center.latitude + (deltaLat / 2),
+        longitude: region.center.longitude - (deltaLon / 2)
+    )
+
+    let bottomRightCoord = CLLocationCoordinate2D(
+        latitude: region.center.latitude - (deltaLat / 2),
+        longitude: region.center.longitude + (deltaLon / 2)
+    )
+
+    let topLeftPoint = MKMapPoint(topLeftCoord)
+    let bottomRightPoint = MKMapPoint(bottomRightCoord)
+
+    let origin = MKMapPoint(x: min(topLeftPoint.x, bottomRightPoint.x),
+                            y: min(topLeftPoint.y, bottomRightPoint.y))
+    let size = MKMapSize(width: abs(topLeftPoint.x - bottomRightPoint.x),
+                         height: abs(topLeftPoint.y - bottomRightPoint.y))
+
+    return MKMapRect(origin: origin, size: size)
+}
+
 struct MapView: View {
   @Environment(\.managedObjectContext) private var viewContext
 
@@ -112,8 +140,28 @@ struct MapView: View {
               onSelect: { item in
                 selectedPlace = item
                 showSheet = false
+                
+                // Get coordinate of selected place
                 let coord = coordinate(item: item)
-                region.center = coord
+                
+                // Create a rect representing the current map viewport
+                let mapRect = convertRegionToRect(from: region)
+                let itemPoint = MKMapPoint(coord)
+                
+                // Only update region if the point is outside viewport
+                if !mapRect.contains(itemPoint) {
+                    // Animate to show the point with some padding
+                    let newRegion = MKCoordinateRegion(
+                        center: coord,
+                        span: MKCoordinateSpan(
+                            latitudeDelta: region.span.latitudeDelta * 0.8,
+                            longitudeDelta: region.span.longitudeDelta * 0.8
+                        )
+                    )
+                    withAnimation {
+                        region = newRegion
+                    }
+                }
               },
               onDelete: deleteItems
             )

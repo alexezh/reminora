@@ -25,14 +25,13 @@ struct ContentView: View {
     @State private var showSheet = false
     @State private var selectedPlace: Place?
 
-    @State private var sheetHeight: CGFloat = 400
     @State private var isSheetExpanded: Bool = false
-
-    @State private var sheetOffset: CGFloat = 0
-    @GestureState private var dragOffset: CGFloat = 0
 
     let minHeight: CGFloat = 50
     let maxHeight: CGFloat = 400
+
+    @State private var sheetHeight: CGFloat = 50;
+    @GestureState private var dragOffset: CGFloat = 0
 
     var filteredItems: [Place] {
         if searchText.isEmpty {
@@ -69,6 +68,8 @@ struct ContentView: View {
 
             // Sliding pane
             GeometryReader { geometry in
+                let safeAreaBottom = geometry.safeAreaInsets.bottom
+
                 VStack {
                     Capsule()
                         .fill(Color.secondary)
@@ -89,7 +90,8 @@ struct ContentView: View {
                 }
                 .frame(
                     width: geometry.size.width,
-                    height: maxHeight,
+                    // safe area is approximation, make actual size bigger
+                    height: maxHeight + safeAreaBottom,
                     alignment: .top
                 )
                 .background(
@@ -97,79 +99,22 @@ struct ContentView: View {
                         .fill(Color(.systemBackground))
                         .shadow(radius: 5)
                 )
-                .offset(y: geometry.size.height - minHeight + dragOffset + sheetOffset)
+                .offset(
+                    y: geometry.size.height - sheetHeight - safeAreaBottom + dragOffset
+                )
                 .gesture(
                     DragGesture()
                         .updating($dragOffset) { value, state, _ in
                             state = value.translation.height
                         }
                         .onEnded { value in
-                            let newOffset = sheetOffset + value.translation.height
-                            // Clamp between fully expanded and collapsed
-                            sheetOffset = min(max(newOffset, -maxHeight + minHeight), 0)
+                            let newHeight = sheetHeight - value.translation.height
+                            // zero offset is position at minHeight
+                            // we want to limit offset to maxHeight - minHeight
+                            sheetHeight = min(maxHeight, max(newHeight, minHeight))
                         }
                 )
             }
-            .frame(height: maxHeight)
-
-            // Always keep ExpandableSearchView in the view hierarchy, but control its offset and opacity
-            // ExpandableSearchView(
-            //     isOpen: .constant(true),  // Always open so it's always in the view hierarchy
-            //     isExpanded: $isSheetExpanded,
-            //     minHeight: showSheet ? 80 : 10,
-            //     maxHeight: UIScreen.main.bounds.height * 0.95
-            // ) {
-            //     VStack(spacing: 0) {
-            //         // Drag handle and expand/collapse button
-            //         HStack {
-            //             Capsule()
-            //                 .frame(width: 40, height: 6)
-            //                 .foregroundColor(.gray.opacity(0.4))
-            //                 .padding(.top, 8)
-            //                 .onTapGesture {
-            //                     withAnimation {
-            //                         isSheetExpanded.toggle()
-            //                     }
-            //                 }
-            //             Spacer()
-            //             Button(action: {
-            //                 withAnimation {
-            //                     isSheetExpanded.toggle()
-            //                 }
-            //             }) {
-            //                 Image(systemName: isSheetExpanded ? "chevron.down" : "chevron.up")
-            //                     .padding(.top, 8)
-            //                     .padding(.trailing, 16)
-            //             }
-            //         }
-            //         // Search bar
-            //         HStack {
-            //             Image(systemName: "magnifyingglass")
-            //                 .foregroundColor(.gray)
-            //             TextField("Search...", text: $searchText)
-            //                 .textFieldStyle(PlainTextFieldStyle())
-            //                 .padding(8)
-            //         }
-            //         .background(Color(.systemGray6))
-            //         .cornerRadius(10)
-            //         .padding([.top, .horizontal])
-
-            //         // Move the list to a separate control
-            //         PlaceListView(
-            //             items: filteredItems,
-            //             onSelect: { item in
-            //                 selectedPlace = item
-            //                 showSheet = false
-            //                 let coord = coordinate(for: item)
-            //                 region.center = coord
-            //             },
-            //             onDelete: deleteItems
-            //         )
-            //     }
-            // }
-            //            .opacity(showSheet ? 1 : 0)
-            //            .animation(.easeInOut, value: showSheet)
-            //            .allowsHitTesting(showSheet)
         }
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {

@@ -6,6 +6,7 @@
 //
 
 import CoreData
+import CoreLocation
 import MapKit
 import SwiftUI
 
@@ -30,24 +31,46 @@ struct ContentView: View {
     let minHeight: CGFloat = 50
     let maxHeight: CGFloat = 400
 
-    @State private var sheetHeight: CGFloat = 50;
+    @State private var sheetHeight: CGFloat = 50
     @GestureState private var dragOffset: CGFloat = 0
 
+    @StateObject private var locationManager = LocationManager()
+
     var filteredItems: [Place] {
+        let center = region.center
+        let places: [Place]
         if searchText.isEmpty {
-            return Array(items)
+            places = Array(items)
         } else {
-            return items.filter { item in
+            places = items.filter { item in
                 (item.post?.localizedCaseInsensitiveContains(searchText) ?? false)
                     || (item.url?.localizedCaseInsensitiveContains(searchText) ?? false)
             }
         }
+        // Sort by distance from map center
+        return places.sorted { a, b in
+            let aCoord = coordinate(for: a)
+            let bCoord = coordinate(for: b)
+            let aDist = distance(from: center, to: aCoord)
+            let bDist = distance(from: center, to: bCoord)
+            return aDist < bDist
+        }
+    }
+
+    // Helper to calculate distance between two coordinates (in meters)
+    private func distance(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D)
+        -> CLLocationDistance
+    {
+        let loc1 = CLLocation(latitude: from.latitude, longitude: from.longitude)
+        let loc2 = CLLocation(latitude: to.latitude, longitude: to.longitude)
+        return loc1.distance(from: loc2)
     }
 
     var body: some View {
         ZStack {
-            // Center map on first item if available
-            Map(coordinateRegion: $region, annotationItems: filteredItems) { item in
+            // Map with user location
+            Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: filteredItems)
+            { item in
                 MapAnnotation(coordinate: coordinate(for: item)) {
                     Button(action: {
                         selectedPlace = item
@@ -61,8 +84,13 @@ struct ContentView: View {
             }
             .ignoresSafeArea()
             .onAppear {
-                if let first = filteredItems.first {
-                    region.center = coordinate(for: first)
+                // if let first = filteredItems.first {
+                //     region.center = coordinate(for: first)
+                // }
+
+                // Center on user location if available and no places
+                if let userLoc = locationManager.lastLocation {
+                    region.center = userLoc.coordinate
                 }
             }
 
@@ -175,4 +203,22 @@ struct ContentView: View {
 #Preview {
     ContentView().environment(
         \.managedObjectContext, PersistenceController.preview.container.viewContext)
+}
+
+// LocationManager to get current user location
+class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
+    private let manager = CLLocationManager()
+    @Published var lastLocation: CLLocation?
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.requestWhenInUseAuthorization()
+        manager.startUpdatingLocation()
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        lastLocation = locations.last
+    }
 }

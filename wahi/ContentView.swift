@@ -28,6 +28,12 @@ struct ContentView: View {
     @State private var sheetHeight: CGFloat = 400
     @State private var isSheetExpanded: Bool = false
 
+    @State private var sheetOffset: CGFloat = 0
+    @GestureState private var dragOffset: CGFloat = 0
+
+    let minHeight: CGFloat = 50
+    let maxHeight: CGFloat = 400
+    
     var filteredItems: [Place] {
         if searchText.isEmpty {
             return Array(items)
@@ -56,70 +62,117 @@ struct ContentView: View {
             }
             .ignoresSafeArea()
 
-            // Sliding expandable search/list pane
-            ExpandableSearchView(
-                isOpen: $showSheet,
-                isExpanded: $isSheetExpanded,
-                minHeight: 80,
-                maxHeight: UIScreen.main.bounds.height * 0.95
-            ) {
-                VStack(spacing: 0) {
-                    // Drag handle and expand/collapse button
-                    HStack {
-                        Capsule()
-                            .frame(width: 40, height: 6)
-                            .foregroundColor(.gray.opacity(0.4))
-                            .padding(.top, 8)
-                        Spacer()
-                        Button(action: {
-                            withAnimation {
-                                isSheetExpanded.toggle()
-                            }
-                        }) {
-                            Image(systemName: isSheetExpanded ? "chevron.down" : "chevron.up")
-                                .padding(.top, 8)
-                                .padding(.trailing, 16)
-                        }
-                    }
-                    // Search bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.gray)
-                        TextField("Search...", text: $searchText)
-                            .textFieldStyle(PlainTextFieldStyle())
-                            .padding(8)
-                    }
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                    .padding([.top, .horizontal])
-
-                    // Move the list to a separate control
-                    PlaceListView(
-                        items: filteredItems,
-                        onSelect: { item in
-                            selectedPlace = item
-                            showSheet = false
-                            let coord = coordinate(for: item)
-                            region.center = coord
-                        },
-                        onDelete: deleteItems
-                    )
-
-                    // Bottom toolbar
-                    HStack {
-                        Spacer()
-                        Button(action: addItem) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 28))
-                        }
-                        Spacer()
-                        EditButton()
-                            .font(.system(size: 18))
-                        Spacer()
+            // Sliding pane
+            GeometryReader { geometry in
+                VStack {
+                    Capsule()
+                        .fill(Color.secondary)
+                        .frame(width: 40, height: 6)
+                        .padding(.top, 8)
+                    Spacer()
+                    // Content inside the sheet
+                    VStack(alignment: .leading) {
+                        Text("Details")
+                            .font(.headline)
+                        Text("Here you can show additional information or controls.")
+                            .font(.subheadline)
                     }
                     .padding()
-                    .background(.ultraThinMaterial)
+                    Spacer()
                 }
+                .frame(width: geometry.size.width,
+                       height: maxHeight,
+                       alignment: .top)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.systemBackground))
+                        .shadow(radius: 5)
+                )
+                .offset(y: geometry.size.height - minHeight + dragOffset + sheetOffset)
+                .gesture(
+                    DragGesture()
+                        .updating($dragOffset) { value, state, _ in
+                            state = value.translation.height
+                        }
+                        .onEnded { value in
+                            let newOffset = sheetOffset + value.translation.height
+                            // Clamp between fully expanded and collapsed
+                            sheetOffset = min(max(newOffset, -maxHeight + minHeight), 0)
+                        }
+                )
+            }
+            .frame(height: maxHeight)
+
+            // Always keep ExpandableSearchView in the view hierarchy, but control its offset and opacity
+            // ExpandableSearchView(
+            //     isOpen: .constant(true),  // Always open so it's always in the view hierarchy
+            //     isExpanded: $isSheetExpanded,
+            //     minHeight: showSheet ? 80 : 10,
+            //     maxHeight: UIScreen.main.bounds.height * 0.95
+            // ) {
+            //     VStack(spacing: 0) {
+            //         // Drag handle and expand/collapse button
+            //         HStack {
+            //             Capsule()
+            //                 .frame(width: 40, height: 6)
+            //                 .foregroundColor(.gray.opacity(0.4))
+            //                 .padding(.top, 8)
+            //                 .onTapGesture {
+            //                     withAnimation {
+            //                         isSheetExpanded.toggle()
+            //                     }
+            //                 }
+            //             Spacer()
+            //             Button(action: {
+            //                 withAnimation {
+            //                     isSheetExpanded.toggle()
+            //                 }
+            //             }) {
+            //                 Image(systemName: isSheetExpanded ? "chevron.down" : "chevron.up")
+            //                     .padding(.top, 8)
+            //                     .padding(.trailing, 16)
+            //             }
+            //         }
+            //         // Search bar
+            //         HStack {
+            //             Image(systemName: "magnifyingglass")
+            //                 .foregroundColor(.gray)
+            //             TextField("Search...", text: $searchText)
+            //                 .textFieldStyle(PlainTextFieldStyle())
+            //                 .padding(8)
+            //         }
+            //         .background(Color(.systemGray6))
+            //         .cornerRadius(10)
+            //         .padding([.top, .horizontal])
+
+            //         // Move the list to a separate control
+            //         PlaceListView(
+            //             items: filteredItems,
+            //             onSelect: { item in
+            //                 selectedPlace = item
+            //                 showSheet = false
+            //                 let coord = coordinate(for: item)
+            //                 region.center = coord
+            //             },
+            //             onDelete: deleteItems
+            //         )
+            //     }
+            // }
+//            .opacity(showSheet ? 1 : 0)
+//            .animation(.easeInOut, value: showSheet)
+//            .allowsHitTesting(showSheet)
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Spacer()
+                Button(action: addItem) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 28))
+                }
+                Spacer()
+                EditButton()
+                    .font(.system(size: 18))
+                Spacer()
             }
         }
     }

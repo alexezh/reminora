@@ -38,6 +38,20 @@ struct ExpandableSearchView<Content: View>: View {
     VStack {
       Spacer()
       VStack(spacing: 0) {
+        // Drag handle only (no expand/collapse button)
+        HStack {
+          Capsule()
+            .frame(width: 40, height: 6)
+            .foregroundColor(.gray.opacity(0.4))
+            .padding(.top, 8)
+            .onTapGesture {
+              withAnimation {
+                isExpanded.toggle()
+              }
+            }
+          Spacer()
+          // Removed the expand/collapse chevron button
+        }
         content
       }
       .frame(maxWidth: .infinity)

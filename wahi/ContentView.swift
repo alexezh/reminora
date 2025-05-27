@@ -6,7 +6,6 @@
 //
 
 import CoreData
-import CoreLocation
 import MapKit
 import SwiftUI
 
@@ -67,93 +66,59 @@ struct ContentView: View {
     }
 
     var body: some View {
-        ZStack {
-            // Map with user location
-            Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: filteredItems)
-            { item in
-                MapAnnotation(coordinate: coordinate(for: item)) {
-                    Button(action: {
-                        selectedPlace = item
-                        showSheet = true
-                    }) {
-                        Image(systemName: "mappin.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.red)
-                    }
-                }
-            }
-            .ignoresSafeArea()
-            .onAppear {
-                // if let first = filteredItems.first {
-                //     region.center = coordinate(for: first)
-                // }
-
-                // Center on user location if available and no places
-                if let userLoc = locationManager.lastLocation {
-                    region.center = userLoc.coordinate
-                }
-            }
-
-            // Sliding pane
-            GeometryReader { geometry in
-                let safeAreaBottom = geometry.safeAreaInsets.bottom
-
-                VStack {
-                    Capsule()
-                        .fill(Color.secondary)
-                        .frame(width: 40, height: 6)
-                        .padding(.top, 8)
-                    Spacer()
-                    // Move the list to a separate control
-                    PlaceListView(
-                        items: filteredItems,
-                        onSelect: { item in
-                            selectedPlace = item
-                            showSheet = false
-                            let coord = coordinate(for: item)
-                            region.center = coord
-                        },
-                        onDelete: deleteItems
-                    )
-                }
-                .frame(
-                    width: geometry.size.width,
-                    // safe area is approximation, make actual size bigger
-                    height: maxHeight + safeAreaBottom,
-                    alignment: .top
-                )
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(.systemBackground))
-                        .shadow(radius: 5)
-                )
-                .offset(
-                    y: geometry.size.height - sheetHeight - safeAreaBottom + dragOffset
-                )
-                .gesture(
-                    DragGesture()
-                        .updating($dragOffset) { value, state, _ in
-                            state = value.translation.height
-                        }
-                        .onEnded { value in
-                            let newHeight = sheetHeight - value.translation.height
-                            // zero offset is position at minHeight
-                            // we want to limit offset to maxHeight - minHeight
-                            sheetHeight = min(maxHeight, max(newHeight, minHeight))
-                        }
-                )
-            }
-        }
+        MapView(
+            region: $region,
+            filteredItems: filteredItems,
+            selectedPlace: $selectedPlace,
+            showSheet: $showSheet,
+            coordinate: coordinate(for:),
+            locationManager: locationManager
+        )
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {
                 Spacer()
-                Button(action: addItem) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 28))
+                Button(action: {
+                    // Map button action
+                    // Example: center on user location
+                    if let userLoc = locationManager.lastLocation {
+                        region.center = userLoc.coordinate
+                    }
+                }) {
+                    VStack {
+                        Image(systemName: "map")
+                            .font(.system(size: 24))
+                        Text("Map")
+                            .font(.caption)
+                    }
                 }
                 Spacer()
-                EditButton()
-                    .font(.system(size: 18))
+                Button(action: {
+                    // Places button action
+                    // Example: show/hide places list
+                    withAnimation {
+                        showSheet.toggle()
+                    }
+                }) {
+                    VStack {
+                        Image(systemName: "list.bullet")
+                            .font(.system(size: 24))
+                        Text("Places")
+                            .font(.caption)
+                    }
+                }
+                Spacer()
+                Button(action: {
+                    // Camera button action
+                    // Example: trigger camera or add new place
+                    addItem()
+                }) {
+                    VStack {
+                        Image(systemName: "camera")
+                            .font(.system(size: 24))
+                        Text("Camera")
+                            .font(.caption)
+                    }
+                }
                 Spacer()
             }
         }
@@ -203,22 +168,4 @@ struct ContentView: View {
 #Preview {
     ContentView().environment(
         \.managedObjectContext, PersistenceController.preview.container.viewContext)
-}
-
-// LocationManager to get current user location
-class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
-    private let manager = CLLocationManager()
-    @Published var lastLocation: CLLocation?
-
-    override init() {
-        super.init()
-        manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyBest
-        manager.requestWhenInUseAuthorization()
-        manager.startUpdatingLocation()
-    }
-
-    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        lastLocation = locations.last
-    }
 }

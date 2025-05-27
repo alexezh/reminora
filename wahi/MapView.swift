@@ -99,50 +99,57 @@ struct MapView: View {
       GeometryReader { geometry in
         let safeAreaBottom = geometry.safeAreaInsets.bottom
 
-        VStack {
-          Capsule()
-            .fill(Color.secondary)
-            .frame(width: 40, height: 6)
-            .padding(.top, 8)
-          Spacer()
-          // Move the list to a separate control
-          PlaceListView(
-            items: filteredItems,
-            onSelect: { item in
-              selectedPlace = item
-              showSheet = false
-              let coord = coordinate(item: item)
-              region.center = coord
-            },
-            onDelete: deleteItems
+        ScrollViewReader { proxy in
+          VStack {
+            Capsule()
+              .fill(Color.secondary)
+              .frame(width: 40, height: 6)
+              .padding(.top, 8)
+            Spacer()
+            PlaceListView(
+              items: filteredItems,
+              selectedPlace: selectedPlace,
+              onSelect: { item in
+                selectedPlace = item
+                showSheet = false
+                let coord = coordinate(item: item)
+                region.center = coord
+              },
+              onDelete: deleteItems
+            )
+          }
+          .frame(
+            width: geometry.size.width,
+            height: maxHeight + safeAreaBottom,
+            alignment: .top
           )
+          .background(
+            RoundedRectangle(cornerRadius: 16)
+              .fill(Color(.systemBackground))
+              .shadow(radius: 5)
+          )
+          .offset(
+            y: geometry.size.height - sheetHeight - safeAreaBottom + dragOffset
+          )
+          .gesture(
+            DragGesture()
+              .updating($dragOffset) { value, state, _ in
+                state = value.translation.height
+              }
+              .onEnded { value in
+                let newHeight = sheetHeight - value.translation.height
+                sheetHeight = min(maxHeight, max(newHeight, minHeight))
+              }
+          )
+          // Scroll to selectedPlace when it changes
+          .onChange(of: selectedPlace) { place in
+            if let place = place {
+              withAnimation {
+                proxy.scrollTo(place.objectID, anchor: .center)
+              }
+            }
+          }
         }
-        .frame(
-          width: geometry.size.width,
-          // safe area is approximation, make actual size bigger
-          height: maxHeight + safeAreaBottom,
-          alignment: .top
-        )
-        .background(
-          RoundedRectangle(cornerRadius: 16)
-            .fill(Color(.systemBackground))
-            .shadow(radius: 5)
-        )
-        .offset(
-          y: geometry.size.height - sheetHeight - safeAreaBottom + dragOffset
-        )
-        .gesture(
-          DragGesture()
-            .updating($dragOffset) { value, state, _ in
-              state = value.translation.height
-            }
-            .onEnded { value in
-              let newHeight = sheetHeight - value.translation.height
-              // zero offset is position at minHeight
-              // we want to limit offset to maxHeight - minHeight
-              sheetHeight = min(maxHeight, max(newHeight, minHeight))
-            }
-        )
       }
     }
   }

@@ -4,12 +4,13 @@ import SwiftUI
 
 struct PlaceListView: View {
   let items: [Place]
+  let selectedPlace: Place?
   let onSelect: (Place) -> Void
   let onDelete: (IndexSet) -> Void
 
   var body: some View {
     List {
-      ForEach(items) { item in
+      ForEach(items, id: \.objectID) { item in
         HStack(alignment: .center, spacing: 12) {
           if let imageData = item.imageData, let image = UIImage(data: imageData) {
             Image(uiImage: image)
@@ -51,6 +52,8 @@ struct PlaceListView: View {
           }
         }
         .padding(.vertical, 4)
+        .background(selectedPlace?.objectID == item.objectID ? Color.blue.opacity(0.1) : Color.clear)
+        .id(item.objectID) // Important for ScrollViewReader
         .onTapGesture {
           onSelect(item)
         }

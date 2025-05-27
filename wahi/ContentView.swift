@@ -33,7 +33,7 @@ struct ContentView: View {
 
     let minHeight: CGFloat = 50
     let maxHeight: CGFloat = 400
-    
+
     var filteredItems: [Place] {
         if searchText.isEmpty {
             return Array(items)
@@ -47,7 +47,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            // Map background
+            // Center map on first item if available
             Map(coordinateRegion: $region, annotationItems: filteredItems) { item in
                 MapAnnotation(coordinate: coordinate(for: item)) {
                     Button(action: {
@@ -61,6 +61,11 @@ struct ContentView: View {
                 }
             }
             .ignoresSafeArea()
+            .onAppear {
+                if let first = filteredItems.first {
+                    region.center = coordinate(for: first)
+                }
+            }
 
             // Sliding pane
             GeometryReader { geometry in
@@ -70,19 +75,23 @@ struct ContentView: View {
                         .frame(width: 40, height: 6)
                         .padding(.top, 8)
                     Spacer()
-                    // Content inside the sheet
-                    VStack(alignment: .leading) {
-                        Text("Details")
-                            .font(.headline)
-                        Text("Here you can show additional information or controls.")
-                            .font(.subheadline)
-                    }
-                    .padding()
-                    Spacer()
+                    // Move the list to a separate control
+                    PlaceListView(
+                        items: filteredItems,
+                        onSelect: { item in
+                            selectedPlace = item
+                            showSheet = false
+                            let coord = coordinate(for: item)
+                            region.center = coord
+                        },
+                        onDelete: deleteItems
+                    )
                 }
-                .frame(width: geometry.size.width,
-                       height: maxHeight,
-                       alignment: .top)
+                .frame(
+                    width: geometry.size.width,
+                    height: maxHeight,
+                    alignment: .top
+                )
                 .background(
                     RoundedRectangle(cornerRadius: 16)
                         .fill(Color(.systemBackground))
@@ -158,9 +167,9 @@ struct ContentView: View {
             //         )
             //     }
             // }
-//            .opacity(showSheet ? 1 : 0)
-//            .animation(.easeInOut, value: showSheet)
-//            .allowsHitTesting(showSheet)
+            //            .opacity(showSheet ? 1 : 0)
+            //            .animation(.easeInOut, value: showSheet)
+            //            .allowsHitTesting(showSheet)
         }
         .toolbar {
             ToolbarItemGroup(placement: .bottomBar) {

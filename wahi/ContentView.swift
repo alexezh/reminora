@@ -13,24 +13,15 @@ import SwiftUI
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
 
-    @State private var region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
-        span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
-    )
     @State private var showSheet = false
 
     @State private var isSheetExpanded: Bool = false
-
-    @StateObject private var locationManager = LocationManager()
 
     @State private var showPhotoLibrary = false
 
     var body: some View {
         ZStack {
-            MapView(
-                region: $region,
-                locationManager: locationManager
-            )
+            MapView()
 
             // Show the system photo picker as a sheet when showPhotoLibrary is true
             if showPhotoLibrary {

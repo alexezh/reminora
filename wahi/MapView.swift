@@ -5,7 +5,10 @@ import SwiftUI
 struct MapView: View {
   @Environment(\.managedObjectContext) private var viewContext
 
-  @Binding var region: MKCoordinateRegion
+  @State private var region = MKCoordinateRegion(
+    center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
+    span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+  )
   @FetchRequest(
     sortDescriptors: [NSSortDescriptor(keyPath: \Place.dateAdded, ascending: true)],
     animation: .default)
@@ -15,7 +18,7 @@ struct MapView: View {
   @State private var selectedPlace: Place?
 
   @State var showSheet: Bool = false
-  var locationManager: LocationManager
+  @StateObject private var locationManager = LocationManager()
 
   let minHeight: CGFloat = 50
   let maxHeight: CGFloat = 400
@@ -54,6 +57,7 @@ struct MapView: View {
   }
 
   var body: some View {
+
     ZStack {
       // Map with user location
       Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: filteredItems) {
@@ -71,90 +75,75 @@ struct MapView: View {
       }
       .ignoresSafeArea()
       .onAppear {
+        // if let first = filteredItems.first {
+        //     region.center = coordinate(for: first)
+        // }
+
         // Center on user location if available and no places
-        if let userLoc = locationManager.lastLocation {
-          region.center = userLoc.coordinate
+        // if let userLoc = locationManager.lastLocation {
+        //   region.center = userLoc.coordinate
+        // }
+      }
+      .onReceive(locationManager.$lastLocation) { location in
+        guard let location = location else { return }
+        DispatchQueue.main.async {
+          print("updating location")
+          region = MKCoordinateRegion(
+            center: location.coordinate,
+            span: region.span  // or any span you want to preserve
+          )
         }
       }
 
-      ZStack {
-        // Map with user location
-        Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: filteredItems) {
-          item in
-          MapAnnotation(coordinate: coordinate(item: item)) {
-            Button(action: {
+      // Sliding pane
+      GeometryReader { geometry in
+        let safeAreaBottom = geometry.safeAreaInsets.bottom
+
+        VStack {
+          Capsule()
+            .fill(Color.secondary)
+            .frame(width: 40, height: 6)
+            .padding(.top, 8)
+          Spacer()
+          // Move the list to a separate control
+          PlaceListView(
+            items: filteredItems,
+            onSelect: { item in
               selectedPlace = item
-              showSheet = true
-            }) {
-              Image(systemName: "mappin.circle.fill")
-                .font(.title)
-                .foregroundColor(.red)
+              showSheet = false
+              let coord = coordinate(item: item)
+              region.center = coord
+            },
+            onDelete: deleteItems
+          )
+        }
+        .frame(
+          width: geometry.size.width,
+          // safe area is approximation, make actual size bigger
+          height: maxHeight + safeAreaBottom,
+          alignment: .top
+        )
+        .background(
+          RoundedRectangle(cornerRadius: 16)
+            .fill(Color(.systemBackground))
+            .shadow(radius: 5)
+        )
+        .offset(
+          y: geometry.size.height - sheetHeight - safeAreaBottom + dragOffset
+        )
+        .gesture(
+          DragGesture()
+            .updating($dragOffset) { value, state, _ in
+              state = value.translation.height
             }
-          }
-        }
-        .ignoresSafeArea()
-        .onAppear {
-          // if let first = filteredItems.first {
-          //     region.center = coordinate(for: first)
-          // }
-
-          // Center on user location if available and no places
-          if let userLoc = locationManager.lastLocation {
-            region.center = userLoc.coordinate
-          }
-        }
-
-        // Sliding pane
-        GeometryReader { geometry in
-          let safeAreaBottom = geometry.safeAreaInsets.bottom
-
-          VStack {
-            Capsule()
-              .fill(Color.secondary)
-              .frame(width: 40, height: 6)
-              .padding(.top, 8)
-            Spacer()
-            // Move the list to a separate control
-            PlaceListView(
-              items: filteredItems,
-              onSelect: { item in
-                selectedPlace = item
-                showSheet = false
-                let coord = coordinate(item: item)
-                region.center = coord
-              },
-              onDelete: deleteItems
-            )
-          }
-          .frame(
-            width: geometry.size.width,
-            // safe area is approximation, make actual size bigger
-            height: maxHeight + safeAreaBottom,
-            alignment: .top
-          )
-          .background(
-            RoundedRectangle(cornerRadius: 16)
-              .fill(Color(.systemBackground))
-              .shadow(radius: 5)
-          )
-          .offset(
-            y: geometry.size.height - sheetHeight - safeAreaBottom + dragOffset
-          )
-          .gesture(
-            DragGesture()
-              .updating($dragOffset) { value, state, _ in
-                state = value.translation.height
-              }
-              .onEnded { value in
-                let newHeight = sheetHeight - value.translation.height
-                // zero offset is position at minHeight
-                // we want to limit offset to maxHeight - minHeight
-                sheetHeight = min(maxHeight, max(newHeight, minHeight))
-              }
-          )
-        }
+            .onEnded { value in
+              let newHeight = sheetHeight - value.translation.height
+              // zero offset is position at minHeight
+              // we want to limit offset to maxHeight - minHeight
+              sheetHeight = min(maxHeight, max(newHeight, minHeight))
+            }
+        )
       }
-
     }
   }
 

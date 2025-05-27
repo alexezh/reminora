@@ -34,41 +34,29 @@ struct ContentView: View {
             ToolbarItemGroup(placement: .bottomBar) {
                 Spacer()
                 Button(action: {
-                    // Map button action: hide photo library, show map
+                    // Home button action: hide photo library, show map
                     withAnimation {
                         showPhotoLibrary = false
                     }
                 }) {
                     VStack {
-                        Image(systemName: "map")
+                        Image(systemName: "house")
                             .font(.system(size: 24))
-                        Text("Map")
+                        Text("Home")
                             .font(.caption)
                     }
                 }
                 Spacer()
                 Button(action: {
-                    // Places button action: show full photo library
+                    // Add button action: show full photo library
                     withAnimation {
                         showPhotoLibrary = true
                     }
                 }) {
                     VStack {
-                        Image(systemName: "list.bullet")
+                        Image(systemName: "plus.circle.fill")
                             .font(.system(size: 24))
-                        Text("Places")
-                            .font(.caption)
-                    }
-                }
-                Spacer()
-                Button(action: {
-                    // Camera button action
-                    // addItem()
-                }) {
-                    VStack {
-                        Image(systemName: "camera")
-                            .font(.system(size: 24))
-                        Text("Camera")
+                        Text("Add")
                             .font(.caption)
                     }
                 }

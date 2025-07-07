@@ -127,10 +127,14 @@ struct FullPhotoView: View {
   private func saveImageDataToCoreData(
     image: UIImage, caption: String) {
     guard let data = image.jpegData(compressionQuality: 0.9) else { return }
+    
+    // Use the location from the photo asset if available
+    let location = asset.location
+    
     PersistenceController.shared.saveImageDataToCoreData(
       imageData: data,
-      url: nil,
-      contentText: caption
+      location: location,
+      contentText: caption.isEmpty ? nil : caption
     )
   }
 }

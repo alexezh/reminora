@@ -144,23 +144,16 @@ struct MapView: View {
                 // Get coordinate of selected place
                 let coord = coordinate(item: item)
                 
-                // Create a rect representing the current map viewport
-                let mapRect = convertRegionToRect(from: region)
-                let itemPoint = MKMapPoint(coord)
-                
-                // Only update region if the point is outside viewport
-                if !mapRect.contains(itemPoint) {
-                    // Animate to show the point with some padding
-                    let newRegion = MKCoordinateRegion(
-                        center: coord,
-                        span: MKCoordinateSpan(
-                            latitudeDelta: region.span.latitudeDelta * 0.8,
-                            longitudeDelta: region.span.longitudeDelta * 0.8
-                        )
+                // Always animate to the selected photo location with appropriate zoom
+                let newRegion = MKCoordinateRegion(
+                    center: coord,
+                    span: MKCoordinateSpan(
+                        latitudeDelta: 0.01, // Zoom in closer to show detail
+                        longitudeDelta: 0.01
                     )
-                    withAnimation {
-                        region = newRegion
-                    }
+                )
+                withAnimation(.easeInOut(duration: 1.0)) {
+                    region = newRegion
                 }
               },
               onDelete: deleteItems

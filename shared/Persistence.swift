@@ -82,7 +82,7 @@ class PersistenceController {
         }
     }
 
-    // Save the image data and optional URL string to Core Data
+    // Save the image data with optional URL string to Core Data
     public func saveImageDataToCoreData(imageData: Data, url: URL?, contentText: String?) {
         let scaledData: Data
 
@@ -116,6 +116,42 @@ class PersistenceController {
             do {
                 try context.save()
                 print("Saved image data to Core Data")
+            } catch {
+                print("Failed to save image data: \(error)")
+            }
+        }
+    }
+
+    // Save the image data with optional location to Core Data
+    public func saveImageDataToCoreData(imageData: Data, location: CLLocation?, contentText: String?) {
+        let scaledData: Data
+        
+        if let image = UIImage(data: imageData),
+           let jpeg = image.jpegData(compressionQuality: 0.9)
+        {
+            scaledData = jpeg
+        } else {
+            scaledData = imageData
+        }
+
+        withStore { context in
+            let entity = NSEntityDescription.entity(forEntityName: "Place", in: context)!
+            let sharedImage = NSManagedObject(entity: entity, insertInto: context)
+            sharedImage.setValue(scaledData, forKey: "imageData")
+            sharedImage.setValue(nil, forKey: "url") // No URL for photo library images
+            sharedImage.setValue(Date(), forKey: "dateAdded")
+            if let contentText = contentText {
+                sharedImage.setValue(contentText, forKey: "post")
+            }
+            if let location = location {
+                let locationData = try? NSKeyedArchiver.archivedData(
+                    withRootObject: location, requiringSecureCoding: false)
+                sharedImage.setValue(locationData, forKey: "location")
+            }
+            
+            do {
+                try context.save()
+                print("Saved image data with location to Core Data")
             } catch {
                 print("Failed to save image data: \(error)")
             }

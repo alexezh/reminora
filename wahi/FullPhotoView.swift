@@ -82,13 +82,18 @@ struct FullPhotoView: View {
     .onDisappear {
       NotificationCenter.default.removeObserver(self)
     }
-    // .toolbar {
-    //     ToolbarItem(placement: .navigationBarLeading) {
-    //         Button(action: onBack) {
-    //             Label("Back", systemImage: "chevron.left")
-    //         }
-    //     }
-    // }
+    .toolbar {
+      ToolbarItem(placement: .navigationBarLeading) {
+        Button(action: {
+          if let image = image {
+            saveImageDataToCoreData(image: image, caption: caption)
+          }
+          onBack()
+        }) {
+          Label("Done", systemImage: "checkmark")
+        }
+      }
+    }
   }
 
   private func loadFullImage() {
@@ -117,6 +122,16 @@ struct FullPhotoView: View {
     if let loc = asset.location {
       photoLocation = loc.coordinate
     }
+  }
+
+  private func saveImageDataToCoreData(
+    image: UIImage, caption: String) {
+    guard let data = image.jpegData(compressionQuality: 0.9) else { return }
+    PersistenceController.shared.saveImageDataToCoreData(
+      imageData: data,
+      url: nil,
+      contentText: caption
+    )
   }
 }
 

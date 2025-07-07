@@ -6,6 +6,11 @@
 //
 
 import CoreData
+import CoreLocation
+import ImageIO
+import MobileCoreServices
+import Social
+import UIKit
 
 class PersistenceController {
     static let shared = PersistenceController()
@@ -77,6 +82,65 @@ class PersistenceController {
         }
     }
 
+    // Save the image data and optional URL string to Core Data
+    public func saveImageDataToCoreData(imageData: Data, url: URL?, contentText: String?) {
+        let scaledData: Data
+
+        if let url = url, let downsampled = downsampleImage(at: url, to: 1024),
+            let jpeg = downsampled.jpegData(compressionQuality: 0.9)
+        {
+            scaledData = jpeg
+        } else if let image = UIImage(data: imageData),
+            let jpeg = image.jpegData(compressionQuality: 0.9)
+        {
+            scaledData = jpeg
+        } else {
+            scaledData = imageData
+        }
+
+        withStore { context in
+            let entity = NSEntityDescription.entity(forEntityName: "Place", in: context)!
+            let sharedImage = NSManagedObject(entity: entity, insertInto: context)
+            sharedImage.setValue(scaledData, forKey: "imageData")
+            sharedImage.setValue(url?.absoluteString, forKey: "url")
+            sharedImage.setValue(Date(), forKey: "dateAdded")
+            if let contentTsxt = contentText {
+                sharedImage.setValue(contentText, forKey: "post")
+            }
+            if let url = url, let coordinate = self.extractLocation(from: url) {
+                let locationData = try? NSKeyedArchiver.archivedData(
+                    withRootObject: coordinate, requiringSecureCoding: false)
+                sharedImage.setValue(locationData, forKey: "location")
+            }
+            // Store reference to last inserted Place for use in didSelectPost
+            do {
+                try context.save()
+                print("Saved image data to Core Data")
+            } catch {
+                print("Failed to save image data: \(error)")
+            }
+        }
+    }
+
+    // Extract GPS coordinates from image at URL
+    private func extractLocation(from url: URL) -> CLLocation? {
+        guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil),
+            let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil)
+                as? [CFString: Any],
+            let gps = properties[kCGImagePropertyGPSDictionary] as? [CFString: Any],
+            let latitude = gps[kCGImagePropertyGPSLatitude] as? Double,
+            let latitudeRef = gps[kCGImagePropertyGPSLatitudeRef] as? String,
+            let longitude = gps[kCGImagePropertyGPSLongitude] as? Double,
+            let longitudeRef = gps[kCGImagePropertyGPSLongitudeRef] as? String
+        else {
+            return nil
+        }
+
+        let lat = (latitudeRef == "S") ? -latitude : latitude
+        let lon = (longitudeRef == "W") ? -longitude : longitude
+        return CLLocation(latitude: lat, longitude: lon)
+    }
+
     // Execute all queued actions
     private func executePostLoadQueue() {
         for action in postLoadQueue {
@@ -113,4 +177,18 @@ class PersistenceController {
     //     return container
     // }()
 
+}
+
+private func downsampleImage(at url: URL, to targetWidth: CGFloat) -> UIImage? {
+    let options: [CFString: Any] = [
+        kCGImageSourceShouldCache: false,
+        kCGImageSourceCreateThumbnailFromImageAlways: true,
+        kCGImageSourceThumbnailMaxPixelSize: Int(targetWidth),
+    ]
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+        let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+    else {
+        return nil
+    }
+    return UIImage(cgImage: cgImage)
 }

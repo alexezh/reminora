@@ -46,7 +46,7 @@ class PersistenceController {
         container = NSPersistentContainer(name: "places")
 
         // Get URL for shared container
-        let appGroupId = "group.com.alexezh.wahi"
+        let appGroupId = "group.com.alexezh.reminora"
         guard
             let sharedURL = FileManager.default.containerURL(
                 forSecurityApplicationGroupIdentifier: appGroupId)
@@ -151,7 +151,7 @@ class PersistenceController {
 
     // MARK: - Core Data stack for App Group
     // lazy var persistentContainer: NSPersistentContainer? = {
-    //     let appGroupID = "group.com.alexezh.wahi"  // Replace with your App Group ID
+    //     let appGroupID = "group.com.alexezh.reminora"  // Replace with your App Group ID
     //     guard
     //         let containerURL = FileManager.default.containerURL(
     //             forSecurityApplicationGroupIdentifier: appGroupID)

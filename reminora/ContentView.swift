@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  wahi
+//  reminora
 //
 //  Created by alexezh on 5/26/25.
 //

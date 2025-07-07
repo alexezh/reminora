@@ -1,6 +1,6 @@
 //
-//  wahiApp.swift
-//  wahi
+//  reminoraApp.swift
+//  reminora
 //
 //  Created by alexezh on 5/26/25.
 //
@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct wahiApp: App {
+struct reminoraApp: App {
     let persistenceController = PersistenceController.shared
 
     var body: some Scene {

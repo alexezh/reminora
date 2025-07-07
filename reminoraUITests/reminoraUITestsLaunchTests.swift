@@ -1,13 +1,13 @@
 //
-//  wahiUITestsLaunchTests.swift
-//  wahiUITests
+//  reminoraUITestsLaunchTests.swift
+//  reminoraUITests
 //
 //  Created by alexezh on 5/26/25.
 //
 
 import XCTest
 
-final class wahiUITestsLaunchTests: XCTestCase {
+final class reminoraUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

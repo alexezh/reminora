@@ -94,9 +94,9 @@
             filePath = "WahiShareExt/ShareViewController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "45"
-            endingLineNumber = "45"
-            landmarkName = "saveImageDataToCoreData(imageData:url:)"
+            startingLineNumber = "58"
+            endingLineNumber = "58"
+            landmarkName = "handleIncomingImage()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -111,9 +111,7 @@
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "77"
-            endingLineNumber = "77"
-            landmarkName = "ShareViewController"
-            landmarkType = "3">
+            endingLineNumber = "77">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -127,9 +125,7 @@
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "87"
-            endingLineNumber = "87"
-            landmarkName = "extractLocation(from:)"
-            landmarkType = "7">
+            endingLineNumber = "87">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -143,9 +139,7 @@
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "91"
-            endingLineNumber = "91"
-            landmarkName = "extractLocation(from:)"
-            landmarkType = "7">
+            endingLineNumber = "91">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -160,8 +154,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "37"
             endingLineNumber = "37"
-            landmarkName = "PersistenceController"
-            landmarkType = "3">
+            landmarkName = "preview"
+            landmarkType = "24">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -190,9 +184,9 @@
             filePath = "WahiShareExt/ShareViewController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "48"
-            endingLineNumber = "48"
-            landmarkName = "saveImageDataToCoreData(imageData:url:)"
+            startingLineNumber = "61"
+            endingLineNumber = "61"
+            landmarkName = "isContentValid()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -312,9 +306,9 @@
             filePath = "WahiShareExt/ShareViewController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "56"
-            endingLineNumber = "56"
-            landmarkName = "saveImageDataToCoreData(imageData:url:)"
+            startingLineNumber = "69"
+            endingLineNumber = "69"
+            landmarkName = "didSelectPost()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

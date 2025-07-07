@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../WahiShareExt"
+		},
+		{
+			"path": "../shared"
+		}
+	],
+	"settings": {}
+}

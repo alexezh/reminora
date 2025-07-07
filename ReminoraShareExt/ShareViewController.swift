@@ -1,6 +1,6 @@
 //
 //  ShareViewController.swift
-//  WahiShareExt
+//  ReminoraShareExt
 //
 //  Created by alexezh on 5/26/25.
 //

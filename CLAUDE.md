@@ -4,33 +4,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Wahi is a geotagged photo sharing iOS app built with SwiftUI. The app allows users to view their photo library, save photos with location data, and view them on a map interface. It includes a share extension for adding photos from other apps.
+Reminora is a geotagged photo sharing iOS app built with SwiftUI. The app allows users to view their photo library, save photos with location data, and view them on a map interface. It includes a share extension for adding photos from other apps.
 
 ## Development Commands
 
 ### Build and Run
 ```bash
 # Build main app
-xcodebuild -project wahi.xcodeproj -scheme wahi -configuration Debug build
+xcodebuild -project reminora.xcodeproj -scheme reminora -configuration Debug build
 
 # Run tests
-xcodebuild -project wahi.xcodeproj -scheme wahi -configuration Debug test -destination 'platform=iOS Simulator,name=iPhone 15'
+xcodebuild -project reminora.xcodeproj -scheme reminora -configuration Debug test -destination 'platform=iOS Simulator,name=iPhone 15'
 
 # Build share extension
-xcodebuild -project wahi.xcodeproj -scheme WahiShareExt -configuration Debug build
+xcodebuild -project reminora.xcodeproj -scheme ReminoraShareExt -configuration Debug build
 ```
 
 ### Open in Xcode
 ```bash
-open wahi.xcodeproj
+open reminora.xcodeproj
 ```
 
 ## Architecture
 
 ### Core Components
 
-1. **Main App (`wahi/`)**
-   - `wahiApp.swift` - SwiftUI App entry point, sets up Core Data environment
+1. **Main App (`reminora/`)**
+   - `reminoraApp.swift` - SwiftUI App entry point, sets up Core Data environment
    - `ContentView.swift` - Main view controller with map/photo library toggle
    - `MapView.swift` - Interactive map showing geotagged photos with sliding panel
    - `PhotoLibraryView.swift` - Photo library browser with thumbnail grid
@@ -38,7 +38,7 @@ open wahi.xcodeproj
    - `LocationManager.swift` - Core Location wrapper for user location
    - `PlaceListView.swift` - Scrollable list of places in the sliding panel
 
-2. **Share Extension (`WahiShareExt/`)**
+2. **Share Extension (`ReminoraShareExt/`)**
    - `ShareViewController.swift` - Handles incoming images/URLs from other apps
    - Saves shared content to Core Data with location extraction
 
@@ -57,7 +57,7 @@ The app uses Core Data with a single `Place` entity:
 
 ### Key Features
 
-- **App Group Integration**: Uses `group.com.alexezh.wahi` for shared Core Data between main app and share extension
+- **App Group Integration**: Uses `group.com.alexezh.reminora` for shared Core Data between main app and share extension
 - **GPS Extraction**: Automatically extracts location from image EXIF data
 - **Image Downsampling**: Reduces image size to 1024px max dimension for storage
 - **Map Interaction**: Tappable map pins that center the map and show photo details
@@ -76,8 +76,8 @@ The app uses Core Data with a single `Place` entity:
 
 - **Target**: iOS 18.2+, Swift 5.0
 - **Frameworks**: SwiftUI, Core Data, MapKit, Photos, PhotosUI, Core Location
-- **Bundle ID**: `com.alexezh.wahi` (main app), `com.alexezh.wahi.WahiShareExt` (extension)
-- **App Group**: `group.com.alexezh.wahi` for shared Core Data access
+- **Bundle ID**: `com.alexezh.reminora` (main app), `com.alexezh.reminora.WahiShareExt` (extension)
+- **App Group**: `group.com.alexezh.reminora` for shared Core Data access
 - **Permissions**: Location (when in use), Photo Library access
 
 ### Common Patterns
@@ -90,6 +90,6 @@ The app uses Core Data with a single `Place` entity:
 
 ### Testing
 
-- `wahiTests/` - Unit tests for main app
-- `wahiUITests/` - UI tests for main app
+- `reminoraTests/` - Unit tests for main app
+- `reminoraUITests/` - UI tests for main app
 - Run tests via Xcode Test navigator or command line with `xcodebuild test`

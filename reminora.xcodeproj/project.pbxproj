@@ -7,8 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		49540DC62E1C70A100886A08 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49540DC42E1C70A100886A08 /* ShareViewController.swift */; };
+		49540DC72E1C70A100886A08 /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 49540DC22E1C70A100886A08 /* MainInterface.storyboard */; };
 		49F151FC2DE4BF3200573F48 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F151FB2DE4BF3200573F48 /* Persistence.swift */; };
-		49F1522F2DE4C42400573F48 /* WahiShareExt.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 49F152252DE4C42400573F48 /* WahiShareExt.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		49F1522F2DE4C42400573F48 /* ReminoraShareExt.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 49F152252DE4C42400573F48 /* ReminoraShareExt.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		49F1523D2DE4CE0700573F48 /* places.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */; };
 		49F1523E2DE4CE0700573F48 /* places.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */; };
 		49F1523F2DE4D0CF00573F48 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F151FB2DE4BF3200573F48 /* Persistence.swift */; };
@@ -22,21 +24,21 @@
 			containerPortal = 49F151E72DE4BF3100573F48 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 49F151EE2DE4BF3100573F48;
-			remoteInfo = wahi;
+			remoteInfo = reminora;
 		};
 		49F1520F2DE4BF3200573F48 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 49F151E72DE4BF3100573F48 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 49F151EE2DE4BF3100573F48;
-			remoteInfo = wahi;
+			remoteInfo = reminora;
 		};
 		49F1522D2DE4C42400573F48 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 49F151E72DE4BF3100573F48 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 49F152242DE4C42400573F48;
-			remoteInfo = WahiShareExt;
+			remoteInfo = ReminoraShareExt;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -47,7 +49,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				49F1522F2DE4C42400573F48 /* WahiShareExt.appex in Embed Foundation Extensions */,
+				49F1522F2DE4C42400573F48 /* ReminoraShareExt.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -55,47 +57,33 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		49F151EF2DE4BF3100573F48 /* wahi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = wahi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		49540DC02E1C70A100886A08 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		49540DC12E1C70A100886A08 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/MainInterface.storyboard; sourceTree = "<group>"; };
+		49540DC32E1C70A100886A08 /* ReminoraShareExt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReminoraShareExt.entitlements; sourceTree = "<group>"; };
+		49540DC42E1C70A100886A08 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		49F151EF2DE4BF3100573F48 /* reminora.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = reminora.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		49F151FB2DE4BF3200573F48 /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
-		49F152042DE4BF3200573F48 /* wahiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = wahiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		49F1520E2DE4BF3200573F48 /* wahiUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = wahiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		49F152252DE4C42400573F48 /* WahiShareExt.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WahiShareExt.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		49F152042DE4BF3200573F48 /* reminoraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = reminoraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		49F1520E2DE4BF3200573F48 /* reminoraUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = reminoraUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		49F152252DE4C42400573F48 /* ReminoraShareExt.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ReminoraShareExt.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		49F1523C2DE4CE0700573F48 /* places.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = places.xcdatamodel; sourceTree = "<group>"; };
 		49F152432DE4F3CA00573F48 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		49F152302DE4C42400573F48 /* Exceptions for "WahiShareExt" folder in "WahiShareExt" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 49F152242DE4C42400573F48 /* WahiShareExt */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		49F151F12DE4BF3100573F48 /* wahi */ = {
+		49F151F12DE4BF3100573F48 /* reminora */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = wahi;
+			path = reminora;
 			sourceTree = "<group>";
 		};
-		49F152072DE4BF3200573F48 /* wahiTests */ = {
+		49F152072DE4BF3200573F48 /* reminoraTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = wahiTests;
+			path = reminoraTests;
 			sourceTree = "<group>";
 		};
-		49F152112DE4BF3200573F48 /* wahiUITests */ = {
+		49F152112DE4BF3200573F48 /* reminoraUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = wahiUITests;
-			sourceTree = "<group>";
-		};
-		49F152262DE4C42400573F48 /* WahiShareExt */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				49F152302DE4C42400573F48 /* Exceptions for "WahiShareExt" folder in "WahiShareExt" target */,
-			);
-			path = WahiShareExt;
+			path = reminoraUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -134,15 +122,26 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		49540DC52E1C70A100886A08 /* ReminoraShareExt */ = {
+			isa = PBXGroup;
+			children = (
+				49540DC02E1C70A100886A08 /* Info.plist */,
+				49540DC22E1C70A100886A08 /* MainInterface.storyboard */,
+				49540DC32E1C70A100886A08 /* ReminoraShareExt.entitlements */,
+				49540DC42E1C70A100886A08 /* ShareViewController.swift */,
+			);
+			path = ReminoraShareExt;
+			sourceTree = "<group>";
+		};
 		49F151E62DE4BF3100573F48 = {
 			isa = PBXGroup;
 			children = (
+				49540DC52E1C70A100886A08 /* ReminoraShareExt */,
 				49F152412DE4F29E00573F48 /* shared */,
 				49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */,
-				49F151F12DE4BF3100573F48 /* wahi */,
-				49F152072DE4BF3200573F48 /* wahiTests */,
-				49F152112DE4BF3200573F48 /* wahiUITests */,
-				49F152262DE4C42400573F48 /* WahiShareExt */,
+				49F151F12DE4BF3100573F48 /* reminora */,
+				49F152072DE4BF3200573F48 /* reminoraTests */,
+				49F152112DE4BF3200573F48 /* reminoraUITests */,
 				49F152422DE4F3CA00573F48 /* Frameworks */,
 				49F151F02DE4BF3100573F48 /* Products */,
 			);
@@ -151,10 +150,10 @@
 		49F151F02DE4BF3100573F48 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				49F151EF2DE4BF3100573F48 /* wahi.app */,
-				49F152042DE4BF3200573F48 /* wahiTests.xctest */,
-				49F1520E2DE4BF3200573F48 /* wahiUITests.xctest */,
-				49F152252DE4C42400573F48 /* WahiShareExt.appex */,
+				49F151EF2DE4BF3100573F48 /* reminora.app */,
+				49F152042DE4BF3200573F48 /* reminoraTests.xctest */,
+				49F1520E2DE4BF3200573F48 /* reminoraUITests.xctest */,
+				49F152252DE4C42400573F48 /* ReminoraShareExt.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -193,16 +192,16 @@
 				49F1522E2DE4C42400573F48 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				49F151F12DE4BF3100573F48 /* wahi */,
+				49F151F12DE4BF3100573F48 /* reminora */,
 			);
-			name = wahi;
+			name = reminora;
 			packageProductDependencies = (
 			);
-			productName = wahi;
-			productReference = 49F151EF2DE4BF3100573F48 /* wahi.app */;
+			productName = reminora;
+			productReference = 49F151EF2DE4BF3100573F48 /* reminora.app */;
 			productType = "com.apple.product-type.application";
 		};
-		49F152032DE4BF3200573F48 /* wahiTests */ = {
+		49F152032DE4BF3200573F48 /* reminoraTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 49F1521B2DE4BF3200573F48 /* Build configuration list for PBXNativeTarget "wahiTests" */;
 			buildPhases = (
@@ -216,16 +215,16 @@
 				49F152062DE4BF3200573F48 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				49F152072DE4BF3200573F48 /* wahiTests */,
+				49F152072DE4BF3200573F48 /* reminoraTests */,
 			);
 			name = wahiTests;
 			packageProductDependencies = (
 			);
 			productName = wahiTests;
-			productReference = 49F152042DE4BF3200573F48 /* wahiTests.xctest */;
+			productReference = 49F152042DE4BF3200573F48 /* reminoraTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		49F1520D2DE4BF3200573F48 /* wahiUITests */ = {
+		49F1520D2DE4BF3200573F48 /* reminoraUITests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 49F1521E2DE4BF3200573F48 /* Build configuration list for PBXNativeTarget "wahiUITests" */;
 			buildPhases = (
@@ -239,16 +238,16 @@
 				49F152102DE4BF3200573F48 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				49F152112DE4BF3200573F48 /* wahiUITests */,
+				49F152112DE4BF3200573F48 /* reminoraUITests */,
 			);
 			name = wahiUITests;
 			packageProductDependencies = (
 			);
 			productName = wahiUITests;
-			productReference = 49F1520E2DE4BF3200573F48 /* wahiUITests.xctest */;
+			productReference = 49F1520E2DE4BF3200573F48 /* reminoraUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
-		49F152242DE4C42400573F48 /* WahiShareExt */ = {
+		49F152242DE4C42400573F48 /* ReminoraShareExt */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 49F152312DE4C42400573F48 /* Build configuration list for PBXNativeTarget "WahiShareExt" */;
 			buildPhases = (
@@ -260,13 +259,10 @@
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				49F152262DE4C42400573F48 /* WahiShareExt */,
-			);
-			name = WahiShareExt;
+			name = ReminoraShareExt;
 			packageProductDependencies = (
 			);
-			productName = WahiShareExt;
+			productName = ReminoraShareExt;
 			productReference = 49F152252DE4C42400573F48 /* WahiShareExt.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
@@ -296,7 +292,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 49F151EA2DE4BF3100573F48 /* Build configuration list for PBXProject "wahi" */;
+			buildConfigurationList = 49F151EA2DE4BF3100573F48 /* Build configuration list for PBXProject "reminora" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -344,6 +340,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				49540DC72E1C70A100886A08 /* MainInterface.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -377,6 +374,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				49540DC62E1C70A100886A08 /* ShareViewController.swift in Sources */,
 				49F1523F2DE4D0CF00573F48 /* Persistence.swift in Sources */,
 				49F1523D2DE4CE0700573F48 /* places.xcdatamodeld in Sources */,
 			);
@@ -397,10 +395,21 @@
 		};
 		49F1522E2DE4C42400573F48 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 49F152242DE4C42400573F48 /* WahiShareExt */;
+			target = 49F152242DE4C42400573F48 /* ReminoraShareExt */;
 			targetProxy = 49F1522D2DE4C42400573F48 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		49540DC22E1C70A100886A08 /* MainInterface.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				49540DC12E1C70A100886A08 /* Base */,
+			);
+			name = MainInterface.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		49F152162DE4BF3200573F48 /* Debug */ = {
@@ -527,10 +536,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = wahi/wahi.entitlements;
+				CODE_SIGN_ENTITLEMENTS = reminora/reminora.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"wahi/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"reminora/Preview Content\"";
 				DEVELOPMENT_TEAM = W292XJZS37;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -546,7 +555,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.wahi;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.reminora;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -559,10 +568,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = wahi/wahi.entitlements;
+				CODE_SIGN_ENTITLEMENTS = reminora/reminora.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"wahi/Preview Content\"";
+				DEVELOPMENT_ASSET_PATHS = "\"reminora/Preview Content\"";
 				DEVELOPMENT_TEAM = W292XJZS37;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -578,7 +587,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.wahi;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.reminora;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -595,12 +604,12 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.wahiTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.reminoraTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/wahi.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/wahi";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/reminora.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/reminora";
 			};
 			name = Debug;
 		};
@@ -613,12 +622,12 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.wahiTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.reminoraTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/wahi.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/wahi";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/reminora.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/reminora";
 			};
 			name = Release;
 		};
@@ -629,12 +638,12 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.wahiUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.reminoraUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = wahi;
+				TEST_TARGET_NAME = reminora;
 			};
 			name = Debug;
 		};
@@ -645,25 +654,25 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.wahiUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.reminoraUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = wahi;
+				TEST_TARGET_NAME = reminora;
 			};
 			name = Release;
 		};
 		49F152322DE4C42400573F48 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = WahiShareExt/WahiShareExt.entitlements;
+				CODE_SIGN_ENTITLEMENTS = ReminoraShareExt/ReminoraShareExt.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = W292XJZS37;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = WahiShareExt/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = WahiShareExt;
+				INFOPLIST_FILE = ReminoraShareExt/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ReminoraShareExt;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -671,7 +680,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.wahi.WahiShareExt;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.reminora.ReminoraShareExt;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -683,13 +692,13 @@
 		49F152332DE4C42400573F48 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = WahiShareExt/WahiShareExt.entitlements;
+				CODE_SIGN_ENTITLEMENTS = ReminoraShareExt/ReminoraShareExt.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = W292XJZS37;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = WahiShareExt/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = WahiShareExt;
+				INFOPLIST_FILE = ReminoraShareExt/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ReminoraShareExt;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -697,7 +706,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.wahi.WahiShareExt;
+				PRODUCT_BUNDLE_IDENTIFIER = com.alexezh.reminora.ReminoraShareExt;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -709,7 +718,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		49F151EA2DE4BF3100573F48 /* Build configuration list for PBXProject "wahi" */ = {
+		49F151EA2DE4BF3100573F48 /* Build configuration list for PBXProject "reminora" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				49F152162DE4BF3200573F48 /* Debug */,

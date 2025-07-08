@@ -8,8 +8,6 @@ struct PlaceDetailView: View {
     let onBack: () -> Void
     
     @State private var region: MKCoordinateRegion
-    @State private var mapPlaces: [MKMapItem] = []
-    @State private var isLoadingPlaces = false
     
     init(place: Place, allPlaces: [Place], onBack: @escaping () -> Void) {
         self.place = place
@@ -39,42 +37,6 @@ struct PlaceDetailView: View {
         }
     }
     
-    func searchNearbyPlaces() {
-        isLoadingPlaces = true
-        let coordinate = Self.coordinate(item: place)
-        
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = "restaurant cafe store gas station hotel"
-        request.region = MKCoordinateRegion(
-            center: coordinate,
-            latitudinalMeters: 500, // 500m radius for more specific results
-            longitudinalMeters: 500
-        )
-        request.resultTypes = [.pointOfInterest]
-        
-        let search = MKLocalSearch(request: request)
-        search.start { [self] response, error in
-            DispatchQueue.main.async {
-                isLoadingPlaces = false
-                if let response = response {
-                    // Filter out generic results and sort by distance
-                    let filteredPlaces = response.mapItems.filter { item in
-                        guard let name = item.name,
-                              !name.lowercased().contains("points of interest"),
-                              !name.lowercased().contains("afewpointsofinterest") else {
-                            return false
-                        }
-                        return true
-                    }.sorted { item1, item2 in
-                        let dist1 = item1.placemark.location?.distance(from: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)) ?? Double.infinity
-                        let dist2 = item2.placemark.location?.distance(from: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)) ?? Double.infinity
-                        return dist1 < dist2
-                    }
-                    mapPlaces = Array(filteredPlaces.prefix(20))
-                }
-            }
-        }
-    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -130,70 +92,8 @@ struct PlaceDetailView: View {
             .frame(height: 200)
             .allowsHitTesting(false)
             
-            // List of nearby places below map
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Nearby Places")
-                    .font(.headline)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
-                    .padding(.bottom, 8)
-                
-                ScrollView {
-                    LazyVStack(spacing: 8) {
-                        if isLoadingPlaces {
-                            HStack {
-                                ProgressView()
-                                Text("Loading nearby places...")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                        } else {
-                            ForEach(mapPlaces, id: \.self) { mapItem in
-                                HStack(spacing: 12) {
-                                    // Icon for place type
-                                    Image(systemName: iconForPlaceType(mapItem.pointOfInterestCategory))
-                                        .frame(width: 40, height: 40)
-                                        .foregroundColor(.blue)
-                                        .background(Color.blue.opacity(0.1))
-                                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                                    
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(mapItem.name ?? "Unknown Place")
-                                            .font(.caption)
-                                            .fontWeight(.medium)
-                                            .lineLimit(1)
-                                        
-                                        if let category = mapItem.pointOfInterestCategory {
-                                            Text(categoryDisplayName(category))
-                                                .font(.caption2)
-                                                .foregroundColor(.secondary)
-                                        }
-                                        
-                                        if let address = mapItem.placemark.thoroughfare {
-                                            Text(address)
-                                                .font(.caption2)
-                                                .foregroundColor(.secondary)
-                                                .lineLimit(1)
-                                        }
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    if let coordinate = mapItem.placemark.location?.coordinate {
-                                        Text("\(Int(Self.distance(from: Self.coordinate(item: place), to: coordinate)))m")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 4)
-                            }
-                        }
-                    }
-                }
-            }
+            // Nearby places using shared component
+            NearbyPlacesView(coordinate: Self.coordinate(item: place))
             
             Spacer()
         }
@@ -207,9 +107,6 @@ struct PlaceDetailView: View {
                     }
                 }
             }
-        }
-        .onAppear {
-            searchNearbyPlaces()
         }
     }
     
@@ -226,60 +123,6 @@ struct PlaceDetailView: View {
         let loc1 = CLLocation(latitude: from.latitude, longitude: from.longitude)
         let loc2 = CLLocation(latitude: to.latitude, longitude: to.longitude)
         return loc1.distance(from: loc2)
-    }
-    
-    func iconForPlaceType(_ category: MKPointOfInterestCategory?) -> String {
-        guard let category = category else { return "mappin" }
-        
-        switch category {
-        case .restaurant: return "fork.knife"
-        case .cafe: return "cup.and.saucer"
-        case .hotel: return "bed.double"
-        case .gasStation: return "fuelpump"
-        case .store: return "bag"
-        case .hospital: return "cross.fill"
-        case .school: return "graduationcap"
-        case .museum: return "building.columns"
-        case .library: return "books.vertical"
-        case .park: return "tree"
-        case .beach: return "beach.umbrella"
-        case .amusementPark: return "ferriswheel"
-        case .theater: return "theaters"
-        case .movieTheater: return "tv"
-        case .bank: return "building.2"
-        case .atm: return "dollarsign.circle"
-        case .pharmacy: return "cross.case"
-        case .airport: return "airplane"
-        case .publicTransport: return "bus"
-        case .parking: return "parkingsign"
-        default: return "mappin"
-        }
-    }
-    
-    func categoryDisplayName(_ category: MKPointOfInterestCategory) -> String {
-        switch category {
-        case .restaurant: return "Restaurant"
-        case .cafe: return "Cafe"
-        case .hotel: return "Hotel"
-        case .gasStation: return "Gas Station"
-        case .store: return "Store"
-        case .hospital: return "Hospital"
-        case .school: return "School"
-        case .museum: return "Museum"
-        case .library: return "Library"
-        case .park: return "Park"
-        case .beach: return "Beach"
-        case .amusementPark: return "Amusement Park"
-        case .theater: return "Theater"
-        case .movieTheater: return "Movie Theater"
-        case .bank: return "Bank"
-        case .atm: return "ATM"
-        case .pharmacy: return "Pharmacy"
-        case .airport: return "Airport"
-        case .publicTransport: return "Public Transport"
-        case .parking: return "Parking"
-        default: return "Point of Interest"
-        }
     }
 }
 

@@ -181,6 +181,7 @@ struct MapView: View {
                   Button("Clear") {
                     searchText = ""
                     isSearching = false
+                    shouldSortByDistance = false
                   }
                   .foregroundColor(.blue)
                   .padding(.trailing, 8)
@@ -233,7 +234,8 @@ struct MapView: View {
                 lastTappedPlace = item
                 lastTapTime = now
               },
-              onDelete: deleteItems
+              onDelete: deleteItems,
+              mapCenter: region.center
             )
           }
           .frame(
@@ -383,7 +385,6 @@ struct MapView: View {
   private func performGeoSearch() {
     guard !searchText.isEmpty else { return }
     
-    isSearching = true
     let request = MKLocalSearch.Request()
     request.naturalLanguageQuery = searchText
     request.region = region
@@ -391,8 +392,6 @@ struct MapView: View {
     let search = MKLocalSearch(request: request)
     search.start { response, error in
       DispatchQueue.main.async {
-        isSearching = false
-        
         if let error = error {
           print("Search error: \(error)")
           return
@@ -405,9 +404,16 @@ struct MapView: View {
             span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
           )
           
+          // Set search state to show all places sorted by distance from search location
+          isSearching = true
+          shouldSortByDistance = true
+          
           withAnimation(.easeInOut(duration: 1.0)) {
             region = newRegion
           }
+          
+          print("Geo search completed. Moved to: \(coordinate)")
+          print("Will show \(items.count) places sorted by distance from search location")
         }
       }
     }

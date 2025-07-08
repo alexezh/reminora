@@ -7,6 +7,7 @@ struct PlaceListView: View {
   let selectedPlace: Place?
   let onSelect: (Place) -> Void
   let onDelete: (IndexSet) -> Void
+  let mapCenter: CLLocationCoordinate2D
 
   var body: some View {
     List {
@@ -27,6 +28,11 @@ struct PlaceListView: View {
                 .foregroundColor(.secondary)
                 .lineLimit(1)
             }
+            
+            // Show distance from current map center
+            Text(distanceText(for: item))
+              .font(.caption)
+              .foregroundColor(.secondary)
           }
           Spacer()
           if let imageData = item.imageData, let image = UIImage(data: imageData) {
@@ -72,6 +78,31 @@ struct PlaceListView: View {
       return UIImage(data: data)
     }
     return nil
+  }
+  
+  // Helper to get coordinate from Place
+  private func coordinate(for item: Place) -> CLLocationCoordinate2D {
+    if let locationData = item.value(forKey: "location") as? Data,
+       let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
+      return location.coordinate
+    }
+    // Default to San Francisco if no location
+    return CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
+  }
+  
+  // Helper to calculate and format distance
+  private func distanceText(for item: Place) -> String {
+    let itemCoord = coordinate(for: item)
+    let mapCenterLocation = CLLocation(latitude: mapCenter.latitude, longitude: mapCenter.longitude)
+    let itemLocation = CLLocation(latitude: itemCoord.latitude, longitude: itemCoord.longitude)
+    
+    let distance = mapCenterLocation.distance(from: itemLocation)
+    
+    if distance < 1000 {
+      return "\(Int(distance))m away"
+    } else {
+      return String(format: "%.1fkm away", distance / 1000)
+    }
   }
 }
 

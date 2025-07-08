@@ -12,57 +12,55 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
-
-    @State private var showSheet = false
-
-    @State private var isSheetExpanded: Bool = false
-
+    @EnvironmentObject private var authService: AuthenticationService
+    
+    @State private var selectedTab = 0
     @State private var showPhotoLibrary = false
 
     var body: some View {
-        ZStack {
-            MapView()
+        TabView(selection: $selectedTab) {
+            // Home/Map Tab
+            ZStack {
+                MapView()
 
-            // Show the system photo picker as a sheet when showPhotoLibrary is true
-            if showPhotoLibrary {
-                PhotoLibraryView(isPresented: $showPhotoLibrary)
-                    .ignoresSafeArea()
-                    .transition(.move(edge: .bottom))
+                // Show the system photo picker as a sheet when showPhotoLibrary is true
+                if showPhotoLibrary {
+                    PhotoLibraryView(isPresented: $showPhotoLibrary)
+                        .ignoresSafeArea()
+                        .transition(.move(edge: .bottom))
+                }
             }
-        }
-        .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Spacer()
-                Button(action: {
-                    // Home button action: hide photo library, show map
-                    withAnimation {
-                        showPhotoLibrary = false
-                    }
-                }) {
-                    VStack {
-                        Image(systemName: "house")
-                            .font(.system(size: 24))
-                        Text("Home")
-                            .font(.caption)
+            .tabItem {
+                Image(systemName: "house")
+                Text("Home")
+            }
+            .tag(0)
+            
+            // Add Photo Tab
+            Color.clear
+                .tabItem {
+                    Image(systemName: "plus.circle.fill")
+                    Text("Add")
+                }
+                .tag(1)
+                .onAppear {
+                    // When this tab is selected, show photo library
+                    showPhotoLibrary = true
+                    // Return to home tab
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        selectedTab = 0
                     }
                 }
-                Spacer()
-                Button(action: {
-                    // Add button action: show full photo library
-                    withAnimation {
-                        showPhotoLibrary = true
-                    }
-                }) {
-                    VStack {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 24))
-                        Text("Add")
-                            .font(.caption)
-                    }
+            
+            // Profile Tab
+            ProfileView()
+                .tabItem {
+                    Image(systemName: "person.circle")
+                    Text("Profile")
                 }
-                Spacer()
-            }
+                .tag(2)
         }
+        .accentColor(.blue)
     }
 }
 

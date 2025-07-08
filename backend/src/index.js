@@ -6,6 +6,7 @@
 import { Router } from 'itty-router';
 import { handleCORS } from './middleware/cors.js';
 import { authenticate } from './middleware/auth.js';
+import { authRoutes, authenticateSession } from './routes/auth.js';
 import { photoRoutes } from './routes/photos.js';
 import { followRoutes } from './routes/follows.js';
 import { accountRoutes } from './routes/accounts.js';
@@ -25,16 +26,19 @@ router.get('/health', () => {
     });
 });
 
-// Account routes (auth required)
-router.all('/api/accounts/*', authenticate);
+// Auth routes (public, no auth required)
+authRoutes(router);
+
+// Account routes (session auth required, except for some auth endpoints)
+router.all('/api/accounts/*', authenticateSession);
 accountRoutes(router);
 
-// Photo routes (auth required)
-router.all('/api/photos/*', authenticate);
+// Photo routes (session auth required)
+router.all('/api/photos/*', authenticateSession);
 photoRoutes(router);
 
-// Follow routes (auth required)
-router.all('/api/follows/*', authenticate);
+// Follow routes (session auth required)
+router.all('/api/follows/*', authenticateSession);
 followRoutes(router);
 
 // 404 handler

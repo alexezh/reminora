@@ -10,9 +10,9 @@ class APIService: ObservableObject {
     private let baseURL = "https://reminora-backend.your-worker.workers.dev"
     private let session = URLSession.shared
     
-    // For demo purposes, using a simple account ID
-    // In production, this would be managed by authentication system
-    @Published var currentAccountId: String = "demo-account-123"
+    private var authService: AuthenticationService {
+        return AuthenticationService.shared
+    }
     
     private init() {}
     
@@ -22,11 +22,16 @@ class APIService: ObservableObject {
         url: URL,
         method: String = "GET",
         body: Data? = nil
-    ) -> URLRequest {
+    ) -> URLRequest? {
+        // Get current session token
+        guard case .authenticated(_, let session) = authService.authState else {
+            return nil
+        }
+        
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(currentAccountId, forHTTPHeaderField: "X-Account-ID")
+        request.setValue("Bearer \(session.token)", forHTTPHeaderField: "Authorization")
         
         if let body = body {
             request.httpBody = body
@@ -36,9 +41,13 @@ class APIService: ObservableObject {
     }
     
     private func performRequest<T: Codable>(
-        request: URLRequest,
+        request: URLRequest?,
         responseType: T.Type
     ) async throws -> T {
+        guard let request = request else {
+            throw APIError.invalidResponse
+        }
+        
         let (data, response) = try await session.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {

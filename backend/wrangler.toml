@@ -5,7 +5,7 @@ compatibility_date = "2024-12-18"
 [[d1_databases]]
 binding = "DB"
 database_name = "reminora-db"
-database_id = "your-database-id-here"
+database_id = "23b59533-f6ab-4325-b27e-f6ae3d61fc4e"
 
 [vars]
 ENVIRONMENT = "development"

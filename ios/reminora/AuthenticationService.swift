@@ -9,7 +9,7 @@ class AuthenticationService: NSObject, ObservableObject {
     static let shared = AuthenticationService()
     
     private let baseURL = "https://reminora-backend.your-worker.workers.dev"
-    private let session = URLSession.shared
+    private let urlSession = URLSession.shared
     
     @Published var authState: AuthState = .loading
     @Published var isLoading = false
@@ -37,19 +37,27 @@ class AuthenticationService: NSObject, ObservableObject {
     }
     
     func signInWithGoogle() {
-        // This would integrate with Google OAuth SDK
-        // For now, showing the flow structure
         isLoading = true
         
-        // In real implementation:
-        // 1. Initialize Google OAuth
-        // 2. Present OAuth flow
-        // 3. Handle callback in handleOAuthCallback
-        
-        // Mock implementation for demo
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            self.isLoading = false
-            // Would call handleOAuthCallback with real data
+        Task {
+            do {
+                let result = try await GoogleSignInHelper.shared.signIn()
+                
+                await handleOAuthCallback(
+                    provider: .google,
+                    oauthId: result.oauthId,
+                    email: result.email,
+                    name: result.name,
+                    avatarUrl: result.avatarUrl,
+                    accessToken: result.accessToken,
+                    refreshToken: result.refreshToken
+                )
+            } catch {
+                await MainActor.run {
+                    self.isLoading = false
+                    self.authState = .error(error)
+                }
+            }
         }
     }
     
@@ -67,7 +75,7 @@ class AuthenticationService: NSObject, ObservableObject {
         request.setValue("Bearer \(session.token)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONEncoder().encode(body)
         
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AuthError.invalidResponse
@@ -96,7 +104,7 @@ class AuthenticationService: NSObject, ObservableObject {
         let url = URL(string: "\(baseURL)/api/auth/check-handle/\(handle)")!
         let request = URLRequest(url: url)
         
-        let (data, _) = try await session.data(for: request)
+        let (data, _) = try await urlSession.data(for: request)
         let response = try JSONDecoder().decode(HandleCheckResponse.self, from: data)
         
         return response.available
@@ -111,7 +119,7 @@ class AuthenticationService: NSObject, ObservableObject {
                 request.httpMethod = "POST"
                 request.setValue("Bearer \(session.token)", forHTTPHeaderField: "Authorization")
                 
-                _ = try await self.session.data(for: request)
+                _ = try await self.urlSession.data(for: request)
             } catch {
                 print("Logout request failed: \(error)")
             }
@@ -140,7 +148,7 @@ class AuthenticationService: NSObject, ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(body)
         
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AuthError.invalidResponse
@@ -226,7 +234,7 @@ class AuthenticationService: NSObject, ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder().encode(body)
             
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await urlSession.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw AuthError.invalidResponse

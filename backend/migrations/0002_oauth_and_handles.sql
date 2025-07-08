@@ -3,7 +3,7 @@
 -- Add OAuth columns to accounts table
 ALTER TABLE accounts ADD COLUMN oauth_provider TEXT;
 ALTER TABLE accounts ADD COLUMN oauth_id TEXT;
-ALTER TABLE accounts ADD COLUMN handle TEXT UNIQUE;
+ALTER TABLE accounts ADD COLUMN handle TEXT;
 ALTER TABLE accounts ADD COLUMN avatar_url TEXT;
 ALTER TABLE accounts ADD COLUMN is_verified INTEGER DEFAULT 0;
 
@@ -37,7 +37,6 @@ CREATE TABLE sessions (
 
 -- Add indexes for OAuth and sessions
 CREATE INDEX idx_accounts_oauth ON accounts (oauth_provider, oauth_id);
-CREATE INDEX idx_accounts_handle ON accounts (handle);
 CREATE INDEX idx_oauth_tokens_account ON oauth_tokens (account_id);
 CREATE INDEX idx_sessions_token ON sessions (session_token);
 CREATE INDEX idx_sessions_account ON sessions (account_id);
@@ -45,3 +44,6 @@ CREATE INDEX idx_sessions_expires ON sessions (expires_at);
 
 -- Update existing accounts to have handles based on username
 UPDATE accounts SET handle = username WHERE handle IS NULL;
+
+-- Add unique constraint on handle after populating data
+CREATE UNIQUE INDEX idx_accounts_handle_unique ON accounts (handle);

@@ -54,7 +54,7 @@ struct LoginView: View {
                             .frame(height: 50)
                             .cornerRadius(25)
                             
-                            // Google Sign In (placeholder)
+                            // Google Sign In
                             Button(action: {
                                 authService.signInWithGoogle()
                             }) {
@@ -91,8 +91,13 @@ struct LoginView: View {
                         .padding(.horizontal, 40)
                     }
                     
-                    // Terms and Privacy
+                    // Login vs Sign Up explanation
                     VStack(spacing: 8) {
+                        Text("New to Reminora? We'll create your account automatically.")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.9))
+                            .multilineTextAlignment(.center)
+                        
                         Text("By continuing, you agree to our")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.8))

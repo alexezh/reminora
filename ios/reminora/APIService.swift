@@ -7,8 +7,8 @@ import CoreLocation
 class APIService: ObservableObject {
     static let shared = APIService()
     
-    private let baseURL = "https://reminora-backend.your-worker.workers.dev"
-    private let session = URLSession.shared
+    private let baseURL = "https://reminora-backend.reminora.workers.dev"
+    private let urlSession = URLSession.shared
     
     private var authService: AuthenticationService {
         return AuthenticationService.shared
@@ -48,7 +48,7 @@ class APIService: ObservableObject {
             throw APIError.invalidResponse
         }
         
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await urlSession.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse

@@ -3,15 +3,19 @@
   "version": "1.0.0",
   "description": "Cloudflare Workers backend for Reminora photo sharing app",
   "main": "src/index.js",
+  "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "tail": "wrangler tail"
+    "tail": "wrangler tail",
+    "db:migrate": "wrangler d1 execute reminora-db --file=./migrations/0001_initial.sql",
+    "db:migrate-oauth": "wrangler d1 execute reminora-db --file=./migrations/0002_oauth_and_handles.sql"
   },
   "dependencies": {
-    "@cloudflare/workers-types": "^4.20241218.0"
+    "itty-router": "^5.0.17"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
     "wrangler": "^3.95.0"
   }
 }

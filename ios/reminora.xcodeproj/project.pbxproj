@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		49540DC62E1C70A100886A08 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49540DC42E1C70A100886A08 /* ShareViewController.swift */; };
 		49540DC72E1C70A100886A08 /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 49540DC22E1C70A100886A08 /* MainInterface.storyboard */; };
+		49D0F56E2E1D667E004BABB0 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 49D0F56D2E1D667E004BABB0 /* GoogleService-Info.plist */; };
+		49D0F56F2E1D667E004BABB0 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 49D0F56D2E1D667E004BABB0 /* GoogleService-Info.plist */; };
 		49F151FC2DE4BF3200573F48 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F151FB2DE4BF3200573F48 /* Persistence.swift */; };
 		49F1522F2DE4C42400573F48 /* ReminoraShareExt.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 49F152252DE4C42400573F48 /* ReminoraShareExt.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		49F1523D2DE4CE0700573F48 /* places.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */; };
@@ -61,6 +63,7 @@
 		49540DC12E1C70A100886A08 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/MainInterface.storyboard; sourceTree = "<group>"; };
 		49540DC32E1C70A100886A08 /* ReminoraShareExt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReminoraShareExt.entitlements; sourceTree = "<group>"; };
 		49540DC42E1C70A100886A08 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		49D0F56D2E1D667E004BABB0 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		49F151EF2DE4BF3100573F48 /* reminora.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = reminora.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		49F151FB2DE4BF3200573F48 /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
 		49F152042DE4BF3200573F48 /* reminoraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = reminoraTests.xctest; path = wahiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -136,6 +139,7 @@
 		49F151E62DE4BF3100573F48 = {
 			isa = PBXGroup;
 			children = (
+				49D0F56D2E1D667E004BABB0 /* GoogleService-Info.plist */,
 				49540DC52E1C70A100886A08 /* ReminoraShareExt */,
 				49F152412DE4F29E00573F48 /* shared */,
 				49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */,
@@ -301,6 +305,9 @@
 			);
 			mainGroup = 49F151E62DE4BF3100573F48;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				49D0F56C2E1D5B6D004BABB0 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 49F151F02DE4BF3100573F48 /* Products */;
 			projectDirPath = "";
@@ -319,6 +326,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				49D0F56E2E1D667E004BABB0 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -340,6 +348,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				49D0F56F2E1D667E004BABB0 /* GoogleService-Info.plist in Resources */,
 				49540DC72E1C70A100886A08 /* MainInterface.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -543,6 +552,8 @@
 				DEVELOPMENT_TEAM = W292XJZS37;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = reminora;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Display position on map";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Display photo library";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -575,6 +586,8 @@
 				DEVELOPMENT_TEAM = W292XJZS37;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = reminora;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Display position on map";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Display photo library";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -764,6 +777,17 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		49D0F56C2E1D5B6D004BABB0 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCVersionGroup section */
 		49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */ = {

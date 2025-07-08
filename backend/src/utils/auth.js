@@ -1,8 +1,6 @@
 /**
- * Authentication utility functions
+ * Authentication utility functions for Cloudflare Workers
  */
-
-import { subtle } from 'crypto';
 
 /**
  * Generate a secure session token
@@ -14,12 +12,12 @@ export function generateSessionToken() {
 }
 
 /**
- * Hash a token for secure storage
+ * Hash a token for secure storage using Web Crypto API
  */
 export async function hashToken(token) {
     const encoder = new TextEncoder();
     const data = encoder.encode(token);
-    const hashBuffer = await subtle.digest('SHA-256', data);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = new Uint8Array(hashBuffer);
     return Array.from(hashArray, byte => byte.toString(16).padStart(2, '0')).join('');
 }

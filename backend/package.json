@@ -1,0 +1,17 @@
+{
+  "name": "reminora-backend",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers backend for Reminora photo sharing app",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.95.0"
+  }
+}

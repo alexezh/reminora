@@ -1,0 +1,11 @@
+name = "reminora-backend"
+main = "src/index.js"
+compatibility_date = "2024-12-18"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "reminora-db"
+database_id = "your-database-id-here"
+
+[vars]
+ENVIRONMENT = "development"

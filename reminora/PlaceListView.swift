@@ -12,6 +12,23 @@ struct PlaceListView: View {
     List {
       ForEach(items, id: \.objectID) { item in
         HStack(alignment: .center, spacing: 12) {
+          VStack(alignment: .leading, spacing: 4) {
+            if let date = item.dateAdded {
+              Text(date, formatter: itemFormatter)
+                .font(.headline)
+            }
+            if let post = item.post, !post.isEmpty {
+              Text(post)
+                .font(.body)
+                .lineLimit(1)
+            } else if let urlString = item.url {
+              Text(urlString)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+            }
+          }
+          Spacer()
           if let imageData = item.imageData, let image = UIImage(data: imageData) {
             Image(uiImage: image)
               .resizable()
@@ -33,22 +50,6 @@ struct PlaceListView: View {
               .frame(width: 56, height: 56)
               .clipShape(RoundedRectangle(cornerRadius: 8))
               .foregroundColor(.gray)
-          }
-          VStack(alignment: .leading, spacing: 4) {
-            if let date = item.dateAdded {
-              Text(date, formatter: itemFormatter)
-                .font(.headline)
-            }
-            if let post = item.post, !post.isEmpty {
-              Text(post)
-                .font(.body)
-                .lineLimit(1)
-            } else if let urlString = item.url {
-              Text(urlString)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .lineLimit(1)
-            }
           }
         }
         .padding(.vertical, 4)

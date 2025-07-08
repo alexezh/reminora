@@ -51,8 +51,13 @@ struct MapView: View {
   let minHeight: CGFloat = 50
   let maxHeight: CGFloat = 400
 
-  @State private var sheetHeight: CGFloat = 50
+  @State private var sheetHeight: CGFloat = 150
   @GestureState private var dragOffset: CGFloat = 0
+  @State private var shouldSortByDistance: Bool = false
+  @State private var showCenterButton: Bool = false
+  @State private var showPlaceDetail: Bool = false
+  @State private var lastTappedPlace: Place?
+  @State private var lastTapTime: Date = Date()
 
   var filteredItems: [Place] {
     let center = region.center
@@ -65,13 +70,20 @@ struct MapView: View {
           || (item.url?.localizedCaseInsensitiveContains(searchText) ?? false)
       }
     }
-    // Sort by distance from map center
-    return places.sorted { a, b in
-      let aCoord = coordinate(item: a)
-      let bCoord = coordinate(item: b)
-      let aDist = distance(from: center, to: aCoord)
-      let bDist = distance(from: center, to: bCoord)
-      return aDist < bDist
+    // Sort by distance from map center only when explicitly requested
+    if shouldSortByDistance {
+      return places.sorted { a, b in
+        let aCoord = coordinate(item: a)
+        let bCoord = coordinate(item: b)
+        let aDist = distance(from: center, to: aCoord)
+        let bDist = distance(from: center, to: bCoord)
+        return aDist < bDist
+      }
+    } else {
+      // Return items sorted by date added (most recent first)
+      return places.sorted { a, b in
+        (a.dateAdded ?? Date.distantPast) > (b.dateAdded ?? Date.distantPast)
+      }
     }
   }
 
@@ -101,25 +113,29 @@ struct MapView: View {
           }
         }
       }
-      .ignoresSafeArea()
-      .onAppear {
-        // if let first = filteredItems.first {
-        //     region.center = coordinate(for: first)
-        // }
-
-        // Center on user location if available and no places
-        // if let userLoc = locationManager.lastLocation {
-        //   region.center = userLoc.coordinate
-        // }
-      }
-      .onReceive(locationManager.$lastLocation) { location in
-        guard let location = location else { return }
-        DispatchQueue.main.async {
-          print("updating location")
-          region = MKCoordinateRegion(
-            center: location.coordinate,
-            span: region.span  // or any span you want to preserve
-          )
+      
+      // Center button overlay
+      if showCenterButton {
+        VStack {
+          HStack {
+            Spacer()
+            Button(action: {
+              shouldSortByDistance = true
+              showCenterButton = false
+            }) {
+              Text("Center")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color.blue)
+                .clipShape(Capsule())
+                .shadow(radius: 4)
+            }
+            .padding(.trailing, 16)
+            .padding(.top, 60)
+          }
+          Spacer()
         }
       }
 
@@ -138,30 +154,48 @@ struct MapView: View {
               items: filteredItems,
               selectedPlace: selectedPlace,
               onSelect: { item in
-                selectedPlace = item
-                showSheet = false
+                let now = Date()
+                let timeSinceLastTap = now.timeIntervalSince(lastTapTime)
                 
-                // Get coordinate of selected place
-                let coord = coordinate(item: item)
-                
-                // Always animate to the selected photo location with appropriate zoom
-                let newRegion = MKCoordinateRegion(
-                    center: coord,
-                    span: MKCoordinateSpan(
-                        latitudeDelta: 0.01, // Zoom in closer to show detail
-                        longitudeDelta: 0.01
+                // Check if this is a second tap on the same item within 2 seconds
+                if let lastPlace = lastTappedPlace, 
+                   lastPlace.objectID == item.objectID, 
+                   timeSinceLastTap < 2.0 {
+                    // Double tap detected - show detail view
+                    showPlaceDetail = true
+                } else {
+                    // First tap or different item - navigate map
+                    selectedPlace = item
+                    showSheet = false
+                    showCenterButton = true
+                    shouldSortByDistance = false // Reset sorting when selecting photo
+                    
+                    // Get coordinate of selected place
+                    let coord = coordinate(item: item)
+                    
+                    // Always animate to the selected photo location with appropriate zoom
+                    let newRegion = MKCoordinateRegion(
+                        center: coord,
+                        span: MKCoordinateSpan(
+                            latitudeDelta: 0.01, // Zoom in closer to show detail
+                            longitudeDelta: 0.01
+                        )
                     )
-                )
-                withAnimation(.easeInOut(duration: 1.0)) {
-                    region = newRegion
+                    withAnimation(.easeInOut(duration: 1.0)) {
+                        region = newRegion
+                    }
                 }
+                
+                // Update last tapped info
+                lastTappedPlace = item
+                lastTapTime = now
               },
               onDelete: deleteItems
             )
           }
           .frame(
             width: geometry.size.width,
-            height: maxHeight + safeAreaBottom,
+            height: maxHeight,
             alignment: .top
           )
           .background(
@@ -170,7 +204,7 @@ struct MapView: View {
               .shadow(radius: 5)
           )
           .offset(
-            y: geometry.size.height - sheetHeight - safeAreaBottom + dragOffset
+            y: geometry.size.height - sheetHeight - 100 + dragOffset
           )
           .gesture(
             DragGesture()
@@ -190,6 +224,42 @@ struct MapView: View {
               }
             }
           }
+        }
+      }
+    }
+    .sheet(isPresented: $showPlaceDetail) {
+      if let selectedPlace = selectedPlace {
+        NavigationView {
+          PlaceDetailView(
+            place: selectedPlace,
+            allPlaces: Array(items),
+            onBack: {
+              showPlaceDetail = false
+            }
+          )
+        }
+      }
+    }
+    .ignoresSafeArea()
+    .onAppear {
+      // if let first = filteredItems.first {
+      //     region.center = coordinate(for: first)
+      // }
+
+      // Center on user location if available and no places
+      // if let userLoc = locationManager.lastLocation {
+      //   region.center = userLoc.coordinate
+      // }
+    }
+    .onReceive(locationManager.$lastLocation) { location in
+      guard let location = location else { return }
+      DispatchQueue.main.async {
+        print("updating location")
+        withAnimation(.easeInOut(duration: 1.0)) {
+          region = MKCoordinateRegion(
+            center: location.coordinate,
+            span: region.span  // or any span you want to preserve
+          )
         }
       }
     }

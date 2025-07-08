@@ -64,11 +64,30 @@ class ShareViewController: SLComposeServiceViewController {
     override func didSelectPost() {
         // Store the image and text when the user posts
         if let (data, url) = pendingImageData {
+            // Extract location from image data
+            let location = extractLocationFromImageData(data)
             PersistenceController.shared.saveImageDataToCoreData(
-                imageData: data, url: url, contentText: self.contentText)
+                imageData: data, location: location, contentText: self.contentText)
         }
         // Inform the host that we're done, so it un-blocks its UI. Note: Alternatively you could call super's -didSelectPost, which will similarly complete the extension context.
         self.extensionContext!.completeRequest(returningItems: [], completionHandler: nil)
+    }
+    
+    private func extractLocationFromImageData(_ data: Data) -> CLLocation? {
+        guard let imageSource = CGImageSourceCreateWithData(data as CFData, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any],
+              let gps = properties[kCGImagePropertyGPSDictionary] as? [CFString: Any],
+              let latitude = gps[kCGImagePropertyGPSLatitude] as? Double,
+              let latitudeRef = gps[kCGImagePropertyGPSLatitudeRef] as? String,
+              let longitude = gps[kCGImagePropertyGPSLongitude] as? Double,
+              let longitudeRef = gps[kCGImagePropertyGPSLongitudeRef] as? String
+        else {
+            return nil
+        }
+        
+        let lat = (latitudeRef == "S") ? -latitude : latitude
+        let lon = (longitudeRef == "W") ? -longitude : longitude
+        return CLLocation(latitude: lat, longitude: lon)
     }
 
     override func configurationItems() -> [Any]! {

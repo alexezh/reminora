@@ -15,6 +15,7 @@ struct PhotoLibraryView: View {
         if let selectedAsset = selectedAsset {
           FullPhotoView(asset: selectedAsset) {
             self.selectedAsset = nil
+            self.isPresented = false
           }
         } else {
           ScrollView {
@@ -43,15 +44,6 @@ struct PhotoLibraryView: View {
           if selectedAsset == nil {
             Button("Close") {
               isPresented = false
-            }
-          }
-        }
-        ToolbarItem(placement: .navigationBarLeading) {
-          if selectedAsset != nil {
-            Button(action: {
-              selectedAsset = nil
-            }) {
-              Label("Back", systemImage: "chevron.left")
             }
           }
         }

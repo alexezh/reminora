@@ -63,8 +63,8 @@
 		49540DC42E1C70A100886A08 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		49F151EF2DE4BF3100573F48 /* reminora.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = reminora.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		49F151FB2DE4BF3200573F48 /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
-		49F152042DE4BF3200573F48 /* reminoraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = reminoraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		49F1520E2DE4BF3200573F48 /* reminoraUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = reminoraUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		49F152042DE4BF3200573F48 /* reminoraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = reminoraTests.xctest; path = wahiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		49F1520E2DE4BF3200573F48 /* reminoraUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = reminoraUITests.xctest; path = wahiUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		49F152252DE4C42400573F48 /* ReminoraShareExt.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ReminoraShareExt.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		49F1523C2DE4CE0700573F48 /* places.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = places.xcdatamodel; sourceTree = "<group>"; };
 		49F152432DE4F3CA00573F48 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
@@ -177,9 +177,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		49F151EE2DE4BF3100573F48 /* wahi */ = {
+		49F151EE2DE4BF3100573F48 /* reminora */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 49F152182DE4BF3200573F48 /* Build configuration list for PBXNativeTarget "wahi" */;
+			buildConfigurationList = 49F152182DE4BF3200573F48 /* Build configuration list for PBXNativeTarget "reminora" */;
 			buildPhases = (
 				49F151EB2DE4BF3100573F48 /* Sources */,
 				49F151EC2DE4BF3100573F48 /* Frameworks */,
@@ -201,7 +201,7 @@
 			productReference = 49F151EF2DE4BF3100573F48 /* reminora.app */;
 			productType = "com.apple.product-type.application";
 		};
-		49F152032DE4BF3200573F48 /* reminoraTests */ = {
+		49F152032DE4BF3200573F48 /* wahiTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 49F1521B2DE4BF3200573F48 /* Build configuration list for PBXNativeTarget "wahiTests" */;
 			buildPhases = (
@@ -224,7 +224,7 @@
 			productReference = 49F152042DE4BF3200573F48 /* reminoraTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		49F1520D2DE4BF3200573F48 /* reminoraUITests */ = {
+		49F1520D2DE4BF3200573F48 /* wahiUITests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 49F1521E2DE4BF3200573F48 /* Build configuration list for PBXNativeTarget "wahiUITests" */;
 			buildPhases = (
@@ -249,7 +249,7 @@
 		};
 		49F152242DE4C42400573F48 /* ReminoraShareExt */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 49F152312DE4C42400573F48 /* Build configuration list for PBXNativeTarget "WahiShareExt" */;
+			buildConfigurationList = 49F152312DE4C42400573F48 /* Build configuration list for PBXNativeTarget "ReminoraShareExt" */;
 			buildPhases = (
 				49F152212DE4C42400573F48 /* Sources */,
 				49F152222DE4C42400573F48 /* Frameworks */,
@@ -263,7 +263,7 @@
 			packageProductDependencies = (
 			);
 			productName = ReminoraShareExt;
-			productReference = 49F152252DE4C42400573F48 /* WahiShareExt.appex */;
+			productReference = 49F152252DE4C42400573F48 /* ReminoraShareExt.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
@@ -306,10 +306,10 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				49F151EE2DE4BF3100573F48 /* wahi */,
+				49F151EE2DE4BF3100573F48 /* reminora */,
 				49F152032DE4BF3200573F48 /* wahiTests */,
 				49F1520D2DE4BF3200573F48 /* wahiUITests */,
-				49F152242DE4C42400573F48 /* WahiShareExt */,
+				49F152242DE4C42400573F48 /* ReminoraShareExt */,
 			);
 		};
 /* End PBXProject section */
@@ -385,12 +385,12 @@
 /* Begin PBXTargetDependency section */
 		49F152062DE4BF3200573F48 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 49F151EE2DE4BF3100573F48 /* wahi */;
+			target = 49F151EE2DE4BF3100573F48 /* reminora */;
 			targetProxy = 49F152052DE4BF3200573F48 /* PBXContainerItemProxy */;
 		};
 		49F152102DE4BF3200573F48 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 49F151EE2DE4BF3100573F48 /* wahi */;
+			target = 49F151EE2DE4BF3100573F48 /* reminora */;
 			targetProxy = 49F1520F2DE4BF3200573F48 /* PBXContainerItemProxy */;
 		};
 		49F1522E2DE4C42400573F48 /* PBXTargetDependency */ = {
@@ -727,7 +727,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		49F152182DE4BF3200573F48 /* Build configuration list for PBXNativeTarget "wahi" */ = {
+		49F152182DE4BF3200573F48 /* Build configuration list for PBXNativeTarget "reminora" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				49F152192DE4BF3200573F48 /* Debug */,
@@ -754,7 +754,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		49F152312DE4C42400573F48 /* Build configuration list for PBXNativeTarget "WahiShareExt" */ = {
+		49F152312DE4C42400573F48 /* Build configuration list for PBXNativeTarget "ReminoraShareExt" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				49F152322DE4C42400573F48 /* Debug */,

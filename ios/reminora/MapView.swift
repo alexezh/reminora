@@ -49,29 +49,40 @@ struct MapView: View {
   @StateObject private var locationManager = LocationManager()
 
   let minHeight: CGFloat = 50
-  let maxHeight: CGFloat = 400
+  let oneThirdHeight: CGFloat = UIScreen.main.bounds.height * 0.33
+  let maxHeight: CGFloat = UIScreen.main.bounds.height * 0.8
 
-  @State private var sheetHeight: CGFloat = 150
+  @State private var sheetHeight: CGFloat = UIScreen.main.bounds.height * 0.33
   @GestureState private var dragOffset: CGFloat = 0
   @State private var shouldSortByDistance: Bool = false
   @State private var showCenterButton: Bool = false
   @State private var showPlaceDetail: Bool = false
   @State private var lastTappedPlace: Place?
   @State private var lastTapTime: Date = Date()
+  @State private var shouldScrollToSelected: Bool = true
+  @State private var isSearching: Bool = false
 
   var filteredItems: [Place] {
     let center = region.center
     let places: [Place]
-    if searchText.isEmpty {
+    
+    // If we're in search mode (after a geo search), show all places
+    // If we have search text but haven't performed geo search, filter by text
+    if isSearching || (!searchText.isEmpty && !isSearching) {
+      // After geo search, show all places sorted by distance from search location
       places = Array(items)
-    } else {
+    } else if !searchText.isEmpty {
+      // Text search in place names/posts
       places = items.filter { item in
         (item.post?.localizedCaseInsensitiveContains(searchText) ?? false)
           || (item.url?.localizedCaseInsensitiveContains(searchText) ?? false)
       }
+    } else {
+      places = Array(items)
     }
-    // Sort by distance from map center only when explicitly requested
-    if shouldSortByDistance {
+    
+    // Sort by distance from map center when explicitly requested OR after geo search
+    if shouldSortByDistance || isSearching {
       return places.sorted { a, b in
         let aCoord = coordinate(item: a)
         let bCoord = coordinate(item: b)
@@ -122,6 +133,7 @@ struct MapView: View {
             Button(action: {
               shouldSortByDistance = true
               showCenterButton = false
+              shouldScrollToSelected = true // Allow scrolling when using center button
             }) {
               Text("Center")
                 .font(.system(size: 16, weight: .medium))
@@ -144,12 +156,42 @@ struct MapView: View {
         let safeAreaBottom = geometry.safeAreaInsets.bottom
 
         ScrollViewReader { proxy in
-          VStack {
+          VStack(spacing: 0) {
+            // Drag handle
             Capsule()
               .fill(Color.secondary)
               .frame(width: 40, height: 6)
               .padding(.top, 8)
-            Spacer()
+              .padding(.bottom, 8)
+            
+            // Search bar - only show when pane is at max height
+            if sheetHeight >= maxHeight - 50 {
+              HStack {
+                Image(systemName: "magnifyingglass")
+                  .foregroundColor(.secondary)
+                  .padding(.leading, 8)
+                
+                TextField("Search places...", text: $searchText)
+                  .textFieldStyle(RoundedBorderTextFieldStyle())
+                  .onSubmit {
+                    performGeoSearch()
+                  }
+                
+                if !searchText.isEmpty {
+                  Button("Clear") {
+                    searchText = ""
+                    isSearching = false
+                  }
+                  .foregroundColor(.blue)
+                  .padding(.trailing, 8)
+                }
+              }
+              .padding(.horizontal, 16)
+              .padding(.bottom, 12)
+              .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            
+            // Places list
             PlaceListView(
               items: filteredItems,
               selectedPlace: selectedPlace,
@@ -165,6 +207,7 @@ struct MapView: View {
                     showPlaceDetail = true
                 } else {
                     // First tap or different item - navigate map
+                    shouldScrollToSelected = false // Prevent auto-scroll when selecting from list
                     selectedPlace = item
                     showSheet = false
                     showCenterButton = true
@@ -212,17 +255,49 @@ struct MapView: View {
                 state = value.translation.height
               }
               .onEnded { value in
-                let newHeight = sheetHeight - value.translation.height
-                sheetHeight = min(maxHeight, max(newHeight, minHeight))
+                let currentHeight = sheetHeight
+                let translation = value.translation.height
+                
+                print("Drag ended: currentHeight=\(currentHeight), translation=\(translation)")
+                print("Heights: min=\(minHeight), oneThird=\(oneThirdHeight), max=\(maxHeight)")
+                
+                withAnimation(.easeInOut(duration: 0.3)) {
+                  // Snap to specific heights based on gesture direction and current position
+                  if translation < -50 { // Swiping up (negative translation)
+                    if currentHeight <= oneThirdHeight + 50 {
+                      sheetHeight = maxHeight  // Expand to full
+                      print("Expanding to max height: \(maxHeight)")
+                    } else {
+                      sheetHeight = maxHeight  // Already expanded, stay at max
+                    }
+                  } else if translation > 50 { // Swiping down (positive translation)
+                    if currentHeight >= maxHeight - 50 {
+                      sheetHeight = oneThirdHeight  // Collapse from full to default
+                      print("Collapsing to oneThird: \(oneThirdHeight)")
+                    } else if currentHeight >= oneThirdHeight - 50 {
+                      sheetHeight = minHeight  // Collapse from default to min
+                      print("Collapsing to min: \(minHeight)")
+                    }
+                  } else {
+                    // Small gesture - snap to nearest height
+                    let targetHeight = currentHeight - translation
+                    let heights = [minHeight, oneThirdHeight, maxHeight]
+                    let nearestHeight = heights.min { abs($0 - targetHeight) < abs($1 - targetHeight) } ?? oneThirdHeight
+                    sheetHeight = nearestHeight
+                    print("Snapping to nearest: \(nearestHeight)")
+                  }
+                }
               }
           )
-          // Scroll to selectedPlace when it changes
+          // Scroll to selectedPlace when it changes (only when not from list selection)
           .onChange(of: selectedPlace) { place in
-            if let place = place {
+            if let place = place, shouldScrollToSelected {
               withAnimation {
                 proxy.scrollTo(place.objectID, anchor: .center)
               }
             }
+            // Reset the flag for next time
+            shouldScrollToSelected = true
           }
         }
       }
@@ -301,6 +376,39 @@ struct MapView: View {
       } catch {
         let nsError = error as NSError
         fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+      }
+    }
+  }
+  
+  private func performGeoSearch() {
+    guard !searchText.isEmpty else { return }
+    
+    isSearching = true
+    let request = MKLocalSearch.Request()
+    request.naturalLanguageQuery = searchText
+    request.region = region
+    
+    let search = MKLocalSearch(request: request)
+    search.start { response, error in
+      DispatchQueue.main.async {
+        isSearching = false
+        
+        if let error = error {
+          print("Search error: \(error)")
+          return
+        }
+        
+        if let response = response, let firstItem = response.mapItems.first {
+          let coordinate = firstItem.placemark.coordinate
+          let newRegion = MKCoordinateRegion(
+            center: coordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+          )
+          
+          withAnimation(.easeInOut(duration: 1.0)) {
+            region = newRegion
+          }
+        }
       }
     }
   }

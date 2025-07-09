@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Reminora</string>
+    <string name="google_maps_key">YOUR_GOOGLE_MAPS_API_KEY</string>
+    
+    <!-- Auth -->
+    <string name="welcome_title">Reminora</string>
+    <string name="welcome_subtitle">Share moments, follow friends</string>
+    <string name="sign_in_with_google">Continue with Google</string>
+    <string name="sign_in_with_github">Continue with GitHub</string>
+    <string name="terms_notice">By continuing, you agree to our Terms of Service and Privacy Policy</string>
+    <string name="auto_account_creation">New to Reminora? We\'ll create your account automatically.</string>
+    
+    <!-- Home -->
+    <string name="no_photos_title">No photos yet</string>
+    <string name="no_photos_subtitle">Start sharing your moments!</string>
+    <string name="add_photo">Add Photo</string>
+    <string name="menu">Menu</string>
+    <string name="sign_out">Sign Out</string>
+    
+    <!-- Profile -->
+    <string name="profile">Profile</string>
+    <string name="followers">Followers</string>
+    <string name="following">Following</string>
+    <string name="photos">Photos</string>
+    
+    <!-- Camera -->
+    <string name="capture_photo">Capture Photo</string>
+    <string name="gallery">Gallery</string>
+    <string name="add_caption">Add a caption...</string>
+    <string name="share">Share</string>
+    <string name="cancel">Cancel</string>
+    
+    <!-- Permissions -->
+    <string name="camera_permission_required">Camera permission is required to take photos</string>
+    <string name="location_permission_required">Location permission is required to add location to photos</string>
+    <string name="storage_permission_required">Storage permission is required to save photos</string>
+    
+    <!-- Errors -->
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_network">Network error. Please check your connection.</string>
+    <string name="error_auth">Authentication failed. Please try again.</string>
+    <string name="error_upload">Failed to upload photo. Please try again.</string>
+</resources>

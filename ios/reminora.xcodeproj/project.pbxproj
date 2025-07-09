@@ -11,6 +11,7 @@
 		49540DC72E1C70A100886A08 /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 49540DC22E1C70A100886A08 /* MainInterface.storyboard */; };
 		49D0F56E2E1D667E004BABB0 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 49D0F56D2E1D667E004BABB0 /* GoogleService-Info.plist */; };
 		49D0F56F2E1D667E004BABB0 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 49D0F56D2E1D667E004BABB0 /* GoogleService-Info.plist */; };
+		49D0F5732E1DE50F004BABB0 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 49D0F5722E1DE50F004BABB0 /* GoogleSignIn */; };
 		49F151FC2DE4BF3200573F48 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F151FB2DE4BF3200573F48 /* Persistence.swift */; };
 		49F1522F2DE4C42400573F48 /* ReminoraShareExt.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 49F152252DE4C42400573F48 /* ReminoraShareExt.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		49F1523D2DE4CE0700573F48 /* places.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */; };
@@ -73,9 +74,22 @@
 		49F152432DE4F3CA00573F48 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		49D0F5772E1DE737004BABB0 /* Exceptions for "reminora" folder in "reminora" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 49F151EE2DE4BF3100573F48 /* reminora */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		49F151F12DE4BF3100573F48 /* reminora */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				49D0F5772E1DE737004BABB0 /* Exceptions for "reminora" folder in "reminora" target */,
+			);
 			path = reminora;
 			sourceTree = "<group>";
 		};
@@ -97,6 +111,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				49F152442DE4F3CA00573F48 /* CoreData.framework in Frameworks */,
+				49D0F5732E1DE50F004BABB0 /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -200,6 +215,7 @@
 			);
 			name = reminora;
 			packageProductDependencies = (
+				49D0F5722E1DE50F004BABB0 /* GoogleSignIn */,
 			);
 			productName = reminora;
 			productReference = 49F151EF2DE4BF3100573F48 /* reminora.app */;
@@ -552,6 +568,7 @@
 				DEVELOPMENT_TEAM = W292XJZS37;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = reminora/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = reminora;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Display position on map";
@@ -586,6 +603,7 @@
 				DEVELOPMENT_TEAM = W292XJZS37;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = reminora/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = reminora;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.travel";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Display position on map";
@@ -788,6 +806,14 @@
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		49D0F5722E1DE50F004BABB0 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 49D0F56C2E1D5B6D004BABB0 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCVersionGroup section */
 		49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */ = {

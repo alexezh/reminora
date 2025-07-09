@@ -8,7 +8,7 @@ import AuthenticationServices
 class AuthenticationService: NSObject, ObservableObject {
     static let shared = AuthenticationService()
     
-    private let baseURL = "https://reminora-backend.your-worker.workers.dev"
+    private let baseURL = "https://reminora-backend.reminora.workers.dev"
     private let urlSession = URLSession.shared
     
     @Published var authState: AuthState = .loading
@@ -41,7 +41,9 @@ class AuthenticationService: NSObject, ObservableObject {
         
         Task {
             do {
+                print("Starting Google Sign-In...")
                 let result = try await GoogleSignInHelper.shared.signIn()
+                print("Google Sign-In successful: \(result.email)")
                 
                 await handleOAuthCallback(
                     provider: .google,
@@ -53,6 +55,7 @@ class AuthenticationService: NSObject, ObservableObject {
                     refreshToken: result.refreshToken
                 )
             } catch {
+                print("Google Sign-In failed: \(error)")
                 await MainActor.run {
                     self.isLoading = false
                     self.authState = .error(error)
@@ -237,13 +240,21 @@ class AuthenticationService: NSObject, ObservableObject {
             let (data, response) = try await urlSession.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse else {
+                print("Auth Error: Invalid response type")
                 throw AuthError.invalidResponse
+            }
+            
+            print("Auth Response: Status \(httpResponse.statusCode)")
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("Auth Response Body: \(responseString)")
             }
             
             if httpResponse.statusCode >= 400 {
                 if let errorData = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
+                    print("Auth Error: \(errorData.message)")
                     throw AuthError.serverError(errorData.message)
                 } else {
+                    print("Auth Error: Authentication failed with status \(httpResponse.statusCode)")
                     throw AuthError.serverError("Authentication failed")
                 }
             }

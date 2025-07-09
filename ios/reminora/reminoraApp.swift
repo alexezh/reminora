@@ -6,11 +6,16 @@
 //
 
 import SwiftUI
+import GoogleSignIn
 
 @main
 struct reminoraApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var authService = AuthenticationService.shared
+
+    init() {
+        configureGoogleSignIn()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -28,7 +33,25 @@ struct reminoraApp: App {
                 }
             }
             .environmentObject(authService)
+            .onOpenURL { url in
+                GIDSignIn.sharedInstance.handle(url)
+            }
         }
+    }
+    
+    private func configureGoogleSignIn() {
+        // Configure Google Sign-In when GoogleService-Info.plist is available
+        guard let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+              let plist = NSDictionary(contentsOfFile: path),
+              let clientId = plist["CLIENT_ID"] as? String else {
+            print("GoogleService-Info.plist not found or CLIENT_ID missing")
+            return
+        }
+        
+        // Configure Google Sign-In
+        let config = GIDConfiguration(clientID: clientId)
+        GIDSignIn.sharedInstance.configuration = config
+        print("Google Sign-In configured successfully")
     }
 }
 

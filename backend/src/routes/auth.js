@@ -9,6 +9,10 @@ export function authRoutes(router) {
     // OAuth callback endpoint
     router.post('/api/auth/oauth/callback', async (request, env) => {
         try {
+            console.log('OAuth callback started');
+            const body = await request.json();
+            console.log('Request body:', JSON.stringify(body));
+            
             const { 
                 provider, 
                 code, 
@@ -19,7 +23,7 @@ export function authRoutes(router) {
                 access_token,
                 refresh_token,
                 expires_in 
-            } = await request.json();
+            } = body;
             
             if (!provider || !oauth_id || !email) {
                 return new Response(JSON.stringify({

@@ -1,5 +1,5 @@
 name = "reminora-backend"
-main = "src/index.js"
+main = "src/simple-auth.js"
 compatibility_date = "2024-12-18"
 
 [[d1_databases]]

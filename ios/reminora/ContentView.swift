@@ -52,13 +52,21 @@ struct ContentView: View {
                     }
                 }
             
+            // Lists Tab
+            ListView()
+                .tabItem {
+                    Image(systemName: "list.bullet")
+                    Text("Lists")
+                }
+                .tag(2)
+            
             // Profile Tab
             ProfileView()
                 .tabItem {
                     Image(systemName: "person.circle")
                     Text("Profile")
                 }
-                .tag(2)
+                .tag(3)
         }
         .accentColor(.blue)
     }

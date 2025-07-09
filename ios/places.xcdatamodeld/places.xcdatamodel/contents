@@ -1,10 +1,45 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23605" systemVersion="23G93" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
     <entity name="Place" representedClassName="Place" syncable="YES" codeGenerationType="class">
+        <attribute name="cloudId" optional="YES" attributeType="String"/>
+        <attribute name="cloudSyncedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="dateAdded" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="imageData" optional="YES" attributeType="Binary"/>
         <attribute name="location" optional="YES" attributeType="Binary"/>
         <attribute name="post" optional="YES" attributeType="String"/>
         <attribute name="url" optional="YES" attributeType="String"/>
+    </entity>
+    <entity name="Comment" representedClassName="Comment" syncable="YES" codeGenerationType="class">
+        <attribute name="cloudId" optional="YES" attributeType="String"/>
+        <attribute name="commentText" optional="NO" attributeType="String" defaultValue=""/>
+        <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO" defaultValue="0"/>
+        <attribute name="fromUserHandle" optional="NO" attributeType="String" defaultValue="unknown"/>
+        <attribute name="fromUserId" optional="NO" attributeType="String" defaultValue="unknown"/>
+        <attribute name="fromUserName" optional="NO" attributeType="String" defaultValue="Unknown User"/>
+        <attribute name="id" optional="NO" attributeType="String" defaultValue=""/>
+        <attribute name="isReaction" optional="NO" attributeType="Boolean" defaultValue="NO" usesScalarValueType="YES"/>
+        <attribute name="targetPhotoId" optional="YES" attributeType="String"/>
+        <attribute name="targetUserId" optional="YES" attributeType="String"/>
+        <attribute name="toUserHandle" optional="YES" attributeType="String"/>
+        <attribute name="toUserId" optional="YES" attributeType="String"/>
+        <attribute name="toUserName" optional="YES" attributeType="String"/>
+        <attribute name="type" optional="NO" attributeType="String" defaultValue="comment"/>
+    </entity>
+    <entity name="UserList" representedClassName="UserList" syncable="YES" codeGenerationType="class">
+        <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="NO" attributeType="String"/>
+        <attribute name="name" optional="NO" attributeType="String"/>
+        <attribute name="userId" optional="NO" attributeType="String"/>
+        <relationship name="items" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ListItem" inverseName="list"/>
+    </entity>
+    <entity name="ListItem" representedClassName="ListItem" syncable="YES" codeGenerationType="class">
+        <attribute name="addedAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" optional="NO" attributeType="String"/>
+        <attribute name="placeId" optional="NO" attributeType="String"/>
+        <attribute name="sharedByUserId" optional="YES" attributeType="String"/>
+        <attribute name="sharedByUserName" optional="YES" attributeType="String"/>
+        <attribute name="sharedLink" optional="YES" attributeType="String"/>
+        <relationship name="list" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="UserList" inverseName="items"/>
+        <relationship name="place" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Place"/>
     </entity>
 </model>

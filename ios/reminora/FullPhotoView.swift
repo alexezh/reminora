@@ -29,14 +29,14 @@ struct FullPhotoView: View {
             .frame(height: 300)
         }
         
-        // Caption text field - fixed position
+        // Caption text field - bigger area
         VStack(spacing: 0) {
           HStack {
             TextField("Add a caption...", text: $caption, axis: .vertical)
-              .lineLimit(3...6)
-              .padding(12)
+              .lineLimit(5...10)
+              .padding(16)
               .background(Color(.systemGray6))
-              .cornerRadius(8)
+              .cornerRadius(12)
               .padding([.horizontal, .bottom], 16)
               .focused($isTextFieldFocused)
           }
@@ -62,12 +62,21 @@ struct FullPhotoView: View {
               .cornerRadius(12)
               .padding(.horizontal, 16)
               .allowsHitTesting(false)
+              .padding(.bottom, 16)
+            }
+            
+            // Comments section placeholder - will be implemented when adding comments to photos
+            VStack(alignment: .leading, spacing: 8) {
+              Text("Comments")
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding(.horizontal, 16)
               
-              // Nearby places using shared component
-              if let coordinate = photoLocation {
-                NearbyPlacesView(coordinate: coordinate)
-                  .padding(.bottom, 16)
-              }
+              Text("Comments will be available when this photo is shared.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
             }
           }
         }

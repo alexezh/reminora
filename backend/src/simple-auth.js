@@ -175,6 +175,111 @@ export default {
                 }
             }
             
+            // Comments API
+            if (url.pathname === '/api/comments' && request.method === 'POST') {
+                const body = await request.json();
+                const { target_photo_id, target_user_id, comment_text, type = 'comment' } = body;
+                
+                // Basic validation
+                if (!comment_text || (!target_photo_id && !target_user_id)) {
+                    return new Response(JSON.stringify({
+                        error: 'Missing required fields',
+                        message: 'comment_text and either target_photo_id or target_user_id are required'
+                    }), {
+                        status: 400,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+                    });
+                }
+                
+                // TODO: Authenticate user from session token
+                // For now, use the first available user as the commenter
+                const users = await env.DB.prepare('SELECT id FROM accounts LIMIT 1').all();
+                const fromUserId = users.results?.[0]?.id || 'unknown';
+                
+                const commentId = crypto.randomUUID();
+                const now = Math.floor(Date.now() / 1000);
+                
+                try {
+                    await env.DB.prepare(`
+                        INSERT INTO comments (id, from_user_id, to_user_id, target_photo_id, comment_text, type, is_reaction, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `).bind(commentId, fromUserId, target_user_id || null, target_photo_id || null, comment_text, type, type === 'reaction' ? 1 : 0, now, now).run();
+                    
+                    return new Response(JSON.stringify({
+                        id: commentId,
+                        message: 'Comment created successfully'
+                    }), {
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+                    });
+                } catch (dbError) {
+                    return new Response(JSON.stringify({
+                        error: 'Database error',
+                        message: dbError.message
+                    }), {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+                    });
+                }
+            }
+            
+            // Get comments for a user or photo
+            if (url.pathname.startsWith('/api/comments/') && request.method === 'GET') {
+                const pathParts = url.pathname.split('/');
+                const targetType = pathParts[3]; // 'user' or 'photo'
+                const targetId = pathParts[4];
+                
+                if (!targetType || !targetId) {
+                    return new Response(JSON.stringify({
+                        error: 'Invalid path',
+                        message: 'Use /api/comments/user/{userId} or /api/comments/photo/{photoId}'
+                    }), {
+                        status: 400,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+                    });
+                }
+                
+                try {
+                    let query;
+                    if (targetType === 'user') {
+                        query = `
+                            SELECT c.*, a.username as from_username, a.display_name as from_display_name, a.handle as from_handle
+                            FROM comments c
+                            LEFT JOIN accounts a ON c.from_user_id = a.id
+                            WHERE c.to_user_id = ?
+                            ORDER BY c.created_at DESC
+                            LIMIT 50
+                        `;
+                    } else if (targetType === 'photo') {
+                        query = `
+                            SELECT c.*, a.username as from_username, a.display_name as from_display_name, a.handle as from_handle
+                            FROM comments c
+                            LEFT JOIN accounts a ON c.from_user_id = a.id
+                            WHERE c.target_photo_id = ?
+                            ORDER BY c.created_at ASC
+                            LIMIT 50
+                        `;
+                    } else {
+                        throw new Error('Invalid target type');
+                    }
+                    
+                    const results = await env.DB.prepare(query).bind(targetId).all();
+                    
+                    return new Response(JSON.stringify({
+                        comments: results.results || []
+                    }), {
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+                    });
+                } catch (dbError) {
+                    return new Response(JSON.stringify({
+                        error: 'Database error',
+                        message: dbError.message
+                    }), {
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json', ...corsHeaders }
+                    });
+                }
+            }
+            
             return new Response('Not Found', { 
                 status: 404, 
                 headers: corsHeaders 

@@ -14,8 +14,8 @@ class AuthenticationService: NSObject, ObservableObject {
     @Published var authState: AuthState = .loading
     @Published var isLoading = false
     
-    private var currentSession: AuthSession?
-    private var currentAccount: AuthAccount?
+    var currentSession: AuthSession?
+    var currentAccount: AuthAccount?
     
     override init() {
         super.init()

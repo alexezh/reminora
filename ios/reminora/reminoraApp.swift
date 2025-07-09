@@ -7,6 +7,8 @@
 
 import SwiftUI
 import GoogleSignIn
+import CoreData
+import CoreLocation
 
 @main
 struct reminoraApp: App {
@@ -34,7 +36,14 @@ struct reminoraApp: App {
             }
             .environmentObject(authService)
             .onOpenURL { url in
-                GIDSignIn.sharedInstance.handle(url)
+                // Handle Google Sign-In URLs
+                if url.scheme == "com.googleusercontent.apps" {
+                    GIDSignIn.sharedInstance.handle(url)
+                }
+                // Handle Reminora deep links
+                else if url.host == "reminora.app" {
+                    handleReminoraLink(url)
+                }
             }
         }
     }
@@ -52,6 +61,79 @@ struct reminoraApp: App {
         let config = GIDConfiguration(clientID: clientId)
         GIDSignIn.sharedInstance.configuration = config
         print("Google Sign-In configured successfully")
+    }
+    
+    private func handleReminoraLink(_ url: URL) {
+        guard url.host == "reminora.app",
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: true) else {
+            return
+        }
+        
+        // Handle different link types
+        if url.pathComponents.contains("place") {
+            handlePlaceLink(components)
+        }
+    }
+    
+    private func handlePlaceLink(_ components: URLComponents) {
+        guard let queryItems = components.queryItems,
+              let name = queryItems.first(where: { $0.name == "name" })?.value,
+              let latString = queryItems.first(where: { $0.name == "lat" })?.value,
+              let lonString = queryItems.first(where: { $0.name == "lon" })?.value,
+              let lat = Double(latString),
+              let lon = Double(lonString) else {
+            return
+        }
+        
+        // Create a new place and add it to the shared list
+        let context = persistenceController.container.viewContext
+        
+        // Create the place
+        let newPlace = Place(context: context)
+        newPlace.dateAdded = Date()
+        newPlace.post = name
+        newPlace.url = "Shared via Reminora link"
+        
+        // Store location
+        let location = CLLocation(latitude: lat, longitude: lon)
+        if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
+            newPlace.setValue(locationData, forKey: "location")
+        }
+        
+        // Find or create the shared list
+        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", "Shared", authService.currentAccount?.id ?? "")
+        
+        do {
+            let sharedLists = try context.fetch(fetchRequest)
+            let sharedList: UserList
+            
+            if let existingList = sharedLists.first {
+                sharedList = existingList
+            } else {
+                // Create shared list
+                sharedList = UserList(context: context)
+                sharedList.id = UUID().uuidString
+                sharedList.name = "Shared"
+                sharedList.createdAt = Date()
+                sharedList.userId = authService.currentAccount?.id ?? ""
+            }
+            
+            // Add item to shared list
+            let listItem = ListItem(context: context)
+            listItem.id = UUID().uuidString
+            listItem.placeId = newPlace.objectID.uriRepresentation().absoluteString
+            listItem.addedAt = Date()
+            listItem.sharedLink = components.url?.absoluteString
+            listItem.list = sharedList
+            listItem.place = newPlace
+            
+            try context.save()
+            print("Added shared place to Shared list: \(name)")
+            
+        } catch {
+            print("Failed to add shared place: \(error)")
+        }
     }
 }
 

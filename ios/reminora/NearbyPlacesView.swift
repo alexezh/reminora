@@ -8,6 +8,7 @@ struct NearbyPlacesView: View {
     @State private var isLoadingPlaces = false
     @State private var selectedCategories: Set<MKPointOfInterestCategory> = []
     @State private var showCategoryPicker = false
+    @State private var showNearbyPlacesPage = false
     
     let availableCategories: [MKPointOfInterestCategory] = [
         .restaurant, .cafe, .store, .gasStation, .hotel, .hospital, .school,
@@ -40,6 +41,21 @@ struct NearbyPlacesView: View {
                     .foregroundColor(.white)
                 
                 Spacer()
+                
+                Button(action: {
+                    showNearbyPlacesPage = true
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.right.square")
+                        Text("Nearby")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.2))
+                    .cornerRadius(8)
+                }
                 
                 Button(action: {
                     print("NearbyPlacesView: Opening category picker, current selection: \(selectedCategories.count) categories")
@@ -131,6 +147,12 @@ struct NearbyPlacesView: View {
             CategoryPickerView(
                 availableCategories: availableCategories,
                 selectedCategories: $selectedCategories
+            )
+        }
+        .sheet(isPresented: $showNearbyPlacesPage) {
+            NearbyPlacesPageView(
+                searchLocation: coordinate,
+                locationName: "this location"
             )
         }
     }

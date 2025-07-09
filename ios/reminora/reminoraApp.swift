@@ -125,8 +125,7 @@ struct reminoraApp: App {
             listItem.placeId = newPlace.objectID.uriRepresentation().absoluteString
             listItem.addedAt = Date()
             listItem.sharedLink = components.url?.absoluteString
-            listItem.list = sharedList
-            listItem.place = newPlace
+            listItem.listId = sharedList.id ?? ""
             
             try context.save()
             print("Added shared place to Shared list: \(name)")

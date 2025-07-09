@@ -30,16 +30,14 @@
         <attribute name="id" optional="NO" attributeType="String"/>
         <attribute name="name" optional="NO" attributeType="String"/>
         <attribute name="userId" optional="NO" attributeType="String"/>
-        <relationship name="items" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ListItem" inverseName="list"/>
     </entity>
     <entity name="ListItem" representedClassName="ListItem" syncable="YES" codeGenerationType="class">
         <attribute name="addedAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" optional="NO" attributeType="String"/>
+        <attribute name="listId" optional="NO" attributeType="String"/>
         <attribute name="placeId" optional="NO" attributeType="String"/>
         <attribute name="sharedByUserId" optional="YES" attributeType="String"/>
         <attribute name="sharedByUserName" optional="YES" attributeType="String"/>
         <attribute name="sharedLink" optional="YES" attributeType="String"/>
-        <relationship name="list" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="UserList" inverseName="items"/>
-        <relationship name="place" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Place"/>
     </entity>
 </model>

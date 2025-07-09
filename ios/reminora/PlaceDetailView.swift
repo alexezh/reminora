@@ -7,7 +7,14 @@ struct PlaceDetailView: View {
     let allPlaces: [Place]
     let onBack: () -> Void
     
+    @Environment(\.managedObjectContext) private var viewContext
+    @StateObject private var authService = AuthenticationService.shared
+    
     @State private var region: MKCoordinateRegion
+    @State private var showingNearbyPlaces = false
+    @State private var showingListPicker = false
+    @State private var showingShareSheet = false
+    @State private var shareText = ""
     
     init(place: Place, allPlaces: [Place], onBack: @escaping () -> Void) {
         self.place = place
@@ -40,7 +47,62 @@ struct PlaceDetailView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Photo at top
+            // Action buttons at top
+            HStack {
+                Spacer()
+                
+                Button(action: {
+                    showingNearbyPlaces = true
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "location.circle")
+                        Text("Nearby")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(16)
+                }
+                
+                Button(action: {
+                    addToQuickList()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bolt.fill")
+                        Text("Quick")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(16)
+                }
+                
+                Button(action: {
+                    sharePlace()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.and.arrow.up")
+                        Text("Share")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.green)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(16)
+                }
+                
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color(.systemBackground))
+            
+            // Photo below buttons
             if let imageData = place.imageData, let image = UIImage(data: imageData) {
                 Image(uiImage: image)
                     .resizable()
@@ -92,9 +154,6 @@ struct PlaceDetailView: View {
             .frame(height: 200)
             .allowsHitTesting(false)
             
-            // Nearby places using shared component
-            NearbyPlacesView(coordinate: Self.coordinate(item: place))
-            
             Spacer()
         }
         .navigationBarBackButtonHidden(true)
@@ -108,6 +167,72 @@ struct PlaceDetailView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingNearbyPlaces) {
+            NearbyPlacesPageView(
+                searchLocation: Self.coordinate(item: place),
+                locationName: place.post ?? "this location"
+            )
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            ShareSheet(text: shareText)
+        }
+    }
+    
+    // MARK: - Actions
+    
+    private func addToQuickList() {
+        guard let currentUser = authService.currentAccount else { return }
+        
+        // Find or create Quick list
+        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", "Quick", currentUser.id)
+        
+        do {
+            let quickLists = try viewContext.fetch(fetchRequest)
+            let quickList: UserList
+            
+            if let existingList = quickLists.first {
+                quickList = existingList
+            } else {
+                // Create Quick list
+                quickList = UserList(context: viewContext)
+                quickList.id = UUID().uuidString
+                quickList.name = "Quick"
+                quickList.createdAt = Date()
+                quickList.userId = currentUser.id
+            }
+            
+            // Add item to Quick list
+            let listItem = ListItem(context: viewContext)
+            listItem.id = UUID().uuidString
+            listItem.placeId = place.objectID.uriRepresentation().absoluteString
+            listItem.addedAt = Date()
+            listItem.listId = quickList.id ?? ""
+            
+            try viewContext.save()
+            
+            // Show success feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+            
+            print("Added place to Quick list: \(place.post ?? "Unknown")")
+            
+        } catch {
+            print("Failed to add place to Quick list: \(error)")
+        }
+    }
+    
+    private func sharePlace() {
+        let coord = Self.coordinate(item: place)
+        let placeId = place.objectID.uriRepresentation().absoluteString
+        let encodedName = (place.post ?? "Unknown Place").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let lat = coord.latitude
+        let lon = coord.longitude
+        
+        let reminoraLink = "https://reminora.app/place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)"
+        
+        shareText = "Check out \(place.post ?? "this place") on Reminora!\n\n\(reminoraLink)"
+        showingShareSheet = true
     }
     
     // Helper methods
@@ -139,3 +264,4 @@ private let shortFormatter: DateFormatter = {
     formatter.timeStyle = .none
     return formatter
 }()
+

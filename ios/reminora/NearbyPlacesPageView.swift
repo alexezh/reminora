@@ -217,25 +217,8 @@ struct NearbyPlacesPageView: View {
     }
     
     private func savePlace(_ place: NearbyPlace) {
-        let newPlace = Place(context: viewContext)
-        newPlace.dateAdded = Date()
-        newPlace.post = place.name
-        newPlace.url = place.address
-        
-        // Store location
-        let location = CLLocation(latitude: place.coordinate.latitude, longitude: place.coordinate.longitude)
-        if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
-            newPlace.setValue(locationData, forKey: "location")
-        }
-        
-        do {
-            try viewContext.save()
-            // Show success feedback
-            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-            impactFeedback.impactOccurred()
-        } catch {
-            print("Failed to save place: \(error)")
-        }
+        selectedPlace = place
+        showingListPicker = true
     }
     
     private func openInNativeMap(_ place: NearbyPlace) {

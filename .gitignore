@@ -1,0 +1,47 @@
+# Xcode
+.DS_Store
+*/build/*
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData/
+*.hmap
+*.ipa
+*.xcuserstate
+project.xcworkspace/
+
+# Google Services
+GoogleService-Info.plist
+ios/GoogleService-Info.plist
+ios/reminora/GoogleService-Info.plist
+droid/app/google-services.json
+
+# Firebase
+firebase-debug.log
+.firebaserc
+firebase.json
+
+# API Keys and Secrets
+*.env
+.env.*
+secrets.json
+config.json
+
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Backend
+backend/.env
+backend/wrangler.toml
+backend/secrets.json

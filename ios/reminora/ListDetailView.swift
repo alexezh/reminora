@@ -65,7 +65,7 @@ struct ListDetailView: View {
                 
                 Divider()
                 
-                // List items
+                // Places browser
                 if listItems.isEmpty {
                     VStack(spacing: 16) {
                         Spacer()
@@ -88,23 +88,12 @@ struct ListDetailView: View {
                     }
                     .frame(maxWidth: .infinity)
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(listItems, id: \.id) { item in
-                                if let place = placeForItem(item) {
-                                    ListItemCard(
-                                        place: place,
-                                        listItem: item,
-                                        onRemove: {
-                                            removeItem(item)
-                                        }
-                                    )
-                                    .padding(.horizontal, 16)
-                                }
-                            }
-                        }
-                        .padding(.vertical, 16)
-                    }
+                    let placesInList = listItems.compactMap { placeForItem($0) }
+                    PlaceBrowserView(
+                        places: placesInList,
+                        title: "",
+                        showToolbar: false
+                    )
                 }
             }
             .navigationBarHidden(true)
@@ -118,17 +107,6 @@ struct ListDetailView: View {
         }
     }
     
-    private func removeItem(_ item: ListItem) {
-        withAnimation {
-            viewContext.delete(item)
-            
-            do {
-                try viewContext.save()
-            } catch {
-                print("Failed to remove item from list: \(error)")
-            }
-        }
-    }
     
     private func iconForList(_ name: String) -> String {
         switch name {
@@ -153,106 +131,6 @@ struct ListDetailView: View {
     }
 }
 
-struct ListItemCard: View {
-    let place: Place
-    let listItem: ListItem
-    let onRemove: () -> Void
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Place info
-            HStack(spacing: 12) {
-                // Photo thumbnail or placeholder
-                if let imageData = place.imageData, let image = UIImage(data: imageData) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 60, height: 60)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                } else {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 60, height: 60)
-                        .overlay(
-                            Image(systemName: "photo")
-                                .foregroundColor(.gray)
-                        )
-                }
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(place.post ?? "Untitled")
-                        .font(.headline)
-                        .lineLimit(2)
-                        .foregroundColor(.primary)
-                    
-                    if let url = place.url, !url.isEmpty {
-                        Text(url)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                    
-                    if let date = place.dateAdded {
-                        Text(date, formatter: itemFormatter)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Spacer()
-                
-                // Remove button
-                Button(action: onRemove) {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.title3)
-                        .foregroundColor(.red)
-                }
-            }
-            
-            // Shared info if available
-            if let sharedLink = listItem.sharedLink, !sharedLink.isEmpty {
-                HStack {
-                    Image(systemName: "link")
-                        .font(.caption2)
-                        .foregroundColor(.blue)
-                    Text("Shared via link")
-                        .font(.caption2)
-                        .foregroundColor(.blue)
-                }
-                .padding(.leading, 72) // Align with text above
-            }
-            
-            // Added date
-            HStack {
-                Image(systemName: "clock")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                Text("Added \(listItem.addedAt ?? Date(), formatter: shortFormatter)")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.leading, 72) // Align with text above
-        }
-        .padding(12)
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-    }
-}
-
-private let itemFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .medium
-    formatter.timeStyle = .short
-    return formatter
-}()
-
-private let shortFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .none
-    return formatter
-}()
 
 #Preview {
     let context = PersistenceController.preview.container.viewContext

@@ -44,6 +44,11 @@ struct PlaceDetailView: View {
         }
     }
     
+    var isSharedItem: Bool {
+        // Check if this place came from a shared link by looking at the URL field
+        return place.url?.contains("Shared via Reminora link") == true
+    }
+    
     
     var body: some View {
         VStack(spacing: 0) {
@@ -122,11 +127,33 @@ struct PlaceDetailView: View {
             
             // Photo caption if available
             if let post = place.post, !post.isEmpty {
-                Text(post)
-                    .font(.headline)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(spacing: 0) {
+                    // Shared indicator if applicable
+                    if isSharedItem {
+                        HStack {
+                            Image(systemName: "shared.with.you")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                            Text("Shared with you")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                    }
+                    
+                    HStack {
+                        TextField("Add a caption...", text: .constant(post), axis: .vertical)
+                            .lineLimit(5...10)
+                            .padding(16)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                            .padding([.horizontal, .bottom], 16)
+                            .disabled(true)
+                    }
+                }
+                .background(Color.black.opacity(0.8))
             }
             
             // Date
@@ -153,6 +180,10 @@ struct PlaceDetailView: View {
             }
             .frame(height: 200)
             .allowsHitTesting(false)
+            
+            // Comments section
+            CommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
+                .padding(.top, 16)
             
             Spacer()
         }

@@ -7,10 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		491FBCAE2E1F8B46000C36A4 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 491FBCAD2E1F8B46000C36A4 /* GoogleService-Info.plist */; };
 		49540DC62E1C70A100886A08 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49540DC42E1C70A100886A08 /* ShareViewController.swift */; };
 		49540DC72E1C70A100886A08 /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 49540DC22E1C70A100886A08 /* MainInterface.storyboard */; };
-		49D0F56E2E1D667E004BABB0 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 49D0F56D2E1D667E004BABB0 /* GoogleService-Info.plist */; };
-		49D0F56F2E1D667E004BABB0 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 49D0F56D2E1D667E004BABB0 /* GoogleService-Info.plist */; };
 		49D0F5732E1DE50F004BABB0 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 49D0F5722E1DE50F004BABB0 /* GoogleSignIn */; };
 		49F151FC2DE4BF3200573F48 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F151FB2DE4BF3200573F48 /* Persistence.swift */; };
 		49F1522F2DE4C42400573F48 /* ReminoraShareExt.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 49F152252DE4C42400573F48 /* ReminoraShareExt.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -60,11 +59,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		491FBCAD2E1F8B46000C36A4 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		49540DC02E1C70A100886A08 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		49540DC12E1C70A100886A08 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/MainInterface.storyboard; sourceTree = "<group>"; };
 		49540DC32E1C70A100886A08 /* ReminoraShareExt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReminoraShareExt.entitlements; sourceTree = "<group>"; };
 		49540DC42E1C70A100886A08 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
-		49D0F56D2E1D667E004BABB0 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		49F151EF2DE4BF3100573F48 /* reminora.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = reminora.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		49F151FB2DE4BF3200573F48 /* Persistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Persistence.swift; sourceTree = "<group>"; };
 		49F152042DE4BF3200573F48 /* reminoraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = reminoraTests.xctest; path = wahiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -154,7 +153,7 @@
 		49F151E62DE4BF3100573F48 = {
 			isa = PBXGroup;
 			children = (
-				49D0F56D2E1D667E004BABB0 /* GoogleService-Info.plist */,
+				491FBCAD2E1F8B46000C36A4 /* GoogleService-Info.plist */,
 				49540DC52E1C70A100886A08 /* ReminoraShareExt */,
 				49F152412DE4F29E00573F48 /* shared */,
 				49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */,
@@ -342,7 +341,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				49D0F56E2E1D667E004BABB0 /* GoogleService-Info.plist in Resources */,
+				491FBCAE2E1F8B46000C36A4 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -364,7 +363,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				49D0F56F2E1D667E004BABB0 /* GoogleService-Info.plist in Resources */,
 				49540DC72E1C70A100886A08 /* MainInterface.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

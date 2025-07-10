@@ -60,13 +60,21 @@ struct ContentView: View {
                 }
                 .tag(2)
             
+            // Nearby Photos Tab
+            NearbyPhotosWrapperView()
+                .tabItem {
+                    Image(systemName: "location.circle")
+                    Text("Nearby")
+                }
+                .tag(3)
+            
             // Profile Tab
             ProfileView()
                 .tabItem {
                     Image(systemName: "person.circle")
                     Text("Profile")
                 }
-                .tag(3)
+                .tag(4)
         }
         .accentColor(.blue)
     }

@@ -83,7 +83,7 @@ struct NearbyPhotosListView: View {
                     }
                 }
             }
-            .navigationTitle("Nearby Places")
+            .navigationTitle("Nearby Photos")
             .navigationBarTitleDisplayMode(.large)
         }
     }

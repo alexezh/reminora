@@ -40,4 +40,9 @@
         <attribute name="sharedByUserName" optional="YES" attributeType="String"/>
         <attribute name="sharedLink" optional="YES" attributeType="String"/>
     </entity>
+    <entity name="PhotoLocationCache" representedClassName="PhotoLocationCache" syncable="YES" codeGenerationType="class">
+        <attribute name="photoId" optional="NO" attributeType="String"/>
+        <attribute name="location" optional="YES" attributeType="Binary"/>
+        <attribute name="lastUpdated" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
 </model>

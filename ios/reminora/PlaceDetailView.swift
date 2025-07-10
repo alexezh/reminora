@@ -131,50 +131,43 @@ struct PlaceDetailView: View {
                         )
                 }
                 
-                // Photo caption if available
-                if let post = place.post, !post.isEmpty {
-                    VStack(spacing: 0) {
-                        // Shared indicator if applicable
-                        if isSharedItem {
-                            HStack {
-                                Image(systemName: "shared.with.you")
-                                    .font(.caption)
-                                    .foregroundColor(.green)
-                                Text("Shared with you")
-                                    .font(.caption)
-                                    .foregroundColor(.green)
-                                Spacer()
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.top, 8)
-                        }
-                        
+                // Photo caption and details
+                VStack(alignment: .leading, spacing: 8) {
+                    // Shared indicator if applicable
+                    if isSharedItem {
                         HStack {
-                            TextField("Add a caption...", text: .constant(post), axis: .vertical)
-                                .lineLimit(5...10)
-                                .padding(16)
-                                .background(Color(.systemGray6))
-                                .cornerRadius(12)
-                                .padding([.horizontal, .bottom], 16)
-                                .disabled(true)
+                            Image(systemName: "shared.with.you")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                            Text("Shared with you")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                            Spacer()
                         }
                     }
-                    .background(Color.black.opacity(0.8))
+                    
+                    // Caption text (Facebook-style)
+                    if let post = place.post, !post.isEmpty {
+                        Text(post)
+                            .font(.body)
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.leading)
+                    }
+                    
+                    // Date
+                    if let date = place.dateAdded {
+                        Text(date, formatter: itemFormatter)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 
-                // Date
-                if let date = place.dateAdded {
-                    Text(date, formatter: itemFormatter)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 4)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                
-                // Comments section
-                CommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
-                    .padding(.top, 16)
+                // Comments section (simplified, no box)
+                SimpleCommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
+                    .padding(.top, 8)
                 
                 // Map at the bottom
                 Map(coordinateRegion: .constant(region), annotationItems: [place] + nearbyPlaces) { item in

@@ -107,6 +107,14 @@ struct SimpleCommentsView: View {
                         .background(Color(.systemGray6))
                         .cornerRadius(16)
                         .focused($isCommentFieldFocused)
+                        .toolbar {
+                            ToolbarItemGroup(placement: .keyboard) {
+                                Spacer()
+                                Button("Done") {
+                                    isCommentFieldFocused = false
+                                }
+                            }
+                        }
                     
                     // Send button
                     if !newCommentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

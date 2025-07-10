@@ -9,9 +9,11 @@ struct PlaceDetailView: View {
     
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var authService = AuthenticationService.shared
+    @StateObject private var locationManager = LocationManager()
     
     @State private var region: MKCoordinateRegion
     @State private var showingNearbyPlaces = false
+    @State private var showingNearbyPhotos = false
     @State private var showingListPicker = false
     @State private var showingShareSheet = false
     @State private var shareText = ""
@@ -61,7 +63,22 @@ struct PlaceDetailView: View {
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: "location.circle")
-                        Text("Nearby")
+                        Text("Places")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(16)
+                }
+                
+                Button(action: {
+                    showingNearbyPhotos = true
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "photo.on.rectangle")
+                        Text("Photos")
                     }
                     .font(.caption)
                     .foregroundColor(.blue)
@@ -79,10 +96,10 @@ struct PlaceDetailView: View {
                         Text("Quick")
                     }
                     .font(.caption)
-                    .foregroundColor(.orange)
+                    .foregroundColor(.blue)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.orange.opacity(0.1))
+                    .background(Color.blue.opacity(0.1))
                     .cornerRadius(16)
                 }
                 
@@ -94,10 +111,10 @@ struct PlaceDetailView: View {
                         Text("Share")
                     }
                     .font(.caption)
-                    .foregroundColor(.green)
+                    .foregroundColor(.blue)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.green.opacity(0.1))
+                    .background(Color.blue.opacity(0.1))
                     .cornerRadius(16)
                 }
                 
@@ -203,6 +220,53 @@ struct PlaceDetailView: View {
                 searchLocation: Self.coordinate(item: place),
                 locationName: place.post ?? "this location"
             )
+        }
+        .sheet(isPresented: $showingNearbyPhotos) {
+            if let userLocation = locationManager.lastLocation {
+                NavigationView {
+                    NearbyPhotosListView(
+                        places: allPlaces,
+                        currentLocation: userLocation.coordinate,
+                        onPhotoSelect: { selectedPlace in
+                            // Close the sheet and handle photo selection if needed
+                            showingNearbyPhotos = false
+                        }
+                    )
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") {
+                                showingNearbyPhotos = false
+                            }
+                        }
+                    }
+                }
+            } else {
+                VStack(spacing: 20) {
+                    Image(systemName: "location.slash")
+                        .font(.system(size: 60))
+                        .foregroundColor(.gray)
+                    
+                    Text("Location Required")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Text("Please allow location access to see nearby photos")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    Button("Close") {
+                        showingNearbyPhotos = false
+                    }
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                }
+                .padding()
+            }
         }
         .sheet(isPresented: $showingShareSheet) {
             ShareSheet(text: shareText)

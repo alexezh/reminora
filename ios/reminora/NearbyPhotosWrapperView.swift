@@ -50,7 +50,7 @@ struct NearbyPhotosWrapperView: View {
                     .cornerRadius(10)
                 }
                 .padding()
-                .navigationTitle("Nearby Photos")
+                .navigationTitle("Places")
             }
         }
         .sheet(isPresented: $showPhotoDetail) {

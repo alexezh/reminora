@@ -64,7 +64,7 @@ struct ContentView: View {
             NearbyPhotosWrapperView()
                 .tabItem {
                     Image(systemName: "location.circle")
-                    Text("Nearby")
+                    Text("Places")
                 }
                 .tag(3)
             

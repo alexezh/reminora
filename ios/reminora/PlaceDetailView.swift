@@ -52,142 +52,146 @@ struct PlaceDetailView: View {
     
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Action buttons at top
-            HStack {
-                Spacer()
-                
-                Button(action: {
-                    showingNearbyPlaces = true
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "location.circle")
-                        Text("Places")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(16)
-                }
-                
-                
-                Button(action: {
-                    addToQuickList()
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "bolt.fill")
-                        Text("Quick")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(16)
-                }
-                
-                Button(action: {
-                    sharePlace()
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "square.and.arrow.up")
-                        Text("Share")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(16)
-                }
-                
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(Color(.systemBackground))
-            
-            // Photo below buttons
-            if let imageData = place.imageData, let image = UIImage(data: imageData) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxHeight: 300)
-                    .clipped()
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(height: 300)
-                    .overlay(
-                        Image(systemName: "photo")
-                            .font(.system(size: 48))
-                            .foregroundColor(.gray)
-                    )
-            }
-            
-            // Photo caption if available
-            if let post = place.post, !post.isEmpty {
-                VStack(spacing: 0) {
-                    // Shared indicator if applicable
-                    if isSharedItem {
-                        HStack {
-                            Image(systemName: "shared.with.you")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                            Text("Shared with you")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                            Spacer()
+        ScrollView {
+            VStack(spacing: 0) {
+                // Action buttons at top
+                HStack {
+                    Spacer()
+                    
+                    Button(action: {
+                        showingNearbyPlaces = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "location.circle")
+                            Text("Places")
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(16)
                     }
                     
-                    HStack {
-                        TextField("Add a caption...", text: .constant(post), axis: .vertical)
-                            .lineLimit(5...10)
-                            .padding(16)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(12)
-                            .padding([.horizontal, .bottom], 16)
-                            .disabled(true)
-                    }
-                }
-                .background(Color.black.opacity(0.8))
-            }
-            
-            // Date
-            if let date = place.dateAdded {
-                Text(date, formatter: itemFormatter)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            
-            // Map below photo
-            Map(coordinateRegion: .constant(region), annotationItems: [place] + nearbyPlaces) { item in
-                MapAnnotation(coordinate: Self.coordinate(item: item)) {
+                    
                     Button(action: {
-                        // Could navigate to this place if desired
+                        addToQuickList()
                     }) {
-                        Image(systemName: item.objectID == place.objectID ? "mappin.circle.fill" : "mappin.circle")
-                            .font(.title2)
-                            .foregroundColor(item.objectID == place.objectID ? .red : .blue)
+                        HStack(spacing: 4) {
+                            Image(systemName: "bolt.fill")
+                            Text("Quick")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(16)
+                    }
+                    
+                    Button(action: {
+                        sharePlace()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "square.and.arrow.up")
+                            Text("Share")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(16)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Color(.systemBackground))
+                
+                // Photo taking full width
+                if let imageData = place.imageData, let image = UIImage(data: imageData) {
+                    GeometryReader { geometry in
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geometry.size.width)
+                            .clipped()
+                    }
+                    .aspectRatio(contentMode: .fit)
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 300)
+                        .overlay(
+                            Image(systemName: "photo")
+                                .font(.system(size: 48))
+                                .foregroundColor(.gray)
+                        )
+                }
+                
+                // Photo caption if available
+                if let post = place.post, !post.isEmpty {
+                    VStack(spacing: 0) {
+                        // Shared indicator if applicable
+                        if isSharedItem {
+                            HStack {
+                                Image(systemName: "shared.with.you")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                                Text("Shared with you")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
+                        }
+                        
+                        HStack {
+                            TextField("Add a caption...", text: .constant(post), axis: .vertical)
+                                .lineLimit(5...10)
+                                .padding(16)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(12)
+                                .padding([.horizontal, .bottom], 16)
+                                .disabled(true)
+                        }
+                    }
+                    .background(Color.black.opacity(0.8))
+                }
+                
+                // Date
+                if let date = place.dateAdded {
+                    Text(date, formatter: itemFormatter)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                
+                // Comments section
+                CommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
+                    .padding(.top, 16)
+                
+                // Map at the bottom
+                Map(coordinateRegion: .constant(region), annotationItems: [place] + nearbyPlaces) { item in
+                    MapAnnotation(coordinate: Self.coordinate(item: item)) {
+                        Button(action: {
+                            // Could navigate to this place if desired
+                        }) {
+                            Image(systemName: item.objectID == place.objectID ? "mappin.circle.fill" : "mappin.circle")
+                                .font(.title2)
+                                .foregroundColor(item.objectID == place.objectID ? .red : .blue)
+                        }
                     }
                 }
-            }
-            .frame(height: 200)
-            .allowsHitTesting(false)
-            
-            // Comments section
-            CommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
+                .frame(height: 200)
+                .allowsHitTesting(false)
                 .padding(.top, 16)
-            
-            Spacer()
+            }
         }
         .navigationBarBackButtonHidden(true)
         .toolbar {

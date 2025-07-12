@@ -16,7 +16,6 @@ struct MomentDetailView: View {
     @State private var showingListPicker = false
     @State private var showingShareSheet = false
     @State private var shareText = ""
-    @State private var showingNearbyPlaces = false
     @State private var showingNearbyPhotos = false
 
     init(place: Place, allPlaces: [Place], onBack: @escaping () -> Void) {
@@ -219,23 +218,6 @@ struct MomentDetailView: View {
         .sheet(isPresented: $showingShareSheet) {
             ShareSheet(text: shareText)
         }
-        .sheet(isPresented: $showingNearbyPlaces) {
-            NavigationView {
-                MomentBrowserView(
-                    places: nearbyPlaces,
-                    title: "Nearby Places",
-                    showToolbar: false
-                )
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Done") {
-                            showingNearbyPlaces = false
-                        }
-                    }
-                }
-            }
-        }
         .sheet(isPresented: $showingNearbyPhotos) {
             NavigationView {
                 NearbyPhotosGridView(centerLocation: Self.coordinate(item: place))
@@ -254,7 +236,14 @@ struct MomentDetailView: View {
     // MARK: - Actions
 
     private func showNearbyPlaces() {
-        showingNearbyPlaces = true
+        // Open Maps app at the place's location
+        let coordinate = Self.coordinate(item: place)
+        let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
+        mapItem.name = place.post?.isEmpty == false ? place.post : "Photo Location"
+        mapItem.openInMaps(launchOptions: [
+            MKLaunchOptionsMapCenterKey: NSValue(mkCoordinate: coordinate),
+            MKLaunchOptionsMapSpanKey: NSValue(mkCoordinateSpan: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01))
+        ])
     }
 
     private func showNearbyPhotos() {

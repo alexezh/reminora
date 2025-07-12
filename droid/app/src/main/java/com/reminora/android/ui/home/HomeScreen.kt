@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.reminora.android.DebugConfig
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,10 +29,31 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = { 
-                    Text(
-                        text = "Reminora",
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Reminora",
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        // Debug indicator when authentication was skipped
+                        if (DebugConfig.ALLOW_SKIP_AUTH) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Surface(
+                                color = Color(0xFFFF6B6B),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                                modifier = Modifier.padding(2.dp)
+                            ) {
+                                Text(
+                                    text = "DEBUG",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = { /* TODO: Open drawer */ }) {

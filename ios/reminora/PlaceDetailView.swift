@@ -185,7 +185,7 @@ struct PlaceDetailView: View {
                 }
                 
                 // Map at the bottom
-                Map(coordinateRegion: .constant(region), annotationItems: [place] + nearbyPlaces) { item in
+                Map(coordinateRegion: $region, annotationItems: [place] + nearbyPlaces) { item in
                     MapAnnotation(coordinate: Self.coordinate(item: item)) {
                         Button(action: {
                             // Could navigate to this place if desired

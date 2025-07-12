@@ -2,6 +2,7 @@ package com.reminora.android.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.reminora.android.DebugConfig
 import com.reminora.android.data.repository.AuthRepository
 import com.reminora.android.data.model.User
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,6 +45,28 @@ class AuthViewModel @Inject constructor(
                 _authState.value = _authState.value.copy(
                     isLoading = false,
                     error = e.message
+                )
+            }
+        }
+    }
+    
+    fun skipAuthentication() {
+        if (DebugConfig.ALLOW_SKIP_AUTH) {
+            viewModelScope.launch {
+                val mockUser = User(
+                    id = DebugConfig.MOCK_USER_ID,
+                    username = DebugConfig.MOCK_USER_HANDLE,
+                    email = DebugConfig.MOCK_USER_EMAIL,
+                    displayName = DebugConfig.MOCK_USER_NAME,
+                    handle = DebugConfig.MOCK_USER_HANDLE,
+                    avatarUrl = null
+                )
+                
+                _authState.value = _authState.value.copy(
+                    isAuthenticated = true,
+                    isLoading = false,
+                    user = mockUser,
+                    error = null
                 )
             }
         }

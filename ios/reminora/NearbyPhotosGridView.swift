@@ -95,7 +95,7 @@ struct NearbyPhotosGridView: View {
                                 Spacer()
                             }
                             .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
+                            .padding(.bottom, 4)
                             .background(Color(.systemBackground))
                             
                             ScrollView {

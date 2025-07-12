@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.reminora.android.DebugConfig
 
 @Composable
 fun AuthScreen(
@@ -135,6 +136,38 @@ fun AuthScreen(
                             text = "Continue with GitHub",
                             fontWeight = FontWeight.SemiBold
                         )
+                    }
+                    
+                    // Debug Skip Authentication button (only in debug builds)
+                    if (DebugConfig.ALLOW_SKIP_AUTH) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        
+                        OutlinedButton(
+                            onClick = { authViewModel.skipAuthentication() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(40.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color.White.copy(alpha = 0.9f)
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp, 
+                                Color.White.copy(alpha = 0.5f)
+                            ),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = android.R.drawable.ic_media_play),
+                                contentDescription = "Skip Auth",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Skip Authentication (Debug)",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }

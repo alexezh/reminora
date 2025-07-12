@@ -6,6 +6,7 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.reminora.android.DebugConfig
 import com.reminora.android.data.api.ApiService
 import com.reminora.android.data.model.User
 import com.reminora.android.data.model.OAuthCallbackRequest
@@ -91,9 +92,11 @@ class AuthRepository @Inject constructor(
     
     suspend fun isAuthenticated(): Boolean {
         // TODO: Check if valid session exists in secure storage
-        // For now, return false
+        // For now, return false (unless in debug mode and skip auth was used)
         return false
     }
+    
+    suspend fun isSkipAuthEnabled(): Boolean = DebugConfig.ALLOW_SKIP_AUTH
     
     suspend fun getCurrentUser(): User? {
         // TODO: Get current user from stored session

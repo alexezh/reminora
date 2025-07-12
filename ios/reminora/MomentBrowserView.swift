@@ -6,30 +6,31 @@ struct PlaceBrowserView: View {
     let places: [Place]
     let title: String
     let showToolbar: Bool
-    
+
     @Environment(\.managedObjectContext) private var viewContext
     @State private var selectedPlace: Place?
     @State private var showPlaceDetail: Bool = false
     @State private var lastTappedPlace: Place?
     @State private var lastTapTime: Date = Date()
-    
+
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
         span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
     )
-    
+
     let minHeight: CGFloat = 50
     let oneThirdHeight: CGFloat = UIScreen.main.bounds.height * 0.33
     let maxHeight: CGFloat = UIScreen.main.bounds.height * 0.8
-    
+
     @State private var sheetHeight: CGFloat = UIScreen.main.bounds.height * 0.33
     @GestureState private var dragOffset: CGFloat = 0
     @State private var shouldScrollToSelected: Bool = true
-    
+
     var body: some View {
         ZStack {
             // Map with places
-            Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: places) { item in
+            Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: places) {
+                item in
                 MapAnnotation(coordinate: coordinate(item: item)) {
                     Button(action: {
                         selectedPlace = item
@@ -40,11 +41,11 @@ struct PlaceBrowserView: View {
                     }
                 }
             }
-            
+
             // Sliding pane
             GeometryReader { geometry in
                 let safeAreaBottom = geometry.safeAreaInsets.bottom
-                
+
                 ScrollViewReader { proxy in
                     VStack(spacing: 0) {
                         // Drag handle
@@ -53,7 +54,7 @@ struct PlaceBrowserView: View {
                             .frame(width: 40, height: 6)
                             .padding(.top, 8)
                             .padding(.bottom, 8)
-                        
+
                         // Title
                         if !title.isEmpty {
                             HStack {
@@ -65,29 +66,30 @@ struct PlaceBrowserView: View {
                             .padding(.horizontal, 16)
                             .padding(.bottom, 8)
                         }
-                        
+
                         // Places list
-                        PlaceListView(
+                        MomentListView(
                             items: places,
                             selectedPlace: selectedPlace,
                             onSelect: { item in
                                 let now = Date()
                                 let timeSinceLastTap = now.timeIntervalSince(lastTapTime)
-                                
+
                                 // Check if this is a second tap on the same item within 2 seconds
                                 if let lastPlace = lastTappedPlace,
-                                   lastPlace.objectID == item.objectID,
-                                   timeSinceLastTap < 2.0 {
+                                    lastPlace.objectID == item.objectID,
+                                    timeSinceLastTap < 2.0
+                                {
                                     // Double tap detected - show detail view
                                     showPlaceDetail = true
                                 } else {
                                     // First tap or different item - navigate map
                                     shouldScrollToSelected = false
                                     selectedPlace = item
-                                    
+
                                     // Get coordinate of selected place
                                     let coord = coordinate(item: item)
-                                    
+
                                     // Animate to the selected photo location
                                     let newRegion = MKCoordinateRegion(
                                         center: coord,
@@ -100,7 +102,7 @@ struct PlaceBrowserView: View {
                                         region = newRegion
                                     }
                                 }
-                                
+
                                 // Update last tapped info
                                 lastTappedPlace = item
                                 lastTapTime = now
@@ -120,7 +122,8 @@ struct PlaceBrowserView: View {
                             .shadow(radius: 5)
                     )
                     .offset(
-                        y: geometry.size.height - sheetHeight - (showToolbar ? 100 : 50) + dragOffset
+                        y: geometry.size.height - sheetHeight - (showToolbar ? 100 : 50)
+                            + dragOffset
                     )
                     .gesture(
                         DragGesture()
@@ -130,15 +133,15 @@ struct PlaceBrowserView: View {
                             .onEnded { value in
                                 let currentHeight = sheetHeight
                                 let translation = value.translation.height
-                                
+
                                 withAnimation(.easeInOut(duration: 0.3)) {
-                                    if translation < -50 { // Swiping up
+                                    if translation < -50 {  // Swiping up
                                         if currentHeight <= oneThirdHeight + 50 {
                                             sheetHeight = maxHeight
                                         } else {
                                             sheetHeight = maxHeight
                                         }
-                                    } else if translation > 50 { // Swiping down
+                                    } else if translation > 50 {  // Swiping down
                                         if currentHeight >= maxHeight - 50 {
                                             sheetHeight = oneThirdHeight
                                         } else if currentHeight >= oneThirdHeight - 50 {
@@ -148,7 +151,10 @@ struct PlaceBrowserView: View {
                                         // Small gesture - snap to nearest height
                                         let targetHeight = currentHeight - translation
                                         let heights = [minHeight, oneThirdHeight, maxHeight]
-                                        let nearestHeight = heights.min { abs($0 - targetHeight) < abs($1 - targetHeight) } ?? oneThirdHeight
+                                        let nearestHeight =
+                                            heights.min {
+                                                abs($0 - targetHeight) < abs($1 - targetHeight)
+                                            } ?? oneThirdHeight
                                         sheetHeight = nearestHeight
                                     }
                                 }
@@ -168,7 +174,7 @@ struct PlaceBrowserView: View {
         .sheet(isPresented: $showPlaceDetail) {
             if let selectedPlace = selectedPlace {
                 NavigationView {
-                    PlaceDetailView(
+                    MomentDetailView(
                         place: selectedPlace,
                         allPlaces: places,
                         onBack: {
@@ -185,23 +191,25 @@ struct PlaceBrowserView: View {
             }
         }
     }
-    
+
     // Helper to get coordinate from Place
     private func coordinate(item: Place) -> CLLocationCoordinate2D {
         if let locationData = item.value(forKey: "location") as? Data,
-           let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
+            let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData)
+                as? CLLocation
+        {
             return location.coordinate
         }
         // Default to San Francisco if no location
         return CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
     }
-    
+
     private func deleteItems(offsets: IndexSet) {
         guard showToolbar else { return }
-        
+
         withAnimation {
             offsets.map { places[$0] }.forEach(viewContext.delete)
-            
+
             do {
                 try viewContext.save()
             } catch {
@@ -215,7 +223,7 @@ struct PlaceBrowserView: View {
 #Preview {
     let context = PersistenceController.preview.container.viewContext
     let samplePlaces: [Place] = []
-    
+
     return PlaceBrowserView(
         places: samplePlaces,
         title: "Sample List",

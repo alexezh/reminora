@@ -30,6 +30,9 @@ func convertRegionToRect(from region: MKCoordinateRegion) -> MKMapRect {
     return MKMapRect(origin: origin, size: size)
 }
 
+/**
+ 
+ */
 struct MapView: View {
   @Environment(\.managedObjectContext) private var viewContext
   @StateObject private var locationManager = LocationManager()

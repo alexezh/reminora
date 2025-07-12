@@ -1,5 +1,6 @@
 package com.reminora.android.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -71,7 +72,7 @@ fun HomeScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(
-                            painter = painterResource(id = android.R.drawable.ic_menu_camera),
+                            painter = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_camera),
                             contentDescription = "No photos",
                             tint = Color.Gray,
                             modifier = Modifier.size(64.dp)
@@ -168,7 +169,7 @@ fun PhotoCard(photo: Photo) {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(id = android.R.drawable.ic_menu_gallery),
+                    painter = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_gallery),
                     contentDescription = "Photo",
                     tint = Color.Gray,
                     modifier = Modifier.size(48.dp)

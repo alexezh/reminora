@@ -28,6 +28,9 @@ interface ApiService {
     
     @GET("api/follows/followers")
     suspend fun getFollowers(): Response<List<UserProfile>>
+    
+    @POST("api/auth/logout")
+    suspend fun logout(): Response<Unit>
 }
 
 // API Models

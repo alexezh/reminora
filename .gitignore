@@ -35,6 +35,9 @@ firebase.json
 secrets.json
 config.json
 
+droid/app/build
+droid/.gradle
+
 # Node modules
 node_modules/
 npm-debug.log*

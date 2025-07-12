@@ -54,7 +54,7 @@ struct ListView: View {
                 // Header
                 HStack {
                     Text("Lists")
-                        .font(.largeTitle)
+                        .font(.title)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
                     
@@ -69,10 +69,10 @@ struct ListView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 8)
+                .padding(.vertical, 4)
                 
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 8) {
                         // Ordered lists with Shared and Quick at top
                         ForEach(orderedLists, id: \.id) { list in
                             ListCard(
@@ -88,7 +88,7 @@ struct ListView: View {
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 16)
+                    .padding(.top, 8)
                 }
             }
             .navigationBarHidden(true)
@@ -154,9 +154,9 @@ struct ListCard: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            .padding(16)
+            .padding(12)
             .background(Color(.systemBackground))
-            .cornerRadius(12)
+            .cornerRadius(10)
             .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
         }
         .buttonStyle(PlainButtonStyle())

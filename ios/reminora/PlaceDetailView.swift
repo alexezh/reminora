@@ -12,10 +12,11 @@ struct PlaceDetailView: View {
     @StateObject private var locationManager = LocationManager()
     
     @State private var region: MKCoordinateRegion
-    @State private var showingNearbyPlaces = false
     @State private var showingListPicker = false
     @State private var showingShareSheet = false
     @State private var shareText = ""
+    @State private var showingNearbyPlaces = false
+    @State private var showingNearbyPhotos = false
     
     init(place: Place, allPlaces: [Place], onBack: @escaping () -> Void) {
         self.place = place
@@ -59,11 +60,11 @@ struct PlaceDetailView: View {
                     Spacer()
                     
                     Button(action: {
-                        showingNearbyPlaces = true
+                        showNearbyPlaces()
                     }) {
                         HStack(spacing: 4) {
-                            Image(systemName: "location.circle")
-                            Text("Places")
+                            Image(systemName: "map")
+                            Text("Map")
                         }
                         .font(.caption)
                         .foregroundColor(.blue)
@@ -73,6 +74,20 @@ struct PlaceDetailView: View {
                         .cornerRadius(16)
                     }
                     
+                    Button(action: {
+                        showNearbyPhotos()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "photo.on.rectangle.angled")
+                            Text("Photos")
+                        }
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(16)
+                    }
                     
                     Button(action: {
                         addToQuickList()
@@ -112,14 +127,11 @@ struct PlaceDetailView: View {
                 
                 // Photo taking full width
                 if let imageData = place.imageData, let image = UIImage(data: imageData) {
-                    GeometryReader { geometry in
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: geometry.size.width)
-                            .clipped()
-                    }
-                    .aspectRatio(contentMode: .fit)
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 400)
+                        .clipped()
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.3))
@@ -153,13 +165,6 @@ struct PlaceDetailView: View {
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.leading)
                     }
-                    
-                    // Date
-                    if let date = place.dateAdded {
-                        Text(date, formatter: itemFormatter)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
@@ -168,6 +173,16 @@ struct PlaceDetailView: View {
                 // Comments section (simplified, no box)
                 SimpleCommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
                     .padding(.top, 8)
+                
+                // Date below comments
+                if let date = place.dateAdded {
+                    Text(date, formatter: itemFormatter)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 
                 // Map at the bottom
                 Map(coordinateRegion: .constant(region), annotationItems: [place] + nearbyPlaces) { item in
@@ -197,18 +212,50 @@ struct PlaceDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingNearbyPlaces) {
-            NearbyPlacesPageView(
-                searchLocation: Self.coordinate(item: place),
-                locationName: place.post ?? "this location"
-            )
-        }
         .sheet(isPresented: $showingShareSheet) {
             ShareSheet(text: shareText)
+        }
+        .sheet(isPresented: $showingNearbyPlaces) {
+            NavigationView {
+                PlaceBrowserView(
+                    places: nearbyPlaces,
+                    title: "Nearby Places",
+                    showToolbar: false
+                )
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") {
+                            showingNearbyPlaces = false
+                        }
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showingNearbyPhotos) {
+            NavigationView {
+                NearbyPhotosGridView(centerLocation: Self.coordinate(item: place))
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") {
+                                showingNearbyPhotos = false
+                            }
+                        }
+                    }
+            }
         }
     }
     
     // MARK: - Actions
+    
+    private func showNearbyPlaces() {
+        showingNearbyPlaces = true
+    }
+    
+    private func showNearbyPhotos() {
+        showingNearbyPhotos = true
+    }
     
     private func addToQuickList() {
         guard let currentUser = authService.currentAccount else { return }

@@ -85,6 +85,13 @@ struct reminoraApp: App {
             return
         }
         
+        // Extract place ID from path if available
+        let pathComponents = components.url?.pathComponents ?? []
+        var originalPlaceId: String?
+        if pathComponents.count > 2 && pathComponents[1] == "place" {
+            originalPlaceId = pathComponents[2]
+        }
+        
         // Create a new place and add it to the shared list
         let context = persistenceController.container.viewContext
         
@@ -93,6 +100,16 @@ struct reminoraApp: App {
         newPlace.dateAdded = Date()
         newPlace.post = name
         newPlace.url = "Shared via Reminora link"
+        
+        // Try to copy image data from original place if available
+        if let placeId = originalPlaceId,
+           let originalPlace = findPlace(withId: placeId, context: context) {
+            newPlace.imageData = originalPlace.imageData
+            // Keep the original creation date if available
+            if let originalDate = originalPlace.dateAdded {
+                newPlace.dateAdded = originalDate
+            }
+        }
         
         // Store location
         let location = CLLocation(latitude: lat, longitude: lon)
@@ -133,6 +150,15 @@ struct reminoraApp: App {
         } catch {
             print("Failed to add shared place: \(error)")
         }
+    }
+    
+    private func findPlace(withId placeId: String, context: NSManagedObjectContext) -> Place? {
+        // Try to find the place using Core Data URI
+        if let url = URL(string: placeId),
+           let objectID = context.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: url) {
+            return try? context.existingObject(with: objectID) as? Place
+        }
+        return nil
     }
 }
 

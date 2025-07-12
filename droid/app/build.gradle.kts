@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.plugin.serialization")
-    kotlin("kapt")
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -58,7 +58,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.compose.ui:ui:1.5.4")
     implementation("androidx.compose.ui:ui-tooling-preview:1.5.4")
-    implementation("androidx.compose.material3:material3:1.1.2")
+    implementation("androidx.compose.material3:material3:1.2.1")
     implementation("androidx.navigation:navigation-compose:2.7.5")
     
     // ViewModel
@@ -67,7 +67,7 @@ dependencies {
     // Hilt for dependency injection
     implementation("com.google.dagger:hilt-android:2.48")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
-    kapt("com.google.dagger:hilt-compiler:2.48")
+    ksp("com.google.dagger:hilt-compiler:2.48")
     
     // Networking
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
@@ -80,7 +80,7 @@ dependencies {
     // Room Database
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
     
     // Camera & Gallery
     implementation("androidx.camera:camera-core:1.3.1")
@@ -102,6 +102,14 @@ dependencies {
     
     // OAuth
     implementation("com.google.android.gms:play-services-auth:20.7.0")
+    
+    // Credential Manager
+    implementation("androidx.credentials:credentials:1.2.2")
+    implementation("androidx.credentials:credentials-play-services-auth:1.2.2")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.0")
+    
+    // Additional Compose resources
+    implementation("androidx.compose.material:material-icons-extended:1.5.4")
     
     // JSON Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")

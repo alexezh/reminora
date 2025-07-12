@@ -7,8 +7,9 @@ import androidx.credentials.exceptions.GetCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.reminora.android.data.api.ApiService
-import com.reminora.android.data.api.AuthRequest
-import com.reminora.android.ui.auth.User
+import com.reminora.android.data.model.User
+import com.reminora.android.data.model.OAuthCallbackRequest
+import com.reminora.android.data.model.AuthResponse
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -43,27 +44,31 @@ class AuthRepository @Inject constructor(
             val credential = GoogleIdTokenCredential.createFrom(result.credential.data)
             
             // 2. Send to backend for authentication
-            val authRequest = AuthRequest(
+            val authRequest = com.reminora.android.data.api.AuthRequest(
                 provider = "google",
-                token = credential.idToken,
+                oauth_id = credential.id,
                 email = credential.id,
-                name = credential.displayName
+                name = credential.displayName,
+                avatar_url = credential.profilePictureUri?.toString(),
+                access_token = credential.idToken,
+                refresh_token = null
             )
             
-            val authResponse = apiService.authenticate(authRequest)
+            val authResponse = apiService.authenticate(authRequest).body()!!
             
             // 3. Store session token (TODO: Use secure storage)
             // For now, we'll return the result
             
             AuthResult(
                 user = User(
-                    id = authResponse.user.id,
-                    email = authResponse.user.email,
-                    displayName = authResponse.user.name ?: credential.displayName ?: "",
-                    handle = authResponse.user.handle,
-                    avatarUrl = authResponse.user.avatarUrl
+                    id = authResponse.account.id,
+                    username = authResponse.account.username,
+                    email = authResponse.account.email,
+                    displayName = authResponse.account.display_name,
+                    handle = authResponse.account.handle,
+                    avatarUrl = authResponse.account.avatar_url
                 ),
-                sessionToken = authResponse.sessionToken
+                sessionToken = authResponse.session.token
             )
         } catch (e: GetCredentialException) {
             throw Exception("Google Sign-In failed: ${e.message}")

@@ -54,7 +54,7 @@ struct SimpleCommentsView: View {
     
     private var currentUserInitials: String {
         guard let user = authService.currentAccount else { return "?" }
-        let components = user.name.components(separatedBy: " ")
+        let components = user.username.components(separatedBy: " ")
         if components.count >= 2 {
             return String(components[0].prefix(1)) + String(components[1].prefix(1))
         } else if let first = components.first {
@@ -145,7 +145,7 @@ struct SimpleCommentsView: View {
         comment.commentText = newCommentText.trimmingCharacters(in: .whitespacesAndNewlines)
         comment.createdAt = Date()
         comment.fromUserId = currentUser.id
-        comment.fromUserName = currentUser.name
+        comment.fromUserName = currentUser.username
         comment.fromUserHandle = currentUser.handle
         comment.type = "comment"
         comment.isReaction = false

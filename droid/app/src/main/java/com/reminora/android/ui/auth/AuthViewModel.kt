@@ -3,6 +3,7 @@ package com.reminora.android.ui.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.reminora.android.data.repository.AuthRepository
+import com.reminora.android.data.model.User
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,10 +68,3 @@ data class AuthState(
     val error: String? = null
 )
 
-data class User(
-    val id: String,
-    val email: String,
-    val displayName: String,
-    val handle: String?,
-    val avatarUrl: String?
-)

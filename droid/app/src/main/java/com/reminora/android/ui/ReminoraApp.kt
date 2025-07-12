@@ -31,7 +31,7 @@ fun ReminoraApp(
         ) {
             NavHost(
                 navController = navController,
-                startDestination = if (authState.isAuthenticated) "home" else "auth"
+                startDestination = if (authState.value.isAuthenticated) "home" else "auth"
             ) {
                 composable("auth") {
                     AuthScreen(

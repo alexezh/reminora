@@ -1,53 +1,54 @@
-import SwiftUI
 import CoreData
+import SwiftUI
 
-struct ListView: View {
+struct SavedListView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var authService = AuthenticationService.shared
-    
+
     @State private var showingCreateList = false
     @State private var newListName = ""
     @State private var selectedList: UserList?
     @State private var showingListDetail = false
-    
+
     @FetchRequest private var userLists: FetchedResults<UserList>
     @FetchRequest private var listItems: FetchedResults<ListItem>
-    
+
     init() {
         self._userLists = FetchRequest<UserList>(
             sortDescriptors: [NSSortDescriptor(keyPath: \UserList.createdAt, ascending: false)],
-            predicate: NSPredicate(format: "userId == %@", AuthenticationService.shared.currentAccount?.id ?? ""),
+            predicate: NSPredicate(
+                format: "userId == %@", AuthenticationService.shared.currentAccount?.id ?? ""),
             animation: .default
         )
-        
+
         self._listItems = FetchRequest<ListItem>(
             sortDescriptors: [NSSortDescriptor(keyPath: \ListItem.addedAt, ascending: false)],
             animation: .default
         )
     }
-    
+
     var orderedLists: [UserList] {
         let lists = Array(userLists)
         var ordered: [UserList] = []
-        
+
         // Add Shared list first
         if let sharedList = lists.first(where: { $0.name == "Shared" }) {
             ordered.append(sharedList)
         }
-        
+
         // Add Quick list second
         if let quickList = lists.first(where: { $0.name == "Quick" }) {
             ordered.append(quickList)
         }
-        
+
         // Add all other lists
         let otherLists = lists.filter { $0.name != "Shared" && $0.name != "Quick" }
             .sorted { ($0.createdAt ?? Date.distantPast) > ($1.createdAt ?? Date.distantPast) }
         ordered.append(contentsOf: otherLists)
-        
+
         return ordered
     }
-    
+
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -57,9 +58,9 @@ struct ListView: View {
                         .font(.title)
                         .fontWeight(.bold)
                         .foregroundColor(.primary)
-                    
+
                     Spacer()
-                    
+
                     Button(action: {
                         showingCreateList = true
                     }) {
@@ -70,12 +71,12 @@ struct ListView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 4)
-                
+
                 ScrollView {
                     LazyVStack(spacing: 8) {
                         // Ordered lists with Shared and Quick at top
                         ForEach(orderedLists, id: \.id) { list in
-                            ListCard(
+                            SavedListCard(
                                 title: list.name ?? "Untitled List",
                                 subtitle: "\(itemCount(for: list)) items",
                                 icon: iconForList(list.name ?? ""),
@@ -94,7 +95,7 @@ struct ListView: View {
             .navigationBarHidden(true)
         }
         .sheet(isPresented: $showingCreateList) {
-            CreateListView(isPresented: $showingCreateList)
+            CreateSavedListView(isPresented: $showingCreateList)
         }
         .sheet(isPresented: $showingListDetail) {
             if let selectedList = selectedList {
@@ -102,7 +103,7 @@ struct ListView: View {
             }
         }
     }
-    
+
     private func iconForList(_ name: String) -> String {
         switch name {
         case "Shared":
@@ -113,19 +114,19 @@ struct ListView: View {
             return "list.bullet"
         }
     }
-    
+
     private func itemCount(for list: UserList) -> Int {
         return listItems.filter { $0.listId == list.id }.count
     }
 }
 
-struct ListCard: View {
+struct SavedListCard: View {
     let title: String
     let subtitle: String
     let icon: String
     let isSpecialList: Bool
     let onTap: () -> Void
-    
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 16) {
@@ -135,20 +136,20 @@ struct ListCard: View {
                     .foregroundColor(colorForList(title))
                     .frame(width: 40, height: 40)
                     .background(Circle().fill(colorForList(title).opacity(0.1)))
-                
+
                 // Content
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.headline)
                         .foregroundColor(.primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    
+
                     Text(subtitle)
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                
+
                 // Chevron
                 Image(systemName: "chevron.right")
                     .font(.caption)
@@ -161,7 +162,7 @@ struct ListCard: View {
         }
         .buttonStyle(PlainButtonStyle())
     }
-    
+
     private func colorForList(_ name: String) -> Color {
         switch name {
         case "Shared":
@@ -174,14 +175,14 @@ struct ListCard: View {
     }
 }
 
-struct CreateListView: View {
+struct CreateSavedListView: View {
     @Binding var isPresented: Bool
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var authService = AuthenticationService.shared
-    
+
     @State private var listName = ""
     @State private var isCreating = false
-    
+
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
@@ -189,7 +190,7 @@ struct CreateListView: View {
                     Text("List Name")
                         .font(.headline)
                         .foregroundColor(.primary)
-                    
+
                     TextField("Enter list name", text: $listName)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .submitLabel(.done)
@@ -199,7 +200,7 @@ struct CreateListView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 20)
-                
+
                 Spacer()
             }
             .navigationTitle("New List")
@@ -210,52 +211,56 @@ struct CreateListView: View {
                         isPresented = false
                     }
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Create") {
                         createList()
                     }
-                    .disabled(listName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isCreating)
+                    .disabled(
+                        listName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || isCreating)
                 }
             }
         }
     }
-    
+
     private func createList() {
         guard !listName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              let currentUser = authService.currentAccount else {
+            let currentUser = authService.currentAccount
+        else {
             return
         }
-        
+
         isCreating = true
-        
+
         let trimmedName = listName.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         // If creating a new "Quick" list, rename the existing one
         if trimmedName == "Quick" {
             renameExistingQuickList()
         }
-        
+
         let newList = UserList(context: viewContext)
         newList.id = UUID().uuidString
         newList.name = trimmedName
         newList.createdAt = Date()
         newList.userId = currentUser.id
-        
+
         do {
             try viewContext.save()
             isPresented = false
         } catch {
             print("Failed to create list: \(error)")
         }
-        
+
         isCreating = false
     }
-    
+
     private func renameExistingQuickList() {
         let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", "Quick", authService.currentAccount?.id ?? "")
-        
+        fetchRequest.predicate = NSPredicate(
+            format: "name == %@ AND userId == %@", "Quick", authService.currentAccount?.id ?? "")
+
         do {
             let existingQuickLists = try viewContext.fetch(fetchRequest)
             if let existingQuick = existingQuickLists.first {
@@ -272,6 +277,6 @@ struct CreateListView: View {
 }
 
 #Preview {
-    ListView()
+    SavedListView()
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

@@ -2,7 +2,7 @@ import CoreData
 import MapKit
 import SwiftUI
 
-struct MomentListView: View {
+struct PinListView: View {
   let items: [Place]
   let selectedPlace: Place?
   let onSelect: (Place) -> Void

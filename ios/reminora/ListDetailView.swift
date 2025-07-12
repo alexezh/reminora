@@ -89,7 +89,7 @@ struct ListDetailView: View {
                     .frame(maxWidth: .infinity)
                 } else {
                     let placesInList = listItems.compactMap { placeForItem($0) }
-                    MomentBrowserView(
+                    PinBrowserView(
                         places: placesInList,
                         title: "",
                         showToolbar: false

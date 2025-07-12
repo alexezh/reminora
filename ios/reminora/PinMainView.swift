@@ -35,7 +35,7 @@ func convertRegionToRect(from region: MKCoordinateRegion) -> MKMapRect {
 /**
 
  */
-struct MomentMainView: View {
+struct PinMainView: View {
   @Environment(\.managedObjectContext) private var viewContext
   @StateObject private var locationManager = LocationManager()
 
@@ -108,7 +108,7 @@ struct MomentMainView: View {
       }
 
       // Main content using MomentBrowserView
-      MomentBrowserView(
+      PinBrowserView(
         places: filteredItems,
         title: "",
         showToolbar: true

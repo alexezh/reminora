@@ -3,7 +3,7 @@ import MapKit
 import SwiftUI
 
 /// show list of places on the map
-struct MomentDetailView: View {
+struct PinDetailView: View {
     let place: Place
     let allPlaces: [Place]
     let onBack: () -> Void
@@ -24,7 +24,7 @@ struct MomentDetailView: View {
         self.onBack = onBack
 
         // Initialize region centered on the selected place
-        let coord = MomentDetailView.coordinate(item: place)
+        let coord = PinDetailView.coordinate(item: place)
         self._region = State(
             initialValue: MKCoordinateRegion(
                 center: coord,

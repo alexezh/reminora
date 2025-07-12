@@ -2,7 +2,7 @@ import CoreData
 import MapKit
 import SwiftUI
 
-struct MomentBrowserView: View {
+struct PinBrowserView: View {
     let places: [Place]
     let title: String
     let showToolbar: Bool
@@ -25,14 +25,45 @@ struct MomentBrowserView: View {
     @State private var sheetHeight: CGFloat = UIScreen.main.bounds.height * 0.33
     @GestureState private var dragOffset: CGFloat = 0
     @State private var shouldScrollToSelected: Bool = true
+    @State private var showingAddPhoto = false
+    @State private var selectedListId: String = "all"
+    
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \UserList.name, ascending: true)],
+        animation: .default
+    ) private var userLists: FetchedResults<UserList>
+    
+    private var listOptions: [(id: String, name: String)] {
+        var options = [("all", "All Places")]
+        options.append(contentsOf: userLists.map { (id: $0.id ?? "", name: $0.name ?? "Untitled") })
+        return options
+    }
+    
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \ListItem.addedAt, ascending: false)],
+        animation: .default
+    ) private var listItems: FetchedResults<ListItem>
+    
+    private var filteredPlaces: [Place] {
+        if selectedListId == "all" {
+            return places
+        } else {
+            // Filter places that are in the selected list
+            let selectedListItemIds = listItems.filter { $0.listId == selectedListId }.compactMap { $0.placeId }
+            return places.filter { place in
+                selectedListItemIds.contains(place.objectID.uriRepresentation().absoluteString)
+            }
+        }
+    }
 
     var body: some View {
         ZStack {
             // Map with places
-            Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: places) {
+            Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: filteredPlaces) {
                 item in
                 MapAnnotation(coordinate: coordinate(item: item)) {
                     Button(action: {
+                        shouldScrollToSelected = true
                         selectedPlace = item
                     }) {
                         Image(systemName: "mappin.circle.fill")
@@ -55,6 +86,60 @@ struct MomentBrowserView: View {
                             .padding(.top, 8)
                             .padding(.bottom, 8)
 
+                        // Button section
+                        HStack(spacing: 12) {
+                            // List combo box
+                            Menu {
+                                ForEach(listOptions, id: \.id) { option in
+                                    Button(action: {
+                                        selectedListId = option.id
+                                    }) {
+                                        HStack {
+                                            Text(option.name)
+                                            if selectedListId == option.id {
+                                                Spacer()
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "list.bullet")
+                                    Text(listOptions.first(where: { $0.id == selectedListId })?.name ?? "All Places")
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption)
+                                }
+                                .font(.subheadline)
+                                .foregroundColor(.primary)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color(.secondarySystemBackground))
+                                .cornerRadius(8)
+                            }
+                            
+                            Spacer()
+                            
+                            // Add button
+                            Button(action: {
+                                showingAddPhoto = true
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "plus")
+                                    Text("Add")
+                                }
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(Color.blue)
+                                .cornerRadius(8)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 12)
+
                         // Title
                         if !title.isEmpty {
                             HStack {
@@ -68,8 +153,8 @@ struct MomentBrowserView: View {
                         }
 
                         // Places list
-                        MomentListView(
-                            items: places,
+                        PinListView(
+                            items: filteredPlaces,
                             selectedPlace: selectedPlace,
                             onSelect: { item in
                                 let now = Date()
@@ -122,8 +207,13 @@ struct MomentBrowserView: View {
                             .shadow(radius: 5)
                     )
                     .offset(
-                        y: geometry.size.height - sheetHeight - (showToolbar ? 100 : 50)
-                            + dragOffset
+                        y: max(
+                            geometry.safeAreaInsets.top, // Don't go above safe area
+                            min(
+                                geometry.size.height - minHeight, // Don't go below minimum
+                                geometry.size.height - sheetHeight - (showToolbar ? 100 : 50) + dragOffset
+                            )
+                        )
                     )
                     .gesture(
                         DragGesture()
@@ -165,8 +255,8 @@ struct MomentBrowserView: View {
                             withAnimation {
                                 proxy.scrollTo(place.objectID, anchor: .center)
                             }
+                            shouldScrollToSelected = false
                         }
-                        shouldScrollToSelected = true
                     }
                 }
             }
@@ -174,9 +264,9 @@ struct MomentBrowserView: View {
         .sheet(isPresented: $showPlaceDetail) {
             if let selectedPlace = selectedPlace {
                 NavigationView {
-                    MomentDetailView(
+                    PinDetailView(
                         place: selectedPlace,
-                        allPlaces: places,
+                        allPlaces: filteredPlaces,
                         onBack: {
                             showPlaceDetail = false
                         }
@@ -184,10 +274,21 @@ struct MomentBrowserView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingAddPhoto) {
+            PhotoLibraryView(isPresented: $showingAddPhoto)
+        }
         .onAppear {
             // Center map on first place if available
-            if let firstPlace = places.first {
+            if let firstPlace = filteredPlaces.first {
                 region.center = coordinate(item: firstPlace)
+            }
+        }
+        .onChange(of: selectedListId) { _ in
+            // Center map on first place when list selection changes
+            if let firstPlace = filteredPlaces.first {
+                withAnimation(.easeInOut(duration: 1.0)) {
+                    region.center = coordinate(item: firstPlace)
+                }
             }
         }
     }
@@ -224,7 +325,7 @@ struct MomentBrowserView: View {
     let context = PersistenceController.preview.container.viewContext
     let samplePlaces: [Place] = []
 
-    return MomentBrowserView(
+    return PinBrowserView(
         places: samplePlaces,
         title: "Sample List",
         showToolbar: false

@@ -21,7 +21,7 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             // Home/Map Tab
             ZStack {
-                MomentMainView()
+                PinMainView()
 
                 // Show the system photo picker as a sheet when showPhotoLibrary is true
                 if showPhotoLibrary {
@@ -35,38 +35,6 @@ struct ContentView: View {
                 Text("Home")
             }
             .tag(0)
-
-            // Add Photo Tab
-            Color.clear
-                .tabItem {
-                    Image(systemName: "plus.circle.fill")
-                    Text("Add")
-                }
-                .tag(1)
-                .onAppear {
-                    // When this tab is selected, show photo library
-                    showPhotoLibrary = true
-                    // Return to home tab
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        selectedTab = 0
-                    }
-                }
-
-            // Lists Tab
-            ListView()
-                .tabItem {
-                    Image(systemName: "list.bullet")
-                    Text("Lists")
-                }
-                .tag(2)
-
-            // Nearby Photos Tab
-            NearbyPhotosWrapperView()
-                .tabItem {
-                    Image(systemName: "location.circle")
-                    Text("Places")
-                }
-                .tag(3)
 
             // Profile Tab
             ProfileView()

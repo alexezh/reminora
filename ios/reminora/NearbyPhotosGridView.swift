@@ -3,6 +3,7 @@ import PhotosUI
 import SwiftUI
 import CoreData
 import CoreLocation
+import MapKit
 
 enum DistanceRange: String, CaseIterable, Hashable {
     case twoHundredMeters = "200m"
@@ -22,6 +23,10 @@ enum DistanceRange: String, CaseIterable, Hashable {
         case .tenKilometers: return 10000
         }
     }
+    
+    var meters: Double {
+        return distanceInMeters
+    }
 }
 
 struct NearbyPhotosGridView: View {
@@ -31,12 +36,14 @@ struct NearbyPhotosGridView: View {
     @StateObject private var locationManager = LocationManager()
     
     @State private var photoAssets: [PHAsset] = []
+    @State private var nearbyPlaces: [Place] = []
     @State private var selectedAsset: PHAsset?
     @State private var showingImagePicker = false
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
     @State private var selectedRange: DistanceRange = .fiveHundredMeters
     @State private var showingZoomedPhoto = false
     @State private var zoomedPhotoIndex: Int = 0
+    @State private var showNearbyPlaces = false
     
     init(centerLocation: CLLocationCoordinate2D? = nil) {
         self.centerLocation = centerLocation
@@ -78,21 +85,38 @@ struct NearbyPhotosGridView: View {
                 if authorizationStatus == .authorized || authorizationStatus == .limited {
                     if centerLocation != nil || locationManager.lastLocation != nil {
                         VStack(spacing: 0) {
-                            // Range selector at the top
-                            HStack {
-                                Text("Range:")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                
-                                Picker("Distance Range", selection: $selectedRange) {
-                                    ForEach(DistanceRange.allCases, id: \.self) { range in
-                                        Text(range.rawValue).tag(range)
+                            // Location info and range selector
+                            VStack(spacing: 8) {
+                                // Show current search center coordinates
+                                if let center = centerLocation ?? locationManager.lastLocation?.coordinate {
+                                    HStack {
+                                        Text("Searching from:")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                        Text(String(format: "%.4f, %.4f", center.latitude, center.longitude))
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                            .monospaced()
+                                        Spacer()
                                     }
                                 }
-                                .pickerStyle(.menu)
-                                .font(.caption)
                                 
-                                Spacer()
+                                // Range selector
+                                HStack {
+                                    Text("Range:")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Picker("Distance Range", selection: $selectedRange) {
+                                        ForEach(DistanceRange.allCases, id: \.self) { range in
+                                            Text(range.rawValue).tag(range)
+                                        }
+                                    }
+                                    .pickerStyle(.menu)
+                                    .font(.caption)
+                                    
+                                    Spacer()
+                                }
                             }
                             .padding(.horizontal, 16)
                             .padding(.bottom, 4)
@@ -119,7 +143,14 @@ struct NearbyPhotosGridView: View {
                             }
                         }
                         .navigationTitle("Nearby Photos")
-                        .navigationBarTitleDisplayMode(.inline)
+                        .navigationBarTitleDisplayMode(.large)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarTrailing) {
+                                Button("Places") {
+                                    showNearbyPlaces = true
+                                }
+                            }
+                        }
                     } else {
                         VStack(spacing: 20) {
                             Image(systemName: "location.slash")
@@ -171,6 +202,24 @@ struct NearbyPhotosGridView: View {
             if authorizationStatus == .authorized || authorizationStatus == .limited {
                 loadPhotoAssets()
             }
+            loadNearbyPlaces()
+        }
+        .onChange(of: selectedRange) { _ in
+            loadNearbyPlaces()
+        }
+        .sheet(isPresented: $showNearbyPlaces) {
+            NavigationView {
+                NearbyPlacesList(places: nearbyPlaces, centerLocation: centerLocation)
+                    .navigationTitle("Nearby Places")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") {
+                                showNearbyPlaces = false
+                            }
+                        }
+                    }
+            }
         }
         .fullScreenCover(isPresented: $showingZoomedPhoto) {
             if !sortedPhotoAssets.isEmpty && zoomedPhotoIndex < sortedPhotoAssets.count {
@@ -182,6 +231,46 @@ struct NearbyPhotosGridView: View {
                     }
                 )
             }
+        }
+    }
+    
+    private func loadNearbyPlaces() {
+        guard let center = centerLocation ?? locationManager.lastLocation?.coordinate else {
+            return
+        }
+        
+        let request: NSFetchRequest<Place> = Place.fetchRequest()
+        request.predicate = NSPredicate(value: true) // Fetch all places for now
+        
+        do {
+            let allPlaces = try viewContext.fetch(request)
+            nearbyPlaces = allPlaces.compactMap { place -> Place? in
+                guard let location = place.location,
+                      let data = location as? Data,
+                      let clLocation = try? NSKeyedUnarchiver.unarchivedObject(ofClass: CLLocation.self, from: data) else {
+                    return nil
+                }
+                
+                let distance = CLLocation(latitude: center.latitude, longitude: center.longitude)
+                    .distance(from: clLocation)
+                
+                return distance <= selectedRange.distanceInMeters ? place : nil
+            }.sorted { place1, place2 in
+                guard let loc1Data = place1.location as? Data,
+                      let loc2Data = place2.location as? Data,
+                      let clLoc1 = try? NSKeyedUnarchiver.unarchivedObject(ofClass: CLLocation.self, from: loc1Data),
+                      let clLoc2 = try? NSKeyedUnarchiver.unarchivedObject(ofClass: CLLocation.self, from: loc2Data) else {
+                    return false
+                }
+                
+                let centerLocation = CLLocation(latitude: center.latitude, longitude: center.longitude)
+                let dist1 = centerLocation.distance(from: clLoc1)
+                let dist2 = centerLocation.distance(from: clLoc2)
+                return dist1 < dist2
+            }
+        } catch {
+            print("Error fetching nearby places: \(error)")
+            nearbyPlaces = []
         }
     }
     
@@ -700,6 +789,97 @@ struct ZoomableImageView: View {
                 image = loadedImage
             }
         }
+    }
+}
+
+// MARK: - Nearby Places List
+
+struct NearbyPlacesList: View {
+    let places: [Place]
+    let centerLocation: CLLocationCoordinate2D?
+    
+    var body: some View {
+        List {
+            if places.isEmpty {
+                Text("No nearby places found")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .listRowSeparator(.hidden)
+            } else {
+                ForEach(places, id: \.objectID) { place in
+                    NearbyPlaceRow(place: place, centerLocation: centerLocation)
+                }
+            }
+        }
+        .listStyle(PlainListStyle())
+    }
+}
+
+struct NearbyPlaceRow: View {
+    let place: Place
+    let centerLocation: CLLocationCoordinate2D?
+    
+    private var distance: String {
+        guard let centerLocation = centerLocation,
+              let locationData = place.location as? Data,
+              let clLocation = try? NSKeyedUnarchiver.unarchivedObject(ofClass: CLLocation.self, from: locationData) else {
+            return ""
+        }
+        
+        let center = CLLocation(latitude: centerLocation.latitude, longitude: centerLocation.longitude)
+        let distanceMeters = center.distance(from: clLocation)
+        
+        if distanceMeters < 1000 {
+            return String(format: "%.0fm", distanceMeters)
+        } else {
+            return String(format: "%.1fkm", distanceMeters / 1000)
+        }
+    }
+    
+    var body: some View {
+        HStack {
+            // Thumbnail
+            if let imageData = place.imageData {
+                Image(uiImage: UIImage(data: imageData) ?? UIImage())
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 56, height: 56)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 56, height: 56)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                if let post = place.post, !post.isEmpty {
+                    Text(post)
+                        .font(.headline)
+                        .lineLimit(2)
+                } else {
+                    Text("Photo")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                }
+                
+                HStack {
+                    if let dateAdded = place.dateAdded {
+                        Text(dateAdded, style: .date)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    if !distance.isEmpty {
+                        Text("• \(distance)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 4)
     }
 }
 

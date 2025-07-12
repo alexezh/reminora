@@ -13,7 +13,7 @@ import SwiftUI
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject private var authService: AuthenticationService
-    
+
     @State private var selectedTab = 0
     @State private var showPhotoLibrary = false
 
@@ -21,7 +21,7 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             // Home/Map Tab
             ZStack {
-                MapView()
+                MomentMainView()
 
                 // Show the system photo picker as a sheet when showPhotoLibrary is true
                 if showPhotoLibrary {
@@ -35,7 +35,7 @@ struct ContentView: View {
                 Text("Home")
             }
             .tag(0)
-            
+
             // Add Photo Tab
             Color.clear
                 .tabItem {
@@ -51,7 +51,7 @@ struct ContentView: View {
                         selectedTab = 0
                     }
                 }
-            
+
             // Lists Tab
             ListView()
                 .tabItem {
@@ -59,7 +59,7 @@ struct ContentView: View {
                     Text("Lists")
                 }
                 .tag(2)
-            
+
             // Nearby Photos Tab
             NearbyPhotosWrapperView()
                 .tabItem {
@@ -67,7 +67,7 @@ struct ContentView: View {
                     Text("Places")
                 }
                 .tag(3)
-            
+
             // Profile Tab
             ProfileView()
                 .tabItem {

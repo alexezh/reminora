@@ -7,6 +7,8 @@ add multi-line edit. add cancel, done. add list of places nearby
 when selecting place, navigate with back button?
 
 
+ invented word combining reminisce + aurora (dawn of memory)
+ 
 ==========
 
 Remember places that matter — without the noise.

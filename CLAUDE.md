@@ -32,11 +32,11 @@ open reminora.xcodeproj
 1. **Main App (`reminora/`)**
    - `reminoraApp.swift` - SwiftUI App entry point, sets up Core Data environment
    - `ContentView.swift` - Main view controller with map/photo library toggle
-   - `MapView.swift` - Interactive map showing geotagged photos with sliding panel
+   - `MomentMainView.swift` - Interactive map showing geotagged photos with sliding panel
    - `PhotoLibraryView.swift` - Photo library browser with thumbnail grid
    - `FullPhotoView.swift` - Full-screen photo viewer
    - `LocationManager.swift` - Core Location wrapper for user location
-   - `PlaceListView.swift` - Scrollable list of places in the sliding panel
+   - `MomentListView.swift` - Scrollable list of places in the sliding panel
 
 2. **Share Extension (`ReminoraShareExt/`)**
    - `ShareViewController.swift` - Handles incoming images/URLs from other apps

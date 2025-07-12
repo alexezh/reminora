@@ -19,16 +19,16 @@
 
 ## Core Map & Photo Management
 
-### **MapView.swift**
+### **MomentMainView.swift**
 **Purpose**: Main map interface with search functionality
 - Interactive map with place annotations
 - Real-time location tracking via LocationManager
 - Geo-search with MKLocalSearch integration
 - Text search in place names/posts
-- Delegates to PlaceBrowserView for actual display
+- Delegates to MomentBrowserView for actual display
 - FetchRequest for all places, filtered by search terms
 
-### **PlaceBrowserView.swift**
+### **MomentBrowserView.swift**
 **Purpose**: Combined map and sliding panel interface
 - Interactive map with place pins
 - 3-height sliding panel (min/third/max)
@@ -37,7 +37,7 @@
 - Real-time place selection with map centering
 - Single tap = map navigation, double tap = detail view
 
-### **PlaceListView.swift**
+### **MomentListView.swift**
 **Purpose**: List component for displaying places with thumbnails
 - Displays place metadata (date, caption, distance)
 - 56x56 rounded image thumbnails
@@ -86,7 +86,7 @@
 
 ## Place Detail & Social Features
 
-### **PlaceDetailView.swift**
+### **MomentDetailView.swift**
 **Purpose**: Detailed view for individual places (Facebook-style)
 - Full-width photo display
 - Action buttons: Map, Photos, Quick List, Share
@@ -116,7 +116,7 @@
 
 ### **ListDetailView.swift**
 **Purpose**: Individual list contents viewer
-- Uses PlaceBrowserView for consistent place display
+- Uses MomentBrowserView for consistent place display
 - Custom header with list icon and metadata
 - Empty state handling
 - Core Data relationship resolution (ListItem → Place)
@@ -186,8 +186,8 @@
 ## Key User Flows
 
 1. **Photo Capture Flow**: Add Tab → PhotoLibraryView → FullPhotoView → Save with location
-2. **Map Exploration**: MapView → PlaceBrowserView → Place selection → PlaceDetailView
-3. **Social Interaction**: PlaceDetailView → Comments → User profiles
+2. **Map Exploration**: MomentMainView → MomentBrowserView → Place selection → MomentDetailView
+3. **Social Interaction**: MomentDetailView → Comments → User profiles
 4. **List Management**: ListView → Create/manage lists → ListDetailView → Place browser
 5. **Discovery**: NearbyPhotosGridView → Distance filtering → Photo exploration
 

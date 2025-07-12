@@ -62,7 +62,7 @@ ios/reminora/
 │   ├── APIModels.swift
 │   └── CloudSyncService.swift
 ├── UI/
-│   ├── MapView.swift
+│   ├── MomentMainView.swift
 │   ├── PhotoLibraryView.swift
 │   ├── FullPhotoView.swift
 │   ├── ProfileView.swift

@@ -1,32 +1,32 @@
-import SwiftUI
 import CoreData
 import CoreLocation
+import SwiftUI
 
 struct ListDetailView: View {
     let list: UserList
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.presentationMode) var presentationMode
-    
+
     @FetchRequest private var listItems: FetchedResults<ListItem>
     @FetchRequest private var places: FetchedResults<Place>
-    
+
     init(list: UserList) {
         self.list = list
-        
+
         // Fetch items for this list
         self._listItems = FetchRequest<ListItem>(
             sortDescriptors: [NSSortDescriptor(keyPath: \ListItem.addedAt, ascending: false)],
             predicate: NSPredicate(format: "listId == %@", list.id ?? ""),
             animation: .default
         )
-        
+
         // Fetch all places to match with list items
         self._places = FetchRequest<Place>(
             sortDescriptors: [NSSortDescriptor(keyPath: \Place.dateAdded, ascending: false)],
             animation: .default
         )
     }
-    
+
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -41,7 +41,7 @@ struct ListDetailView: View {
                                     .font(.title2)
                                     .foregroundColor(colorForList(list.name ?? ""))
                             )
-                        
+
                         VStack(alignment: .leading, spacing: 2) {
                             Text(list.name ?? "Untitled List")
                                 .font(.headline)
@@ -50,9 +50,9 @@ struct ListDetailView: View {
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        
+
                         Spacer()
-                        
+
                         Button("Done") {
                             presentationMode.wrappedValue.dismiss()
                         }
@@ -62,34 +62,34 @@ struct ListDetailView: View {
                     .padding(.top, 8)
                 }
                 .background(Color(.systemBackground))
-                
+
                 Divider()
-                
+
                 // Places browser
                 if listItems.isEmpty {
                     VStack(spacing: 16) {
                         Spacer()
-                        
+
                         Image(systemName: iconForList(list.name ?? ""))
                             .font(.system(size: 48))
                             .foregroundColor(.secondary)
-                        
+
                         VStack(spacing: 4) {
                             Text("No items in \(list.name ?? "this list")")
                                 .font(.headline)
                                 .foregroundColor(.secondary)
-                            
+
                             Text("Add places to this list to see them here")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
-                        
+
                         Spacer()
                     }
                     .frame(maxWidth: .infinity)
                 } else {
                     let placesInList = listItems.compactMap { placeForItem($0) }
-                    PlaceBrowserView(
+                    MomentBrowserView(
                         places: placesInList,
                         title: "",
                         showToolbar: false
@@ -99,15 +99,14 @@ struct ListDetailView: View {
             .navigationBarHidden(true)
         }
     }
-    
+
     private func placeForItem(_ item: ListItem) -> Place? {
         // Find place by matching the object ID stored in placeId
         return places.first { place in
             place.objectID.uriRepresentation().absoluteString == item.placeId
         }
     }
-    
-    
+
     private func iconForList(_ name: String) -> String {
         switch name {
         case "Shared":
@@ -118,7 +117,7 @@ struct ListDetailView: View {
             return "list.bullet"
         }
     }
-    
+
     private func colorForList(_ name: String) -> Color {
         switch name {
         case "Shared":
@@ -131,7 +130,6 @@ struct ListDetailView: View {
     }
 }
 
-
 #Preview {
     let context = PersistenceController.preview.container.viewContext
     let sampleList = UserList(context: context)
@@ -139,7 +137,7 @@ struct ListDetailView: View {
     sampleList.name = "Quick"
     sampleList.createdAt = Date()
     sampleList.userId = "user1"
-    
+
     return ListDetailView(list: sampleList)
         .environment(\.managedObjectContext, context)
 }

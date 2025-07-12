@@ -2,41 +2,43 @@ import CoreData
 import MapKit
 import SwiftUI
 
-struct PlaceDetailView: View {
+/// show list of places on the map
+struct MomentDetailView: View {
     let place: Place
     let allPlaces: [Place]
     let onBack: () -> Void
-    
+
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var authService = AuthenticationService.shared
     @StateObject private var locationManager = LocationManager()
-    
+
     @State private var region: MKCoordinateRegion
     @State private var showingListPicker = false
     @State private var showingShareSheet = false
     @State private var shareText = ""
     @State private var showingNearbyPlaces = false
     @State private var showingNearbyPhotos = false
-    
+
     init(place: Place, allPlaces: [Place], onBack: @escaping () -> Void) {
         self.place = place
         self.allPlaces = allPlaces
         self.onBack = onBack
-        
+
         // Initialize region centered on the selected place
-        let coord = PlaceDetailView.coordinate(item: place)
-        self._region = State(initialValue: MKCoordinateRegion(
-            center: coord,
-            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-        ))
+        let coord = MomentDetailView.coordinate(item: place)
+        self._region = State(
+            initialValue: MKCoordinateRegion(
+                center: coord,
+                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+            ))
     }
-    
+
     var nearbyPlaces: [Place] {
         let selectedCoord = Self.coordinate(item: place)
         return allPlaces.filter { item in
             let coord = Self.coordinate(item: item)
             let distance = Self.distance(from: selectedCoord, to: coord)
-            return distance <= 1000 && item.objectID != place.objectID // Within 1km, excluding selected
+            return distance <= 1000 && item.objectID != place.objectID  // Within 1km, excluding selected
         }.sorted { a, b in
             let aCoord = Self.coordinate(item: a)
             let bCoord = Self.coordinate(item: b)
@@ -45,20 +47,19 @@ struct PlaceDetailView: View {
             return aDist < bDist
         }
     }
-    
+
     var isSharedItem: Bool {
         // Check if this place came from a shared link by looking at the URL field
         return place.url?.contains("Shared via Reminora link") == true
     }
-    
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
                 // Action buttons at top
                 HStack {
                     Spacer()
-                    
+
                     Button(action: {
                         showNearbyPlaces()
                     }) {
@@ -73,7 +74,7 @@ struct PlaceDetailView: View {
                         .background(Color.blue.opacity(0.1))
                         .cornerRadius(16)
                     }
-                    
+
                     Button(action: {
                         showNearbyPhotos()
                     }) {
@@ -88,7 +89,7 @@ struct PlaceDetailView: View {
                         .background(Color.blue.opacity(0.1))
                         .cornerRadius(16)
                     }
-                    
+
                     Button(action: {
                         addToQuickList()
                     }) {
@@ -103,7 +104,7 @@ struct PlaceDetailView: View {
                         .background(Color.blue.opacity(0.1))
                         .cornerRadius(16)
                     }
-                    
+
                     Button(action: {
                         sharePlace()
                     }) {
@@ -118,13 +119,13 @@ struct PlaceDetailView: View {
                         .background(Color.blue.opacity(0.1))
                         .cornerRadius(16)
                     }
-                    
+
                     Spacer()
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .background(Color(.systemBackground))
-                
+
                 // Photo taking full width
                 if let imageData = place.imageData, let image = UIImage(data: imageData) {
                     Image(uiImage: image)
@@ -142,7 +143,7 @@ struct PlaceDetailView: View {
                                 .foregroundColor(.gray)
                         )
                 }
-                
+
                 // Photo caption and details
                 VStack(alignment: .leading, spacing: 8) {
                     // Shared indicator if applicable
@@ -157,7 +158,7 @@ struct PlaceDetailView: View {
                             Spacer()
                         }
                     }
-                    
+
                     // Caption text (Facebook-style)
                     if let post = place.post, !post.isEmpty {
                         Text(post)
@@ -169,11 +170,11 @@ struct PlaceDetailView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                
+
                 // Comments section (simplified, no box)
                 SimpleCommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
                     .padding(.top, 8)
-                
+
                 // Date below comments
                 if let date = place.dateAdded {
                     Text(date, formatter: itemFormatter)
@@ -183,16 +184,19 @@ struct PlaceDetailView: View {
                         .padding(.top, 8)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                
+
                 // Map at the bottom
                 Map(coordinateRegion: $region, annotationItems: [place] + nearbyPlaces) { item in
                     MapAnnotation(coordinate: Self.coordinate(item: item)) {
                         Button(action: {
                             // Could navigate to this place if desired
                         }) {
-                            Image(systemName: item.objectID == place.objectID ? "mappin.circle.fill" : "mappin.circle")
-                                .font(.title2)
-                                .foregroundColor(item.objectID == place.objectID ? .red : .blue)
+                            Image(
+                                systemName: item.objectID == place.objectID
+                                    ? "mappin.circle.fill" : "mappin.circle"
+                            )
+                            .font(.title2)
+                            .foregroundColor(item.objectID == place.objectID ? .red : .blue)
                         }
                     }
                 }
@@ -217,7 +221,7 @@ struct PlaceDetailView: View {
         }
         .sheet(isPresented: $showingNearbyPlaces) {
             NavigationView {
-                PlaceBrowserView(
+                MomentBrowserView(
                     places: nearbyPlaces,
                     title: "Nearby Places",
                     showToolbar: false
@@ -246,28 +250,29 @@ struct PlaceDetailView: View {
             }
         }
     }
-    
+
     // MARK: - Actions
-    
+
     private func showNearbyPlaces() {
         showingNearbyPlaces = true
     }
-    
+
     private func showNearbyPhotos() {
         showingNearbyPhotos = true
     }
-    
+
     private func addToQuickList() {
         guard let currentUser = authService.currentAccount else { return }
-        
+
         // Find or create Quick list
         let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", "Quick", currentUser.id)
-        
+        fetchRequest.predicate = NSPredicate(
+            format: "name == %@ AND userId == %@", "Quick", currentUser.id)
+
         do {
             let quickLists = try viewContext.fetch(fetchRequest)
             let quickList: UserList
-            
+
             if let existingList = quickLists.first {
                 quickList = existingList
             } else {
@@ -278,50 +283,57 @@ struct PlaceDetailView: View {
                 quickList.createdAt = Date()
                 quickList.userId = currentUser.id
             }
-            
+
             // Add item to Quick list
             let listItem = ListItem(context: viewContext)
             listItem.id = UUID().uuidString
             listItem.placeId = place.objectID.uriRepresentation().absoluteString
             listItem.addedAt = Date()
             listItem.listId = quickList.id ?? ""
-            
+
             try viewContext.save()
-            
+
             // Show success feedback
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
             impactFeedback.impactOccurred()
-            
+
             print("Added place to Quick list: \(place.post ?? "Unknown")")
-            
+
         } catch {
             print("Failed to add place to Quick list: \(error)")
         }
     }
-    
+
     private func sharePlace() {
         let coord = Self.coordinate(item: place)
         let placeId = place.objectID.uriRepresentation().absoluteString
-        let encodedName = (place.post ?? "Unknown Place").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let encodedName =
+            (place.post ?? "Unknown Place").addingPercentEncoding(
+                withAllowedCharacters: .urlQueryAllowed) ?? ""
         let lat = coord.latitude
         let lon = coord.longitude
-        
-        let reminoraLink = "https://reminora.app/place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)"
-        
+
+        let reminoraLink =
+            "https://reminora.app/place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)"
+
         shareText = "Check out \(place.post ?? "this place") on Reminora!\n\n\(reminoraLink)"
         showingShareSheet = true
     }
-    
+
     // Helper methods
     static func coordinate(item: Place) -> CLLocationCoordinate2D {
         if let locationData = item.value(forKey: "location") as? Data,
-           let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
+            let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData)
+                as? CLLocation
+        {
             return location.coordinate
         }
         return CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
     }
-    
-    static func distance(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) -> CLLocationDistance {
+
+    static func distance(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D)
+        -> CLLocationDistance
+    {
         let loc1 = CLLocation(latitude: from.latitude, longitude: from.longitude)
         let loc2 = CLLocation(latitude: to.latitude, longitude: to.longitude)
         return loc1.distance(from: loc2)
@@ -341,4 +353,3 @@ private let shortFormatter: DateFormatter = {
     formatter.timeStyle = .none
     return formatter
 }()
-

@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class MapViewModel @Inject constructor(
+class MomentMainViewModel @Inject constructor(
     private val photoRepository: PhotoRepository
 ) : ViewModel() {
     

@@ -21,9 +21,9 @@ import com.reminora.android.ui.places.PlaceListItem
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
-    mapViewModel: MapViewModel = hiltViewModel()
+    MomentMainViewModel: MomentMainViewModel = hiltViewModel()
 ) {
-    val mapState by mapViewModel.mapState.collectAsState()
+    val mapState by MomentMainViewModel.mapState.collectAsState()
     var searchText by remember { mutableStateOf("") }
     
     Box(modifier = Modifier.fillMaxSize()) {
@@ -75,7 +75,7 @@ fun MapScreen(
                     value = searchText,
                     onValueChange = { 
                         searchText = it
-                        mapViewModel.searchPlaces(it)
+                        MomentMainViewModel.searchPlaces(it)
                     },
                     placeholder = { Text("Search places...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
@@ -166,7 +166,7 @@ fun MapScreen(
                             items(mapState.places) { place ->
                                 PlaceListItem(
                                     place = place,
-                                    onClick = { mapViewModel.selectPlace(place) }
+                                    onClick = { MomentMainViewModel.selectPlace(place) }
                                 )
                             }
                         }

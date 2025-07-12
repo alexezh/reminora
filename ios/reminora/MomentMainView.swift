@@ -3,37 +3,39 @@ import MapKit
 import SwiftUI
 
 func convertRegionToRect(from region: MKCoordinateRegion) -> MKMapRect {
-    let center = MKMapPoint(region.center)
+  let center = MKMapPoint(region.center)
 
-    let span = region.span
-    let deltaLat = span.latitudeDelta
-    let deltaLon = span.longitudeDelta
+  let span = region.span
+  let deltaLat = span.latitudeDelta
+  let deltaLon = span.longitudeDelta
 
-    let topLeftCoord = CLLocationCoordinate2D(
-        latitude: region.center.latitude + (deltaLat / 2),
-        longitude: region.center.longitude - (deltaLon / 2)
-    )
+  let topLeftCoord = CLLocationCoordinate2D(
+    latitude: region.center.latitude + (deltaLat / 2),
+    longitude: region.center.longitude - (deltaLon / 2)
+  )
 
-    let bottomRightCoord = CLLocationCoordinate2D(
-        latitude: region.center.latitude - (deltaLat / 2),
-        longitude: region.center.longitude + (deltaLon / 2)
-    )
+  let bottomRightCoord = CLLocationCoordinate2D(
+    latitude: region.center.latitude - (deltaLat / 2),
+    longitude: region.center.longitude + (deltaLon / 2)
+  )
 
-    let topLeftPoint = MKMapPoint(topLeftCoord)
-    let bottomRightPoint = MKMapPoint(bottomRightCoord)
+  let topLeftPoint = MKMapPoint(topLeftCoord)
+  let bottomRightPoint = MKMapPoint(bottomRightCoord)
 
-    let origin = MKMapPoint(x: min(topLeftPoint.x, bottomRightPoint.x),
-                            y: min(topLeftPoint.y, bottomRightPoint.y))
-    let size = MKMapSize(width: abs(topLeftPoint.x - bottomRightPoint.x),
-                         height: abs(topLeftPoint.y - bottomRightPoint.y))
+  let origin = MKMapPoint(
+    x: min(topLeftPoint.x, bottomRightPoint.x),
+    y: min(topLeftPoint.y, bottomRightPoint.y))
+  let size = MKMapSize(
+    width: abs(topLeftPoint.x - bottomRightPoint.x),
+    height: abs(topLeftPoint.y - bottomRightPoint.y))
 
-    return MKMapRect(origin: origin, size: size)
+  return MKMapRect(origin: origin, size: size)
 }
 
 /**
- 
+
  */
-struct MapView: View {
+struct MomentMainView: View {
   @Environment(\.managedObjectContext) private var viewContext
   @StateObject private var locationManager = LocationManager()
 
@@ -82,13 +84,13 @@ struct MapView: View {
             Image(systemName: "magnifyingglass")
               .foregroundColor(.secondary)
               .padding(.leading, 8)
-            
+
             TextField("Search places...", text: $searchText)
               .textFieldStyle(RoundedBorderTextFieldStyle())
               .onSubmit {
                 performGeoSearch()
               }
-            
+
             Button("Clear") {
               searchText = ""
               isSearching = false
@@ -100,13 +102,13 @@ struct MapView: View {
           .padding(.top, 60)
           .background(Color(.systemBackground))
           .zIndex(1)
-          
+
           Spacer()
         }
       }
-      
-      // Main content using PlaceBrowserView
-      PlaceBrowserView(
+
+      // Main content using MomentBrowserView
+      MomentBrowserView(
         places: filteredItems,
         title: "",
         showToolbar: true
@@ -138,14 +140,13 @@ struct MapView: View {
     return CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
   }
 
-  
   private func performGeoSearch() {
     guard !searchText.isEmpty else { return }
-    
+
     let request = MKLocalSearch.Request()
     request.naturalLanguageQuery = searchText
     request.region = region
-    
+
     let search = MKLocalSearch(request: request)
     search.start { response, error in
       DispatchQueue.main.async {
@@ -153,21 +154,21 @@ struct MapView: View {
           print("Search error: \(error)")
           return
         }
-        
+
         if let response = response, let firstItem = response.mapItems.first {
           let coordinate = firstItem.placemark.coordinate
           let newRegion = MKCoordinateRegion(
             center: coordinate,
             span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
           )
-          
+
           // Set search state
           isSearching = true
-          
+
           withAnimation(.easeInOut(duration: 1.0)) {
             region = newRegion
           }
-          
+
           print("Geo search completed. Moved to: \(coordinate)")
         }
       }

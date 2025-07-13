@@ -15,6 +15,7 @@ struct PhotoStackView: View {
     @State private var showingStackDetail = false
     @State private var selectedStackIndex = 0
     @State private var currentFilter: PhotoFilterType = .notDisliked
+    @State private var isCoreDataReady = false
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
@@ -32,7 +33,17 @@ struct PhotoStackView: View {
     var body: some View {
         NavigationView {
             VStack {
-                if authorizationStatus == .authorized || authorizationStatus == .limited {
+                if !isCoreDataReady {
+                    // Show loading UI while Core Data is initializing
+                    VStack(spacing: 20) {
+                        ProgressView()
+                            .scaleEffect(1.5)
+                        Text("Initializing...")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if authorizationStatus == .authorized || authorizationStatus == .limited {
                     // Filter buttons
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
@@ -117,10 +128,8 @@ struct PhotoStackView: View {
             .navigationTitle("Photos")
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
+                initializeCoreData()
                 requestPhotoAccess()
-                if authorizationStatus == .authorized || authorizationStatus == .limited {
-                    loadPhotoAssets()
-                }
             }
         }
         .sheet(isPresented: $showingFullPhoto) {
@@ -154,10 +163,26 @@ struct PhotoStackView: View {
             PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
                 DispatchQueue.main.async {
                     authorizationStatus = status
-                    if status == .authorized || status == .limited {
+                    if status == .authorized || status == .limited && isCoreDataReady {
                         loadPhotoAssets()
                     }
                 }
+            }
+        }
+    }
+    
+    private func initializeCoreData() {
+        // Check if Core Data is ready
+        if viewContext.persistentStoreCoordinator != nil {
+            isCoreDataReady = true
+            // If photo access is already authorized, load assets now
+            if authorizationStatus == .authorized || authorizationStatus == .limited {
+                loadPhotoAssets()
+            }
+        } else {
+            // Wait for Core Data to be ready
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                initializeCoreData()
             }
         }
     }
@@ -181,6 +206,7 @@ struct PhotoStackView: View {
     }
     
     private func applyFilter() {
+        guard isCoreDataReady else { return }
         let filteredAssets = preferenceManager.getFilteredAssets(from: photoAssets, filter: currentFilter)
         createPhotoStacks(from: filteredAssets)
     }
@@ -381,6 +407,8 @@ struct SwipePhotoView: View {
     @State private var shareText = ""
     @State private var isLoading = false
     @State private var dragOffset: CGSize = .zero
+    @State private var currentPreference: PhotoPreferenceType = .neutral
+    @State private var isPreferenceManagerReady = false
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
@@ -401,7 +429,18 @@ struct SwipePhotoView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             
-            VStack(spacing: 0) {
+            if !isPreferenceManagerReady {
+                // Show loading UI while preference manager is initializing
+                VStack {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(1.5)
+                    Text("Loading...")
+                        .foregroundColor(.white)
+                        .padding(.top, 16)
+                }
+            } else {
+                VStack(spacing: 0) {
                 // Top toolbar
                 HStack {
                     Button("Close") {
@@ -415,14 +454,12 @@ struct SwipePhotoView: View {
                     // Action buttons
                     HStack(spacing: 16) {
                         Button(action: thumbsDown) {
-                            let currentPreference = preferenceManager.getPreference(for: currentAsset)
                             Image(systemName: currentPreference == .dislike ? "hand.thumbsdown.fill" : "hand.thumbsdown")
                                 .font(.title2)
                                 .foregroundColor(currentPreference == .dislike ? .red : .white)
                         }
                         
                         Button(action: thumbsUp) {
-                            let currentPreference = preferenceManager.getPreference(for: currentAsset)
                             Image(systemName: currentPreference == .like ? "hand.thumbsup.fill" : "hand.thumbsup")
                                 .font(.title2)
                                 .foregroundColor(currentPreference == .like ? .green : .white)
@@ -449,14 +486,21 @@ struct SwipePhotoView: View {
                 .padding(.bottom, 20)
                 
                 // Photo display using TabView for smooth swiping
-                TabView(selection: $currentIndex) {
-                    ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                        SwipePhotoImageView(asset: asset, isLoading: $isLoading)
-                            .tag(index)
+                if !stack.assets.isEmpty {
+                    TabView(selection: $currentIndex) {
+                        ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                            SwipePhotoImageView(asset: asset, isLoading: $isLoading)
+                                .tag(index)
+                        }
                     }
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                    .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
+                } else {
+                    // Fallback for empty stack
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
                 }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
                 
                 // Navigation dots for stacks
                 if stack.assets.count > 1 {
@@ -468,6 +512,7 @@ struct SwipePhotoView: View {
                         }
                     }
                     .padding(.bottom, 50)
+                }
                 }
             }
         }
@@ -494,6 +539,14 @@ struct SwipePhotoView: View {
         )
         .onAppear {
             isLoading = true
+            // Ensure the current index is valid
+            if currentIndex >= stack.assets.count {
+                currentIndex = 0
+            }
+            initializePreferenceManager()
+        }
+        .onChange(of: currentIndex) { _, _ in
+            updateCurrentPreference()
         }
         .sheet(isPresented: $showingAddPin) {
             NavigationView {
@@ -512,8 +565,13 @@ struct SwipePhotoView: View {
     
     
     private func thumbsUp() {
+        guard isPreferenceManagerReady else { return }
+        
         preferenceManager.setPreference(for: currentAsset, preference: .like)
         print("Thumbs up for photo at index \(currentIndex)")
+        
+        // Update UI state immediately
+        currentPreference = .like
         
         // Provide haptic feedback
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -521,8 +579,13 @@ struct SwipePhotoView: View {
     }
     
     private func thumbsDown() {
+        guard isPreferenceManagerReady else { return }
+        
         preferenceManager.setPreference(for: currentAsset, preference: .dislike)
         print("Thumbs down for photo at index \(currentIndex)")
+        
+        // Update UI state immediately
+        currentPreference = .dislike
         
         // Provide haptic feedback
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -614,46 +677,222 @@ struct SwipePhotoView: View {
         }
         return location.coordinate
     }
+    
+    private func initializePreferenceManager() {
+        // Wait for Core Data context to be ready
+        DispatchQueue.main.async {
+            // Check if the viewContext is properly initialized
+            if viewContext.persistentStoreCoordinator != nil {
+                isPreferenceManagerReady = true
+                updateCurrentPreference()
+            } else {
+                // Wait a bit longer and try again
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    initializePreferenceManager()
+                }
+            }
+        }
+    }
+    
+    private func updateCurrentPreference() {
+        guard isPreferenceManagerReady else { return }
+        currentPreference = preferenceManager.getPreference(for: currentAsset)
+    }
 }
 
 struct SwipePhotoImageView: View {
     let asset: PHAsset
     @Binding var isLoading: Bool
     @State private var image: UIImage?
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+    @State private var loadError: Bool = false
     
     var body: some View {
         GeometryReader { geometry in
-            if let image = image {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
-            } else {
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+            ZStack {
+                if let image = image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
+                        .scaleEffect(scale)
+                        .offset(offset)
+                        .gesture(
+                            MagnificationGesture()
+                                .onChanged { value in
+                                    scale = lastScale * value
+                                }
+                                .onEnded { value in
+                                    lastScale = scale
+                                    // Limit zoom between 1x and 4x
+                                    if scale < 1 {
+                                        withAnimation(.spring()) {
+                                            scale = 1
+                                            lastScale = 1
+                                            offset = .zero
+                                            lastOffset = .zero
+                                        }
+                                    } else if scale > 4 {
+                                        withAnimation(.spring()) {
+                                            scale = 4
+                                            lastScale = 4
+                                        }
+                                    }
+                                }
+                        )
+                        .simultaneousGesture(
+                            // Only enable pan gesture when zoomed in
+                            DragGesture()
+                                .onChanged { value in
+                                    // Only allow panning when zoomed in
+                                    if scale > 1 {
+                                        offset = CGSize(
+                                            width: lastOffset.width + value.translation.width,
+                                            height: lastOffset.height + value.translation.height
+                                        )
+                                    }
+                                }
+                                .onEnded { value in
+                                    // Only handle pan end when zoomed in
+                                    if scale > 1 {
+                                        lastOffset = offset
+                                        
+                                        // Bounce back if panned too far
+                                        let maxOffsetX = (geometry.size.width * (scale - 1)) / 2
+                                        let maxOffsetY = (geometry.size.height * (scale - 1)) / 2
+                                        
+                                        var newOffset = offset
+                                        if abs(offset.width) > maxOffsetX {
+                                            newOffset.width = offset.width > 0 ? maxOffsetX : -maxOffsetX
+                                        }
+                                        if abs(offset.height) > maxOffsetY {
+                                            newOffset.height = offset.height > 0 ? maxOffsetY : -maxOffsetY
+                                        }
+                                        
+                                        if newOffset != offset {
+                                            withAnimation(.spring()) {
+                                                offset = newOffset
+                                                lastOffset = newOffset
+                                            }
+                                        }
+                                    }
+                                }
+                        )
+                        .onTapGesture(count: 2) {
+                            // Double tap to zoom
+                            withAnimation(.spring()) {
+                                if scale > 1 {
+                                    scale = 1
+                                    lastScale = 1
+                                    offset = .zero
+                                    lastOffset = .zero
+                                } else {
+                                    scale = 2
+                                    lastScale = 2
+                                }
+                            }
+                        }
+                } else if loadError {
+                    VStack {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.title)
+                            .foregroundColor(.white)
+                        Text("Failed to load image")
+                            .foregroundColor(.white)
+                            .font(.caption)
+                        Button("Retry") {
+                            loadError = false
+                            loadImage()
+                        }
+                        .foregroundColor(.blue)
+                        .padding(.top, 8)
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
+        .clipped()
         .onAppear {
-            loadImage()
+            if image == nil && !loadError {
+                loadImage()
+            }
         }
     }
     
     private func loadImage() {
         isLoading = true
+        loadError = false
+        
         let imageManager = PHImageManager.default()
         let options = PHImageRequestOptions()
         options.isSynchronous = false
-        options.deliveryMode = .highQualityFormat
+        options.deliveryMode = .opportunistic
         options.resizeMode = .exact
+        options.isNetworkAccessAllowed = true
         
         let targetSize = CGSize(width: UIScreen.main.bounds.width * UIScreen.main.scale,
                                height: UIScreen.main.bounds.height * UIScreen.main.scale)
         
-        imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: options) { loadedImage, _ in
+        print("Loading image for asset: \(asset.localIdentifier)")
+        
+        // Request image with error handling
+        imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: options) { loadedImage, info in
             DispatchQueue.main.async {
-                image = loadedImage
-                isLoading = false
+                
+                if let loadedImage = loadedImage {
+                    image = loadedImage
+                    isLoading = false
+                    loadError = false
+                    print("Successfully loaded image for asset: \(asset.localIdentifier)")
+                    
+                    // Check if this is a degraded image and request high quality
+                    if let info = info,
+                       let degraded = info[PHImageResultIsDegradedKey] as? Bool,
+                       degraded {
+                        print("Loading high quality version for asset: \(asset.localIdentifier)")
+                        
+                        let hqOptions = PHImageRequestOptions()
+                        hqOptions.isSynchronous = false
+                        hqOptions.deliveryMode = .highQualityFormat
+                        hqOptions.resizeMode = .exact
+                        hqOptions.isNetworkAccessAllowed = true
+                        
+                        imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: hqOptions) { hqImage, hqInfo in
+                            DispatchQueue.main.async {
+                                if let hqImage = hqImage {
+                                    image = hqImage
+                                    print("High quality image loaded for asset: \(asset.localIdentifier)")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Handle loading failure
+                    isLoading = false
+                    loadError = true
+                    
+                    // Check for specific error information
+                    if let info = info {
+                        if let error = info[PHImageErrorKey] as? Error {
+                            print("Image loading error for asset \(asset.localIdentifier): \(error)")
+                        }
+                        if let cancelled = info[PHImageCancelledKey] as? Bool, cancelled {
+                            print("Image loading cancelled for asset: \(asset.localIdentifier)")
+                        }
+                        if let inCloud = info[PHImageResultIsInCloudKey] as? Bool, inCloud {
+                            print("Image is in iCloud for asset: \(asset.localIdentifier)")
+                        }
+                    }
+                    
+                    print("Failed to load image for asset: \(asset.localIdentifier)")
+                }
             }
         }
     }

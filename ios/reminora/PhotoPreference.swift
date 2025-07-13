@@ -13,37 +13,95 @@ class PhotoPreferenceManager {
     }
     
     func setPreference(for asset: PHAsset, preference: PhotoPreferenceType) {
-        let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "photoId == %@", asset.localIdentifier)
-        
-        do {
-            let existing = try viewContext.fetch(fetchRequest)
-            let photoPreference: PhotoPreference
-            
-            if let existingPreference = existing.first {
-                photoPreference = existingPreference
-            } else {
-                photoPreference = PhotoPreference(context: viewContext)
-                photoPreference.photoId = asset.localIdentifier
+        if preference == .like {
+            // Use Photos framework to set favorite
+            PHPhotoLibrary.shared().performChanges({
+                PHAssetChangeRequest.init(for: asset).isFavorite = true
+            }) { success, error in
+                if let error = error {
+                    print("Failed to set photo as favorite: \(error)")
+                }
+            }
+        } else if preference == .dislike {
+            // Remove from favorites if it was favorited
+            if asset.isFavorite {
+                PHPhotoLibrary.shared().performChanges({
+                    PHAssetChangeRequest.init(for: asset).isFavorite = false
+                }) { success, error in
+                    if let error = error {
+                        print("Failed to remove photo from favorites: \(error)")
+                    }
+                }
             }
             
-            photoPreference.preference = preference.rawValue
-            photoPreference.dateModified = Date()
+            // Store dislike in Core Data
+            let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "photoId == %@", asset.localIdentifier)
             
-            try viewContext.save()
-        } catch {
-            print("Failed to save photo preference: \(error)")
+            do {
+                let existing = try viewContext.fetch(fetchRequest)
+                let photoPreference: PhotoPreference
+                
+                if let existingPreference = existing.first {
+                    photoPreference = existingPreference
+                } else {
+                    photoPreference = PhotoPreference(context: viewContext)
+                    photoPreference.photoId = asset.localIdentifier
+                }
+                
+                photoPreference.preference = preference.rawValue
+                photoPreference.dateModified = Date()
+                
+                try viewContext.save()
+            } catch {
+                print("Failed to save photo preference: \(error)")
+            }
+        } else if preference == .neutral {
+            // Remove from favorites if it was favorited
+            if asset.isFavorite {
+                PHPhotoLibrary.shared().performChanges({
+                    PHAssetChangeRequest.init(for: asset).isFavorite = false
+                }) { success, error in
+                    if let error = error {
+                        print("Failed to remove photo from favorites: \(error)")
+                    }
+                }
+            }
+            
+            // Remove dislike from Core Data if it exists
+            let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "photoId == %@", asset.localIdentifier)
+            
+            do {
+                let existing = try viewContext.fetch(fetchRequest)
+                if let existingPreference = existing.first {
+                    viewContext.delete(existingPreference)
+                    try viewContext.save()
+                }
+            } catch {
+                print("Failed to remove photo preference: \(error)")
+            }
         }
     }
     
     func getPreference(for asset: PHAsset) -> PhotoPreferenceType {
+        // Check if it's favorited in Photos app first
+        if asset.isFavorite {
+            return .like
+        }
+        
+        // Check if it's disliked in our Core Data storage
         let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "photoId == %@", asset.localIdentifier)
         
         do {
             let results = try viewContext.fetch(fetchRequest)
             if let preference = results.first, let preferenceValue = preference.preference {
-                return PhotoPreferenceType(rawValue: preferenceValue) ?? .neutral
+                let prefType = PhotoPreferenceType(rawValue: preferenceValue) ?? .neutral
+                // Only return dislike from Core Data, favorites come from Photos app
+                if prefType == .dislike {
+                    return .dislike
+                }
             }
         } catch {
             print("Failed to fetch photo preference: \(error)")
@@ -57,11 +115,11 @@ class PhotoPreferenceManager {
         case .all:
             return assets
         case .favorites:
-            return assets.filter { getPreference(for: $0) == .like }
+            return assets.filter { $0.isFavorite }
         case .dislikes:
             return assets.filter { getPreference(for: $0) == .dislike }
         case .neutral:
-            return assets.filter { getPreference(for: $0) == .neutral }
+            return assets.filter { !$0.isFavorite && getPreference(for: $0) != .dislike }
         case .notDisliked:
             return assets.filter { getPreference(for: $0) != .dislike }
         }

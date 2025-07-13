@@ -2,7 +2,7 @@ import CoreData
 import MapKit
 import SwiftUI
 
-struct NearbyPlacesView: View {
+struct FilteredMapItems: View {
     let coordinate: CLLocationCoordinate2D
     @State private var nearbyPlaces: [MKMapItem] = []
     @State private var isLoadingPlaces = false
@@ -150,7 +150,7 @@ struct NearbyPlacesView: View {
             )
         }
         .sheet(isPresented: $showNearbyPlacesPage) {
-            NearbyPlacesPageView(
+            NearbyLocationsPageView(
                 searchLocation: coordinate,
                 locationName: "this location"
             )

@@ -549,78 +549,130 @@ struct SwipePhotoView: View {
                 }
             } else {
                 VStack(spacing: 0) {
-                // Top toolbar
-                HStack {
-                    Button("Back") {
-                        onDismiss()
+                    // Top info bar with location and date
+                    VStack(spacing: 4) {
+                        HStack {
+                            Button("Back") {
+                                onDismiss()
+                            }
+                            .foregroundColor(.white)
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        
+                        // Location and date info
+                        VStack(spacing: 2) {
+                            if let location = currentAsset.location {
+                                Text(formatLocation(location))
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.8))
+                            }
+                            
+                            if let date = currentAsset.creationDate {
+                                Text(formatDate(date))
+                                    .font(.caption)
+                                    .foregroundColor(.white.opacity(0.8))
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
                     }
-                    .foregroundColor(.white)
-                    .padding(.leading)
+                    
+                    // Photo display using TabView for smooth swiping
+                    if !stack.assets.isEmpty {
+                        TabView(selection: $currentIndex) {
+                            ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                                SwipePhotoImageView(asset: asset, isLoading: $isLoading)
+                                    .tag(index)
+                            }
+                        }
+                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                    } else {
+                        // Fallback for empty stack
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    }
                     
                     Spacer()
                     
-                    // Action buttons
-                    HStack(spacing: 16) {
-                        Button(action: thumbsDown) {
-                            Image(systemName: currentPreference == .dislike ? "xmark.circle.fill" : "xmark.circle")
-                                .font(.title2)
-                                .foregroundColor(currentPreference == .dislike ? .red : .white)
+                    // Bottom section with thumbnails and action buttons
+                    VStack(spacing: 12) {
+                        // Thumbnail strip (iOS Photos style)
+                        if stack.assets.count > 1 {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 4) {
+                                    ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                                        PhotoThumbnailView(
+                                            asset: asset,
+                                            isSelected: index == currentIndex,
+                                            onTap: {
+                                                currentIndex = index
+                                            }
+                                        )
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                            }
+                            .frame(height: 60)
                         }
                         
-                        Button(action: thumbsUp) {
-                            Image(systemName: currentPreference == .like ? "heart.fill" : "heart")
-                                .font(.title2)
-                                .foregroundColor(.white)
+                        // Action buttons (iOS Photos style)
+                        HStack(spacing: 32) {
+                            // Share button
+                            Button(action: sharePhoto) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Share")
+                                        .font(.caption2)
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            
+                            // Favorite button
+                            Button(action: thumbsUp) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: currentPreference == .like ? "heart.fill" : "heart")
+                                        .font(.title2)
+                                        .foregroundColor(currentPreference == .like ? .red : .white)
+                                    Text("Favorite")
+                                        .font(.caption2)
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            
+                            // Pin button
+                            Button {
+                                showingAddPin = true
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "mappin.and.ellipse")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                    Text("Pin")
+                                        .font(.caption2)
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            
+                            // Reject button
+                            Button(action: thumbsDown) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: currentPreference == .dislike ? "trash.fill" : "trash")
+                                        .font(.title2)
+                                        .foregroundColor(currentPreference == .dislike ? .red : .white)
+                                    Text("Delete")
+                                        .font(.caption2)
+                                        .foregroundColor(.white)
+                                }
+                            }
                         }
-                        
-                        Button(action: sharePhoto) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                        }
-                        
-                        Button("Pin") {
-                            showingAddPin = true
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue)
-                        .cornerRadius(8)
+                        .padding(.horizontal, 32)
+                        .padding(.bottom, 34) // Safe area padding
                     }
-                    .padding(.trailing)
-                }
-                .padding(.top, 20)
-                .padding(.bottom, 10)
-                
-                // Photo display using TabView for smooth swiping
-                if !stack.assets.isEmpty {
-                    TabView(selection: $currentIndex) {
-                        ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                            SwipePhotoImageView(asset: asset, isLoading: $isLoading)
-                                .tag(index)
-                        }
-                    }
-                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                    .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
-                } else {
-                    // Fallback for empty stack
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
-                }
-                
-                // Navigation dots for stacks
-                if stack.assets.count > 1 {
-                    HStack(spacing: 8) {
-                        ForEach(0..<stack.assets.count, id: \.self) { index in
-                            Circle()
-                                .fill(index == currentIndex ? Color.white : Color.white.opacity(0.4))
-                                .frame(width: 8, height: 8)
-                        }
-                    }
-                    .padding(.bottom, 50)
-                }
                 }
             }
         }
@@ -1214,10 +1266,27 @@ struct AddPinFromPhotoView: View {
 }
 
 
+
 struct PhotoShareData: Identifiable {
     let id = UUID()
     let message: String
     let link: String
+}
+
+// Helper functions for SwipePhotoView
+extension SwipePhotoView {
+    private func formatLocation(_ location: CLLocation) -> String {
+        let geocoder = CLGeocoder()
+        // For now, just show coordinates. In real app, you'd reverse geocode
+        return String(format: "%.4f, %.4f", location.coordinate.latitude, location.coordinate.longitude)
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
 }
 
 #Preview {

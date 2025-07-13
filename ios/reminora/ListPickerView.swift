@@ -3,7 +3,7 @@ import CoreData
 import CoreLocation
 
 struct ListPickerView: View {
-    let place: NearbyPlace
+    let place: NearbyLocation
     @Binding var isPresented: Bool
     
     @Environment(\.managedObjectContext) private var viewContext
@@ -13,7 +13,7 @@ struct ListPickerView: View {
     @FetchRequest private var listItems: FetchedResults<ListItem>
     @State private var isSaving = false
     
-    init(place: NearbyPlace, isPresented: Binding<Bool>) {
+    init(place: NearbyLocation, isPresented: Binding<Bool>) {
         self.place = place
         self._isPresented = isPresented
         

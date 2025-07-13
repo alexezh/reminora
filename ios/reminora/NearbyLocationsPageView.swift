@@ -2,24 +2,24 @@ import SwiftUI
 import MapKit
 import CoreData
 
-struct NearbyPlacesPageView: View {
+struct NearbyLocationsPageView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.presentationMode) var presentationMode
     
     let searchLocation: CLLocationCoordinate2D
     let locationName: String
     
-    @State private var nearbyPlaces: [NearbyPlace] = []
+    @State private var nearbyPlaces: [NearbyLocation] = []
     @State private var isLoading = true
     @State private var selectedCategory = "All"
     @State private var showingShareSheet = false
     @State private var shareText = ""
     @State private var showingListPicker = false
-    @State private var selectedPlace: NearbyPlace?
+    @State private var selectedPlace: NearbyLocation?
     
     private let categories = ["All", "Restaurant", "Cafe", "Shopping", "Gas Station", "Bank", "Hospital", "Hotel", "Tourist Attraction"]
     
-    var filteredPlaces: [NearbyPlace] {
+    var filteredPlaces: [NearbyLocation] {
         if selectedCategory == "All" {
             return nearbyPlaces
         }
@@ -30,46 +30,64 @@ struct NearbyPlacesPageView: View {
         NavigationView {
             VStack(spacing: 0) {
                 // Header with location info
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text("Near \(locationName)")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Text("\(nearbyPlaces.count) places found")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        Button("Close") {
-                            presentationMode.wrappedValue.dismiss()
-                        }
-                        .foregroundColor(.blue)
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text("Near \(locationName)")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Text("\(nearbyPlaces.count) places found")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    
-                    // Category filter
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(categories, id: \.self) { category in
-                                Button(action: {
-                                    selectedCategory = category
-                                }) {
-                                    Text(category)
-                                        .font(.caption)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(selectedCategory == category ? Color.blue : Color.gray.opacity(0.2))
-                                        .foregroundColor(selectedCategory == category ? .white : .primary)
-                                        .cornerRadius(16)
-                                }
-                            }
+                    Spacer()
+                    Button("Close") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                    .foregroundColor(.blue)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+                .padding(.bottom, 8)
+                .background(Color(UIColor.systemBackground))
+                
+                // Map view showing current pin location
+                Map(coordinateRegion: .constant(MKCoordinateRegion(
+                    center: searchLocation,
+                    span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+                )), annotationItems: [MapAnnotationItem(coordinate: searchLocation)]) { annotation in
+                    MapAnnotation(coordinate: annotation.coordinate) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.red)
+                                .frame(width: 20, height: 20)
+                            Circle()
+                                .stroke(Color.white, lineWidth: 3)
+                                .frame(width: 20, height: 20)
                         }
-                        .padding(.horizontal, 16)
                     }
                 }
-                .padding(.bottom, 12)
+                .frame(height: 200)
+                
+                // Category filter
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(categories, id: \.self) { category in
+                            Button(action: {
+                                selectedCategory = category
+                            }) {
+                                Text(category)
+                                    .font(.caption)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(selectedCategory == category ? Color.blue : Color.gray.opacity(0.2))
+                                    .foregroundColor(selectedCategory == category ? .white : .primary)
+                                    .cornerRadius(16)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+                .padding(.vertical, 8)
                 .background(Color(UIColor.systemBackground))
                 
                 // Places list
@@ -83,7 +101,7 @@ struct NearbyPlacesPageView: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(filteredPlaces, id: \.id) { place in
-                                NearbyPlaceCard(
+                                NearbyLocationCard(
                                     place: place,
                                     onMapTap: {
                                         openInNativeMap(place)
@@ -140,7 +158,7 @@ struct NearbyPlacesPageView: View {
             "school university"
         ]
         
-        var allPlaces: [NearbyPlace] = []
+        var allPlaces: [NearbyLocation] = []
         
         for searchTerm in searchTerms {
             let request = MKLocalSearch.Request()
@@ -155,12 +173,12 @@ struct NearbyPlacesPageView: View {
                 let search = MKLocalSearch(request: request)
                 let response = try await search.start()
                 
-                let places = response.mapItems.prefix(5).compactMap { item -> NearbyPlace? in
+                let places = response.mapItems.prefix(5).compactMap { item -> NearbyLocation? in
                     guard let location = item.placemark.location else { return nil }
                     
                     let distance = location.distance(from: CLLocation(latitude: searchLocation.latitude, longitude: searchLocation.longitude))
                     
-                    return NearbyPlace(
+                    return NearbyLocation(
                         id: item.placemark.name ?? UUID().uuidString,
                         name: item.placemark.name ?? "Unknown",
                         address: formatAddress(from: item.placemark),
@@ -203,7 +221,7 @@ struct NearbyPlacesPageView: View {
         return components.joined(separator: " ")
     }
     
-    private func sharePlace(_ place: NearbyPlace) {
+    private func sharePlace(_ place: NearbyLocation) {
         // Create a reminora link for the place
         let placeId = place.id
         let encodedName = place.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
@@ -222,20 +240,20 @@ struct NearbyPlacesPageView: View {
         showingShareSheet = true
     }
     
-    private func savePlace(_ place: NearbyPlace) {
+    private func savePlace(_ place: NearbyLocation) {
         selectedPlace = place
         showingListPicker = true
     }
     
-    private func openInNativeMap(_ place: NearbyPlace) {
+    private func openInNativeMap(_ place: NearbyLocation) {
         let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: place.coordinate))
         mapItem.name = place.name
         mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
     }
 }
 
-struct NearbyPlaceCard: View {
-    let place: NearbyPlace
+struct NearbyLocationCard: View {
+    let place: NearbyLocation
     let onMapTap: () -> Void
     let onShareTap: () -> Void
     let onSaveTap: () -> Void
@@ -349,7 +367,7 @@ struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
-struct NearbyPlace: Identifiable, Hashable {
+struct NearbyLocation: Identifiable, Hashable {
     let id: String
     let name: String
     let address: String
@@ -364,8 +382,15 @@ struct NearbyPlace: Identifiable, Hashable {
         hasher.combine(name)
         hasher.combine(address)
     }
-    
-    static func == (lhs: NearbyPlace, rhs: NearbyPlace) -> Bool {
+}
+
+struct MapAnnotationItem: Identifiable {
+    let id = UUID()
+    let coordinate: CLLocationCoordinate2D
+}
+
+extension NearbyLocation {
+    static func == (lhs: NearbyLocation, rhs: NearbyLocation) -> Bool {
         lhs.id == rhs.id && lhs.name == rhs.name && lhs.address == rhs.address
     }
 }

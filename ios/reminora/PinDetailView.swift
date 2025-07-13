@@ -261,15 +261,10 @@ struct PinDetailView: View {
         }
         .sheet(isPresented: $showingNearbyPhotos) {
             NavigationView {
-                NearbyPhotosGridView(centerLocation: Self.coordinate(item: place))
+                NearbyPhotosGridView(centerLocation: Self.coordinate(item: place), onDismiss: {
+                    showingNearbyPhotos = false
+                })
                     .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Add") {
-                                showingNearbyPhotos = false
-                            }
-                        }
-                    }
             }
         }
         .sheet(isPresented: $showingNearbyPlaces) {
@@ -299,8 +294,8 @@ struct PinDetailView: View {
         }
         
         // Check if already following
-        let fetchRequest: NSFetchRequest<Follow> = Follow.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "followerId == %@ AND followingId == %@", currentUser.id, userId)
+        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
         
         do {
             let existingFollows = try viewContext.fetch(fetchRequest)
@@ -310,11 +305,10 @@ struct PinDetailView: View {
             }
             
             // Create new follow relationship
-            let follow = Follow(context: viewContext)
+            let follow = UserList(context: viewContext)
             follow.id = UUID().uuidString
-            follow.followerId = currentUser.id
-            follow.followingId = userId
-            follow.followingHandle = userName
+            follow.userId = userId
+            follow.name = userName
             follow.createdAt = Date()
             
             try viewContext.save()

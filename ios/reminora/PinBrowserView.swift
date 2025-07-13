@@ -34,7 +34,7 @@ struct PinBrowserView: View {
     ) private var userLists: FetchedResults<UserList>
     
     private var listOptions: [(id: String, name: String)] {
-        var options = [("all", "All Places")]
+        var options = [("all", "My Pins")]
         options.append(contentsOf: userLists.map { (id: $0.id ?? "", name: $0.name ?? "Untitled") })
         return options
     }
@@ -106,7 +106,7 @@ struct PinBrowserView: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: "list.bullet")
-                                    Text(listOptions.first(where: { $0.id == selectedListId })?.name ?? "All Places")
+                                    Text(listOptions.first(where: { $0.id == selectedListId })?.name ?? "My Pins")
                                     Image(systemName: "chevron.down")
                                         .font(.caption)
                                 }

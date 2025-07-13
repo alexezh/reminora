@@ -6,6 +6,10 @@ add button with image or initials on shared
 
 nearbyphotos - remove add and places buttons. use StackListView when displaying photos. add close button to nearbu photos. change done button in nearby photo 
 
+for stack photo, make design similar to ios photos. list of small thumbnails on bottom. share, fav, reject items below. location and date on top. Add find similar using model. 
+
+use core ml to compare similarity of two pictures. when 
+
 do not resort items unless call search here, done on top right of the map
 
 add multi-line edit. add cancel, done. add list of places nearby

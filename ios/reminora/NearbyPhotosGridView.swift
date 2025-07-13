@@ -123,13 +123,13 @@ struct NearbyPhotosGridView: View {
                             .padding(.bottom, 4)
                             .background(Color(.systemBackground))
                             
-                            NearbyPhotosStackView(
-                                photoAssets: sortedPhotoAssets,
-                                centerLocation: centerLocation ?? locationManager.lastLocation?.coordinate
+                            NearbyPhotosMainView(
+                                centerLocation: centerLocation ?? locationManager.lastLocation?.coordinate,
+                                selectedRange: selectedRange
                             )
                         }
                         .navigationTitle("Nearby Photos")
-                        .navigationBarTitleDisplayMode(.large)
+                        .navigationBarTitleDisplayMode(.inline)
                         .toolbar {
                             ToolbarItem(placement: .navigationBarTrailing) {
                                 Button("Close") {
@@ -877,17 +877,26 @@ struct NearbyPlaceRow: View {
     }
 }
 
-struct NearbyPhotosStackView: View {
-    let photoAssets: [PHAsset]
+struct NearbyPhotosMainView: View {
     let centerLocation: CLLocationCoordinate2D?
+    let selectedRange: DistanceRange
     
     @Environment(\.managedObjectContext) private var viewContext
-    @State private var photoStacks: [PhotoStack] = []
+    @State private var photoAssets: [PHAsset] = []
+    @State private var filteredPhotoStacks: [PhotoStack] = []
+    @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
     @State private var selectedStack: PhotoStack?
     @State private var selectedStackIndex = 0
+    @State private var currentFilter: PhotoFilterType = .notDisliked
+    @State private var isCoreDataReady = false
+    @State private var hasTriedInitialLoad = false
     
-    // Time interval for grouping photos into stacks (in minutes)
-    private let stackingInterval: TimeInterval = 10 * 60 // 10 minutes
+    private var preferenceManager: PhotoPreferenceManager {
+        PhotoPreferenceManager(viewContext: viewContext)
+    }
+    
+    // Time interval for grouping photos into stacks (in minutes) - shorter for nearby photos
+    private let stackingInterval: TimeInterval = 2 * 60 // 2 minutes
     
     private let columns = [
         GridItem(.flexible(), spacing: 1),
@@ -896,90 +905,245 @@ struct NearbyPhotosStackView: View {
         GridItem(.flexible(), spacing: 1)
     ]
     
+    var sortedPhotoAssets: [PHAsset] {
+        guard let referenceLocation = centerLocation else {
+            return photoAssets
+        }
+        
+        // Filter by distance first, then sort
+        let filteredAssets = photoAssets.filter { asset in
+            let distance = distanceFromCurrent(asset: asset, currentLocation: referenceLocation)
+            return distance <= selectedRange.distanceInMeters
+        }
+        
+        return filteredAssets.sorted { asset1, asset2 in
+            let distance1 = distanceFromCurrent(asset: asset1, currentLocation: referenceLocation)
+            let distance2 = distanceFromCurrent(asset: asset2, currentLocation: referenceLocation)
+            return distance1 < distance2
+        }
+    }
+    
     var body: some View {
-        GeometryReader { geometry in
-            let squareSize = (geometry.size.width - 3) / 4 // 4 photos with 3 gaps of 1px
-            
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 1) {
-                    ForEach(photoStacks, id: \.id) { stack in
-                        NearbyPhotoStackCell(
-                            stack: stack,
-                            centerLocation: centerLocation,
-                            onTap: {
-                                selectedStackIndex = 0
-                                selectedStack = stack
+        VStack {
+            if !isCoreDataReady {
+                // Show loading UI while Core Data is initializing
+                VStack(spacing: 20) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                    Text("Initializing...")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if authorizationStatus == .authorized || authorizationStatus == .limited {
+                // Filter buttons
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach([PhotoFilterType.notDisliked, .all, .favorites, .dislikes], id: \.self) { filter in
+                            Button(action: {
+                                currentFilter = filter
+                                applyFilter()
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: filter.iconName)
+                                    Text(filter.displayName)
+                                }
+                                .font(.caption)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(
+                                    currentFilter == filter
+                                        ? Color.blue
+                                        : Color.gray.opacity(0.2)
+                                )
+                                .foregroundColor(
+                                    currentFilter == filter
+                                        ? .white
+                                        : .primary
+                                )
+                                .cornerRadius(16)
                             }
-                        )
-                        .frame(width: squareSize, height: squareSize)
-                        .clipped()
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                .padding(.bottom, 8)
+                
+                if filteredPhotoStacks.isEmpty && isCoreDataReady {
+                    // Show empty state
+                    VStack(spacing: 20) {
+                        Image(systemName: "photo.stack")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                        
+                        Text("No Nearby Photos Found")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                        
+                        Text("No photos found within the selected distance.")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding()
+                } else {
+                    GeometryReader { geometry in
+                        let squareSize = (geometry.size.width - 3) / 4 // 4 photos with 3 gaps of 1px
+                        
+                        ScrollView {
+                            LazyVGrid(columns: columns, spacing: 1) {
+                                ForEach(filteredPhotoStacks, id: \.id) { stack in
+                                    NearbyPhotoStackCell(
+                                        stack: stack,
+                                        centerLocation: centerLocation,
+                                        onTap: {
+                                            selectedStackIndex = 0
+                                            selectedStack = stack
+                                        }
+                                    )
+                                    .frame(width: squareSize, height: squareSize)
+                                    .clipped()
+                                }
+                            }
+                            .padding(.horizontal, 0)
+                        }
                     }
                 }
-                .padding(.horizontal, 0)
+            } else {
+                VStack(spacing: 20) {
+                    Image(systemName: "photo.on.rectangle")
+                        .font(.system(size: 60))
+                        .foregroundColor(.gray)
+                    
+                    Text("Photo Access Required")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Text("Please allow access to your photo library to see nearby photos")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    Button("Grant Access") {
+                        requestPhotoAccess()
+                    }
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                }
+                .padding()
             }
         }
         .onAppear {
-            createPhotoStacks(from: photoAssets)
+            initializeCoreData()
+            requestPhotoAccess()
         }
-        .onChange(of: photoAssets) { _, newAssets in
-            createPhotoStacks(from: newAssets)
+        .onChange(of: isCoreDataReady) { _, isReady in
+            if isReady && !hasTriedInitialLoad {
+                hasTriedInitialLoad = true
+                if authorizationStatus == .authorized || authorizationStatus == .limited {
+                    loadPhotoAssets()
+                }
+            }
+        }
+        .onChange(of: selectedRange) { _, _ in
+            applyFilter()
         }
         .sheet(item: $selectedStack) { stack in
-            NearbySwipePhotoView(
+            SwipePhotoView(
                 stack: stack,
                 initialIndex: selectedStackIndex,
-                centerLocation: centerLocation,
                 onDismiss: {
                     selectedStack = nil
+                    // Refresh filter to remove disliked photos from view
+                    applyFilter()
                 }
             )
         }
     }
     
-    private func createPhotoStacks(from assets: [PHAsset]) {
-        var stacks: [PhotoStack] = []
-        var currentStack: [PHAsset] = []
-        var lastDate: Date?
+    private func requestPhotoAccess() {
+        authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         
-        for asset in assets {
-            guard let creationDate = asset.creationDate else {
-                // Handle assets without creation date
-                if !currentStack.isEmpty {
-                    stacks.append(PhotoStack(assets: currentStack))
-                    currentStack = []
-                }
-                stacks.append(PhotoStack(assets: [asset]))
-                lastDate = nil
-                continue
-            }
-            
-            if let lastDate = lastDate {
-                let timeDifference = lastDate.timeIntervalSince(creationDate)
-                
-                if timeDifference <= stackingInterval {
-                    // Add to current stack
-                    currentStack.append(asset)
-                } else {
-                    // Start new stack
-                    if !currentStack.isEmpty {
-                        stacks.append(PhotoStack(assets: currentStack))
+        // If already authorized and Core Data is ready, load assets
+        if (authorizationStatus == .authorized || authorizationStatus == .limited) && isCoreDataReady {
+            loadPhotoAssets()
+        } else if authorizationStatus == .notDetermined {
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+                DispatchQueue.main.async {
+                    authorizationStatus = status
+                    if (status == .authorized || status == .limited) && isCoreDataReady {
+                        loadPhotoAssets()
                     }
-                    currentStack = [asset]
                 }
-            } else {
-                // First asset
-                currentStack = [asset]
             }
-            
-            lastDate = creationDate
+        }
+    }
+    
+    private func initializeCoreData() {
+        // Check if Core Data is ready
+        if viewContext.persistentStoreCoordinator != nil {
+            isCoreDataReady = true
+        } else {
+            // Wait for Core Data to be ready
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                initializeCoreData()
+            }
+        }
+    }
+    
+    private func loadPhotoAssets() {
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        fetchOptions.fetchLimit = 1000 // Load recent photos
+        
+        let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        
+        var assets: [PHAsset] = []
+        fetchResult.enumerateObjects { asset, _, _ in
+            // Only include photos with location data
+            if asset.location != nil {
+                assets.append(asset)
+            }
         }
         
-        // Add final stack
-        if !currentStack.isEmpty {
-            stacks.append(PhotoStack(assets: currentStack))
+        DispatchQueue.main.async {
+            photoAssets = assets
+            applyFilter()
+        }
+    }
+    
+    private func applyFilter() {
+        guard isCoreDataReady else { 
+            return 
+        }
+        let nearbyAssets = sortedPhotoAssets
+        let filteredAssets = preferenceManager.getFilteredAssets(from: nearbyAssets, filter: currentFilter)
+        createPhotoStacks(from: filteredAssets)
+    }
+    
+    private func createPhotoStacks(from assets: [PHAsset]) {
+        // For nearby photos, show each photo individually instead of stacking
+        // This ensures users can see all photos in the area
+        let stacks = assets.map { asset in
+            PhotoStack(assets: [asset])
         }
         
-        photoStacks = stacks
+        print("📸 Created \(stacks.count) individual photo stacks from \(assets.count) nearby assets")
+        filteredPhotoStacks = stacks
+    }
+    
+    private func distanceFromCurrent(asset: PHAsset, currentLocation: CLLocationCoordinate2D) -> CLLocationDistance {
+        guard let assetLocation = asset.location else {
+            return CLLocationDistance.greatestFiniteMagnitude
+        }
+        
+        let currentLocationCL = CLLocation(latitude: currentLocation.latitude, longitude: currentLocation.longitude)
+        return currentLocationCL.distance(from: assetLocation)
     }
 }
 
@@ -1082,149 +1246,6 @@ struct NearbyPhotoStackCell: View {
             return "\(Int(distance))m"
         } else {
             return String(format: "%.1fkm", distance / 1000)
-        }
-    }
-}
-
-struct NearbySwipePhotoView: View {
-    let stack: PhotoStack
-    let initialIndex: Int
-    let centerLocation: CLLocationCoordinate2D?
-    let onDismiss: () -> Void
-    
-    @Environment(\.managedObjectContext) private var viewContext
-    @State private var currentIndex: Int
-    @State private var dragOffset: CGSize = .zero
-    
-    init(stack: PhotoStack, initialIndex: Int, centerLocation: CLLocationCoordinate2D?, onDismiss: @escaping () -> Void) {
-        self.stack = stack
-        self.initialIndex = initialIndex
-        self.centerLocation = centerLocation
-        self.onDismiss = onDismiss
-        self._currentIndex = State(initialValue: initialIndex)
-    }
-    
-    private var currentAsset: PHAsset {
-        return stack.assets[currentIndex]
-    }
-    
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Top toolbar
-                HStack {
-                    Button("Back") {
-                        onDismiss()
-                    }
-                    .foregroundColor(.white)
-                    .padding()
-                    
-                    Spacer()
-                    
-                    // Action buttons
-                    HStack(spacing: 16) {
-                        Button(action: {
-                            savePhotoToPlaces(asset: currentAsset)
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "plus.circle")
-                                Text("Save")
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.blue)
-                            .cornerRadius(8)
-                        }
-                    }
-                    .padding(.trailing)
-                }
-                .padding(.top, 50)
-                .padding(.bottom, 20)
-                
-                // Photo display using TabView for smooth swiping
-                if !stack.assets.isEmpty {
-                    TabView(selection: $currentIndex) {
-                        ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                            SwipePhotoImageView(asset: asset, isLoading: .constant(false))
-                                .tag(index)
-                        }
-                    }
-                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                    .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
-                }
-                
-                // Navigation dots for stacks
-                if stack.assets.count > 1 {
-                    HStack(spacing: 8) {
-                        ForEach(0..<stack.assets.count, id: \.self) { index in
-                            Circle()
-                                .fill(index == currentIndex ? Color.white : Color.white.opacity(0.4))
-                                .frame(width: 8, height: 8)
-                        }
-                    }
-                    .padding(.bottom, 50)
-                }
-            }
-        }
-        .offset(y: dragOffset.height)
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    if value.translation.height > 0 {
-                        dragOffset = CGSize(width: 0, height: value.translation.height)
-                    }
-                }
-                .onEnded { value in
-                    if value.translation.height > 150 {
-                        onDismiss()
-                    } else {
-                        withAnimation(.spring()) {
-                            dragOffset = .zero
-                        }
-                    }
-                }
-        )
-        .onAppear {
-            if currentIndex >= stack.assets.count {
-                currentIndex = 0
-            }
-        }
-    }
-    
-    private func savePhotoToPlaces(asset: PHAsset) {
-        let imageManager = PHImageManager.default()
-        let options = PHImageRequestOptions()
-        options.isSynchronous = false
-        options.deliveryMode = .highQualityFormat
-        
-        imageManager.requestImage(for: asset, targetSize: CGSize(width: 1024, height: 1024), contentMode: .aspectFit, options: options) { image, _ in
-            guard let image = image,
-                  let imageData = image.jpegData(compressionQuality: 0.8) else {
-                return
-            }
-            
-            DispatchQueue.main.async {
-                let newPlace = Place(context: viewContext)
-                newPlace.imageData = imageData
-                newPlace.dateAdded = asset.creationDate ?? Date()
-                
-                if let location = asset.location {
-                    let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
-                    newPlace.location = locationData
-                }
-                
-                newPlace.post = "Added from nearby photos"
-                
-                do {
-                    try viewContext.save()
-                    print("Photo saved to places successfully")
-                } catch {
-                    print("Failed to save photo to places: \(error)")
-                }
-            }
         }
     }
 }

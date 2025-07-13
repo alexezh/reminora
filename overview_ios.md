@@ -52,25 +52,33 @@
 ## Photo Stack & Library Management
 
 ### **PhotoStackView.swift**
-**Purpose**: Main photo library interface with time-based stacking
-- Grid layout (3 columns) with lazy loading
+**Purpose**: Main photo library interface with time-based stacking and preference management
+- Grid layout (4 columns) with exact square sizing (width/4)
 - Time-based photo grouping (10-minute intervals)
-- Stack indicators for grouped photos
-- Photo stack vs single photo handling
-- Permission management for photo library access
-- Navigation to SwipePhotoView for stack browsing
-- PhotoStackCell with stack count overlays
+- Integrated photo preference system (favorites via iOS Photos, dislikes via Core Data)
+- Filter tabs: Photos (default), All Photos, Favorites, Disliked, Neutral
+- Visual preference indicators: white heart for favorites, red X for dislikes
+- Stack indicators for grouped photos (multi-photo stacks)
+- Permission management for photo library access (readWrite for favorites)
+- Navigation to SwipePhotoView for all photos (unified interface)
+- PhotoStackCell with preference overlays and stack count indicators
+- Core Data initialization with loading states and retry mechanisms
+- PhotoPreferenceManager for hybrid preference storage
 
 ### **SwipePhotoView.swift**
-**Purpose**: Full-screen photo browsing with gesture navigation
-- TabView-based smooth swiping between photos
-- Close button and action toolbar
-- Thumbs up/down functionality placeholders
+**Purpose**: Full-screen photo browsing with gesture navigation and preference management
+- TabView-based smooth swiping between photos (unified for single photos and stacks)
+- Modern X close button with circular background
+- Heart/X action buttons for favorites and dislikes with real-time UI updates
+- Integrated with iOS Photos favorites and Core Data dislikes
 - Share button with Reminora link generation
 - Pin button for adding photos to places
-- Swipe down to close gesture
+- Swipe down to close gesture (with directional detection)
 - Navigation dots for multi-photo stacks
 - AddPinFromPhotoView integration
+- Zoom functionality: pinch-to-zoom (1x-4x), pan when zoomed, double-tap zoom
+- Preference manager initialization with timeout and error handling
+- Auto-dismiss on dislike with haptic feedback
 
 ### **AddPinFromPhotoView.swift**
 **Purpose**: Interface for converting photos to places/pins
@@ -196,6 +204,16 @@
 - Accuracy validation (≤50 meters)
 - Published location updates for reactive UI
 
+### **PhotoPreference.swift**
+**Purpose**: Hybrid photo preference management system
+- PhotoPreferenceManager class for unified preference handling
+- Integration with iOS Photos favorites (PHAsset.isFavorite)
+- Core Data storage for dislikes (PhotoPreference entity)
+- Photo filtering by preference type (all, favorites, dislikes, neutral, notDisliked)
+- Preference types: like (iOS Photos), dislike (Core Data), neutral
+- Filter types with display names and SF Symbols icons
+- Batch filtering operations for PhotoStackView
+
 ## Architecture Patterns
 
 ### **Data Flow**
@@ -224,12 +242,14 @@
 
 ## Key User Flows
 
-1. **Photo Stack Flow**: Photos Tab → PhotoStackView → Tap stack → SwipePhotoView → Pin/Share
-2. **Photo to Pin Flow**: SwipePhotoView → Pin button → AddPinFromPhotoView → Save place
-3. **Map Exploration**: Pin Tab → PinMainView → PinBrowserView → Place selection → PinDetailView
-4. **Social Interaction**: PinDetailView → Comments → User profiles
-5. **List Management**: PinBrowserView → List combo box → Filter places by list
-6. **Discovery**: NearbyPhotosGridView → Distance filtering → PhotoZoomView → Photo exploration
-7. **Sharing Flow**: SwipePhotoView → Share → Create Place → Generate Reminora link → iOS share sheet
+1. **Photo Stack Flow**: Photos Tab → PhotoStackView → Filter by preference → Tap photo/stack → SwipePhotoView → Like/Dislike/Pin/Share
+2. **Photo Preference Flow**: SwipePhotoView → Heart (saves to iOS Photos favorites) → X (saves to Core Data dislikes) → Auto-dismiss on dislike
+3. **Photo to Pin Flow**: SwipePhotoView → Pin button → AddPinFromPhotoView → Save place
+4. **Map Exploration**: Pin Tab → PinMainView → PinBrowserView → Place selection → PinDetailView
+5. **Social Interaction**: PinDetailView → Comments → User profiles
+6. **List Management**: PinBrowserView → List combo box → Filter places by list
+7. **Discovery**: NearbyPhotosGridView → Distance filtering → PhotoZoomView → Photo exploration
+8. **Sharing Flow**: SwipePhotoView → Share → Create Place → Generate Reminora link → iOS share sheet
+9. **Photo Management**: PhotoStackView → Filter tabs → Visual preference indicators → Unified photo viewing
 
 The app demonstrates sophisticated SwiftUI architecture with strong separation of concerns, comprehensive data management, and modern iOS development patterns. The codebase shows careful attention to user experience with features like gesture handling, keyboard management, and smooth animations.

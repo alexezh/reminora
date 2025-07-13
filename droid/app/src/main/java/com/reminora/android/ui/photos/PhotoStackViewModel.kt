@@ -15,6 +15,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+enum class PhotoPreferenceType {
+    LIKE, DISLIKE, NEUTRAL
+}
+
+enum class PhotoFilterType(val displayName: String, val iconName: String) {
+    ALL("All Photos", "photo_library"),
+    FAVORITES("Favorites", "favorite"),
+    DISLIKES("Disliked", "cancel"),
+    NEUTRAL("Neutral", "remove_circle"),
+    NOT_DISLIKED("Photos", "photo")
+}
+
 @HiltViewModel
 class PhotoStackViewModel @Inject constructor(
     @ApplicationContext private val context: Context
@@ -22,6 +34,12 @@ class PhotoStackViewModel @Inject constructor(
     
     private val _uiState = MutableStateFlow(PhotoStackUiState())
     val uiState: StateFlow<PhotoStackUiState> = _uiState.asStateFlow()
+    
+    // Photo preferences storage (in-memory for demo)
+    private val photoPreferences = mutableMapOf<String, PhotoPreferenceType>()
+    
+    private var allPhotoStacks: List<PhotoStack> = emptyList()
+    private var currentFilter = PhotoFilterType.NOT_DISLIKED
     
     init {
         loadPhotos()
@@ -42,13 +60,14 @@ class PhotoStackViewModel @Inject constructor(
                     loadPhotosFromMediaStore()
                 }
                 
-                val stacks = createPhotoStacks(photos)
+                allPhotoStacks = createPhotoStacks(photos)
                 
                 _uiState.value = _uiState.value.copy(
-                    photoStacks = stacks,
                     isLoading = false,
                     hasPermission = true
                 )
+                
+                applyCurrentFilter()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -84,6 +103,43 @@ class PhotoStackViewModel @Inject constructor(
         viewModelScope.launch {
             // Create reminora link and share
         }
+    }
+    
+    fun setPhotoPreference(photo: Photo, preference: PhotoPreferenceType) {
+        photoPreferences[photo.id] = preference
+        applyCurrentFilter()
+    }
+    
+    fun getPhotoPreference(photo: Photo): PhotoPreferenceType {
+        return photoPreferences[photo.id] ?: PhotoPreferenceType.NEUTRAL
+    }
+    
+    fun setFilter(filter: PhotoFilterType) {
+        currentFilter = filter
+        applyCurrentFilter()
+    }
+    
+    private fun applyCurrentFilter() {
+        val filteredStacks = when (currentFilter) {
+            PhotoFilterType.ALL -> allPhotoStacks
+            PhotoFilterType.FAVORITES -> allPhotoStacks.filter { stack ->
+                stack.photos.any { getPhotoPreference(it) == PhotoPreferenceType.LIKE }
+            }
+            PhotoFilterType.DISLIKES -> allPhotoStacks.filter { stack ->
+                stack.photos.any { getPhotoPreference(it) == PhotoPreferenceType.DISLIKE }
+            }
+            PhotoFilterType.NEUTRAL -> allPhotoStacks.filter { stack ->
+                stack.photos.any { getPhotoPreference(it) == PhotoPreferenceType.NEUTRAL }
+            }
+            PhotoFilterType.NOT_DISLIKED -> allPhotoStacks.filter { stack ->
+                stack.photos.none { getPhotoPreference(it) == PhotoPreferenceType.DISLIKE }
+            }
+        }
+        
+        _uiState.value = _uiState.value.copy(
+            photoStacks = filteredStacks,
+            currentFilter = currentFilter
+        )
     }
     
     private fun loadPhotosFromMediaStore(): List<Photo> {
@@ -188,5 +244,6 @@ data class PhotoStackUiState(
     val selectedIndex: Int = 0,
     val hasPermission: Boolean = true, // Set to true for now to skip permission screen
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val currentFilter: PhotoFilterType = PhotoFilterType.NOT_DISLIKED
 )

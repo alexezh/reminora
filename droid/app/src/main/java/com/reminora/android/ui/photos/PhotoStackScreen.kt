@@ -3,6 +3,8 @@ package com.reminora.android.ui.photos
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import coil.compose.AsyncImage
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -10,8 +12,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Photo
-import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -64,12 +65,25 @@ fun PhotoStackScreen(
                 EmptyPhotosContent()
             }
             else -> {
-                PhotoStackGrid(
-                    photoStacks = uiState.photoStacks,
-                    onStackClick = { stack ->
-                        viewModel.selectStack(stack)
-                    }
-                )
+                Column {
+                    // Filter tabs
+                    FilterTabs(
+                        currentFilter = uiState.currentFilter,
+                        onFilterSelected = { filter ->
+                            viewModel.setFilter(filter)
+                        }
+                    )
+                    
+                    PhotoStackGrid(
+                        photoStacks = uiState.photoStacks,
+                        onStackClick = { stack ->
+                            viewModel.selectStack(stack)
+                        },
+                        getPhotoPreference = { photo ->
+                            viewModel.getPhotoPreference(photo)
+                        }
+                    )
+                }
             }
         }
     }
@@ -81,7 +95,10 @@ fun PhotoStackScreen(
             initialIndex = uiState.selectedIndex,
             onDismiss = { viewModel.clearSelection() },
             onPin = { photo -> viewModel.pinPhoto(photo) },
-            onShare = { photo -> viewModel.sharePhoto(photo) }
+            onShare = { photo -> viewModel.sharePhoto(photo) },
+            onLike = { photo -> viewModel.setPhotoPreference(photo, PhotoPreferenceType.LIKE) },
+            onDislike = { photo -> viewModel.setPhotoPreference(photo, PhotoPreferenceType.DISLIKE) },
+            getPhotoPreference = { photo -> viewModel.getPhotoPreference(photo) }
         )
     }
 }
@@ -166,21 +183,60 @@ private fun EmptyPhotosContent() {
 }
 
 @Composable
+private fun FilterTabs(
+    currentFilter: PhotoFilterType,
+    onFilterSelected: (PhotoFilterType) -> Unit
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(listOf(
+            PhotoFilterType.NOT_DISLIKED,
+            PhotoFilterType.ALL,
+            PhotoFilterType.FAVORITES,
+            PhotoFilterType.DISLIKES
+        )) { filter ->
+            FilterChip(
+                selected = currentFilter == filter,
+                onClick = { onFilterSelected(filter) },
+                label = { Text(filter.displayName) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = when (filter.iconName) {
+                            "photo" -> Icons.Default.Photo
+                            "photo_library" -> Icons.Default.PhotoLibrary
+                            "favorite" -> Icons.Default.Favorite
+                            "cancel" -> Icons.Default.Cancel
+                            else -> Icons.Default.Photo
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            )
+        }
+    }
+}
+
+@Composable
 private fun PhotoStackGrid(
     photoStacks: List<PhotoStack>,
-    onStackClick: (PhotoStack) -> Unit
+    onStackClick: (PhotoStack) -> Unit,
+    getPhotoPreference: (Photo) -> PhotoPreferenceType
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
-        contentPadding = PaddingValues(2.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        columns = GridCells.Fixed(4), // Changed to 4 columns
+        contentPadding = PaddingValues(1.dp),
+        verticalArrangement = Arrangement.spacedBy(1.dp),
+        horizontalArrangement = Arrangement.spacedBy(1.dp),
         modifier = Modifier.fillMaxSize()
     ) {
         items(photoStacks) { stack ->
             PhotoStackCell(
                 stack = stack,
-                onClick = { onStackClick(stack) }
+                onClick = { onStackClick(stack) },
+                getPhotoPreference = getPhotoPreference
             )
         }
     }
@@ -189,12 +245,18 @@ private fun PhotoStackGrid(
 @Composable
 private fun PhotoStackCell(
     stack: PhotoStack,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    getPhotoPreference: (Photo) -> PhotoPreferenceType
 ) {
+    val stackHasFavorite = stack.photos.any { getPhotoPreference(it) == PhotoPreferenceType.LIKE }
+    val primaryPreference = getPhotoPreference(stack.primaryPhoto)
+    val shouldShowFavoriteIcon = if (stack.isStack) stackHasFavorite else primaryPreference == PhotoPreferenceType.LIKE
+    val shouldShowDislikeIcon = !stack.isStack && primaryPreference == PhotoPreferenceType.DISLIKE
+    
     Box(
         modifier = Modifier
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(2.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onClick() }
     ) {
@@ -206,25 +268,85 @@ private fun PhotoStackCell(
             contentScale = ContentScale.Crop
         )
         
-        // Stack indicator
-        if (stack.isStack) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(24.dp)
-                    .background(
-                        Color.Black.copy(alpha = 0.7f),
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
+        // Overlay indicators
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    text = stack.count.toString(),
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Medium
-                )
+                // Favorite indicator (top-left)
+                if (shouldShowFavoriteIcon) {
+                    Box(
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .size(20.dp)
+                            .background(
+                                Color.Black.copy(alpha = 0.7f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Favorite,
+                            contentDescription = "Favorite",
+                            tint = Color.White,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.size(28.dp))
+                }
+                
+                // Stack indicator (top-right)
+                if (stack.isStack) {
+                    Box(
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .size(24.dp)
+                            .background(
+                                Color.Black.copy(alpha = 0.7f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stack.count.toString(),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.weight(1f))
+            
+            // Dislike indicator (bottom-right)
+            if (shouldShowDislikeIcon) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .size(20.dp)
+                            .background(
+                                Color.Black.copy(alpha = 0.7f),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.Cancel,
+                            contentDescription = "Disliked",
+                            tint = Color.Red,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
             }
         }
     }

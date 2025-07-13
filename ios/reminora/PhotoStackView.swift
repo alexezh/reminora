@@ -9,13 +9,11 @@ struct PhotoStackView: View {
     @State private var photoAssets: [PHAsset] = []
     @State private var filteredPhotoStacks: [PhotoStack] = []
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
-    @State private var showingFullPhoto = false
-    @State private var selectedAsset: PHAsset?
     @State private var selectedStack: PhotoStack?
-    @State private var showingStackDetail = false
     @State private var selectedStackIndex = 0
     @State private var currentFilter: PhotoFilterType = .notDisliked
     @State private var isCoreDataReady = false
+    @State private var hasTriedInitialLoad = false
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
@@ -25,9 +23,10 @@ struct PhotoStackView: View {
     private let stackingInterval: TimeInterval = 10 * 60 // 10 minutes
     
     private let columns = [
-        GridItem(.flexible()),
-        GridItem(.flexible()),
-        GridItem(.flexible())
+        GridItem(.flexible(), spacing: 1),
+        GridItem(.flexible(), spacing: 1),
+        GridItem(.flexible(), spacing: 1),
+        GridItem(.flexible(), spacing: 1)
     ]
     
     var body: some View {
@@ -77,26 +76,58 @@ struct PhotoStackView: View {
                     }
                     .padding(.bottom, 8)
                     
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: 2) {
-                            ForEach(filteredPhotoStacks, id: \.id) { stack in
-                                PhotoStackCell(
-                                    stack: stack,
-                                    onTap: {
-                                        if stack.assets.count > 1 {
-                                            selectedStack = stack
-                                            selectedStackIndex = 0
-                                            showingStackDetail = true
-                                        } else {
-                                            selectedAsset = stack.assets.first
-                                            showingFullPhoto = true
-                                        }
+                    if filteredPhotoStacks.isEmpty && isCoreDataReady {
+                        // Show empty state with retry option
+                        VStack(spacing: 20) {
+                            Image(systemName: "photo.stack")
+                                .font(.system(size: 60))
+                                .foregroundColor(.gray)
+                            
+                            Text("No Photos Found")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                            
+                            Text("Unable to load photos. Try refreshing.")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                            
+                            Button("Refresh") {
+                                print("Manual refresh triggered")
+                                hasTriedInitialLoad = false
+                                loadPhotoAssets()
+                            }
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding()
+                    } else {
+                        GeometryReader { geometry in
+                            let squareSize = (geometry.size.width - 3) / 4 // 4 photos with 3 gaps of 1px
+                            
+                            ScrollView {
+                                LazyVGrid(columns: columns, spacing: 1) {
+                                    ForEach(filteredPhotoStacks, id: \.id) { stack in
+                                        PhotoStackCell(
+                                            stack: stack,
+                                            onTap: {
+                                                print("PhotoStackCell tapped for stack with \(stack.assets.count) assets")
+                                                selectedStackIndex = 0
+                                                selectedStack = stack
+                                                print("Set selectedStack")
+                                            }
+                                        )
+                                        .frame(width: squareSize, height: squareSize)
+                                        .clipped()
                                     }
-                                )
-                                .aspectRatio(1, contentMode: .fit)
+                                }
+                                .padding(.horizontal, 0)
                             }
                         }
-                        .padding(.horizontal, 1)
                     }
                 } else {
                     VStack(spacing: 20) {
@@ -131,27 +162,29 @@ struct PhotoStackView: View {
                 initializeCoreData()
                 requestPhotoAccess()
             }
-        }
-        .sheet(isPresented: $showingFullPhoto) {
-            if let selectedAsset = selectedAsset {
-                PhotoDetailView(asset: selectedAsset) {
-                    showingFullPhoto = false
-                    // Refresh filter in case preferences changed
-                    applyFilter()
+            .onChange(of: isCoreDataReady) { _, isReady in
+                if isReady && !hasTriedInitialLoad {
+                    hasTriedInitialLoad = true
+                    print("Core Data became ready, triggering initial load")
+                    if authorizationStatus == .authorized || authorizationStatus == .limited {
+                        loadPhotoAssets()
+                    }
                 }
             }
         }
-        .sheet(isPresented: $showingStackDetail) {
-            if let selectedStack = selectedStack {
-                SwipePhotoView(
-                    stack: selectedStack,
-                    initialIndex: selectedStackIndex,
-                    onDismiss: {
-                        showingStackDetail = false
-                        // Refresh filter to remove disliked photos from view
-                        applyFilter()
-                    }
-                )
+        .sheet(item: $selectedStack) { stack in
+            SwipePhotoView(
+                stack: stack,
+                initialIndex: selectedStackIndex,
+                onDismiss: {
+                    print("SwipePhotoView dismissed")
+                    selectedStack = nil
+                    // Refresh filter to remove disliked photos from view
+                    applyFilter()
+                }
+            )
+            .onAppear {
+                print("Sheet presented with stack of \(stack.assets.count) assets")
             }
         }
     }
@@ -159,11 +192,14 @@ struct PhotoStackView: View {
     private func requestPhotoAccess() {
         authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         
-        if authorizationStatus == .notDetermined {
+        // If already authorized and Core Data is ready, load assets
+        if (authorizationStatus == .authorized || authorizationStatus == .limited) && isCoreDataReady {
+            loadPhotoAssets()
+        } else if authorizationStatus == .notDetermined {
             PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
                 DispatchQueue.main.async {
                     authorizationStatus = status
-                    if status == .authorized || status == .limited && isCoreDataReady {
+                    if (status == .authorized || status == .limited) && isCoreDataReady {
                         loadPhotoAssets()
                     }
                 }
@@ -174,12 +210,11 @@ struct PhotoStackView: View {
     private func initializeCoreData() {
         // Check if Core Data is ready
         if viewContext.persistentStoreCoordinator != nil {
+            print("Core Data is ready")
             isCoreDataReady = true
-            // If photo access is already authorized, load assets now
-            if authorizationStatus == .authorized || authorizationStatus == .limited {
-                loadPhotoAssets()
-            }
+            // The onChange observer will handle loading photos
         } else {
+            print("Waiting for Core Data to be ready...")
             // Wait for Core Data to be ready
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 initializeCoreData()
@@ -188,6 +223,7 @@ struct PhotoStackView: View {
     }
     
     private func loadPhotoAssets() {
+        print("Loading photo assets...")
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
         fetchOptions.fetchLimit = 1000 // Load recent photos
@@ -199,6 +235,8 @@ struct PhotoStackView: View {
             assets.append(asset)
         }
         
+        print("Loaded \(assets.count) photo assets")
+        
         DispatchQueue.main.async {
             photoAssets = assets
             applyFilter()
@@ -206,12 +244,18 @@ struct PhotoStackView: View {
     }
     
     private func applyFilter() {
-        guard isCoreDataReady else { return }
+        guard isCoreDataReady else { 
+            print("Core Data not ready, skipping filter")
+            return 
+        }
+        print("Applying filter: \(currentFilter.displayName) to \(photoAssets.count) assets")
         let filteredAssets = preferenceManager.getFilteredAssets(from: photoAssets, filter: currentFilter)
+        print("Filtered to \(filteredAssets.count) assets")
         createPhotoStacks(from: filteredAssets)
     }
     
     private func createPhotoStacks(from assets: [PHAsset]) {
+        print("Creating photo stacks from \(assets.count) assets")
         var stacks: [PhotoStack] = []
         var currentStack: [PHAsset] = []
         var lastDate: Date?
@@ -254,6 +298,7 @@ struct PhotoStackView: View {
             stacks.append(PhotoStack(assets: currentStack))
         }
         
+        print("Created \(stacks.count) photo stacks")
         filteredPhotoStacks = stacks
     }
 }
@@ -279,7 +324,32 @@ struct PhotoStackCell: View {
     let stack: PhotoStack
     let onTap: () -> Void
     
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var image: UIImage?
+    
+    private var preferenceManager: PhotoPreferenceManager {
+        PhotoPreferenceManager(viewContext: viewContext)
+    }
+    
+    private var stackHasFavorite: Bool {
+        stack.assets.contains { $0.isFavorite }
+    }
+    
+    private var primaryAssetPreference: PhotoPreferenceType {
+        preferenceManager.getPreference(for: stack.primaryAsset)
+    }
+    
+    private var shouldShowFavoriteIcon: Bool {
+        if stack.isStack {
+            return stackHasFavorite
+        } else {
+            return stack.primaryAsset.isFavorite
+        }
+    }
+    
+    private var shouldShowDislikeIcon: Bool {
+        !stack.isStack && primaryAssetPreference == .dislike
+    }
     
     var body: some View {
         ZStack {
@@ -287,17 +357,35 @@ struct PhotoStackCell: View {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
             } else {
                 Rectangle()
                     .fill(Color.gray.opacity(0.3))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             
-            // Stack indicator
-            if stack.isStack {
-                VStack {
-                    HStack {
-                        Spacer()
+            // Overlay indicators
+            VStack {
+                HStack {
+                    // Favorite indicator (top-left)
+                    if shouldShowFavoriteIcon {
+                        ZStack {
+                            Circle()
+                                .fill(Color.black.opacity(0.7))
+                                .frame(width: 24, height: 24)
+                            
+                            Image(systemName: "heart.fill")
+                                .font(.caption2)
+                                .foregroundColor(.white)
+                        }
+                        .padding(4)
+                    }
+                    
+                    Spacer()
+                    
+                    // Stack indicator (top-right)
+                    if stack.isStack {
                         ZStack {
                             Circle()
                                 .fill(Color.black.opacity(0.7))
@@ -315,11 +403,30 @@ struct PhotoStackCell: View {
                         }
                         .padding(4)
                     }
-                    Spacer()
+                }
+                
+                Spacer()
+                
+                // Dislike indicator (bottom-right)
+                if shouldShowDislikeIcon {
+                    HStack {
+                        Spacer()
+                        ZStack {
+                            Circle()
+                                .fill(Color.black.opacity(0.7))
+                                .frame(width: 24, height: 24)
+                            
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                        }
+                        .padding(4)
+                    }
                 }
             }
         }
         .onTapGesture {
+            print("PhotoStackCell onTapGesture triggered")
             onTap()
         }
         .onAppear {
@@ -443,10 +550,16 @@ struct SwipePhotoView: View {
                 VStack(spacing: 0) {
                 // Top toolbar
                 HStack {
-                    Button("Close") {
+                    Button(action: {
                         onDismiss()
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.title2)
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(Color.black.opacity(0.6))
+                            .clipShape(Circle())
                     }
-                    .foregroundColor(.white)
                     .padding(.leading)
                     
                     Spacer()
@@ -454,15 +567,15 @@ struct SwipePhotoView: View {
                     // Action buttons
                     HStack(spacing: 16) {
                         Button(action: thumbsDown) {
-                            Image(systemName: currentPreference == .dislike ? "hand.thumbsdown.fill" : "hand.thumbsdown")
+                            Image(systemName: currentPreference == .dislike ? "xmark.circle.fill" : "xmark.circle")
                                 .font(.title2)
                                 .foregroundColor(currentPreference == .dislike ? .red : .white)
                         }
                         
                         Button(action: thumbsUp) {
-                            Image(systemName: currentPreference == .like ? "hand.thumbsup.fill" : "hand.thumbsup")
+                            Image(systemName: currentPreference == .like ? "heart.fill" : "heart")
                                 .font(.title2)
-                                .foregroundColor(currentPreference == .like ? .green : .white)
+                                .foregroundColor(.white)
                         }
                         
                         Button(action: sharePhoto) {
@@ -520,14 +633,21 @@ struct SwipePhotoView: View {
         .gesture(
             DragGesture()
                 .onChanged { value in
-                    // Only allow vertical downward drags
-                    if value.translation.height > 0 {
-                        dragOffset = CGSize(width: 0, height: value.translation.height)
+                    // Only respond to primarily vertical drags (more vertical than horizontal)
+                    let translation = value.translation
+                    let isVerticalDrag = abs(translation.height) > abs(translation.width) * 1.5
+                    
+                    // Only allow vertical downward drags that are primarily vertical
+                    if translation.height > 0 && isVerticalDrag {
+                        dragOffset = CGSize(width: 0, height: translation.height)
                     }
                 }
                 .onEnded { value in
-                    // If dragged down more than 150 points, dismiss
-                    if value.translation.height > 150 {
+                    let translation = value.translation
+                    let isVerticalDrag = abs(translation.height) > abs(translation.width) * 1.5
+                    
+                    // Only dismiss if it was a primarily vertical drag
+                    if translation.height > 150 && isVerticalDrag {
                         onDismiss()
                     } else {
                         // Snap back to original position
@@ -538,11 +658,13 @@ struct SwipePhotoView: View {
                 }
         )
         .onAppear {
+            print("SwipePhotoView onAppear called with stack of \(stack.assets.count) assets")
             isLoading = true
             // Ensure the current index is valid
             if currentIndex >= stack.assets.count {
                 currentIndex = 0
             }
+            print("Starting preference manager initialization...")
             initializePreferenceManager()
         }
         .onChange(of: currentIndex) { _, _ in
@@ -679,24 +801,48 @@ struct SwipePhotoView: View {
     }
     
     private func initializePreferenceManager() {
+        initializePreferenceManager(retryCount: 0)
+    }
+    
+    private func initializePreferenceManager(retryCount: Int) {
+        // Add a timeout after 30 retries (3 seconds)
+        if retryCount > 30 {
+            print("Core Data initialization timeout, proceeding anyway")
+            isPreferenceManagerReady = true
+            updateCurrentPreference()
+            return
+        }
+        
         // Wait for Core Data context to be ready
         DispatchQueue.main.async {
             // Check if the viewContext is properly initialized
             if viewContext.persistentStoreCoordinator != nil {
+                print("SwipePhotoView: Core Data ready after \(retryCount) retries")
                 isPreferenceManagerReady = true
                 updateCurrentPreference()
             } else {
                 // Wait a bit longer and try again
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    initializePreferenceManager()
+                    initializePreferenceManager(retryCount: retryCount + 1)
                 }
             }
         }
     }
     
     private func updateCurrentPreference() {
-        guard isPreferenceManagerReady else { return }
-        currentPreference = preferenceManager.getPreference(for: currentAsset)
+        guard isPreferenceManagerReady else { 
+            print("Preference manager not ready, skipping preference update")
+            return 
+        }
+        
+        do {
+            currentPreference = preferenceManager.getPreference(for: currentAsset)
+            print("Updated preference for asset: \(currentPreference)")
+        } catch {
+            print("Error getting preference: \(error)")
+            // Fallback to neutral if there's an error
+            currentPreference = .neutral
+        }
     }
 }
 

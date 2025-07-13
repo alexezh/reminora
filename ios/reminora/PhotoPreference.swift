@@ -161,7 +161,7 @@ enum PhotoFilterType: String, CaseIterable {
         case .favorites:
             return "heart.fill"
         case .dislikes:
-            return "hand.thumbsdown.fill"
+            return "xmark.circle.fill"
         case .neutral:
             return "minus.circle"
         case .notDisliked:

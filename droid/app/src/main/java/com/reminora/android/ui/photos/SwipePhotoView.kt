@@ -31,7 +31,10 @@ fun SwipePhotoView(
     initialIndex: Int = 0,
     onDismiss: () -> Unit,
     onPin: (Photo) -> Unit,
-    onShare: (Photo) -> Unit
+    onShare: (Photo) -> Unit,
+    onLike: (Photo) -> Unit,
+    onDislike: (Photo) -> Unit,
+    getPhotoPreference: (Photo) -> PhotoPreferenceType
 ) {
     val pagerState = rememberPagerState(
         initialPage = initialIndex,
@@ -81,13 +84,20 @@ fun SwipePhotoView(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(
-                        onClick = onDismiss,
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = Color.White
-                        )
+                    IconButton(
+                        onClick = onDismiss
                     ) {
-                        Text("Close")
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = Color.White,
+                            modifier = Modifier
+                                .background(
+                                    Color.Black.copy(alpha = 0.6f),
+                                    CircleShape
+                                )
+                                .padding(8.dp)
+                        )
                     }
                     
                     Spacer(modifier = Modifier.weight(1f))
@@ -96,22 +106,40 @@ fun SwipePhotoView(
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        val currentPhoto = stack.photos[pagerState.currentPage]
+                        val currentPreference = getPhotoPreference(currentPhoto)
+                        
                         IconButton(
-                            onClick = { /* TODO: Thumbs down */ }
+                            onClick = { 
+                                onDislike(currentPhoto)
+                                // Auto-dismiss after dislike
+                                scope.launch {
+                                    kotlinx.coroutines.delay(300)
+                                    onDismiss()
+                                }
+                            }
                         ) {
                             Icon(
-                                Icons.Default.ThumbDown,
-                                contentDescription = "Thumbs Down",
-                                tint = Color.White
+                                if (currentPreference == PhotoPreferenceType.DISLIKE) {
+                                    Icons.Default.Cancel
+                                } else {
+                                    Icons.Default.Cancel
+                                },
+                                contentDescription = "Dislike",
+                                tint = if (currentPreference == PhotoPreferenceType.DISLIKE) Color.Red else Color.White
                             )
                         }
                         
                         IconButton(
-                            onClick = { /* TODO: Thumbs up */ }
+                            onClick = { onLike(currentPhoto) }
                         ) {
                             Icon(
-                                Icons.Default.ThumbUp,
-                                contentDescription = "Thumbs Up",
+                                if (currentPreference == PhotoPreferenceType.LIKE) {
+                                    Icons.Default.Favorite
+                                } else {
+                                    Icons.Default.FavoriteBorder
+                                },
+                                contentDescription = "Like",
                                 tint = Color.White
                             )
                         }

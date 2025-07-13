@@ -261,41 +261,6 @@ struct SimilarImageCard: View {
     }
 }
 
-struct EmbeddingProgressView: View {
-    @Environment(\.presentationMode) var presentationMode
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Spacer()
-                
-                ProgressView()
-                    .scaleEffect(1.5)
-                
-                Text("Computing Image Embeddings")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                
-                Text("This may take a while for large photo libraries...")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                
-                Spacer()
-            }
-            .navigationTitle("Processing")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
 
 // MARK: - Preview
 #Preview {

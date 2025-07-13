@@ -513,7 +513,8 @@ struct SwipePhotoView: View {
     @State private var showingNearbyPhotos = false
     @State private var showingAddPin = false
     @State private var showingSimilarImages = false
-    @State private var currentPlaceForSimilarity: Place?
+    @State private var showingSimilarGridView = false
+    @State private var showingMenu = false
     @State private var shareData: PhotoShareData?
     @State private var isLoading = false
     @State private var dragOffset: CGSize = .zero
@@ -551,15 +552,35 @@ struct SwipePhotoView: View {
                 }
             } else {
                 VStack(spacing: 0) {
-                    // Top info bar with location and date
+                    // Top info bar with navigation and date
                     VStack(spacing: 4) {
                         HStack {
-                            Button("Back") {
+                            // Navigation-style back button
+                            Button(action: {
                                 onDismiss()
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "chevron.left")
+                                        .font(.title2)
+                                        .fontWeight(.medium)
+                                    Text("Back")
+                                        .font(.body)
+                                }
+                                .foregroundColor(.white)
                             }
-                            .foregroundColor(.white)
                             
                             Spacer()
+                            
+                            // Menu button (vertical dots)
+                            Button(action: {
+                                showingMenu = true
+                            }) {
+                                Image(systemName: "ellipsis")
+                                    .font(.title2)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
+                                    .rotationEffect(.degrees(90))
+                            }
                         }
                         .padding(.horizontal, 16)
                         .padding(.top, 8)
@@ -646,15 +667,15 @@ struct SwipePhotoView: View {
                                 }
                             }
                             
-                            // Similar images button
+                            // Pin button
                             Button {
-                                showSimilarImages()
+                                showingAddPin = true
                             } label: {
                                 VStack(spacing: 4) {
-                                    Image(systemName: "photo.stack")
+                                    Image(systemName: "mappin.and.ellipse")
                                         .font(.title2)
                                         .foregroundColor(.white)
-                                    Text("Similar")
+                                    Text("Pin")
                                         .font(.caption2)
                                         .foregroundColor(.white)
                                 }
@@ -734,9 +755,16 @@ struct SwipePhotoView: View {
             ShareSheet(text: data.message, url: data.link)
         }
         .sheet(isPresented: $showingSimilarImages) {
-            if let place = currentPlaceForSimilarity {
-                SimilarImagesView(place: place)
+            PhotoSimilarityView(targetAsset: currentAsset)
+        }
+        .confirmationDialog("Photo Options", isPresented: $showingMenu, titleVisibility: .hidden) {
+            Button("Find Similar") {
+                showingSimilarGridView = true
             }
+            Button("Cancel", role: .cancel) { }
+        }
+        .sheet(isPresented: $showingSimilarGridView) {
+            SimilarPhotosGridView(targetAsset: currentAsset)
         }
     }
     
@@ -775,46 +803,8 @@ struct SwipePhotoView: View {
     }
     
     private func showSimilarImages() {
-        // First create a Place from this photo, then show similar images
-        let imageManager = PHImageManager.default()
-        let options = PHImageRequestOptions()
-        options.isSynchronous = false
-        options.deliveryMode = .highQualityFormat
-        
-        imageManager.requestImage(for: currentAsset, targetSize: CGSize(width: 1024, height: 1024), contentMode: .aspectFit, options: options) { image, _ in
-            guard let image = image,
-                  let imageData = image.jpegData(compressionQuality: 0.8) else {
-                print("Failed to get image data for similarity analysis")
-                return
-            }
-            
-            DispatchQueue.main.async {
-                // Create temporary Place for similarity analysis
-                let tempPlace = Place(context: viewContext)
-                tempPlace.imageData = imageData
-                tempPlace.dateAdded = currentAsset.creationDate ?? Date()
-                
-                if let location = currentAsset.location {
-                    let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
-                    tempPlace.location = locationData
-                }
-                
-                tempPlace.post = "Current photo for similarity analysis"
-                
-                // Compute embedding for similarity analysis
-                Task {
-                    let success = await tempPlace.computeEmbedding()
-                    await MainActor.run {
-                        if success {
-                            currentPlaceForSimilarity = tempPlace
-                            showingSimilarImages = true
-                        } else {
-                            print("Failed to compute embedding for similarity analysis")
-                        }
-                    }
-                }
-            }
-        }
+        // Simply show the photo similarity view with the current asset
+        showingSimilarImages = true
     }
     
     private func sharePhoto() {

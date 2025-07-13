@@ -50,4 +50,12 @@
         <attribute name="preference" optional="NO" attributeType="String" defaultValue="neutral"/>
         <attribute name="dateModified" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
+    <entity name="PhotoEmbedding" representedClassName="PhotoEmbedding" syncable="YES" codeGenerationType="class">
+        <attribute name="localIdentifier" optional="NO" attributeType="String"/>
+        <attribute name="embedding" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="computedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="imageHash" optional="YES" attributeType="String"/>
+        <attribute name="creationDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="modificationDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
 </model>

@@ -2,16 +2,23 @@ import SwiftUI
 import Photos
 import PhotosUI
 import UIKit
+import CoreData
 
 struct PhotoStackView: View {
+    @Environment(\.managedObjectContext) private var viewContext
     @State private var photoAssets: [PHAsset] = []
-    @State private var photoStacks: [PhotoStack] = []
+    @State private var filteredPhotoStacks: [PhotoStack] = []
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
     @State private var showingFullPhoto = false
     @State private var selectedAsset: PHAsset?
     @State private var selectedStack: PhotoStack?
     @State private var showingStackDetail = false
     @State private var selectedStackIndex = 0
+    @State private var currentFilter: PhotoFilterType = .notDisliked
+    
+    private var preferenceManager: PhotoPreferenceManager {
+        PhotoPreferenceManager(viewContext: viewContext)
+    }
     
     // Time interval for grouping photos into stacks (in minutes)
     private let stackingInterval: TimeInterval = 10 * 60 // 10 minutes
@@ -26,9 +33,42 @@ struct PhotoStackView: View {
         NavigationView {
             VStack {
                 if authorizationStatus == .authorized || authorizationStatus == .limited {
+                    // Filter buttons
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach([PhotoFilterType.notDisliked, .all, .favorites, .dislikes], id: \.self) { filter in
+                                Button(action: {
+                                    currentFilter = filter
+                                    applyFilter()
+                                }) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: filter.iconName)
+                                        Text(filter.displayName)
+                                    }
+                                    .font(.caption)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        currentFilter == filter
+                                            ? Color.blue
+                                            : Color.gray.opacity(0.2)
+                                    )
+                                    .foregroundColor(
+                                        currentFilter == filter
+                                            ? .white
+                                            : .primary
+                                    )
+                                    .cornerRadius(16)
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                    .padding(.bottom, 8)
+                    
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 2) {
-                            ForEach(photoStacks, id: \.id) { stack in
+                            ForEach(filteredPhotoStacks, id: \.id) { stack in
                                 PhotoStackCell(
                                     stack: stack,
                                     onTap: {
@@ -87,6 +127,8 @@ struct PhotoStackView: View {
             if let selectedAsset = selectedAsset {
                 PhotoDetailView(asset: selectedAsset) {
                     showingFullPhoto = false
+                    // Refresh filter in case preferences changed
+                    applyFilter()
                 }
             }
         }
@@ -97,6 +139,8 @@ struct PhotoStackView: View {
                     initialIndex: selectedStackIndex,
                     onDismiss: {
                         showingStackDetail = false
+                        // Refresh filter to remove disliked photos from view
+                        applyFilter()
                     }
                 )
             }
@@ -132,16 +176,21 @@ struct PhotoStackView: View {
         
         DispatchQueue.main.async {
             photoAssets = assets
-            createPhotoStacks()
+            applyFilter()
         }
     }
     
-    private func createPhotoStacks() {
+    private func applyFilter() {
+        let filteredAssets = preferenceManager.getFilteredAssets(from: photoAssets, filter: currentFilter)
+        createPhotoStacks(from: filteredAssets)
+    }
+    
+    private func createPhotoStacks(from assets: [PHAsset]) {
         var stacks: [PhotoStack] = []
         var currentStack: [PHAsset] = []
         var lastDate: Date?
         
-        for asset in photoAssets {
+        for asset in assets {
             guard let creationDate = asset.creationDate else {
                 // Handle assets without creation date
                 if !currentStack.isEmpty {
@@ -179,7 +228,7 @@ struct PhotoStackView: View {
             stacks.append(PhotoStack(assets: currentStack))
         }
         
-        photoStacks = stacks
+        filteredPhotoStacks = stacks
     }
 }
 
@@ -333,6 +382,10 @@ struct SwipePhotoView: View {
     @State private var isLoading = false
     @State private var dragOffset: CGSize = .zero
     
+    private var preferenceManager: PhotoPreferenceManager {
+        PhotoPreferenceManager(viewContext: viewContext)
+    }
+    
     init(stack: PhotoStack, initialIndex: Int, onDismiss: @escaping () -> Void) {
         self.stack = stack
         self.initialIndex = initialIndex
@@ -362,15 +415,17 @@ struct SwipePhotoView: View {
                     // Action buttons
                     HStack(spacing: 16) {
                         Button(action: thumbsDown) {
-                            Image(systemName: "hand.thumbsdown")
+                            let currentPreference = preferenceManager.getPreference(for: currentAsset)
+                            Image(systemName: currentPreference == .dislike ? "hand.thumbsdown.fill" : "hand.thumbsdown")
                                 .font(.title2)
-                                .foregroundColor(.white)
+                                .foregroundColor(currentPreference == .dislike ? .red : .white)
                         }
                         
                         Button(action: thumbsUp) {
-                            Image(systemName: "hand.thumbsup")
+                            let currentPreference = preferenceManager.getPreference(for: currentAsset)
+                            Image(systemName: currentPreference == .like ? "hand.thumbsup.fill" : "hand.thumbsup")
                                 .font(.title2)
-                                .foregroundColor(.white)
+                                .foregroundColor(currentPreference == .like ? .green : .white)
                         }
                         
                         Button(action: sharePhoto) {
@@ -457,13 +512,26 @@ struct SwipePhotoView: View {
     
     
     private func thumbsUp() {
-        // TODO: Implement thumbs up functionality
+        preferenceManager.setPreference(for: currentAsset, preference: .like)
         print("Thumbs up for photo at index \(currentIndex)")
+        
+        // Provide haptic feedback
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
     }
     
     private func thumbsDown() {
-        // TODO: Implement thumbs down functionality
+        preferenceManager.setPreference(for: currentAsset, preference: .dislike)
         print("Thumbs down for photo at index \(currentIndex)")
+        
+        // Provide haptic feedback
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+        
+        // Auto-dismiss after marking as disliked
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            onDismiss()
+        }
     }
     
     private func sharePhoto() {

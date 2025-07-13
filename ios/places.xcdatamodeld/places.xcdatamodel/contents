@@ -45,4 +45,9 @@
         <attribute name="location" optional="YES" attributeType="Binary"/>
         <attribute name="lastUpdated" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
+    <entity name="PhotoPreference" representedClassName="PhotoPreference" syncable="YES" codeGenerationType="class">
+        <attribute name="photoId" optional="NO" attributeType="String"/>
+        <attribute name="preference" optional="NO" attributeType="String" defaultValue="neutral"/>
+        <attribute name="dateModified" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
 </model>

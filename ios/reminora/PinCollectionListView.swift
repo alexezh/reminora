@@ -1,7 +1,7 @@
 import CoreData
 import SwiftUI
 
-struct SavedListView: View {
+struct PinCollectionListView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var authService = AuthenticationService.shared
 
@@ -277,6 +277,6 @@ struct CreateSavedListView: View {
 }
 
 #Preview {
-    SavedListView()
+    PinCollectionListView()
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

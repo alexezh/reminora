@@ -551,16 +551,10 @@ struct SwipePhotoView: View {
                 VStack(spacing: 0) {
                 // Top toolbar
                 HStack {
-                    Button(action: {
+                    Button("Back") {
                         onDismiss()
-                    }) {
-                        Image(systemName: "xmark")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .padding(8)
-                            .background(Color.black.opacity(0.6))
-                            .clipShape(Circle())
                     }
+                    .foregroundColor(.white)
                     .padding(.leading)
                     
                     Spacer()
@@ -596,8 +590,8 @@ struct SwipePhotoView: View {
                     }
                     .padding(.trailing)
                 }
-                .padding(.top, 50)
-                .padding(.bottom, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 10)
                 
                 // Photo display using TabView for smooth swiping
                 if !stack.assets.isEmpty {

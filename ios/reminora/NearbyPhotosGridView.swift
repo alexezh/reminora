@@ -31,6 +31,7 @@ enum DistanceRange: String, CaseIterable, Hashable {
 
 struct NearbyPhotosGridView: View {
     let centerLocation: CLLocationCoordinate2D?
+    let onDismiss: (() -> Void)?
     
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var locationManager = LocationManager()
@@ -43,10 +44,10 @@ struct NearbyPhotosGridView: View {
     @State private var selectedRange: DistanceRange = .fiveHundredMeters
     @State private var showingZoomedPhoto = false
     @State private var zoomedPhotoIndex: Int = 0
-    @State private var showNearbyPlaces = false
     
-    init(centerLocation: CLLocationCoordinate2D? = nil) {
+    init(centerLocation: CLLocationCoordinate2D? = nil, onDismiss: (() -> Void)? = nil) {
         self.centerLocation = centerLocation
+        self.onDismiss = onDismiss
     }
     
     private let columns = [
@@ -122,32 +123,17 @@ struct NearbyPhotosGridView: View {
                             .padding(.bottom, 4)
                             .background(Color(.systemBackground))
                             
-                            ScrollView {
-                                LazyVGrid(columns: columns, spacing: 2) {
-                                    ForEach(Array(sortedPhotoAssets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                                        PhotoGridCell(
-                                            asset: asset,
-                                            currentLocation: centerLocation ?? locationManager.lastLocation?.coordinate,
-                                            onSave: { asset in
-                                                savePhotoToPlaces(asset: asset)
-                                            },
-                                            onTap: {
-                                                zoomedPhotoIndex = index
-                                                showingZoomedPhoto = true
-                                            }
-                                        )
-                                        .aspectRatio(1, contentMode: .fit)
-                                    }
-                                }
-                                .padding(.horizontal, 1)
-                            }
+                            NearbyPhotosStackView(
+                                photoAssets: sortedPhotoAssets,
+                                centerLocation: centerLocation ?? locationManager.lastLocation?.coordinate
+                            )
                         }
                         .navigationTitle("Nearby Photos")
                         .navigationBarTitleDisplayMode(.large)
                         .toolbar {
                             ToolbarItem(placement: .navigationBarTrailing) {
-                                Button("Places") {
-                                    showNearbyPlaces = true
+                                Button("Close") {
+                                    onDismiss?()
                                 }
                             }
                         }
@@ -206,20 +192,6 @@ struct NearbyPhotosGridView: View {
         }
         .onChange(of: selectedRange) { _ in
             loadNearbyPlaces()
-        }
-        .sheet(isPresented: $showNearbyPlaces) {
-            NavigationView {
-                NearbyPlacesList(places: nearbyPlaces, centerLocation: centerLocation)
-                    .navigationTitle("Nearby Places")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Done") {
-                                showNearbyPlaces = false
-                            }
-                        }
-                    }
-            }
         }
         .fullScreenCover(isPresented: $showingZoomedPhoto) {
             if !sortedPhotoAssets.isEmpty && zoomedPhotoIndex < sortedPhotoAssets.count {
@@ -905,7 +877,359 @@ struct NearbyPlaceRow: View {
     }
 }
 
+struct NearbyPhotosStackView: View {
+    let photoAssets: [PHAsset]
+    let centerLocation: CLLocationCoordinate2D?
+    
+    @Environment(\.managedObjectContext) private var viewContext
+    @State private var photoStacks: [PhotoStack] = []
+    @State private var selectedStack: PhotoStack?
+    @State private var selectedStackIndex = 0
+    
+    // Time interval for grouping photos into stacks (in minutes)
+    private let stackingInterval: TimeInterval = 10 * 60 // 10 minutes
+    
+    private let columns = [
+        GridItem(.flexible(), spacing: 1),
+        GridItem(.flexible(), spacing: 1),
+        GridItem(.flexible(), spacing: 1),
+        GridItem(.flexible(), spacing: 1)
+    ]
+    
+    var body: some View {
+        GeometryReader { geometry in
+            let squareSize = (geometry.size.width - 3) / 4 // 4 photos with 3 gaps of 1px
+            
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 1) {
+                    ForEach(photoStacks, id: \.id) { stack in
+                        NearbyPhotoStackCell(
+                            stack: stack,
+                            centerLocation: centerLocation,
+                            onTap: {
+                                selectedStackIndex = 0
+                                selectedStack = stack
+                            }
+                        )
+                        .frame(width: squareSize, height: squareSize)
+                        .clipped()
+                    }
+                }
+                .padding(.horizontal, 0)
+            }
+        }
+        .onAppear {
+            createPhotoStacks(from: photoAssets)
+        }
+        .onChange(of: photoAssets) { _, newAssets in
+            createPhotoStacks(from: newAssets)
+        }
+        .sheet(item: $selectedStack) { stack in
+            NearbySwipePhotoView(
+                stack: stack,
+                initialIndex: selectedStackIndex,
+                centerLocation: centerLocation,
+                onDismiss: {
+                    selectedStack = nil
+                }
+            )
+        }
+    }
+    
+    private func createPhotoStacks(from assets: [PHAsset]) {
+        var stacks: [PhotoStack] = []
+        var currentStack: [PHAsset] = []
+        var lastDate: Date?
+        
+        for asset in assets {
+            guard let creationDate = asset.creationDate else {
+                // Handle assets without creation date
+                if !currentStack.isEmpty {
+                    stacks.append(PhotoStack(assets: currentStack))
+                    currentStack = []
+                }
+                stacks.append(PhotoStack(assets: [asset]))
+                lastDate = nil
+                continue
+            }
+            
+            if let lastDate = lastDate {
+                let timeDifference = lastDate.timeIntervalSince(creationDate)
+                
+                if timeDifference <= stackingInterval {
+                    // Add to current stack
+                    currentStack.append(asset)
+                } else {
+                    // Start new stack
+                    if !currentStack.isEmpty {
+                        stacks.append(PhotoStack(assets: currentStack))
+                    }
+                    currentStack = [asset]
+                }
+            } else {
+                // First asset
+                currentStack = [asset]
+            }
+            
+            lastDate = creationDate
+        }
+        
+        // Add final stack
+        if !currentStack.isEmpty {
+            stacks.append(PhotoStack(assets: currentStack))
+        }
+        
+        photoStacks = stacks
+    }
+}
+
+struct NearbyPhotoStackCell: View {
+    let stack: PhotoStack
+    let centerLocation: CLLocationCoordinate2D?
+    let onTap: () -> Void
+    
+    @State private var image: UIImage?
+    
+    var body: some View {
+        ZStack {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            
+            // Overlay indicators
+            VStack {
+                HStack {
+                    // Distance indicator (top-left)
+                    if let centerLocation = centerLocation,
+                       let assetLocation = stack.primaryAsset.location {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.black.opacity(0.7))
+                                .frame(height: 20)
+                            
+                            Text(distanceText(from: centerLocation, to: assetLocation.coordinate))
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                        }
+                        .padding(4)
+                    }
+                    
+                    Spacer()
+                    
+                    // Stack indicator (top-right)
+                    if stack.isStack {
+                        ZStack {
+                            Circle()
+                                .fill(Color.black.opacity(0.7))
+                                .frame(width: 28, height: 28)
+                            
+                            HStack(spacing: 1) {
+                                Image(systemName: "rectangle.stack.fill")
+                                    .font(.caption2)
+                                    .foregroundColor(.white)
+                                Text("\(stack.count)")
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .padding(4)
+                    }
+                }
+                
+                Spacer()
+            }
+        }
+        .onTapGesture {
+            onTap()
+        }
+        .onAppear {
+            loadThumbnail()
+        }
+    }
+    
+    private func loadThumbnail() {
+        let imageManager = PHImageManager.default()
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.deliveryMode = .opportunistic
+        
+        let targetSize = CGSize(width: 300, height: 300)
+        
+        imageManager.requestImage(for: stack.primaryAsset, targetSize: targetSize, contentMode: .aspectFill, options: options) { loadedImage, _ in
+            DispatchQueue.main.async {
+                image = loadedImage
+            }
+        }
+    }
+    
+    private func distanceText(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) -> String {
+        let fromLocation = CLLocation(latitude: from.latitude, longitude: from.longitude)
+        let toLocation = CLLocation(latitude: to.latitude, longitude: to.longitude)
+        let distance = fromLocation.distance(from: toLocation)
+        
+        if distance < 1000 {
+            return "\(Int(distance))m"
+        } else {
+            return String(format: "%.1fkm", distance / 1000)
+        }
+    }
+}
+
+struct NearbySwipePhotoView: View {
+    let stack: PhotoStack
+    let initialIndex: Int
+    let centerLocation: CLLocationCoordinate2D?
+    let onDismiss: () -> Void
+    
+    @Environment(\.managedObjectContext) private var viewContext
+    @State private var currentIndex: Int
+    @State private var dragOffset: CGSize = .zero
+    
+    init(stack: PhotoStack, initialIndex: Int, centerLocation: CLLocationCoordinate2D?, onDismiss: @escaping () -> Void) {
+        self.stack = stack
+        self.initialIndex = initialIndex
+        self.centerLocation = centerLocation
+        self.onDismiss = onDismiss
+        self._currentIndex = State(initialValue: initialIndex)
+    }
+    
+    private var currentAsset: PHAsset {
+        return stack.assets[currentIndex]
+    }
+    
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Top toolbar
+                HStack {
+                    Button("Back") {
+                        onDismiss()
+                    }
+                    .foregroundColor(.white)
+                    .padding()
+                    
+                    Spacer()
+                    
+                    // Action buttons
+                    HStack(spacing: 16) {
+                        Button(action: {
+                            savePhotoToPlaces(asset: currentAsset)
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "plus.circle")
+                                Text("Save")
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.blue)
+                            .cornerRadius(8)
+                        }
+                    }
+                    .padding(.trailing)
+                }
+                .padding(.top, 50)
+                .padding(.bottom, 20)
+                
+                // Photo display using TabView for smooth swiping
+                if !stack.assets.isEmpty {
+                    TabView(selection: $currentIndex) {
+                        ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                            SwipePhotoImageView(asset: asset, isLoading: .constant(false))
+                                .tag(index)
+                        }
+                    }
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                    .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
+                }
+                
+                // Navigation dots for stacks
+                if stack.assets.count > 1 {
+                    HStack(spacing: 8) {
+                        ForEach(0..<stack.assets.count, id: \.self) { index in
+                            Circle()
+                                .fill(index == currentIndex ? Color.white : Color.white.opacity(0.4))
+                                .frame(width: 8, height: 8)
+                        }
+                    }
+                    .padding(.bottom, 50)
+                }
+            }
+        }
+        .offset(y: dragOffset.height)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    if value.translation.height > 0 {
+                        dragOffset = CGSize(width: 0, height: value.translation.height)
+                    }
+                }
+                .onEnded { value in
+                    if value.translation.height > 150 {
+                        onDismiss()
+                    } else {
+                        withAnimation(.spring()) {
+                            dragOffset = .zero
+                        }
+                    }
+                }
+        )
+        .onAppear {
+            if currentIndex >= stack.assets.count {
+                currentIndex = 0
+            }
+        }
+    }
+    
+    private func savePhotoToPlaces(asset: PHAsset) {
+        let imageManager = PHImageManager.default()
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.deliveryMode = .highQualityFormat
+        
+        imageManager.requestImage(for: asset, targetSize: CGSize(width: 1024, height: 1024), contentMode: .aspectFit, options: options) { image, _ in
+            guard let image = image,
+                  let imageData = image.jpegData(compressionQuality: 0.8) else {
+                return
+            }
+            
+            DispatchQueue.main.async {
+                let newPlace = Place(context: viewContext)
+                newPlace.imageData = imageData
+                newPlace.dateAdded = asset.creationDate ?? Date()
+                
+                if let location = asset.location {
+                    let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
+                    newPlace.location = locationData
+                }
+                
+                newPlace.post = "Added from nearby photos"
+                
+                do {
+                    try viewContext.save()
+                    print("Photo saved to places successfully")
+                } catch {
+                    print("Failed to save photo to places: \(error)")
+                }
+            }
+        }
+    }
+}
+
 #Preview {
-    NearbyPhotosGridView(centerLocation: nil)
+    NearbyPhotosGridView(centerLocation: nil, onDismiss: nil)
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

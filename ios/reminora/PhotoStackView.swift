@@ -512,6 +512,8 @@ struct SwipePhotoView: View {
     @State private var currentIndex: Int
     @State private var showingNearbyPhotos = false
     @State private var showingAddPin = false
+    @State private var showingSimilarImages = false
+    @State private var currentPlaceForSimilarity: Place?
     @State private var shareData: PhotoShareData?
     @State private var isLoading = false
     @State private var dragOffset: CGSize = .zero
@@ -644,15 +646,15 @@ struct SwipePhotoView: View {
                                 }
                             }
                             
-                            // Pin button
+                            // Similar images button
                             Button {
-                                showingAddPin = true
+                                showSimilarImages()
                             } label: {
                                 VStack(spacing: 4) {
-                                    Image(systemName: "mappin.and.ellipse")
+                                    Image(systemName: "photo.stack")
                                         .font(.title2)
                                         .foregroundColor(.white)
-                                    Text("Pin")
+                                    Text("Similar")
                                         .font(.caption2)
                                         .foregroundColor(.white)
                                 }
@@ -731,6 +733,11 @@ struct SwipePhotoView: View {
             let _ = print("PhotoStackView ShareSheet - text: '\(data.message)', url: '\(data.link)'")
             ShareSheet(text: data.message, url: data.link)
         }
+        .sheet(isPresented: $showingSimilarImages) {
+            if let place = currentPlaceForSimilarity {
+                SimilarImagesView(place: place)
+            }
+        }
     }
     
     
@@ -764,6 +771,49 @@ struct SwipePhotoView: View {
         // Auto-dismiss after marking as disliked
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             onDismiss()
+        }
+    }
+    
+    private func showSimilarImages() {
+        // First create a Place from this photo, then show similar images
+        let imageManager = PHImageManager.default()
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.deliveryMode = .highQualityFormat
+        
+        imageManager.requestImage(for: currentAsset, targetSize: CGSize(width: 1024, height: 1024), contentMode: .aspectFit, options: options) { image, _ in
+            guard let image = image,
+                  let imageData = image.jpegData(compressionQuality: 0.8) else {
+                print("Failed to get image data for similarity analysis")
+                return
+            }
+            
+            DispatchQueue.main.async {
+                // Create temporary Place for similarity analysis
+                let tempPlace = Place(context: viewContext)
+                tempPlace.imageData = imageData
+                tempPlace.dateAdded = currentAsset.creationDate ?? Date()
+                
+                if let location = currentAsset.location {
+                    let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
+                    tempPlace.location = locationData
+                }
+                
+                tempPlace.post = "Current photo for similarity analysis"
+                
+                // Compute embedding for similarity analysis
+                Task {
+                    let success = await tempPlace.computeEmbedding()
+                    await MainActor.run {
+                        if success {
+                            currentPlaceForSimilarity = tempPlace
+                            showingSimilarImages = true
+                        } else {
+                            print("Failed to compute embedding for similarity analysis")
+                        }
+                    }
+                }
+            }
         }
     }
     

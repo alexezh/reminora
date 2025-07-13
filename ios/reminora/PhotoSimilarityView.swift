@@ -39,6 +39,12 @@ struct PhotoSimilarityView: View {
                             }
                             .font(.caption)
                             .foregroundColor(.blue)
+                            
+                            Button("Reset Scan") {
+                                resetScan()
+                            }
+                            .font(.caption)
+                            .foregroundColor(.orange)
                         }
                         
                         HStack {
@@ -118,7 +124,7 @@ struct PhotoSimilarityView: View {
                             GridItem(.flexible())
                         ], spacing: 8) {
                             ForEach(Array(similarPhotos.enumerated()), id: \.offset) { index, similarity in
-                                if let asset = similarity.photoAsset {
+                                if let asset = PhotoEmbeddingService.shared.getPhotoAsset(for: similarity.embedding) {
                                     SimilarPhotoCard(
                                         asset: asset,
                                         similarity: similarity.similarity,
@@ -197,6 +203,11 @@ struct PhotoSimilarityView: View {
                 findSimilarPhotos()
             }
         }
+    }
+    
+    private func resetScan() {
+        PhotoEmbeddingService.shared.resetEmbeddingWaterline()
+        loadEmbeddingStats()
     }
     
     private func findDuplicates() {
@@ -369,7 +380,7 @@ struct DuplicateGroupCard: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     // Original photo
-                    if let originalAsset = group.original.photoAsset {
+                    if let originalAsset = PhotoEmbeddingService.shared.getPhotoAsset(for: group.original) {
                         VStack(spacing: 4) {
                             PhotoThumbnailView(asset: originalAsset)
                                 .frame(width: 80, height: 80)
@@ -381,7 +392,7 @@ struct DuplicateGroupCard: View {
                     
                     // Duplicate photos
                     ForEach(Array(group.duplicates.enumerated()), id: \.offset) { index, duplicate in
-                        if let asset = duplicate.photoAsset {
+                        if let asset = PhotoEmbeddingService.shared.getPhotoAsset(for: duplicate.embedding) {
                             VStack(spacing: 4) {
                                 PhotoThumbnailView(asset: asset)
                                     .frame(width: 80, height: 80)

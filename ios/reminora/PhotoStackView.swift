@@ -559,14 +559,10 @@ struct SwipePhotoView: View {
                             Button(action: {
                                 onDismiss()
                             }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "chevron.left")
-                                        .font(.title2)
-                                        .fontWeight(.medium)
-                                    Text("Back")
-                                        .font(.body)
-                                }
-                                .foregroundColor(.white)
+                                Image(systemName: "chevron.left")
+                                    .font(.title2)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
                             }
                             
                             Spacer()
@@ -667,6 +663,18 @@ struct SwipePhotoView: View {
                                 }
                             }
                             
+                            // Reject button
+                            Button(action: thumbsDown) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: currentPreference == .dislike ? "x.circle.fill" : "x.circle")
+                                        .font(.title2)
+                                        .foregroundColor(currentPreference == .dislike ? .orange : .white)
+                                    Text("Reject")
+                                        .font(.caption2)
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            
                             // Pin button
                             Button {
                                 showingAddPin = true
@@ -676,18 +684,6 @@ struct SwipePhotoView: View {
                                         .font(.title2)
                                         .foregroundColor(.white)
                                     Text("Pin")
-                                        .font(.caption2)
-                                        .foregroundColor(.white)
-                                }
-                            }
-                            
-                            // Reject button
-                            Button(action: thumbsDown) {
-                                VStack(spacing: 4) {
-                                    Image(systemName: currentPreference == .dislike ? "trash.fill" : "trash")
-                                        .font(.title2)
-                                        .foregroundColor(currentPreference == .dislike ? .red : .white)
-                                    Text("Delete")
                                         .font(.caption2)
                                         .foregroundColor(.white)
                                 }

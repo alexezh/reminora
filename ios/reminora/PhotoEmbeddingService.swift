@@ -14,16 +14,18 @@ class PhotoEmbeddingService {
     
     /// Compute embedding for a PHAsset and store in Core Data
     func computeAndStoreEmbedding(for asset: PHAsset, in context: NSManagedObjectContext) async -> Bool {
-        // Check if embedding already exists
+        // Check if embedding already exists and is up to date
         let existingEmbedding = await getEmbedding(for: asset, in: context)
-        if let existing = existingEmbedding {
+        if let existing = existingEmbedding, existing.embedding != nil {
             // Check if photo was modified since last computation
             let assetModDate = asset.modificationDate ?? asset.creationDate ?? Date.distantPast
             let embeddingDate = existing.computedAt ?? Date.distantPast
             
             if assetModDate <= embeddingDate {
-                print("Embedding already exists and is up to date for asset: \(asset.localIdentifier)")
+                print("⏭️ Embedding already exists and is up to date for asset: \(asset.localIdentifier)")
                 return true
+            } else {
+                print("🔄 Photo modified since last embedding, recomputing for asset: \(asset.localIdentifier)")
             }
         }
         
@@ -125,31 +127,69 @@ class PhotoEmbeddingService {
     
     // MARK: - Batch Operations
     
-    /// Compute embeddings for all photos in the library
+    /// Compute embeddings for all photos in the library using waterline approach
     func computeAllEmbeddings(in context: NSManagedObjectContext, progressCallback: @escaping (Int, Int) -> Void = { _, _ in }) async {
+        let waterline = getEmbeddingWaterline()
+        print("📊 Current embedding waterline: \(waterline?.description ?? "none")")
+        
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
         fetchOptions.includeHiddenAssets = false
         
+        // Only fetch photos newer than waterline
+        if let waterline = waterline {
+            fetchOptions.predicate = NSPredicate(format: "creationDate > %@", waterline as NSDate)
+            print("📊 Only scanning photos newer than waterline")
+        }
+        
         let allPhotos = PHAsset.fetchAssets(with: .image, options: fetchOptions)
         let totalCount = allPhotos.count
         
-        print("Starting to compute embeddings for \(totalCount) photos")
+        if totalCount == 0 {
+            print("📊 No new photos to process since waterline")
+            return
+        }
+        
+        print("📊 Found \(totalCount) photos to process (newer than waterline)")
+        
+        var processedCount = 0
+        var latestProcessedDate: Date?
         
         for index in 0..<totalCount {
             let asset = allPhotos.object(at: index)
+            
+            // Skip if embedding already exists
+            if let existingEmbedding = await getEmbedding(for: asset, in: context),
+               existingEmbedding.embedding != nil {
+                print("📊 Skipping \(asset.localIdentifier) - embedding already exists")
+                processedCount += 1
+                latestProcessedDate = asset.creationDate ?? latestProcessedDate
+                
+                await MainActor.run {
+                    progressCallback(processedCount, totalCount)
+                }
+                continue
+            }
+            
             let success = await computeAndStoreEmbedding(for: asset, in: context)
+            processedCount += 1
+            
+            if success {
+                latestProcessedDate = asset.creationDate ?? latestProcessedDate
+                print("📊 Processed \(processedCount)/\(totalCount): \(asset.localIdentifier)")
+            } else {
+                print("📊 Failed \(processedCount)/\(totalCount): \(asset.localIdentifier)")
+            }
             
             await MainActor.run {
-                let processedCount = index + 1
                 progressCallback(processedCount, totalCount)
-                
-                if success {
-                    print("Processed \(processedCount)/\(totalCount): \(asset.localIdentifier)")
-                } else {
-                    print("Failed \(processedCount)/\(totalCount): \(asset.localIdentifier)")
-                }
             }
+        }
+        
+        // Update waterline to latest processed photo date
+        if let latestDate = latestProcessedDate {
+            setEmbeddingWaterline(latestDate)
+            print("📊 Updated embedding waterline to: \(latestDate)")
         }
     }
     
@@ -293,6 +333,56 @@ class PhotoEmbeddingService {
             Array(UnsafeBufferPointer(start: $0.bindMemory(to: Float.self).baseAddress, count: data.count / MemoryLayout<Float>.size))
         }
     }
+    
+    // MARK: - PhotoEmbedding Helper Methods
+    
+    /// Get embedding vector from PhotoEmbedding
+    private func getEmbeddingVector(from photoEmbedding: PhotoEmbedding) -> [Float]? {
+        guard let embeddingData = photoEmbedding.embedding else {
+            return nil
+        }
+        return dataToEmbedding(embeddingData)
+    }
+    
+    /// Set embedding vector for PhotoEmbedding
+    private func setEmbeddingVector(_ embedding: [Float], for photoEmbedding: PhotoEmbedding) {
+        let data = embeddingToData(embedding)
+        photoEmbedding.embedding = data
+    }
+    
+    /// Check if photo still exists in library
+    private func isPhotoAvailable(for photoEmbedding: PhotoEmbedding) -> Bool {
+        guard let localIdentifier = photoEmbedding.localIdentifier else { return false }
+        let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: nil)
+        return fetchResult.firstObject != nil
+    }
+    
+    /// Get PHAsset for PhotoEmbedding
+    func getPhotoAsset(for photoEmbedding: PhotoEmbedding) -> PHAsset? {
+        guard let localIdentifier = photoEmbedding.localIdentifier else { return nil }
+        let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: nil)
+        return fetchResult.firstObject
+    }
+    
+    // MARK: - Waterline Management
+    
+    private let waterlineKey = "PhotoEmbeddingWaterline"
+    
+    /// Get the current embedding waterline (last processed photo date)
+    private func getEmbeddingWaterline() -> Date? {
+        return UserDefaults.standard.object(forKey: waterlineKey) as? Date
+    }
+    
+    /// Set the embedding waterline (last processed photo date)
+    private func setEmbeddingWaterline(_ date: Date) {
+        UserDefaults.standard.set(date, forKey: waterlineKey)
+    }
+    
+    /// Reset the waterline to force full re-scan on next computation
+    func resetEmbeddingWaterline() {
+        UserDefaults.standard.removeObject(forKey: waterlineKey)
+        print("📊 Reset embedding waterline - next scan will process all photos")
+    }
 }
 
 // MARK: - Supporting Types
@@ -306,7 +396,7 @@ struct PhotoSimilarity {
     }
     
     var photoAsset: PHAsset? {
-        return embedding.photoAsset
+        return PhotoEmbeddingService.shared.getPhotoAsset(for: embedding)
     }
 }
 

@@ -55,6 +55,10 @@ struct ContentView: View {
                 .tag(4)
         }
         .accentColor(.blue)
+        .onAppear {
+            // Start background embedding computation for all photos
+            startBackgroundEmbeddingComputation()
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToSharedPlace"))) { notification in
             print("🔗 ContentView received NavigateToSharedPlace notification")
             
@@ -83,6 +87,34 @@ struct ContentView: View {
                         }
                     )
                 }
+            }
+        }
+    }
+    
+    // MARK: - Background Embedding Computation
+    
+    private func startBackgroundEmbeddingComputation() {
+        print("📊 Starting background embedding computation for all photos")
+        
+        Task {
+            // Get embedding stats to see if we need to compute embeddings
+            let stats = PhotoEmbeddingService.shared.getEmbeddingStats(in: viewContext)
+            print("📊 Current embedding stats: \(stats.photosWithEmbeddings)/\(stats.totalPhotos) photos analyzed (\(stats.coveragePercentage)%)")
+            
+            // Only start computation if coverage is less than 100%
+            if stats.coverage < 1.0 {
+                print("📊 Starting background computation for \(stats.totalPhotos - stats.photosWithEmbeddings) remaining photos")
+                
+                await PhotoEmbeddingService.shared.computeAllEmbeddings(in: viewContext) { processed, total in
+                    // Log progress every 10 photos to avoid spam
+                    if processed % 10 == 0 || processed == total {
+                        print("📊 Embedding progress: \(processed)/\(total) photos processed (\(Int(Float(processed)/Float(total)*100))%)")
+                    }
+                }
+                
+                print("📊 ✅ Background embedding computation completed!")
+            } else {
+                print("📊 ✅ All photos already have embeddings, skipping computation")
             }
         }
     }

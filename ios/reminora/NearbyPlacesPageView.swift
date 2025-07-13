@@ -210,7 +210,13 @@ struct NearbyPlacesPageView: View {
         let lat = place.coordinate.latitude
         let lon = place.coordinate.longitude
         
-        let reminoraLink = "https://reminora.app/place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)"
+        // Add owner information from auth service
+        let authService = AuthenticationService.shared
+        let ownerId = authService.currentAccount?.id ?? ""
+        let ownerHandle = authService.currentAccount?.handle ?? ""
+        let encodedOwnerHandle = ownerHandle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        
+        let reminoraLink = "reminora://place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)&ownerId=\(ownerId)&ownerHandle=\(encodedOwnerHandle)"
         
         shareText = "Check out \(place.name) on Reminora!\n\n\(place.address)\nDistance: \(String(format: "%.1f", place.distance / 1000)) km\n\n\(reminoraLink)"
         showingShareSheet = true

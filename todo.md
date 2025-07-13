@@ -1,6 +1,11 @@
 add collections to photo view, following quick collection in lightroom
 button in the corner of picture. But then we do not have much room on toolbar. 
 
+add profile page for person which has a list of places person shared. profile page has follow button. pins.
+add button with image or initials on shared 
+
+nearbyphotos - remove add and places buttons. use StackListView when displaying photos. add close button to nearbu photos. change done button in nearby photo 
+
 do not resort items unless call search here, done on top right of the map
 
 add multi-line edit. add cancel, done. add list of places nearby

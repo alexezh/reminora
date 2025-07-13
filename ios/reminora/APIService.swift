@@ -181,21 +181,21 @@ class APIService: ObservableObject {
     
     // MARK: - Follow System
     
-    func followUser(userId: String) async throws -> Follow {
+    func followUser(userId: String) async throws {
         let url = URL(string: "\(baseURL)/api/follows")!
         let body = FollowRequest(following_id: userId)
         
         let data = try JSONEncoder().encode(body)
         let request = createRequest(url: url, method: "POST", body: data)
         
-        return try await performRequest(request: request, responseType: Follow.self)
+        let _: FollowResponse = try await performRequest(request: request, responseType: FollowResponse.self)
     }
     
     func unfollowUser(userId: String) async throws {
         let url = URL(string: "\(baseURL)/api/follows/\(userId)")!
         let request = createRequest(url: url, method: "DELETE")
         
-        _ = try await performRequest(request: request, responseType: SuccessResponse.self)
+        let _: EmptyResponse = try await performRequest(request: request, responseType: EmptyResponse.self)
     }
     
     func getFollowers(
@@ -250,4 +250,32 @@ class APIService: ObservableObject {
         let request = createRequest(url: components.url!)
         return try await performRequest(request: request, responseType: [UserSearchResult].self)
     }
+    
+    // MARK: - User Pins
+    
+    func getUserPins(userId: String, limit: Int = 50, offset: Int = 0) async throws -> [UserPin] {
+        var components = URLComponents(string: "\(baseURL)/api/users/\(userId)/pins")!
+        components.queryItems = [
+            URLQueryItem(name: "limit", value: String(limit)),
+            URLQueryItem(name: "offset", value: String(offset))
+        ]
+        
+        let request = createRequest(url: components.url!)
+        
+        // Convert API response to UserPin objects
+        let response = try await performRequest(request: request, responseType: UserPinsResponse.self)
+        return response.pins.map { apiPin in
+            UserPin(
+                id: apiPin.id,
+                name: apiPin.name,
+                description: apiPin.description,
+                latitude: apiPin.latitude,
+                longitude: apiPin.longitude,
+                imageUrl: apiPin.image_url,
+                createdAt: Date(timeIntervalSince1970: apiPin.created_at),
+                isPublic: apiPin.is_public
+            )
+        }
+    }
+    
 }

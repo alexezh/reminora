@@ -36,13 +36,23 @@ struct reminoraApp: App {
             }
             .environmentObject(authService)
             .onOpenURL { url in
+                print("🔗 onOpenURL called with: \(url)")
+                print("🔗 URL scheme: \(url.scheme ?? "nil")")
+                print("🔗 URL host: \(url.host ?? "nil")")
+                print("🔗 URL path: \(url.path)")
+                print("🔗 URL query: \(url.query ?? "nil")")
+                
                 // Handle Google Sign-In URLs
                 if url.scheme == "com.googleusercontent.apps" {
+                    print("🔗 Handling Google Sign-In URL")
                     GIDSignIn.sharedInstance.handle(url)
                 }
                 // Handle Reminora deep links
-                else if url.host == "reminora.app" {
+                else if url.scheme == "reminora" {
+                    print("🔗 Handling Reminora deep link")
                     handleReminoraLink(url)
+                } else {
+                    print("🔗 Unhandled URL scheme: \(url.scheme ?? "nil")")
                 }
             }
         }
@@ -64,26 +74,58 @@ struct reminoraApp: App {
     }
     
     private func handleReminoraLink(_ url: URL) {
-        guard url.host == "reminora.app",
+        print("🔗 handleReminoraLink called with: \(url)")
+        
+        guard url.scheme == "reminora",
               let components = URLComponents(url: url, resolvingAgainstBaseURL: true) else {
+            print("🔗 ❌ Failed to parse URL components")
             return
         }
         
+        print("🔗 URL components: \(components)")
+        print("🔗 Path components: \(url.pathComponents)")
+        
         // Handle different link types
         if url.pathComponents.contains("place") {
+            print("🔗 ✅ Found 'place' in path, calling handlePlaceLink")
             handlePlaceLink(components)
+        } else {
+            print("🔗 ❌ No 'place' found in path components: \(url.pathComponents)")
         }
     }
     
     private func handlePlaceLink(_ components: URLComponents) {
-        guard let queryItems = components.queryItems,
-              let name = queryItems.first(where: { $0.name == "name" })?.value,
+        print("🔗 handlePlaceLink called with components: \(components)")
+        
+        guard let queryItems = components.queryItems else {
+            print("🔗 ❌ No query items found")
+            return
+        }
+        
+        print("🔗 Query items: \(queryItems)")
+        
+        guard let name = queryItems.first(where: { $0.name == "name" })?.value,
               let latString = queryItems.first(where: { $0.name == "lat" })?.value,
               let lonString = queryItems.first(where: { $0.name == "lon" })?.value,
               let lat = Double(latString),
               let lon = Double(lonString) else {
+            print("🔗 ❌ Failed to parse required parameters:")
+            print("🔗    name: \(queryItems.first(where: { $0.name == "name" })?.value ?? "nil")")
+            print("🔗    lat: \(queryItems.first(where: { $0.name == "lat" })?.value ?? "nil")")
+            print("🔗    lon: \(queryItems.first(where: { $0.name == "lon" })?.value ?? "nil")")
             return
         }
+        
+        // Extract owner information (optional)
+        let ownerId = queryItems.first(where: { $0.name == "ownerId" })?.value ?? ""
+        let ownerHandle = queryItems.first(where: { $0.name == "ownerHandle" })?.value ?? ""
+        
+        print("🔗 ✅ Parsed parameters:")
+        print("🔗    name: \(name)")
+        print("🔗    lat: \(lat)")
+        print("🔗    lon: \(lon)")
+        print("🔗    ownerId: \(ownerId)")
+        print("🔗    ownerHandle: \(ownerHandle)")
         
         // Extract place ID from path if available
         let pathComponents = components.url?.pathComponents ?? []
@@ -92,14 +134,20 @@ struct reminoraApp: App {
             originalPlaceId = pathComponents[2]
         }
         
+        print("🔗 Path components: \(pathComponents)")
+        print("🔗 Original place ID: \(originalPlaceId ?? "nil")")
+        
         // Create a new place and add it to the shared list
         let context = persistenceController.container.viewContext
         
+        print("🔗 Creating new place...")
         // Create the place
         let newPlace = Place(context: context)
         newPlace.dateAdded = Date()
         newPlace.post = name
         newPlace.url = "Shared via Reminora link"
+        
+        print("🔗 ✅ Created new place with name: \(name)")
         
         // Try to copy image data from original place if available
         if let placeId = originalPlaceId,
@@ -122,20 +170,25 @@ struct reminoraApp: App {
         fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", "Shared", authService.currentAccount?.id ?? "")
         
         do {
+            print("🔗 Fetching shared lists...")
             let sharedLists = try context.fetch(fetchRequest)
             let sharedList: UserList
             
             if let existingList = sharedLists.first {
+                print("🔗 ✅ Found existing shared list: \(existingList.name ?? "Unknown")")
                 sharedList = existingList
             } else {
+                print("🔗 Creating new shared list...")
                 // Create shared list
                 sharedList = UserList(context: context)
                 sharedList.id = UUID().uuidString
                 sharedList.name = "Shared"
                 sharedList.createdAt = Date()
                 sharedList.userId = authService.currentAccount?.id ?? ""
+                print("🔗 ✅ Created new shared list")
             }
             
+            print("🔗 Adding place to shared list...")
             // Add item to shared list
             let listItem = ListItem(context: context)
             listItem.id = UUID().uuidString
@@ -144,12 +197,40 @@ struct reminoraApp: App {
             listItem.sharedLink = components.url?.absoluteString
             listItem.listId = sharedList.id ?? ""
             
+            // Store owner information for follow functionality
+            if !ownerId.isEmpty {
+                listItem.sharedByUserId = ownerId
+                print("🔗 ✅ Stored owner ID: \(ownerId)")
+            }
+            if !ownerHandle.isEmpty {
+                listItem.sharedByUserName = ownerHandle
+                print("🔗 ✅ Stored owner handle: \(ownerHandle)")
+            }
+            
+            print("🔗 Saving to Core Data...")
             try context.save()
-            print("Added shared place to Shared list: \(name)")
+            print("🔗 ✅ Successfully added shared place to Shared list: \(name)")
+            
+            // Navigate to the shared place
+            DispatchQueue.main.async {
+                self.navigateToSharedPlace(newPlace)
+            }
             
         } catch {
-            print("Failed to add shared place: \(error)")
+            print("🔗 ❌ Failed to add shared place: \(error)")
         }
+    }
+    
+    private func navigateToSharedPlace(_ place: Place) {
+        print("🔗 navigateToSharedPlace called for: \(place.post ?? "Unknown")")
+        
+        // Post a notification to trigger navigation in ContentView
+        NotificationCenter.default.post(
+            name: NSNotification.Name("NavigateToSharedPlace"),
+            object: place
+        )
+        
+        print("🔗 ✅ Posted navigation notification")
     }
     
     private func findPlace(withId placeId: String, context: NSManagedObjectContext) -> Place? {

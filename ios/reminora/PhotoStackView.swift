@@ -776,7 +776,13 @@ struct SwipePhotoView: View {
         let lat = coord.latitude
         let lon = coord.longitude
         
-        let reminoraLink = "https://reminora.app/place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)"
+        // Add owner information from auth service
+        let authService = AuthenticationService.shared
+        let ownerId = authService.currentAccount?.id ?? ""
+        let ownerHandle = authService.currentAccount?.handle ?? ""
+        let encodedOwnerHandle = ownerHandle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        
+        let reminoraLink = "reminora://place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)&ownerId=\(ownerId)&ownerHandle=\(encodedOwnerHandle)"
         
         let message = "Check out this photo on Reminora!"
         print("Share message: \(message)")

@@ -152,3 +152,31 @@ struct UserSearchResult: Codable, Identifiable {
         return is_following == 1
     }
 }
+
+// MARK: - User Pin Models
+
+struct UserPinAPI: Codable, Identifiable {
+    let id: String
+    let name: String
+    let description: String?
+    let latitude: Double
+    let longitude: Double
+    let image_url: String?
+    let created_at: TimeInterval
+    let is_public: Bool
+}
+
+struct UserPinsResponse: Codable {
+    let pins: [UserPinAPI]
+    let total: Int
+    let has_more: Bool
+}
+
+struct FollowResponse: Codable {
+    let success: Bool
+    let follow_id: String
+}
+
+struct EmptyResponse: Codable {
+    let success: Bool
+}

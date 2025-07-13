@@ -16,6 +16,8 @@ struct ContentView: View {
 
     @State private var selectedTab = 0
     @State private var showPhotoLibrary = false
+    @State private var showingSharedPlace = false
+    @State private var sharedPlace: Place?
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -53,6 +55,36 @@ struct ContentView: View {
                 .tag(4)
         }
         .accentColor(.blue)
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToSharedPlace"))) { notification in
+            print("🔗 ContentView received NavigateToSharedPlace notification")
+            
+            if let place = notification.object as? Place {
+                print("🔗 ContentView navigating to shared place: \(place.post ?? "Unknown")")
+                
+                // Switch to Pin tab and show the shared place
+                selectedTab = 0
+                sharedPlace = place
+                showingSharedPlace = true
+                
+                print("🔗 ContentView set selectedTab=0, showing shared place")
+            } else {
+                print("🔗 ❌ ContentView: notification object is not a Place")
+            }
+        }
+        .sheet(isPresented: $showingSharedPlace) {
+            if let place = sharedPlace {
+                NavigationView {
+                    PinDetailView(
+                        place: place,
+                        allPlaces: [],
+                        onBack: {
+                            showingSharedPlace = false
+                            sharedPlace = nil
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 

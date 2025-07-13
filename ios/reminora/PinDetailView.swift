@@ -51,6 +51,27 @@ struct PinDetailView: View {
         // Check if this place came from a shared link by looking at the URL field
         return place.url?.contains("Shared via Reminora link") == true
     }
+    
+    // Get the owner information from the ListItem that contains this place
+    private var sharedByInfo: (userId: String, userName: String)? {
+        // Fetch the ListItem that contains this place
+        let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "placeId == %@", place.objectID.uriRepresentation().absoluteString)
+        
+        do {
+            let items = try viewContext.fetch(fetchRequest)
+            if let item = items.first,
+               let userId = item.sharedByUserId,
+               let userName = item.sharedByUserName,
+               !userId.isEmpty && !userName.isEmpty {
+                return (userId: userId, userName: userName)
+            }
+        } catch {
+            print("Failed to fetch ListItem for shared info: \(error)")
+        }
+        
+        return nil
+    }
 
     var body: some View {
         ScrollView {
@@ -145,16 +166,35 @@ struct PinDetailView: View {
 
                 // Photo caption and details
                 VStack(alignment: .leading, spacing: 8) {
-                    // Shared indicator if applicable
+                    // Shared indicator with follow button if applicable
                     if isSharedItem {
                         HStack {
                             Image(systemName: "shared.with.you")
                                 .font(.caption)
                                 .foregroundColor(.green)
-                            Text("Shared with you")
+                            
+                            if let shareInfo = sharedByInfo {
+                                Text("Shared by @\(shareInfo.userName)")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                                
+                                Spacer()
+                                
+                                Button("Follow") {
+                                    followUser(userId: shareInfo.userId, userName: shareInfo.userName)
+                                }
                                 .font(.caption)
-                                .foregroundColor(.green)
-                            Spacer()
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.blue)
+                                .cornerRadius(12)
+                            } else {
+                                Text("Shared with you")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                                Spacer()
+                            }
                         }
                     }
 
@@ -250,6 +290,45 @@ struct PinDetailView: View {
 
     // MARK: - Actions
 
+    private func followUser(userId: String, userName: String) {
+        print("🔗 Follow button tapped for user: \(userName) (ID: \(userId))")
+        
+        guard let currentUser = authService.currentAccount else {
+            print("🔗 ❌ No current user found")
+            return
+        }
+        
+        // Check if already following
+        let fetchRequest: NSFetchRequest<Follow> = Follow.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "followerId == %@ AND followingId == %@", currentUser.id, userId)
+        
+        do {
+            let existingFollows = try viewContext.fetch(fetchRequest)
+            if !existingFollows.isEmpty {
+                print("🔗 ℹ️ Already following user: \(userName)")
+                return
+            }
+            
+            // Create new follow relationship
+            let follow = Follow(context: viewContext)
+            follow.id = UUID().uuidString
+            follow.followerId = currentUser.id
+            follow.followingId = userId
+            follow.followingHandle = userName
+            follow.createdAt = Date()
+            
+            try viewContext.save()
+            print("🔗 ✅ Successfully followed user: \(userName)")
+            
+            // Show success feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+            
+        } catch {
+            print("🔗 ❌ Failed to follow user: \(error)")
+        }
+    }
+
     private func showNearbyPlaces() {
         showingNearbyPlaces = true
     }
@@ -308,7 +387,12 @@ struct PinDetailView: View {
         let lat = coord.latitude
         let lon = coord.longitude
 
-        let reminoraLink = "https://reminora.app/place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)"
+        // Add owner information from auth service
+        let ownerId = authService.currentAccount?.id ?? ""
+        let ownerHandle = authService.currentAccount?.handle ?? ""
+        let encodedOwnerHandle = ownerHandle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+
+        let reminoraLink = "reminora://place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)&ownerId=\(ownerId)&ownerHandle=\(encodedOwnerHandle)"
 
         let message = "Check out \(place.post ?? "this place") on Reminora!"
         

@@ -1,0 +1,745 @@
+import SwiftUI
+import Photos
+import PhotosUI
+import UIKit
+
+struct PhotoStackView: View {
+    @State private var photoAssets: [PHAsset] = []
+    @State private var photoStacks: [PhotoStack] = []
+    @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
+    @State private var showingFullPhoto = false
+    @State private var selectedAsset: PHAsset?
+    @State private var selectedStack: PhotoStack?
+    @State private var showingStackDetail = false
+    @State private var selectedStackIndex = 0
+    
+    // Time interval for grouping photos into stacks (in minutes)
+    private let stackingInterval: TimeInterval = 10 * 60 // 10 minutes
+    
+    private let columns = [
+        GridItem(.flexible()),
+        GridItem(.flexible()),
+        GridItem(.flexible())
+    ]
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                if authorizationStatus == .authorized || authorizationStatus == .limited {
+                    ScrollView {
+                        LazyVGrid(columns: columns, spacing: 2) {
+                            ForEach(photoStacks, id: \.id) { stack in
+                                PhotoStackCell(
+                                    stack: stack,
+                                    onTap: {
+                                        if stack.assets.count > 1 {
+                                            selectedStack = stack
+                                            selectedStackIndex = 0
+                                            showingStackDetail = true
+                                        } else {
+                                            selectedAsset = stack.assets.first
+                                            showingFullPhoto = true
+                                        }
+                                    }
+                                )
+                                .aspectRatio(1, contentMode: .fit)
+                            }
+                        }
+                        .padding(.horizontal, 1)
+                    }
+                } else {
+                    VStack(spacing: 20) {
+                        Image(systemName: "photo.on.rectangle")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                        
+                        Text("Photo Access Required")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                        
+                        Text("Please allow access to your photo library to see your photos")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        
+                        Button("Grant Access") {
+                            requestPhotoAccess()
+                        }
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                    }
+                    .padding()
+                }
+            }
+            .navigationTitle("Photos")
+            .navigationBarTitleDisplayMode(.large)
+            .onAppear {
+                requestPhotoAccess()
+                if authorizationStatus == .authorized || authorizationStatus == .limited {
+                    loadPhotoAssets()
+                }
+            }
+        }
+        .sheet(isPresented: $showingFullPhoto) {
+            if let selectedAsset = selectedAsset {
+                PhotoDetailView(asset: selectedAsset) {
+                    showingFullPhoto = false
+                }
+            }
+        }
+        .sheet(isPresented: $showingStackDetail) {
+            if let selectedStack = selectedStack {
+                SwipePhotoView(
+                    stack: selectedStack,
+                    initialIndex: selectedStackIndex,
+                    onDismiss: {
+                        showingStackDetail = false
+                    }
+                )
+            }
+        }
+    }
+    
+    private func requestPhotoAccess() {
+        authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        
+        if authorizationStatus == .notDetermined {
+            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
+                DispatchQueue.main.async {
+                    authorizationStatus = status
+                    if status == .authorized || status == .limited {
+                        loadPhotoAssets()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func loadPhotoAssets() {
+        let fetchOptions = PHFetchOptions()
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+        fetchOptions.fetchLimit = 1000 // Load recent photos
+        
+        let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+        
+        var assets: [PHAsset] = []
+        fetchResult.enumerateObjects { asset, _, _ in
+            assets.append(asset)
+        }
+        
+        DispatchQueue.main.async {
+            photoAssets = assets
+            createPhotoStacks()
+        }
+    }
+    
+    private func createPhotoStacks() {
+        var stacks: [PhotoStack] = []
+        var currentStack: [PHAsset] = []
+        var lastDate: Date?
+        
+        for asset in photoAssets {
+            guard let creationDate = asset.creationDate else {
+                // Handle assets without creation date
+                if !currentStack.isEmpty {
+                    stacks.append(PhotoStack(assets: currentStack))
+                    currentStack = []
+                }
+                stacks.append(PhotoStack(assets: [asset]))
+                lastDate = nil
+                continue
+            }
+            
+            if let lastDate = lastDate {
+                let timeDifference = lastDate.timeIntervalSince(creationDate)
+                
+                if timeDifference <= stackingInterval {
+                    // Add to current stack
+                    currentStack.append(asset)
+                } else {
+                    // Start new stack
+                    if !currentStack.isEmpty {
+                        stacks.append(PhotoStack(assets: currentStack))
+                    }
+                    currentStack = [asset]
+                }
+            } else {
+                // First asset
+                currentStack = [asset]
+            }
+            
+            lastDate = creationDate
+        }
+        
+        // Add final stack
+        if !currentStack.isEmpty {
+            stacks.append(PhotoStack(assets: currentStack))
+        }
+        
+        photoStacks = stacks
+    }
+}
+
+struct PhotoStack: Identifiable {
+    let id = UUID()
+    let assets: [PHAsset]
+    
+    var isStack: Bool {
+        return assets.count > 1
+    }
+    
+    var primaryAsset: PHAsset {
+        return assets.first!
+    }
+    
+    var count: Int {
+        return assets.count
+    }
+}
+
+struct PhotoStackCell: View {
+    let stack: PhotoStack
+    let onTap: () -> Void
+    
+    @State private var image: UIImage?
+    
+    var body: some View {
+        ZStack {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .clipped()
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+            }
+            
+            // Stack indicator
+            if stack.isStack {
+                VStack {
+                    HStack {
+                        Spacer()
+                        ZStack {
+                            Circle()
+                                .fill(Color.black.opacity(0.7))
+                                .frame(width: 28, height: 28)
+                            
+                            HStack(spacing: 1) {
+                                Image(systemName: "rectangle.stack.fill")
+                                    .font(.caption2)
+                                    .foregroundColor(.white)
+                                Text("\(stack.count)")
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .padding(4)
+                    }
+                    Spacer()
+                }
+            }
+        }
+        .onTapGesture {
+            onTap()
+        }
+        .onAppear {
+            loadThumbnail()
+        }
+    }
+    
+    private func loadThumbnail() {
+        let imageManager = PHImageManager.default()
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.deliveryMode = .opportunistic
+        
+        let targetSize = CGSize(width: 300, height: 300)
+        
+        imageManager.requestImage(for: stack.primaryAsset, targetSize: targetSize, contentMode: .aspectFill, options: options) { loadedImage, _ in
+            DispatchQueue.main.async {
+                image = loadedImage
+            }
+        }
+    }
+}
+
+struct PhotoDetailView: View {
+    let asset: PHAsset
+    let onDismiss: () -> Void
+    
+    @State private var image: UIImage?
+    
+    var body: some View {
+        NavigationView {
+            VStack {
+                if let image = image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxHeight: UIScreen.main.bounds.height * 0.8)
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .navigationTitle("Photo")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        onDismiss()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            loadFullImage()
+        }
+    }
+    
+    private func loadFullImage() {
+        let imageManager = PHImageManager.default()
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.deliveryMode = .highQualityFormat
+        
+        let targetSize = CGSize(width: UIScreen.main.bounds.width * UIScreen.main.scale,
+                               height: UIScreen.main.bounds.height * UIScreen.main.scale)
+        
+        imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: options) { loadedImage, _ in
+            DispatchQueue.main.async {
+                image = loadedImage
+            }
+        }
+    }
+}
+
+struct SwipePhotoView: View {
+    let stack: PhotoStack
+    let initialIndex: Int
+    let onDismiss: () -> Void
+    
+    @Environment(\.managedObjectContext) private var viewContext
+    @State private var currentIndex: Int
+    @State private var showingNearbyPhotos = false
+    @State private var showingAddPin = false
+    @State private var showingShareSheet = false
+    @State private var shareText = ""
+    @State private var isLoading = false
+    @State private var dragOffset: CGSize = .zero
+    
+    init(stack: PhotoStack, initialIndex: Int, onDismiss: @escaping () -> Void) {
+        self.stack = stack
+        self.initialIndex = initialIndex
+        self.onDismiss = onDismiss
+        self._currentIndex = State(initialValue: initialIndex)
+    }
+    
+    private var currentAsset: PHAsset {
+        return stack.assets[currentIndex]
+    }
+    
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Top toolbar
+                HStack {
+                    Button("Close") {
+                        onDismiss()
+                    }
+                    .foregroundColor(.white)
+                    .padding(.leading)
+                    
+                    Spacer()
+                    
+                    // Action buttons
+                    HStack(spacing: 16) {
+                        Button(action: thumbsDown) {
+                            Image(systemName: "hand.thumbsdown")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                        }
+                        
+                        Button(action: thumbsUp) {
+                            Image(systemName: "hand.thumbsup")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                        }
+                        
+                        Button(action: sharePhoto) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                        }
+                        
+                        Button("Pin") {
+                            showingAddPin = true
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                    }
+                    .padding(.trailing)
+                }
+                .padding(.top, 50)
+                .padding(.bottom, 20)
+                
+                // Photo display using TabView for smooth swiping
+                TabView(selection: $currentIndex) {
+                    ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                        SwipePhotoImageView(asset: asset, isLoading: $isLoading)
+                            .tag(index)
+                    }
+                }
+                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                .frame(maxHeight: UIScreen.main.bounds.height * 0.7)
+                
+                // Navigation dots for stacks
+                if stack.assets.count > 1 {
+                    HStack(spacing: 8) {
+                        ForEach(0..<stack.assets.count, id: \.self) { index in
+                            Circle()
+                                .fill(index == currentIndex ? Color.white : Color.white.opacity(0.4))
+                                .frame(width: 8, height: 8)
+                        }
+                    }
+                    .padding(.bottom, 50)
+                }
+            }
+        }
+        .offset(y: dragOffset.height)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    // Only allow vertical downward drags
+                    if value.translation.height > 0 {
+                        dragOffset = CGSize(width: 0, height: value.translation.height)
+                    }
+                }
+                .onEnded { value in
+                    // If dragged down more than 150 points, dismiss
+                    if value.translation.height > 150 {
+                        onDismiss()
+                    } else {
+                        // Snap back to original position
+                        withAnimation(.spring()) {
+                            dragOffset = .zero
+                        }
+                    }
+                }
+        )
+        .onAppear {
+            isLoading = true
+        }
+        .sheet(isPresented: $showingAddPin) {
+            NavigationView {
+                AddPinFromPhotoView(
+                    asset: currentAsset,
+                    onDismiss: {
+                        showingAddPin = false
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showingShareSheet) {
+            ShareSheet(text: shareText)
+        }
+    }
+    
+    
+    private func thumbsUp() {
+        // TODO: Implement thumbs up functionality
+        print("Thumbs up for photo at index \(currentIndex)")
+    }
+    
+    private func thumbsDown() {
+        // TODO: Implement thumbs down functionality
+        print("Thumbs down for photo at index \(currentIndex)")
+    }
+    
+    private func sharePhoto() {
+        // First create a Place from this photo, then share it
+        let imageManager = PHImageManager.default()
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.deliveryMode = .highQualityFormat
+        
+        imageManager.requestImage(for: currentAsset, targetSize: CGSize(width: 1024, height: 1024), contentMode: .aspectFit, options: options) { image, _ in
+            guard let image = image,
+                  let imageData = image.jpegData(compressionQuality: 0.8) else {
+                print("Failed to get image data for sharing")
+                return
+            }
+            
+            DispatchQueue.main.async {
+                // Create new Place for sharing
+                let newPlace = Place(context: viewContext)
+                newPlace.imageData = imageData
+                newPlace.dateAdded = currentAsset.creationDate ?? Date()
+                
+                if let location = currentAsset.location {
+                    let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
+                    newPlace.location = locationData
+                }
+                
+                // Add metadata about sharing
+                var postText = "Shared from photo library"
+                if let creationDate = currentAsset.creationDate {
+                    let formatter = DateFormatter()
+                    formatter.dateStyle = .medium
+                    formatter.timeStyle = .short
+                    postText += " • Taken: \(formatter.string(from: creationDate))"
+                }
+                newPlace.post = postText
+                
+                do {
+                    try viewContext.save()
+                    print("Successfully saved place for sharing")
+                    
+                    // Now create the share URL using the new Place
+                    createShareURL(for: newPlace)
+                } catch {
+                    print("Failed to save photo as place for sharing: \(error)")
+                }
+            }
+        }
+    }
+    
+    private func createShareURL(for place: Place) {
+        let coord = coordinate(for: place)
+        let placeId = place.objectID.uriRepresentation().absoluteString
+        let encodedName = (place.post ?? "Shared Photo").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let lat = coord.latitude
+        let lon = coord.longitude
+        
+        let reminoraLink = "https://reminora.app/place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)"
+        
+        let shareMessage = "Check out this photo on Reminora!\n\n\(reminoraLink)"
+        print("Share message: \(shareMessage)")
+        
+        shareText = shareMessage
+        showingShareSheet = true
+    }
+    
+    private func coordinate(for place: Place) -> CLLocationCoordinate2D {
+        if let locationData = place.value(forKey: "location") as? Data,
+           let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
+            return location.coordinate
+        }
+        // Default to San Francisco if no location
+        return CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
+    }
+    
+    
+    private func getPhotoLocation() -> CLLocationCoordinate2D? {
+        guard let location = currentAsset.location else {
+            return nil
+        }
+        return location.coordinate
+    }
+}
+
+struct SwipePhotoImageView: View {
+    let asset: PHAsset
+    @Binding var isLoading: Bool
+    @State private var image: UIImage?
+    
+    var body: some View {
+        GeometryReader { geometry in
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: geometry.size.width, maxHeight: geometry.size.height)
+            } else {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .onAppear {
+            loadImage()
+        }
+    }
+    
+    private func loadImage() {
+        isLoading = true
+        let imageManager = PHImageManager.default()
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.deliveryMode = .highQualityFormat
+        options.resizeMode = .exact
+        
+        let targetSize = CGSize(width: UIScreen.main.bounds.width * UIScreen.main.scale,
+                               height: UIScreen.main.bounds.height * UIScreen.main.scale)
+        
+        imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: options) { loadedImage, _ in
+            DispatchQueue.main.async {
+                image = loadedImage
+                isLoading = false
+            }
+        }
+    }
+}
+
+struct AddPinFromPhotoView: View {
+    let asset: PHAsset
+    let onDismiss: () -> Void
+    
+    @Environment(\.managedObjectContext) private var viewContext
+    @State private var image: UIImage?
+    @State private var caption: String = ""
+    @State private var isSaving = false
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                // Photo preview
+                if let image = image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(height: 300)
+                        .clipped()
+                        .cornerRadius(12)
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(height: 300)
+                        .cornerRadius(12)
+                        .overlay(
+                            ProgressView()
+                        )
+                }
+                
+                // Caption input
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Add Caption")
+                        .font(.headline)
+                    
+                    TextField("What's happening here?", text: $caption, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(3...6)
+                }
+                
+                // Location info
+                if let location = asset.location {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Location")
+                            .font(.headline)
+                        
+                        HStack {
+                            Image(systemName: "location.fill")
+                                .foregroundColor(.blue)
+                            Text(String(format: "%.4f, %.4f", location.coordinate.latitude, location.coordinate.longitude))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .monospaced()
+                        }
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Location")
+                            .font(.headline)
+                        
+                        HStack {
+                            Image(systemName: "location.slash")
+                                .foregroundColor(.orange)
+                            Text("No location data available")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding()
+        }
+        .navigationTitle("Add Pin")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Cancel") {
+                    onDismiss()
+                }
+            }
+            
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Save") {
+                    savePinFromPhoto()
+                }
+                .disabled(isSaving)
+            }
+        }
+        .onAppear {
+            loadImage()
+        }
+    }
+    
+    private func loadImage() {
+        let imageManager = PHImageManager.default()
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.deliveryMode = .opportunistic
+        
+        imageManager.requestImage(for: asset, targetSize: CGSize(width: 400, height: 400), contentMode: .aspectFill, options: options) { loadedImage, _ in
+            DispatchQueue.main.async {
+                image = loadedImage
+            }
+        }
+    }
+    
+    private func savePinFromPhoto() {
+        isSaving = true
+        
+        let imageManager = PHImageManager.default()
+        let options = PHImageRequestOptions()
+        options.isSynchronous = false
+        options.deliveryMode = .highQualityFormat
+        
+        imageManager.requestImage(for: asset, targetSize: CGSize(width: 1024, height: 1024), contentMode: .aspectFit, options: options) { image, _ in
+            guard let image = image,
+                  let imageData = image.jpegData(compressionQuality: 0.8) else {
+                DispatchQueue.main.async {
+                    isSaving = false
+                }
+                return
+            }
+            
+            DispatchQueue.main.async {
+                let newPlace = Place(context: viewContext)
+                newPlace.imageData = imageData
+                newPlace.dateAdded = asset.creationDate ?? Date()
+                newPlace.post = caption.isEmpty ? "Added from Photos" : caption
+                
+                if let location = asset.location {
+                    let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
+                    newPlace.location = locationData
+                }
+                
+                do {
+                    try viewContext.save()
+                    isSaving = false
+                    onDismiss()
+                } catch {
+                    print("Failed to save pin: \(error)")
+                    isSaving = false
+                }
+            }
+        }
+    }
+}
+
+#Preview {
+    PhotoStackView()
+}

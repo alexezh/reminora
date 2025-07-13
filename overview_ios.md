@@ -12,10 +12,11 @@
 
 ### **ContentView.swift**
 **Purpose**: Main tab-based navigation container
-- 5-tab TabView: Home (Map), Add Photo, Lists, Places, Profile
-- Photo library integration triggered by "Add" tab
-- Returns to Home tab after photo selection
-- Tab bar with system icons and labels
+- 3-tab TabView: Pin (Map), Photos, Profile
+- Pin tab with PinMainView for map interface
+- Photos tab with PhotoStackView for library management
+- Profile tab for user management
+- Photo library overlay triggered by toolbar buttons
 
 ## Core Map & Photo Management
 
@@ -36,6 +37,9 @@
 - Gesture-based panel height control
 - Real-time place selection with map centering
 - Single tap = map navigation, double tap = detail view
+- List filtering combo box for user lists (All Places, Quick, etc.)
+- Add button in panel header for quick photo addition
+- Dynamic place filtering based on selected list
 
 ### **PinListView.swift**
 **Purpose**: List component for displaying places with thumbnails
@@ -45,7 +49,38 @@
 - Selection highlighting for currently selected place
 - Swipe-to-delete functionality
 
-## Photo Management & Capture
+## Photo Stack & Library Management
+
+### **PhotoStackView.swift**
+**Purpose**: Main photo library interface with time-based stacking
+- Grid layout (3 columns) with lazy loading
+- Time-based photo grouping (10-minute intervals)
+- Stack indicators for grouped photos
+- Photo stack vs single photo handling
+- Permission management for photo library access
+- Navigation to SwipePhotoView for stack browsing
+- PhotoStackCell with stack count overlays
+
+### **SwipePhotoView.swift**
+**Purpose**: Full-screen photo browsing with gesture navigation
+- TabView-based smooth swiping between photos
+- Close button and action toolbar
+- Thumbs up/down functionality placeholders
+- Share button with Reminora link generation
+- Pin button for adding photos to places
+- Swipe down to close gesture
+- Navigation dots for multi-photo stacks
+- AddPinFromPhotoView integration
+
+### **AddPinFromPhotoView.swift**
+**Purpose**: Interface for converting photos to places/pins
+- Photo preview with caption input
+- Location display from EXIF data
+- Save/Cancel functionality
+- Core Data Place creation
+- Metadata preservation (creation date, location)
+
+## Traditional Photo Management & Capture
 
 ### **PhotoLibraryView.swift**
 **Purpose**: System photo library browser
@@ -68,10 +103,12 @@
 **Purpose**: Advanced photo library with location filtering
 - Distance-based filtering (200m to 10km ranges)
 - Grid layout with distance overlays
-- Zoomable full-screen photo viewer
+- Coordinate display for search center
+- Zoomable full-screen photo viewer (PhotoZoomView)
 - Photo sharing and deep link generation
 - Integration with Photos app
-- PhotoZoomView with pinch/pan gestures
+- PhotoZoomView with pinch/pan gestures and swipe-down dismissal
+- SavePhotoToPlaces functionality for quick pin creation
 
 ### **NearbyPhotosWrapperView.swift**
 **Purpose**: Simple wrapper for places tab
@@ -89,11 +126,13 @@
 ### **PinDetailView.swift**
 **Purpose**: Detailed view for individual places (Facebook-style)
 - Full-width photo display
-- Action buttons: Map, Photos, Quick List, Share
+- Action buttons: Map (shows nearby places), Photos, Quick List, Share
 - Facebook-style caption below photo
 - Inline comments system with SimpleCommentsView
-- Map with nearby places
+- Map with nearby places at bottom
 - Deep link sharing functionality
+- Close button instead of back navigation
+- NearbyPlacesList sheet presentation for map button
 
 ### **SimpleCommentsView.swift**
 **Purpose**: Streamlined commenting system
@@ -185,10 +224,12 @@
 
 ## Key User Flows
 
-1. **Photo Capture Flow**: Add Tab → PhotoLibraryView → FullPhotoView → Save with location
-2. **Map Exploration**: PinMainView → PinBrowserView → Place selection → PinDetailView
-3. **Social Interaction**: PinDetailView → Comments → User profiles
-4. **List Management**: ListView → Create/manage lists → ListDetailView → Place browser
-5. **Discovery**: NearbyPhotosGridView → Distance filtering → Photo exploration
+1. **Photo Stack Flow**: Photos Tab → PhotoStackView → Tap stack → SwipePhotoView → Pin/Share
+2. **Photo to Pin Flow**: SwipePhotoView → Pin button → AddPinFromPhotoView → Save place
+3. **Map Exploration**: Pin Tab → PinMainView → PinBrowserView → Place selection → PinDetailView
+4. **Social Interaction**: PinDetailView → Comments → User profiles
+5. **List Management**: PinBrowserView → List combo box → Filter places by list
+6. **Discovery**: NearbyPhotosGridView → Distance filtering → PhotoZoomView → Photo exploration
+7. **Sharing Flow**: SwipePhotoView → Share → Create Place → Generate Reminora link → iOS share sheet
 
 The app demonstrates sophisticated SwiftUI architecture with strong separation of concerns, comprehensive data management, and modern iOS development patterns. The codebase shows careful attention to user experience with features like gesture handling, keyboard management, and smooth animations.

@@ -17,6 +17,7 @@ struct PinDetailView: View {
     @State private var showingShareSheet = false
     @State private var shareText = ""
     @State private var showingNearbyPhotos = false
+    @State private var showingNearbyPlaces = false
 
     init(place: Place, allPlaces: [Place], onBack: @escaping () -> Void) {
         self.place = place
@@ -209,8 +210,8 @@ struct PinDetailView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: onBack) {
                     HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                        Text("Back")
+                        Image(systemName: "xmark")
+                        Text("Close")
                     }
                 }
             }
@@ -224,8 +225,22 @@ struct PinDetailView: View {
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Done") {
+                            Button("Add") {
                                 showingNearbyPhotos = false
+                            }
+                        }
+                    }
+            }
+        }
+        .sheet(isPresented: $showingNearbyPlaces) {
+            NavigationView {
+                NearbyPlacesList(places: nearbyPlaces, centerLocation: Self.coordinate(item: place))
+                    .navigationTitle("Nearby Places")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") {
+                                showingNearbyPlaces = false
                             }
                         }
                     }
@@ -236,14 +251,7 @@ struct PinDetailView: View {
     // MARK: - Actions
 
     private func showNearbyPlaces() {
-        // Open Maps app at the place's location
-        let coordinate = Self.coordinate(item: place)
-        let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
-        mapItem.name = place.post?.isEmpty == false ? place.post : "Photo Location"
-        mapItem.openInMaps(launchOptions: [
-            MKLaunchOptionsMapCenterKey: NSValue(mkCoordinate: coordinate),
-            MKLaunchOptionsMapSpanKey: NSValue(mkCoordinateSpan: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01))
-        ])
+        showingNearbyPlaces = true
     }
 
     private func showNearbyPhotos() {

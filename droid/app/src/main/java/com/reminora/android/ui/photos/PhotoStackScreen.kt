@@ -1,0 +1,253 @@
+package com.reminora.android.ui.photos
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import coil.compose.AsyncImage
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PhotoStackScreen(
+    viewModel: PhotoStackViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Top app bar
+        TopAppBar(
+            title = {
+                Text(
+                    "Photos",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        )
+        
+        when {
+            !uiState.hasPermission -> {
+                PermissionRequestContent(
+                    onRequestPermission = { viewModel.requestPermission() }
+                )
+            }
+            uiState.isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            uiState.photoStacks.isEmpty() -> {
+                EmptyPhotosContent()
+            }
+            else -> {
+                PhotoStackGrid(
+                    photoStacks = uiState.photoStacks,
+                    onStackClick = { stack ->
+                        viewModel.selectStack(stack)
+                    }
+                )
+            }
+        }
+    }
+    
+    // Show photo viewer when stack is selected
+    if (uiState.selectedStack != null) {
+        SwipePhotoView(
+            stack = uiState.selectedStack!!,
+            initialIndex = uiState.selectedIndex,
+            onDismiss = { viewModel.clearSelection() },
+            onPin = { photo -> viewModel.pinPhoto(photo) },
+            onShare = { photo -> viewModel.sharePhoto(photo) }
+        )
+    }
+}
+
+@Composable
+private fun PermissionRequestContent(
+    onRequestPermission: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Photo,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Text(
+            text = "Photo Access Required",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = "Please allow access to your photo library to see your photos",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Button(
+            onClick = onRequestPermission,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Grant Access")
+        }
+    }
+}
+
+@Composable
+private fun EmptyPhotosContent() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.PhotoLibrary,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Text(
+            text = "No Photos Found",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = "Your photo library appears to be empty",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun PhotoStackGrid(
+    photoStacks: List<PhotoStack>,
+    onStackClick: (PhotoStack) -> Unit
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        contentPadding = PaddingValues(2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        items(photoStacks) { stack ->
+            PhotoStackCell(
+                stack = stack,
+                onClick = { onStackClick(stack) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun PhotoStackCell(
+    stack: PhotoStack,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable { onClick() }
+    ) {
+        // Load actual photo thumbnail
+        AsyncImage(
+            model = stack.primaryPhoto.uri,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        
+        // Stack indicator
+        if (stack.isStack) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(24.dp)
+                    .background(
+                        Color.Black.copy(alpha = 0.7f),
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stack.count.toString(),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
+}
+
+// Data classes
+data class PhotoStack(
+    val id: String,
+    val photos: List<Photo>,
+    val primaryPhoto: Photo
+) {
+    val isStack: Boolean get() = photos.size > 1
+    val count: Int get() = photos.size
+}
+
+data class Photo(
+    val id: String,
+    val uri: String,
+    val creationDate: Long,
+    val location: Location? = null
+)
+
+data class Location(
+    val latitude: Double,
+    val longitude: Double
+)

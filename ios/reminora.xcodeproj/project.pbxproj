@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		491FBCAE2E1F8B46000C36A4 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 491FBCAD2E1F8B46000C36A4 /* GoogleService-Info.plist */; };
+		491FBCBE2E232B9F000C36A4 /* app_icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 491FBCBD2E232B9F000C36A4 /* app_icon.png */; };
 		49540DC62E1C70A100886A08 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49540DC42E1C70A100886A08 /* ShareViewController.swift */; };
 		49540DC72E1C70A100886A08 /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 49540DC22E1C70A100886A08 /* MainInterface.storyboard */; };
 		49D0F5732E1DE50F004BABB0 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 49D0F5722E1DE50F004BABB0 /* GoogleSignIn */; };
@@ -60,6 +61,7 @@
 
 /* Begin PBXFileReference section */
 		491FBCAD2E1F8B46000C36A4 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		491FBCBD2E232B9F000C36A4 /* app_icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = app_icon.png; sourceTree = "<group>"; };
 		49540DC02E1C70A100886A08 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		49540DC12E1C70A100886A08 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/MainInterface.storyboard; sourceTree = "<group>"; };
 		49540DC32E1C70A100886A08 /* ReminoraShareExt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReminoraShareExt.entitlements; sourceTree = "<group>"; };
@@ -162,6 +164,7 @@
 				49F152112DE4BF3200573F48 /* reminoraUITests */,
 				49F152422DE4F3CA00573F48 /* Frameworks */,
 				49F151F02DE4BF3100573F48 /* Products */,
+				491FBCBD2E232B9F000C36A4 /* app_icon.png */,
 			);
 			sourceTree = "<group>";
 		};
@@ -341,6 +344,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				491FBCBE2E232B9F000C36A4 /* app_icon.png in Resources */,
 				491FBCAE2E1F8B46000C36A4 /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

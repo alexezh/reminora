@@ -14,9 +14,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.reminora.android.ui.map.MapScreen
-import com.reminora.android.ui.places.PlacesScreen
-import com.reminora.android.ui.lists.ListsScreen
-import com.reminora.android.ui.add.AddPlaceScreen
+import com.reminora.android.ui.photos.PhotoStackScreen
 import com.reminora.android.ui.profile.ProfileScreen
 
 sealed class BottomNavItem(
@@ -24,10 +22,8 @@ sealed class BottomNavItem(
     val title: String,
     val icon: ImageVector
 ) {
-    object Home : BottomNavItem("home", "Home", Icons.Default.Home)
-    object Add : BottomNavItem("add", "Add", Icons.Default.Add)
-    object Lists : BottomNavItem("lists", "Lists", Icons.Default.List)
-    object Places : BottomNavItem("places", "Places", Icons.Default.LocationOn)
+    object Pin : BottomNavItem("pin", "Pin", Icons.Default.LocationOn)
+    object Photos : BottomNavItem("photos", "Photos", Icons.Default.Photo)
     object Profile : BottomNavItem("profile", "Profile", Icons.Default.Person)
 }
 
@@ -45,27 +41,14 @@ fun MainScreen(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = BottomNavItem.Home.route,
+            startDestination = BottomNavItem.Pin.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(BottomNavItem.Home.route) {
+            composable(BottomNavItem.Pin.route) {
                 MapScreen()
             }
-            composable(BottomNavItem.Add.route) {
-                AddPlaceScreen(
-                    onPlaceAdded = {
-                        // Navigate back to home after adding place
-                        navController.navigate(BottomNavItem.Home.route) {
-                            popUpTo(BottomNavItem.Home.route) { inclusive = true }
-                        }
-                    }
-                )
-            }
-            composable(BottomNavItem.Lists.route) {
-                ListsScreen()
-            }
-            composable(BottomNavItem.Places.route) {
-                PlacesScreen()
+            composable(BottomNavItem.Photos.route) {
+                PhotoStackScreen()
             }
             composable(BottomNavItem.Profile.route) {
                 ProfileScreen(onSignOut = onSignOut)
@@ -77,10 +60,8 @@ fun MainScreen(
 @Composable
 fun BottomNavigationBar(navController: NavHostController) {
     val items = listOf(
-        BottomNavItem.Home,
-        BottomNavItem.Add,
-        BottomNavItem.Lists,
-        BottomNavItem.Places,
+        BottomNavItem.Pin,
+        BottomNavItem.Photos,
         BottomNavItem.Profile
     )
     

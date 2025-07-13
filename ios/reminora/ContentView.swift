@@ -31,10 +31,18 @@ struct ContentView: View {
                 }
             }
             .tabItem {
-                Image(systemName: "house")
-                Text("Home")
+                Image(systemName: "mappin.and.ellipse")
+                Text("Pin")
             }
             .tag(0)
+
+            // Photos Tab
+            PhotoStackView()
+                .tabItem {
+                    Image(systemName: "photo.stack")
+                    Text("Photos")
+                }
+                .tag(1)
 
             // Profile Tab
             ProfileView()

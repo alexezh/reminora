@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,10 +22,11 @@ import com.reminora.android.ui.places.PlaceListItem
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
-    MomentMainViewModel: MomentMainViewModel = hiltViewModel()
+    pinBrowserViewModel: PinBrowserViewModel = hiltViewModel()
 ) {
-    val mapState by MomentMainViewModel.mapState.collectAsState()
+    val uiState by pinBrowserViewModel.uiState.collectAsState()
     var searchText by remember { mutableStateOf("") }
+    var selectedListId by remember { mutableStateOf("all") }
     
     Box(modifier = Modifier.fillMaxSize()) {
         // Map placeholder (we'll implement Google Maps later)
@@ -75,7 +77,7 @@ fun MapScreen(
                     value = searchText,
                     onValueChange = { 
                         searchText = it
-                        MomentMainViewModel.searchPlaces(it)
+                        pinBrowserViewModel.searchPlaces(it)
                     },
                     placeholder = { Text("Search places...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
@@ -111,35 +113,73 @@ fun MapScreen(
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Header
+                    // Header with list combo box and add button
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "Saved Places",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "${mapState.places.size} places",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        // List combo box
+                        var expanded by remember { mutableStateOf(false) }
+                        
+                        ExposedDropdownMenuBox(
+                            expanded = expanded,
+                            onExpandedChange = { expanded = !expanded }
+                        ) {
+                            OutlinedTextField(
+                                value = uiState.selectedListName,
+                                onValueChange = {},
+                                readOnly = true,
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .width(150.dp),
+                                textStyle = MaterialTheme.typography.bodyMedium
+                            )
+                            
+                            ExposedDropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                uiState.availableLists.forEach { list ->
+                                    DropdownMenuItem(
+                                        text = { Text(list.name) },
+                                        onClick = {
+                                            selectedListId = list.id
+                                            pinBrowserViewModel.selectList(list.id)
+                                            expanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        
+                        // Add button
+                        Button(
+                            onClick = { pinBrowserViewModel.showAddPhoto() },
+                            modifier = Modifier.height(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Add",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add")
+                        }
                     }
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     // Places list
-                    if (mapState.isLoading) {
+                    if (uiState.isLoading) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
                             CircularProgressIndicator()
                         }
-                    } else if (mapState.places.isEmpty()) {
+                    } else if (uiState.filteredPlaces.isEmpty()) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
@@ -148,12 +188,12 @@ fun MapScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    text = "No places saved yet",
+                                    text = "No places found",
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
-                                    text = "Add some places to see them here",
+                                    text = "Try a different list or add some places",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -163,10 +203,10 @@ fun MapScreen(
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(mapState.places) { place ->
+                            items(uiState.filteredPlaces) { place ->
                                 PlaceListItem(
                                     place = place,
-                                    onClick = { MomentMainViewModel.selectPlace(place) }
+                                    onClick = { pinBrowserViewModel.selectPlace(place) }
                                 )
                             }
                         }

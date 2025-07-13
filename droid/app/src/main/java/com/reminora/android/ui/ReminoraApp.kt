@@ -12,7 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.reminora.android.ui.auth.AuthScreen
 import com.reminora.android.ui.auth.AuthViewModel
-import com.reminora.android.ui.home.HomeScreen
+import com.reminora.android.ui.main.MainScreen
 
 @Composable
 fun ReminoraApp(
@@ -44,7 +44,7 @@ fun ReminoraApp(
                 }
                 
                 composable("home") {
-                    HomeScreen(
+                    MainScreen(
                         onSignOut = {
                             navController.navigate("auth") {
                                 popUpTo("home") { inclusive = true }

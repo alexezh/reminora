@@ -485,6 +485,7 @@ struct PhotoZoomView: View {
     @State private var isLoadingImage = false
     @State private var showingShareSheet = false
     @State private var shareText = ""
+    @State private var dragOffset: CGSize = .zero
     
     init(assets: [PHAsset], initialIndex: Int, onDismiss: @escaping () -> Void) {
         self.assets = assets
@@ -567,6 +568,27 @@ struct PhotoZoomView: View {
         }
         .background(Color.black.ignoresSafeArea())
         .statusBarHidden()
+        .offset(y: dragOffset.height)
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    // Only allow vertical downward drags
+                    if value.translation.height > 0 {
+                        dragOffset = CGSize(width: 0, height: value.translation.height)
+                    }
+                }
+                .onEnded { value in
+                    // If dragged down more than 150 points, dismiss
+                    if value.translation.height > 150 {
+                        onDismiss()
+                    } else {
+                        // Snap back to original position
+                        withAnimation(.spring()) {
+                            dragOffset = .zero
+                        }
+                    }
+                }
+        )
         .sheet(isPresented: $showingShareSheet) {
             ShareSheet(text: shareText)
         }

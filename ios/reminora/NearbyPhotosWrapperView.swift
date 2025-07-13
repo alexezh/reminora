@@ -27,7 +27,7 @@ struct NearbyPhotosWrapperView: View {
                 
                 Spacer()
             }
-            .navigationTitle("Places")
+            .navigationTitle("Pins")
             .sheet(isPresented: $showingPhotos) {
                 NearbyPhotosGridView(centerLocation: nil)
             }

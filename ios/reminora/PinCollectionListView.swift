@@ -76,7 +76,7 @@ struct SavedListView: View {
                     LazyVStack(spacing: 8) {
                         // Ordered lists with Shared and Quick at top
                         ForEach(orderedLists, id: \.id) { list in
-                            SavedListCard(
+                            PinCollectionCard(
                                 title: list.name ?? "Untitled List",
                                 subtitle: "\(itemCount(for: list)) items",
                                 icon: iconForList(list.name ?? ""),
@@ -120,7 +120,7 @@ struct SavedListView: View {
     }
 }
 
-struct SavedListCard: View {
+struct PinCollectionCard: View {
     let title: String
     let subtitle: String
     let icon: String

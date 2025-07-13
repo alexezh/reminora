@@ -3,6 +3,8 @@ import Photos
 import PhotosUI
 import UIKit
 import CoreData
+import MapKit
+import CoreLocation
 
 struct PhotoStackView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -510,8 +512,7 @@ struct SwipePhotoView: View {
     @State private var currentIndex: Int
     @State private var showingNearbyPhotos = false
     @State private var showingAddPin = false
-    @State private var showingShareSheet = false
-    @State private var shareText = ""
+    @State private var shareData: PhotoShareData?
     @State private var isLoading = false
     @State private var dragOffset: CGSize = .zero
     @State private var currentPreference: PhotoPreferenceType = .neutral
@@ -680,8 +681,9 @@ struct SwipePhotoView: View {
                 )
             }
         }
-        .sheet(isPresented: $showingShareSheet) {
-            ShareSheet(text: shareText)
+        .sheet(item: $shareData) { data in
+            let _ = print("PhotoStackView ShareSheet - text: '\(data.message)', url: '\(data.link)'")
+            ShareSheet(text: data.message, url: data.link)
         }
     }
     
@@ -776,11 +778,12 @@ struct SwipePhotoView: View {
         
         let reminoraLink = "https://reminora.app/place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)"
         
-        let shareMessage = "Check out this photo on Reminora!\n\n\(reminoraLink)"
-        print("Share message: \(shareMessage)")
+        let message = "Check out this photo on Reminora!"
+        print("Share message: \(message)")
+        print("Share URL: \(reminoraLink)")
         
-        shareText = shareMessage
-        showingShareSheet = true
+        shareData = PhotoShareData(message: message, link: reminoraLink)
+        print("PhotoStackView - After assignment - shareData:", shareData?.message ?? "nil", shareData?.link ?? "nil")
     }
     
     private func coordinate(for place: Place) -> CLLocationCoordinate2D {
@@ -1044,6 +1047,11 @@ struct SwipePhotoImageView: View {
     }
 }
 
+struct MapPin: Identifiable {
+    let id = UUID()
+    let coordinate: CLLocationCoordinate2D
+}
+
 struct AddPinFromPhotoView: View {
     let asset: PHAsset
     let onDismiss: () -> Void
@@ -1084,12 +1092,13 @@ struct AddPinFromPhotoView: View {
                         .lineLimit(3...6)
                 }
                 
-                // Location info
+                // Location info with map
                 if let location = asset.location {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Location")
                             .font(.headline)
                         
+                        // Coordinates
                         HStack {
                             Image(systemName: "location.fill")
                                 .foregroundColor(.blue)
@@ -1098,6 +1107,17 @@ struct AddPinFromPhotoView: View {
                                 .foregroundColor(.secondary)
                                 .monospaced()
                         }
+                        
+                        // Mini map
+                        Map(coordinateRegion: .constant(MKCoordinateRegion(
+                            center: location.coordinate,
+                            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                        )), annotationItems: [MapPin(coordinate: location.coordinate)]) { pin in
+                            MapMarker(coordinate: pin.coordinate, tint: .red)
+                        }
+                        .frame(height: 150)
+                        .cornerRadius(8)
+                        .disabled(true) // Make map non-interactive
                     }
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
@@ -1191,6 +1211,13 @@ struct AddPinFromPhotoView: View {
             }
         }
     }
+}
+
+
+struct PhotoShareData: Identifiable {
+    let id = UUID()
+    let message: String
+    let link: String
 }
 
 #Preview {

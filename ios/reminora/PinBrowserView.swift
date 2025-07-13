@@ -275,7 +275,7 @@ struct PinBrowserView: View {
             }
         }
         .sheet(isPresented: $showingAddPhoto) {
-            PhotoLibraryView(isPresented: $showingAddPhoto)
+            PhotoStackView()
         }
         .onAppear {
             // Center map on first place if available

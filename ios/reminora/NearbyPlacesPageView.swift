@@ -307,9 +307,37 @@ struct NearbyPlaceCard: View {
 
 struct ShareSheet: UIViewControllerRepresentable {
     let text: String
+    let url: String?
+    
+    init(text: String, url: String? = nil) {
+        self.text = text
+        self.url = url
+    }
     
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        print("ShareSheet - text: '\(text)'")
+        print("ShareSheet - url: '\(url ?? "nil")'")
+        
+        var activityItems: [Any] = []
+        
+        // For SMS/Messages, combine text and URL into a single message
+        if let url = url, !url.isEmpty {
+            let combinedMessage = "\(text)\n\n\(url)"
+            print("ShareSheet - combined message: '\(combinedMessage)'")
+            activityItems.append(combinedMessage)
+        } else {
+            print("ShareSheet - using text only: '\(text)'")
+            activityItems.append(text)
+        }
+        
+        print("ShareSheet - activityItems count: \(activityItems.count)")
+        
+        let activityViewController = UIActivityViewController(
+            activityItems: activityItems,
+            applicationActivities: nil
+        )
+        
+        return activityViewController
     }
     
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}

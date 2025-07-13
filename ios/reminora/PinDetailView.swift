@@ -14,8 +14,7 @@ struct PinDetailView: View {
 
     @State private var region: MKCoordinateRegion
     @State private var showingListPicker = false
-    @State private var showingShareSheet = false
-    @State private var shareText = ""
+    @State private var shareData: PinShareData?
     @State private var showingNearbyPhotos = false
     @State private var showingNearbyPlaces = false
 
@@ -216,8 +215,9 @@ struct PinDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingShareSheet) {
-            ShareSheet(text: shareText)
+        .sheet(item: $shareData) { data in
+            let _ = print("PinDetailView ShareSheet - text: '\(data.message)', url: '\(data.link)'")
+            ShareSheet(text: data.message, url: data.link)
         }
         .sheet(isPresented: $showingNearbyPhotos) {
             NavigationView {
@@ -304,17 +304,16 @@ struct PinDetailView: View {
     private func sharePlace() {
         let coord = Self.coordinate(item: place)
         let placeId = place.objectID.uriRepresentation().absoluteString
-        let encodedName =
-            (place.post ?? "Unknown Place").addingPercentEncoding(
-                withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let encodedName = (place.post ?? "Unknown Place").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let lat = coord.latitude
         let lon = coord.longitude
 
-        let reminoraLink =
-            "https://reminora.app/place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)"
+        let reminoraLink = "https://reminora.app/place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)"
 
-        shareText = "Check out \(place.post ?? "this place") on Reminora!\n\n\(reminoraLink)"
-        showingShareSheet = true
+        let message = "Check out \(place.post ?? "this place") on Reminora!"
+        
+        shareData = PinShareData(message: message, link: reminoraLink)
+        print("PinDetailView - After assignment - shareData:", shareData?.message ?? "nil", shareData?.link ?? "nil")
     }
 
     // Helper methods
@@ -350,3 +349,9 @@ private let shortFormatter: DateFormatter = {
     formatter.timeStyle = .none
     return formatter
 }()
+
+struct PinShareData: Identifiable {
+    let id = UUID()
+    let message: String
+    let link: String
+}

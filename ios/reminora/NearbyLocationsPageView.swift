@@ -20,10 +20,13 @@ struct NearbyLocationsPageView: View {
     private let categories = ["All", "Restaurant", "Cafe", "Shopping", "Gas Station", "Bank", "Hospital", "Hotel", "Tourist Attraction"]
     
     var filteredPlaces: [NearbyLocation] {
-        if selectedCategory == "All" {
-            return nearbyPlaces
+        let filtered = if selectedCategory == "All" {
+            nearbyPlaces
+        } else {
+            nearbyPlaces.filter { $0.category.contains(selectedCategory.lowercased()) }
         }
-        return nearbyPlaces.filter { $0.category.contains(selectedCategory.lowercased()) }
+        print("🗺️ NearbyLocations - filteredPlaces: \(filtered.count) places for category '\(selectedCategory)'")
+        return filtered
     }
     
     var body: some View {
@@ -131,11 +134,16 @@ struct NearbyLocationsPageView: View {
             }
         }
         .task {
+            print("🗺️ NearbyLocations - View appeared, loading places...")
             await loadNearbyPlaces()
+        }
+        .onAppear {
+            print("🗺️ NearbyLocations - onAppear called with searchLocation: \(searchLocation), locationName: \(locationName)")
         }
     }
     
     private func loadNearbyPlaces() async {
+        print("🗺️ NearbyLocations - Starting to load places for location: \(searchLocation)")
         await MainActor.run {
             isLoading = true
         }
@@ -161,6 +169,7 @@ struct NearbyLocationsPageView: View {
         var allPlaces: [NearbyLocation] = []
         
         for searchTerm in searchTerms {
+            print("🗺️ NearbyLocations - Searching for: \(searchTerm)")
             let request = MKLocalSearch.Request()
             request.naturalLanguageQuery = searchTerm
             request.region = MKCoordinateRegion(
@@ -172,6 +181,7 @@ struct NearbyLocationsPageView: View {
             do {
                 let search = MKLocalSearch(request: request)
                 let response = try await search.start()
+                print("🗺️ NearbyLocations - Found \(response.mapItems.count) items for \(searchTerm)")
                 
                 let places = response.mapItems.prefix(5).compactMap { item -> NearbyLocation? in
                     guard let location = item.placemark.location else { return nil }
@@ -198,10 +208,12 @@ struct NearbyLocationsPageView: View {
         
         // Remove duplicates and sort by distance
         let uniquePlaces = Array(Set(allPlaces)).sorted { $0.distance < $1.distance }
+        print("🗺️ NearbyLocations - Total unique places found: \(uniquePlaces.count)")
         
         await MainActor.run {
             self.nearbyPlaces = uniquePlaces
             self.isLoading = false
+            print("🗺️ NearbyLocations - Updated nearbyPlaces with \(uniquePlaces.count) places, isLoading: \(isLoading)")
         }
     }
     

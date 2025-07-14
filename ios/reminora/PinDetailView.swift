@@ -268,18 +268,10 @@ struct PinDetailView: View {
             }
         }
         .sheet(isPresented: $showingNearbyPlaces) {
-            NavigationView {
-                NearbyPlacesList(places: nearbyPlaces, centerLocation: Self.coordinate(item: place))
-                    .navigationTitle("Nearby Places")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Done") {
-                                showingNearbyPlaces = false
-                            }
-                        }
-                    }
-            }
+            NearbyLocationsPageView(
+                searchLocation: Self.coordinate(item: place),
+                locationName: place.post ?? "this location"
+            )
         }
     }
 

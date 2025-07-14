@@ -48,7 +48,7 @@ struct PhotoStackView: View {
                     // Filter buttons
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
-                            ForEach([PhotoFilterType.notDisliked, .all, .favorites, .dislikes], id: \.self) { filter in
+                            ForEach([PhotoFilterType.notDisliked, .favorites, .dislikes, .all], id: \.self) { filter in
                                 Button(action: {
                                     currentFilter = filter
                                     applyFilter()
@@ -119,7 +119,9 @@ struct PhotoStackView: View {
                                             onTap: {
                                                 print("PhotoStackCell tapped for stack with \(stack.assets.count) assets")
                                                 selectedStackIndex = 0
-                                                selectedStack = stack
+                                                withAnimation(.easeInOut(duration: 0.2)) {
+                                                    selectedStack = stack
+                                                }
                                                 print("Set selectedStack")
                                             }
                                         )
@@ -174,21 +176,33 @@ struct PhotoStackView: View {
                 }
             }
         }
-        .sheet(item: $selectedStack) { stack in
-            SwipePhotoView(
-                stack: stack,
-                initialIndex: selectedStackIndex,
-                onDismiss: {
-                    print("SwipePhotoView dismissed")
-                    selectedStack = nil
-                    // Refresh filter to remove disliked photos from view
-                    applyFilter()
+        .overlay(
+            Group {
+                if let selectedStack = selectedStack {
+                    SwipePhotoView(
+                        stack: selectedStack,
+                        initialIndex: selectedStackIndex,
+                        onDismiss: {
+                            print("SwipePhotoView dismissed")
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                self.selectedStack = nil
+                            }
+                            // Refresh filter to remove disliked photos from view
+                            applyFilter()
+                        }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.1, anchor: .center)
+                            .combined(with: .opacity),
+                        removal: .scale(scale: 0.1, anchor: .center)
+                            .combined(with: .opacity)
+                    ))
+                    .onAppear {
+                        print("Sheet presented with stack of \(selectedStack.assets.count) assets")
+                    }
                 }
-            )
-            .onAppear {
-                print("Sheet presented with stack of \(stack.assets.count) assets")
             }
-        }
+        )
     }
     
     private func requestPhotoAccess() {
@@ -538,7 +552,9 @@ struct SwipePhotoView: View {
     
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            // Full-screen black background
+            Color.black
+                .ignoresSafeArea(.all)
             
             if !isPreferenceManagerReady {
                 // Show loading UI while preference manager is initializing
@@ -551,8 +567,24 @@ struct SwipePhotoView: View {
                         .padding(.top, 16)
                 }
             } else {
-                VStack(spacing: 0) {
-                    // Top info bar with navigation and date
+                // Full-screen photo display
+                if !stack.assets.isEmpty {
+                    TabView(selection: $currentIndex) {
+                        ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                            SwipePhotoImageView(asset: asset, isLoading: $isLoading)
+                                .tag(index)
+                        }
+                    }
+                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                    .ignoresSafeArea(.all)
+                } else {
+                    // Fallback for empty stack
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                }
+                
+                // Floating top navigation overlay
+                VStack {
                     VStack(spacing: 4) {
                         HStack {
                             // Navigation-style back button
@@ -563,6 +595,7 @@ struct SwipePhotoView: View {
                                     .font(.title2)
                                     .fontWeight(.medium)
                                     .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                             }
                             
                             Spacer()
@@ -576,6 +609,7 @@ struct SwipePhotoView: View {
                                     .fontWeight(.medium)
                                     .foregroundColor(.white)
                                     .rotationEffect(.degrees(90))
+                                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                             }
                         }
                         .padding(.horizontal, 16)
@@ -586,37 +620,35 @@ struct SwipePhotoView: View {
                             if let location = currentAsset.location {
                                 Text(formatLocation(location))
                                     .font(.caption)
-                                    .foregroundColor(.white.opacity(0.8))
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                             }
                             
                             if let date = currentAsset.creationDate {
                                 Text(formatDate(date))
                                     .font(.caption)
-                                    .foregroundColor(.white.opacity(0.8))
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                             }
                         }
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)
                     }
-                    
-                    // Photo display using TabView for smooth swiping
-                    if !stack.assets.isEmpty {
-                        TabView(selection: $currentIndex) {
-                            ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                                SwipePhotoImageView(asset: asset, isLoading: $isLoading)
-                                    .tag(index)
-                            }
-                        }
-                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                    } else {
-                        // Fallback for empty stack
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    }
+                    .background(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.black.opacity(0.6),
+                                Color.black.opacity(0.3),
+                                Color.clear
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
                     
                     Spacer()
                     
-                    // Bottom section with thumbnails and action buttons
+                    // Floating bottom section with thumbnails and action buttons
                     VStack(spacing: 12) {
                         // Thumbnail strip (iOS Photos style)
                         if stack.assets.count > 1 {
@@ -645,9 +677,11 @@ struct SwipePhotoView: View {
                                     Image(systemName: "square.and.arrow.up")
                                         .font(.title2)
                                         .foregroundColor(.white)
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                                     Text("Share")
                                         .font(.caption2)
                                         .foregroundColor(.white)
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                                 }
                             }
                             
@@ -657,9 +691,11 @@ struct SwipePhotoView: View {
                                     Image(systemName: currentPreference == .like ? "heart.fill" : "heart")
                                         .font(.title2)
                                         .foregroundColor(currentPreference == .like ? .red : .white)
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                                     Text("Favorite")
                                         .font(.caption2)
                                         .foregroundColor(.white)
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                                 }
                             }
                             
@@ -669,9 +705,11 @@ struct SwipePhotoView: View {
                                     Image(systemName: currentPreference == .dislike ? "x.circle.fill" : "x.circle")
                                         .font(.title2)
                                         .foregroundColor(currentPreference == .dislike ? .orange : .white)
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                                     Text("Reject")
                                         .font(.caption2)
                                         .foregroundColor(.white)
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                                 }
                             }
                             
@@ -683,15 +721,28 @@ struct SwipePhotoView: View {
                                     Image(systemName: "mappin.and.ellipse")
                                         .font(.title2)
                                         .foregroundColor(.white)
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                                     Text("Pin")
                                         .font(.caption2)
                                         .foregroundColor(.white)
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                                 }
                             }
                         }
                         .padding(.horizontal, 32)
-                        .padding(.bottom, 34) // Safe area padding
                     }
+                    .background(
+                        LinearGradient(
+                            gradient: Gradient(colors: [
+                                Color.clear,
+                                Color.black.opacity(0.3),
+                                Color.black.opacity(0.6)
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .padding(.bottom, 34) // Safe area padding
                 }
             }
         }

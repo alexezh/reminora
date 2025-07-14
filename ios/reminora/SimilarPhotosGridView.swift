@@ -9,7 +9,8 @@ struct SimilarPhotosGridView: View {
     
     @State private var similarPhotos: [PhotoSimilarity] = []
     @State private var isLoading = true
-    @State private var selectedThreshold: Float = 0.7
+    @State private var selectedPhoto: PHAsset?
+    @State private var showingSwipeView = false
     
     private let columns = [
         GridItem(.flexible()),
@@ -17,48 +18,9 @@ struct SimilarPhotosGridView: View {
         GridItem(.flexible())
     ]
     
-    private let thresholds: [Float] = [0.5, 0.6, 0.7, 0.8, 0.9]
-    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Threshold selector
-                VStack(spacing: 8) {
-                    Text("Similarity Level")
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    
-                    HStack(spacing: 8) {
-                        ForEach(thresholds, id: \.self) { threshold in
-                            Button(action: {
-                                selectedThreshold = threshold
-                                findSimilarPhotos()
-                            }) {
-                                Text("\(Int(threshold * 100))%")
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        selectedThreshold == threshold 
-                                            ? Color.blue 
-                                            : Color.gray.opacity(0.2)
-                                    )
-                                    .foregroundColor(
-                                        selectedThreshold == threshold 
-                                            ? .white 
-                                            : .primary
-                                    )
-                                    .cornerRadius(16)
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color(.systemBackground))
-                
-                Divider()
                 
                 // Results
                 if isLoading {
@@ -78,7 +40,7 @@ struct SimilarPhotosGridView: View {
                             .font(.title2)
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
-                        Text("Try lowering the similarity threshold")
+                        Text("No visually similar photos found")
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -95,8 +57,10 @@ struct SimilarPhotosGridView: View {
                                         similarity: similarity.similarity,
                                         rank: index + 1
                                     ) {
-                                        // Handle photo tap - could open full view or select
-                                        // For now, we'll just dismiss and show that photo
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            selectedPhoto = asset
+                                            showingSwipeView = true
+                                        }
                                     }
                                 }
                             }
@@ -137,6 +101,30 @@ struct SimilarPhotosGridView: View {
                 }
             }
         }
+        .overlay(
+            Group {
+                if showingSwipeView, let photo = selectedPhoto {
+                    // Create a temporary PhotoStack for single photo display  
+                    let singlePhotoStack = PhotoStack(assets: [photo])
+                    SwipePhotoView(
+                        stack: singlePhotoStack,
+                        initialIndex: 0,
+                        onDismiss: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                showingSwipeView = false
+                                selectedPhoto = nil
+                            }
+                        }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.1, anchor: .center)
+                            .combined(with: .opacity),
+                        removal: .scale(scale: 0.1, anchor: .center)
+                            .combined(with: .opacity)
+                    ))
+                }
+            }
+        )
         .onAppear {
             findSimilarPhotos()
         }
@@ -149,7 +137,7 @@ struct SimilarPhotosGridView: View {
             let results = await PhotoEmbeddingService.shared.findSimilarPhotos(
                 to: targetAsset,
                 in: viewContext,
-                threshold: selectedThreshold,
+                threshold: 0.6, // Fixed threshold for better results
                 limit: 50 // Show more results in grid view
             )
             

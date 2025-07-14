@@ -133,7 +133,7 @@ class PhotoEmbeddingService {
         print("📊 Current embedding waterline: \(waterline?.description ?? "none")")
         
         let fetchOptions = PHFetchOptions()
-        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
+        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)] // Most recent first
         fetchOptions.includeHiddenAssets = false
         
         // Only fetch photos newer than waterline
@@ -187,6 +187,7 @@ class PhotoEmbeddingService {
         }
         
         // Update waterline to latest processed photo date
+        // Since we're processing newest first, we want the oldest date we processed
         if let latestDate = latestProcessedDate {
             setEmbeddingWaterline(latestDate)
             print("📊 Updated embedding waterline to: \(latestDate)")

@@ -1000,7 +1000,9 @@ struct NearbyPhotosMainView: View {
                                         centerLocation: centerLocation,
                                         onTap: {
                                             selectedStackIndex = 0
-                                            selectedStack = stack
+                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                selectedStack = stack
+                                            }
                                         }
                                     )
                                     .frame(width: squareSize, height: squareSize)
@@ -1053,17 +1055,29 @@ struct NearbyPhotosMainView: View {
         .onChange(of: selectedRange) { _, _ in
             applyFilter()
         }
-        .sheet(item: $selectedStack) { stack in
-            SwipePhotoView(
-                stack: stack,
-                initialIndex: selectedStackIndex,
-                onDismiss: {
-                    selectedStack = nil
-                    // Refresh filter to remove disliked photos from view
-                    applyFilter()
+        .overlay(
+            Group {
+                if let selectedStack = selectedStack {
+                    SwipePhotoView(
+                        stack: selectedStack,
+                        initialIndex: selectedStackIndex,
+                        onDismiss: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                self.selectedStack = nil
+                            }
+                            // Refresh filter to remove disliked photos from view
+                            applyFilter()
+                        }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.1, anchor: .center)
+                            .combined(with: .opacity),
+                        removal: .scale(scale: 0.1, anchor: .center)
+                            .combined(with: .opacity)
+                    ))
                 }
-            )
-        }
+            }
+        )
     }
     
     private func requestPhotoAccess() {

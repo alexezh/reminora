@@ -14,13 +14,20 @@ struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject private var authService: AuthenticationService
 
-    @State private var selectedTab = 0
+    @State private var selectedTab = UserDefaults.standard.integer(forKey: "selectedTab")
     @State private var showPhotoLibrary = false
     @State private var showingSharedPlace = false
     @State private var sharedPlace: Place?
 
     var body: some View {
         TabView(selection: $selectedTab) {
+            // Photos Tab
+            PhotoStackView()
+                .tabItem {
+                    Image(systemName: "photo.stack")
+                }
+                .tag(0)
+
             // Home/Map Tab
             ZStack {
                 PinMainView()
@@ -36,15 +43,7 @@ struct ContentView: View {
                 Image(systemName: "mappin.and.ellipse")
                 Text("Pin")
             }
-            .tag(0)
-
-            // Photos Tab
-            PhotoStackView()
-                .tabItem {
-                    Image(systemName: "photo.stack")
-                    Text("Photos")
-                }
-                .tag(1)
+            .tag(1)
 
             // Profile Tab
             ProfileView()
@@ -52,9 +51,12 @@ struct ContentView: View {
                     Image(systemName: "person.circle")
                     Text("Profile")
                 }
-                .tag(4)
+                .tag(2)
         }
         .accentColor(.blue)
+        .onChange(of: selectedTab) { _, newValue in
+            UserDefaults.standard.set(newValue, forKey: "selectedTab")
+        }
         .onAppear {
             // Start background embedding computation for all photos
             startBackgroundEmbeddingComputation()
@@ -66,7 +68,7 @@ struct ContentView: View {
                 print("🔗 ContentView navigating to shared place: \(place.post ?? "Unknown")")
                 
                 // Switch to Pin tab and show the shared place
-                selectedTab = 0
+                selectedTab = 1
                 sharedPlace = place
                 showingSharedPlace = true
                 

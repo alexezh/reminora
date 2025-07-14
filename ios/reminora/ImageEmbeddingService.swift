@@ -32,23 +32,32 @@ class ImageEmbeddingService {
         guard let cgImage = image.cgImage else { return nil }
         
         return await withCheckedContinuation { continuation in
+            var hasResumed = false
+            
+            let resumeOnce: (([Float]?) -> Void) = { result in
+                if !hasResumed {
+                    hasResumed = true
+                    continuation.resume(returning: result)
+                }
+            }
+            
             let request = VNGenerateImageFeaturePrintRequest { request, error in
                 if let error = error {
                     print("Feature print generation failed: \(error)")
-                    continuation.resume(returning: nil)
+                    resumeOnce(nil)
                     return
                 }
                 
                 guard let results = request.results as? [VNFeaturePrintObservation],
                       let featurePrint = results.first else {
                     print("No feature print results")
-                    continuation.resume(returning: nil)
+                    resumeOnce(nil)
                     return
                 }
                 
                 // Convert feature print to float array
                 let embedding = self.featurePrintToFloatArray(featurePrint)
-                continuation.resume(returning: embedding)
+                resumeOnce(embedding)
             }
             
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
@@ -56,7 +65,7 @@ class ImageEmbeddingService {
                 try handler.perform([request])
             } catch {
                 print("Failed to perform feature print request: \(error)")
-                continuation.resume(returning: nil)
+                resumeOnce(nil)
             }
         }
     }

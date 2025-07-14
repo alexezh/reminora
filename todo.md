@@ -1,6 +1,8 @@
 add collections to photo view, following quick collection in lightroom
 button in the corner of picture. But then we do not have much room on toolbar. 
 
+maybe use pink idea - one button for creating lists ? 
+
 add profile page for person which has a list of places person shared. profile page has follow button. pins.
 add button with image or initials on shared 
 

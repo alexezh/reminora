@@ -14,6 +14,7 @@ import CoreLocation
 struct reminoraApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var authService = AuthenticationService.shared
+    @State private var pendingURL: URL?
 
     init() {
         configureGoogleSignIn()
@@ -35,6 +36,14 @@ struct reminoraApp: App {
                 }
             }
             .environmentObject(authService)
+            .onChange(of: authService.authState) { newState in
+                // Process pending URL when user becomes authenticated
+                if case .authenticated = newState, let url = pendingURL {
+                    print("🔗 User authenticated, processing pending URL: \(url)")
+                    handleReminoraLink(url)
+                    pendingURL = nil
+                }
+            }
             .onOpenURL { url in
                 print("🔗 onOpenURL called with: \(url)")
                 print("🔗 URL scheme: \(url.scheme ?? "nil")")
@@ -50,7 +59,13 @@ struct reminoraApp: App {
                 // Handle Reminora deep links
                 else if url.scheme == "reminora" {
                     print("🔗 Handling Reminora deep link")
-                    handleReminoraLink(url)
+                    if case .authenticated = authService.authState {
+                        print("🔗 User authenticated, processing link immediately")
+                        handleReminoraLink(url)
+                    } else {
+                        print("🔗 User not authenticated, storing pending URL")
+                        pendingURL = url
+                    }
                 } else {
                     print("🔗 Unhandled URL scheme: \(url.scheme ?? "nil")")
                 }

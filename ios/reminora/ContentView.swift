@@ -72,7 +72,7 @@ struct ContentView: View {
                 sharedPlace = place
                 showingSharedPlace = true
                 
-                print("🔗 ContentView set selectedTab=0, showing shared place")
+                print("🔗 ContentView set selectedTab=1, showing shared place")
             } else {
                 print("🔗 ❌ ContentView: notification object is not a Place")
             }

@@ -60,20 +60,21 @@ struct ListPickerView: View {
                 
                 // Lists
                 List {
-                    ForEach(userLists, id: \.id) { list in
+                    if userLists.isEmpty {
+                        // Show default "My Pins" option when no lists exist
                         Button(action: {
-                            saveToList(list)
+                            createDefaultListAndSave()
                         }) {
                             HStack {
-                                Image(systemName: list.name == "Quick" ? "bolt.fill" : "list.bullet")
-                                    .foregroundColor(list.name == "Quick" ? .orange : .blue)
+                                Image(systemName: "mappin.and.ellipse")
+                                    .foregroundColor(.blue)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(list.name ?? "Untitled List")
+                                    Text("My Pins")
                                         .font(.body)
                                         .foregroundColor(.primary)
                                     
-                                    Text("\(itemCount(for: list)) items")
+                                    Text("Create default list")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -87,10 +88,39 @@ struct ListPickerView: View {
                             }
                         }
                         .disabled(isSaving)
+                    } else {
+                        ForEach(userLists, id: \.id) { list in
+                            Button(action: {
+                                saveToList(list)
+                            }) {
+                                HStack {
+                                    Image(systemName: list.name == "Quick" ? "bolt.fill" : "list.bullet")
+                                        .foregroundColor(list.name == "Quick" ? .orange : .blue)
+                                    
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(list.name ?? "Untitled List")
+                                            .font(.body)
+                                            .foregroundColor(.primary)
+                                        
+                                        Text("\(itemCount(for: list)) items")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    if isSaving {
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                    }
+                                }
+                            }
+                            .disabled(isSaving)
+                        }
                     }
                 }
             }
-            .navigationTitle("Save to List")
+            .navigationTitle("Pin to List")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -136,6 +166,62 @@ struct ListPickerView: View {
             
         } catch {
             print("Failed to save place to list: \(error)")
+        }
+        
+        isSaving = false
+    }
+    
+    private func createDefaultListAndSave() {
+        guard let currentUser = authService.currentAccount else {
+            print("No current user found")
+            return
+        }
+        
+        isSaving = true
+        
+        // Create default "My Pins" list
+        let defaultList = UserList(context: viewContext)
+        defaultList.id = UUID().uuidString
+        defaultList.name = "My Pins"
+        defaultList.createdAt = Date()
+        defaultList.userId = currentUser.id
+        
+        // Save the place to the new default list
+        saveToNewList(defaultList)
+    }
+    
+    private func saveToNewList(_ list: UserList) {
+        // Create the place
+        let newPlace = Place(context: viewContext)
+        newPlace.dateAdded = Date()
+        newPlace.post = place.name
+        newPlace.url = place.address
+        
+        // Store location
+        let location = CLLocation(latitude: place.coordinate.latitude, longitude: place.coordinate.longitude)
+        if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
+            newPlace.setValue(locationData, forKey: "location")
+        }
+        
+        // Create list item
+        let listItem = ListItem(context: viewContext)
+        listItem.id = UUID().uuidString
+        listItem.placeId = newPlace.objectID.uriRepresentation().absoluteString
+        listItem.addedAt = Date()
+        listItem.listId = list.id ?? ""
+        
+        do {
+            try viewContext.save()
+            
+            // Show success feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+            
+            // Close the picker
+            isPresented = false
+            
+        } catch {
+            print("Failed to save place to new list: \(error)")
         }
         
         isSaving = false

@@ -81,12 +81,29 @@ enum OAuthProvider: String, CaseIterable {
 
 // MARK: - Authentication State
 
-enum AuthState {
+enum AuthState: Equatable {
     case loading
     case unauthenticated
     case needsHandle(AuthAccount, AuthSession)
     case authenticated(AuthAccount, AuthSession)
     case error(Error)
+    
+    static func == (lhs: AuthState, rhs: AuthState) -> Bool {
+        switch (lhs, rhs) {
+        case (.loading, .loading):
+            return true
+        case (.unauthenticated, .unauthenticated):
+            return true
+        case (.needsHandle(let lhsAccount, let lhsSession), .needsHandle(let rhsAccount, let rhsSession)):
+            return lhsAccount.id == rhsAccount.id && lhsSession.token == rhsSession.token
+        case (.authenticated(let lhsAccount, let lhsSession), .authenticated(let rhsAccount, let rhsSession)):
+            return lhsAccount.id == rhsAccount.id && lhsSession.token == rhsSession.token
+        case (.error, .error):
+            return true // We'll consider all errors as equal for simplicity
+        default:
+            return false
+        }
+    }
 }
 
 // MARK: - Secure Storage Keys

@@ -15,6 +15,7 @@ struct NearbyLocationsPageView: View {
     @State private var showingShareSheet = false
     @State private var shareText = ""
     @State private var showingListPicker = false
+    @State private var showingAddPin = false
     @State private var selectedPlace: NearbyLocation?
     
     private let categories = ["All", "Restaurant", "Cafe", "Shopping", "Gas Station", "Bank", "Hospital", "Hotel", "Tourist Attraction"]
@@ -113,7 +114,7 @@ struct NearbyLocationsPageView: View {
                                         sharePlace(place)
                                     },
                                     onSaveTap: {
-                                        savePlace(place)
+                                        pinPlace(place)
                                     }
                                 )
                             }
@@ -128,9 +129,16 @@ struct NearbyLocationsPageView: View {
         .sheet(isPresented: $showingShareSheet) {
             ShareSheet(text: shareText)
         }
-        .sheet(isPresented: $showingListPicker) {
+        .sheet(isPresented: $showingAddPin) {
             if let selectedPlace = selectedPlace {
-                ListPickerView(place: selectedPlace, isPresented: $showingListPicker)
+                NavigationView {
+                    AddPinFromLocationView(
+                        location: selectedPlace,
+                        onDismiss: {
+                            showingAddPin = false
+                        }
+                    )
+                }
             }
         }
         .task {
@@ -252,9 +260,9 @@ struct NearbyLocationsPageView: View {
         showingShareSheet = true
     }
     
-    private func savePlace(_ place: NearbyLocation) {
+    private func pinPlace(_ place: NearbyLocation) {
         selectedPlace = place
-        showingListPicker = true
+        showingAddPin = true
     }
     
     private func openInNativeMap(_ place: NearbyLocation) {
@@ -323,8 +331,8 @@ struct NearbyLocationCard: View {
                 
                 Button(action: onSaveTap) {
                     HStack(spacing: 4) {
-                        Image(systemName: "plus")
-                        Text("Save")
+                        Image(systemName: "mappin.and.ellipse")
+                        Text("Pin")
                     }
                     .font(.caption)
                     .foregroundColor(.blue)
@@ -416,5 +424,126 @@ extension CLLocationCoordinate2D: Hashable {
     
     public static func == (lhs: CLLocationCoordinate2D, rhs: CLLocationCoordinate2D) -> Bool {
         lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude
+    }
+}
+
+struct AddPinFromLocationView: View {
+    let location: NearbyLocation
+    let onDismiss: () -> Void
+    
+    @Environment(\.managedObjectContext) private var viewContext
+    @State private var caption: String = ""
+    @State private var isSaving = false
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                // Location preview with map
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Location")
+                        .font(.headline)
+                    
+                    // Location name and address
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(location.name)
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                        
+                        Text(location.address)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
+                        HStack {
+                            Image(systemName: "location.fill")
+                                .foregroundColor(.blue)
+                            Text(String(format: "%.4f, %.4f", location.coordinate.latitude, location.coordinate.longitude))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .monospaced()
+                        }
+                        .padding(.top, 2)
+                    }
+                    .padding(.bottom, 8)
+                    
+                    // Mini map
+                    Map(coordinateRegion: .constant(MKCoordinateRegion(
+                        center: location.coordinate,
+                        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                    )), annotationItems: [MapAnnotationItem(coordinate: location.coordinate)]) { pin in
+                        MapAnnotation(coordinate: pin.coordinate) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 20, height: 20)
+                                Circle()
+                                    .stroke(Color.white, lineWidth: 3)
+                                    .frame(width: 20, height: 20)
+                            }
+                        }
+                    }
+                    .frame(height: 200)
+                    .cornerRadius(12)
+                    .disabled(true) // Make map non-interactive
+                }
+                
+                // Caption input
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Add Caption")
+                        .font(.headline)
+                    
+                    TextField("What's special about this place?", text: $caption, axis: .vertical)
+                        .textFieldStyle(.roundedBorder)
+                        .lineLimit(3...6)
+                }
+                
+                Spacer()
+            }
+            .padding()
+        }
+        .navigationTitle("Add Pin")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button("Cancel") {
+                    onDismiss()
+                }
+            }
+            
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Save") {
+                    savePinFromLocation()
+                }
+                .disabled(isSaving)
+            }
+        }
+    }
+    
+    private func savePinFromLocation() {
+        isSaving = true
+        
+        let newPlace = Place(context: viewContext)
+        newPlace.dateAdded = Date()
+        newPlace.post = caption.isEmpty ? location.name : caption
+        newPlace.url = location.address
+        
+        // Store location
+        let clLocation = CLLocation(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+        if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: clLocation, requiringSecureCoding: false) {
+            newPlace.setValue(locationData, forKey: "location")
+        }
+        
+        do {
+            try viewContext.save()
+            
+            // Show success feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+            
+            isSaving = false
+            onDismiss()
+        } catch {
+            print("Failed to save pin from location: \(error)")
+            isSaving = false
+        }
     }
 }

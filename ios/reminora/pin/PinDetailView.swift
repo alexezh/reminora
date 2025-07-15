@@ -248,10 +248,11 @@ struct PinDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: onBack) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "xmark")
-                        Text("Close")
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.left")
+                        Text("Back")
                     }
+                    .foregroundColor(.blue)
                 }
             }
         }

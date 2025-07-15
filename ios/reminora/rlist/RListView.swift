@@ -431,14 +431,26 @@ struct RListPhotoView: View {
         options.isNetworkAccessAllowed = true
         
         await withCheckedContinuation { continuation in
+            var hasResumed = false
+            
             PHImageManager.default().requestImage(
                 for: asset,
                 targetSize: CGSize(width: 400, height: 400),
                 contentMode: .aspectFill,
                 options: options
-            ) { image, _ in
-                self.image = image
-                continuation.resume()
+            ) { image, info in
+                guard !hasResumed else { return }
+                
+                let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
+                
+                if !isDegraded {
+                    hasResumed = true
+                    self.image = image
+                    continuation.resume()
+                } else if image == nil {
+                    hasResumed = true
+                    continuation.resume()
+                }
             }
         }
     }
@@ -503,18 +515,30 @@ struct RListPhotoStackView: View {
         
         for (index, asset) in assets.prefix(3).enumerated() {
             await withCheckedContinuation { continuation in
+                var hasResumed = false
+                
                 PHImageManager.default().requestImage(
                     for: asset,
                     targetSize: CGSize(width: 200, height: 200),
                     contentMode: .aspectFill,
                     options: options
-                ) { image, _ in
-                    DispatchQueue.main.async {
-                        if index < self.images.count {
-                            self.images[index] = image
+                ) { image, info in
+                    guard !hasResumed else { return }
+                    
+                    let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
+                    
+                    if !isDegraded {
+                        hasResumed = true
+                        DispatchQueue.main.async {
+                            if index < self.images.count {
+                                self.images[index] = image
+                            }
                         }
+                        continuation.resume()
+                    } else if image == nil {
+                        hasResumed = true
+                        continuation.resume()
                     }
-                    continuation.resume()
                 }
             }
         }
@@ -633,14 +657,26 @@ struct RListPhotoGridView: View {
         options.isNetworkAccessAllowed = true
         
         await withCheckedContinuation { continuation in
+            var hasResumed = false
+            
             PHImageManager.default().requestImage(
                 for: asset,
                 targetSize: CGSize(width: 200, height: 200),
                 contentMode: .aspectFill,
                 options: options
-            ) { image, _ in
-                self.image = image
-                continuation.resume()
+            ) { image, info in
+                guard !hasResumed else { return }
+                
+                let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
+                
+                if !isDegraded {
+                    hasResumed = true
+                    self.image = image
+                    continuation.resume()
+                } else if image == nil {
+                    hasResumed = true
+                    continuation.resume()
+                }
             }
         }
     }
@@ -710,14 +746,26 @@ struct RListPhotoStackGridView: View {
         options.isNetworkAccessAllowed = true
         
         await withCheckedContinuation { continuation in
+            var hasResumed = false
+            
             PHImageManager.default().requestImage(
                 for: primaryAsset,
                 targetSize: CGSize(width: 200, height: 200),
                 contentMode: .aspectFill,
                 options: options
-            ) { image, _ in
-                self.image = image
-                continuation.resume()
+            ) { image, info in
+                guard !hasResumed else { return }
+                
+                let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
+                
+                if !isDegraded {
+                    hasResumed = true
+                    self.image = image
+                    continuation.resume()
+                } else if image == nil {
+                    hasResumed = true
+                    continuation.resume()
+                }
             }
         }
     }

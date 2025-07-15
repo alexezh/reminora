@@ -303,13 +303,28 @@ class PhotoEmbeddingService {
             options.resizeMode = .exact
             options.isNetworkAccessAllowed = true
             
+            var hasResumed = false
+            
             manager.requestImage(
                 for: asset,
                 targetSize: targetSize,
                 contentMode: .aspectFit,
                 options: options
-            ) { image, _ in
-                continuation.resume(returning: image)
+            ) { image, info in
+                // Only resume continuation once, and only for the final result
+                guard !hasResumed else { return }
+                
+                // Check if this is the final result (not a degraded/progressive image)
+                let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
+                
+                if !isDegraded {
+                    hasResumed = true
+                    continuation.resume(returning: image)
+                } else if image == nil {
+                    // If we get nil and it's not degraded, we're done
+                    hasResumed = true
+                    continuation.resume(returning: nil)
+                }
             }
         }
     }

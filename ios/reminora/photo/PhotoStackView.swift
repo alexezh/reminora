@@ -360,6 +360,7 @@ struct PhotoStackCell: View {
     
     @Environment(\.managedObjectContext) private var viewContext
     @State private var image: UIImage?
+    @State private var isInQuickList = false
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
@@ -383,6 +384,10 @@ struct PhotoStackCell: View {
     
     private var shouldShowDislikeIcon: Bool {
         !stack.isStack && primaryAssetPreference == .dislike
+    }
+    
+    private var shouldShowQuickListButton: Bool {
+        !stack.isStack // Only show for individual photos, not stacks
     }
     
     var body: some View {
@@ -437,6 +442,24 @@ struct PhotoStackCell: View {
                         }
                         .padding(4)
                     }
+                    
+                    // Quick List button (top-right for individual photos)
+                    if shouldShowQuickListButton {
+                        Button(action: {
+                            toggleQuickList()
+                        }) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.black.opacity(0.7))
+                                    .frame(width: 24, height: 24)
+                                
+                                Image(systemName: isInQuickList ? "circle.fill" : "circle")
+                                    .font(.caption2)
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .padding(4)
+                    }
                 }
                 
                 Spacer()
@@ -465,6 +488,7 @@ struct PhotoStackCell: View {
         }
         .onAppear {
             loadThumbnail()
+            updateQuickListStatus()
         }
     }
     
@@ -480,6 +504,34 @@ struct PhotoStackCell: View {
             DispatchQueue.main.async {
                 image = loadedImage
             }
+        }
+    }
+    
+    private func updateQuickListStatus() {
+        guard shouldShowQuickListButton else { return }
+        
+        let userId = AuthenticationService.shared.currentAccount?.id ?? ""
+        isInQuickList = QuickListService.shared.isPhotoInQuickList(stack.primaryAsset, context: viewContext, userId: userId)
+    }
+    
+    private func toggleQuickList() {
+        guard shouldShowQuickListButton else { return }
+        
+        let userId = AuthenticationService.shared.currentAccount?.id ?? ""
+        let wasInList = isInQuickList
+        
+        let success = QuickListService.shared.togglePhotoInQuickList(stack.primaryAsset, context: viewContext, userId: userId)
+        
+        if success {
+            isInQuickList = !wasInList
+            
+            // Provide haptic feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+            
+            print("📝 \(wasInList ? "Removed from" : "Added to") Quick List: \(stack.primaryAsset.localIdentifier)")
+        } else {
+            print("❌ Failed to toggle Quick List status")
         }
     }
 }

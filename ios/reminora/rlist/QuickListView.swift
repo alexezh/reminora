@@ -23,39 +23,35 @@ struct QuickListView: View {
     @State private var isLoading = true
     
     var body: some View {
-        NavigationView {
-            Group {
-                if isLoading {
-                    ProgressView("Loading Quick List...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if items.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: "list.bullet.circle")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray)
-                        
-                        Text("Quick List is Empty")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                        
-                        Text("Add photos and pins to your Quick List to see them here")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                    }
+        Group {
+            if isLoading {
+                ProgressView("Loading...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    RListView(
-                        dataSource: .mixed(items),
-                        onPhotoTap: onPhotoTap,
-                        onPinTap: onPinTap,
-                        onPhotoStackTap: onPhotoStackTap
-                    )
+            } else if items.isEmpty {
+                VStack(spacing: 20) {
+                    Image(systemName: "list.bullet.circle")
+                        .font(.system(size: 60))
+                        .foregroundColor(.gray)
+                    
+                    Text("List is Empty")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Text("Add photos and pins to see them here")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                RListView(
+                    dataSource: .mixed(items),
+                    onPhotoTap: onPhotoTap,
+                    onPinTap: onPinTap,
+                    onPhotoStackTap: onPhotoStackTap
+                )
             }
-            .navigationTitle("Quick List")
-            .navigationBarTitleDisplayMode(.large)
         }
         .task {
             await loadItems()

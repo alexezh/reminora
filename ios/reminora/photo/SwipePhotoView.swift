@@ -503,14 +503,20 @@ struct SwipePhotoView: View {
     
     private func updateQuickListStatus() {
         let userId = AuthenticationService.shared.currentAccount?.id ?? ""
-        isInQuickList = QuickListService.shared.isPhotoInQuickList(currentAsset, context: viewContext, userId: userId)
+        let newStatus = QuickListService.shared.isPhotoInQuickList(currentAsset, context: viewContext, userId: userId)
+        print("🔍 Checking Quick List status for photo \(currentAsset.localIdentifier), userId: \(userId), result: \(newStatus)")
+        isInQuickList = newStatus
     }
     
     private func toggleQuickList() {
         let userId = AuthenticationService.shared.currentAccount?.id ?? ""
         let wasInList = isInQuickList
         
+        print("🔄 Toggling Quick List for photo \(currentAsset.localIdentifier), userId: \(userId), currently in list: \(wasInList)")
+        
         let success = QuickListService.shared.togglePhotoInQuickList(currentAsset, context: viewContext, userId: userId)
+        
+        print("🔄 Toggle result: \(success)")
         
         if success {
             isInQuickList = !wasInList
@@ -520,6 +526,15 @@ struct SwipePhotoView: View {
             impactFeedback.impactOccurred()
             
             print("📝 \(wasInList ? "Removed from" : "Added to") Quick List: \(currentAsset.localIdentifier)")
+            print("📝 New button state: \(isInQuickList)")
+            
+            // Force save context to ensure persistence
+            do {
+                try viewContext.save()
+                print("📝 ✅ Context saved successfully")
+            } catch {
+                print("📝 ❌ Failed to save context: \(error)")
+            }
         } else {
             print("❌ Failed to toggle Quick List status")
         }

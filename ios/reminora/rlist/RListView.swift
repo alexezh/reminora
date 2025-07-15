@@ -248,11 +248,11 @@ struct RListSectionView: View {
             .padding(.vertical, 12)
             .background(Color(UIColor.systemBackground))
             
-            // Items in this section
+            // Items in this section with custom layout
             LazyVStack(spacing: 8) {
-                ForEach(section.items, id: \.id) { item in
-                    RListItemView(
-                        item: item,
+                ForEach(Array(arrangeItemsInRows().enumerated()), id: \.offset) { _, row in
+                    RListRowView(
+                        row: row,
                         onPhotoTap: onPhotoTap,
                         onPinTap: onPinTap,
                         onPhotoStackTap: onPhotoStackTap
@@ -261,6 +261,113 @@ struct RListSectionView: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
+        }
+    }
+    
+    private func arrangeItemsInRows() -> [RListRow] {
+        var rows: [RListRow] = []
+        var currentPhotoRow: [any RListViewItem] = []
+        
+        for item in section.items {
+            switch item.itemType {
+            case .photo(_), .photoStack(_):
+                // Add photo to current row
+                currentPhotoRow.append(item)
+                
+                // If we have 3 photos, create a row
+                if currentPhotoRow.count == 3 {
+                    rows.append(RListRow(items: currentPhotoRow, type: .photoRow))
+                    currentPhotoRow = []
+                }
+                
+            case .pin(_):
+                // Finish any pending photo row first
+                if !currentPhotoRow.isEmpty {
+                    rows.append(RListRow(items: currentPhotoRow, type: .photoRow))
+                    currentPhotoRow = []
+                }
+                
+                // Add pin as its own row
+                rows.append(RListRow(items: [item], type: .pinRow))
+            }
+        }
+        
+        // Add any remaining photos as a row
+        if !currentPhotoRow.isEmpty {
+            rows.append(RListRow(items: currentPhotoRow, type: .photoRow))
+        }
+        
+        return rows
+    }
+}
+
+// MARK: - RListRow
+struct RListRow {
+    let items: [any RListViewItem]
+    let type: RListRowType
+}
+
+enum RListRowType {
+    case photoRow  // 1-3 photos in a horizontal row
+    case pinRow    // Single pin taking full width
+}
+
+// MARK: - RListRowView
+struct RListRowView: View {
+    let row: RListRow
+    let onPhotoTap: (PHAsset) -> Void
+    let onPinTap: (Place) -> Void
+    let onPhotoStackTap: ([PHAsset]) -> Void
+    
+    var body: some View {
+        switch row.type {
+        case .photoRow:
+            HStack(spacing: 4) {
+                ForEach(Array(row.items.enumerated()), id: \.offset) { _, item in
+                    RListPhotoGridItemView(
+                        item: item,
+                        onPhotoTap: onPhotoTap,
+                        onPhotoStackTap: onPhotoStackTap
+                    )
+                }
+                
+                // Fill remaining space if less than 3 photos
+                if row.items.count < 3 {
+                    ForEach(0..<(3 - row.items.count), id: \.self) { _ in
+                        Color.clear
+                            .aspectRatio(1, contentMode: .fit)
+                    }
+                }
+            }
+            
+        case .pinRow:
+            ForEach(row.items, id: \.id) { item in
+                RListItemView(
+                    item: item,
+                    onPhotoTap: onPhotoTap,
+                    onPinTap: onPinTap,
+                    onPhotoStackTap: onPhotoStackTap
+                )
+            }
+        }
+    }
+}
+
+// MARK: - RListPhotoGridItemView
+struct RListPhotoGridItemView: View {
+    let item: any RListViewItem
+    let onPhotoTap: (PHAsset) -> Void
+    let onPhotoStackTap: ([PHAsset]) -> Void
+    
+    var body: some View {
+        switch item.itemType {
+        case .photo(let asset):
+            RListPhotoGridView(asset: asset, onTap: { onPhotoTap(asset) })
+        case .photoStack(let assets):
+            RListPhotoStackGridView(assets: assets, onTap: { onPhotoStackTap(assets) })
+        case .pin(_):
+            // This shouldn't happen in photo rows, but handle gracefully
+            EmptyView()
         }
     }
 }
@@ -482,6 +589,137 @@ struct RListPinView: View {
             .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Grid-specific Photo Views
+struct RListPhotoGridView: View {
+    let asset: PHAsset
+    let onTap: () -> Void
+    
+    @State private var image: UIImage?
+    
+    var body: some View {
+        Button(action: onTap) {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .aspectRatio(1, contentMode: .fit)
+                    .clipped()
+                    .cornerRadius(8)
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .aspectRatio(1, contentMode: .fit)
+                    .cornerRadius(8)
+                    .overlay(
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .scaleEffect(0.7)
+                    )
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .task {
+            await loadImage()
+        }
+    }
+    
+    private func loadImage() async {
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .opportunistic
+        options.resizeMode = .fast
+        options.isNetworkAccessAllowed = true
+        
+        await withCheckedContinuation { continuation in
+            PHImageManager.default().requestImage(
+                for: asset,
+                targetSize: CGSize(width: 200, height: 200),
+                contentMode: .aspectFill,
+                options: options
+            ) { image, _ in
+                self.image = image
+                continuation.resume()
+            }
+        }
+    }
+}
+
+struct RListPhotoStackGridView: View {
+    let assets: [PHAsset]
+    let onTap: () -> Void
+    
+    @State private var image: UIImage?
+    
+    var body: some View {
+        Button(action: onTap) {
+            ZStack {
+                if let image = image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .aspectRatio(1, contentMode: .fit)
+                        .clipped()
+                        .cornerRadius(8)
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .aspectRatio(1, contentMode: .fit)
+                        .cornerRadius(8)
+                        .overlay(
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                                .scaleEffect(0.7)
+                        )
+                }
+                
+                // Stack indicator overlay
+                if assets.count > 1 {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            ZStack {
+                                Circle()
+                                    .fill(Color.black.opacity(0.7))
+                                    .frame(width: 24, height: 24)
+                                
+                                Image(systemName: "rectangle.stack.fill")
+                                    .font(.caption2)
+                                    .foregroundColor(.white)
+                            }
+                            .padding(6)
+                        }
+                        Spacer()
+                    }
+                }
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .task {
+            await loadImage()
+        }
+    }
+    
+    private func loadImage() async {
+        guard let primaryAsset = assets.first else { return }
+        
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .opportunistic
+        options.resizeMode = .fast
+        options.isNetworkAccessAllowed = true
+        
+        await withCheckedContinuation { continuation in
+            PHImageManager.default().requestImage(
+                for: primaryAsset,
+                targetSize: CGSize(width: 200, height: 200),
+                contentMode: .aspectFill,
+                options: options
+            ) { image, _ in
+                self.image = image
+                continuation.resume()
+            }
+        }
     }
 }
 

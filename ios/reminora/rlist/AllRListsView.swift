@@ -85,11 +85,11 @@ struct AllRListsView: View {
                     Text(userList.name ?? "Unnamed List")
                         .font(.headline)
                     
-                    if userList.name == QuickListService.quickListName {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(.yellow)
-                            .font(.caption)
-                    }
+//                    if userList.name == QuickListService.quickListName {
+//                        Image(systemName: "star.fill")
+//                            .foregroundColor(.yellow)
+//                            .font(.caption)
+//                    }
                     
                     Spacer()
                 }
@@ -105,6 +105,9 @@ struct AllRListsView: View {
     private func loadUserLists() async {
         isLoading = true
         
+        // Ensure Quick and Shared lists exist
+        await ensureSystemLists()
+        
         // Fetch all user lists for this user
         let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
@@ -115,17 +118,23 @@ struct AllRListsView: View {
         do {
             let lists = try context.fetch(fetchRequest)
             
-            // Sort lists with Quick List first
+            // Sort lists with Quick List first, then Shared, then others
             let sortedLists = lists.sorted { list1, list2 in
-                let isQuickList1 = list1.name == QuickListService.quickListName
-                let isQuickList2 = list2.name == QuickListService.quickListName
+                let isQuickList1 = list1.name == "Quick"
+                let isQuickList2 = list2.name == "Quick"
+                let isSharedList1 = list1.name == "Shared"
+                let isSharedList2 = list2.name == "Shared"
                 
                 if isQuickList1 && !isQuickList2 {
                     return true // Quick List comes first
                 } else if !isQuickList1 && isQuickList2 {
                     return false // Quick List comes first
+                } else if isSharedList1 && !isSharedList2 && !isQuickList2 {
+                    return true // Shared List comes second
+                } else if !isSharedList1 && isSharedList2 && !isQuickList1 {
+                    return false // Shared List comes second
                 } else {
-                    // Both are Quick List or neither are Quick List, sort by creation date
+                    // Both are system lists or neither are system lists, sort by creation date
                     return (list1.createdAt ?? Date.distantPast) > (list2.createdAt ?? Date.distantPast)
                 }
             }
@@ -140,6 +149,54 @@ struct AllRListsView: View {
                 self.userLists = []
                 self.isLoading = false
             }
+        }
+    }
+    
+    private func ensureSystemLists() async {
+        // Create Quick List if it doesn't exist
+        let quickList = UserList(context: context)
+        quickList.id = UUID().uuidString
+        quickList.name = "Quick"
+        quickList.createdAt = Date()
+        quickList.userId = userId
+        
+        // Create Shared List if it doesn't exist
+        let sharedList = UserList(context: context)
+        sharedList.id = UUID().uuidString
+        sharedList.name = "Shared"
+        sharedList.createdAt = Date()
+        sharedList.userId = userId
+        
+        // Check if they already exist and only save new ones
+        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "userId == %@ AND (name == %@ OR name == %@)", userId, "Quick", "Shared")
+        
+        do {
+            let existingLists = try context.fetch(fetchRequest)
+            let existingNames = Set(existingLists.compactMap { $0.name })
+            
+            var needsSave = false
+            
+            if !existingNames.contains("Quick") {
+                needsSave = true
+                // quickList is already created above
+            } else {
+                context.delete(quickList) // Remove the temporary one
+            }
+            
+            if !existingNames.contains("Shared") {
+                needsSave = true
+                // sharedList is already created above
+            } else {
+                context.delete(sharedList) // Remove the temporary one
+            }
+            
+            if needsSave {
+                try context.save()
+                print("✅ Created missing system lists")
+            }
+        } catch {
+            print("❌ Failed to ensure system lists: \(error)")
         }
     }
     

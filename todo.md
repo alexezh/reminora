@@ -3,7 +3,7 @@ maybe use pink idea - one button for creating lists ?
 
 add facebook authentication. do not ask authentication at start. instead require auth when a user clicks share for the first time. Then push pins to backend. Limit number of pushed pins to 50. If more than 50, prompt that subscription is required and implement app store subscription
 
-record 
+record activity and log to backend every 10 min into log table containing json 
 
 
 add profile page for person which has a list of places person shared. profile page has follow button. pins.

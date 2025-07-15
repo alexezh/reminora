@@ -1,6 +1,7 @@
 import CoreData
 import CoreLocation
 import SwiftUI
+import Photos
 
 // shows list of places saved into list
 struct RListDetailView: View {
@@ -29,76 +30,138 @@ struct RListDetailView: View {
     }
 
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Header with list info
-                VStack(spacing: 8) {
-                    HStack {
-                        Circle()
-                            .fill(colorForList(list.name ?? "").opacity(0.2))
-                            .frame(width: 50, height: 50)
-                            .overlay(
-                                Image(systemName: iconForList(list.name ?? ""))
-                                    .font(.title2)
-                                    .foregroundColor(colorForList(list.name ?? ""))
-                            )
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(list.name ?? "Untitled List")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Text("\(listItems.count) items")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-
-                        Spacer()
-
-                        Button("Done") {
-                            presentationMode.wrappedValue.dismiss()
-                        }
-                        .foregroundColor(.blue)
+        VStack(spacing: 0) {
+            // Custom navigation header
+            HStack {
+                Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.left")
+                            .font(.title3)
+                        Text("Back")
+                            .font(.body)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
+                    .foregroundColor(.blue)
                 }
-                .background(Color(.systemBackground))
-
-                Divider()
-
-                // Places browser
-                if listItems.isEmpty {
-                    VStack(spacing: 16) {
-                        Spacer()
-
-                        Image(systemName: iconForList(list.name ?? ""))
-                            .font(.system(size: 48))
-                            .foregroundColor(.secondary)
-
-                        VStack(spacing: 4) {
-                            Text("No items in \(list.name ?? "this list")")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-
-                            Text("Add places to this list to see them here")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-
-                        Spacer()
-                    }
-                    .frame(maxWidth: .infinity)
-                } else {
-                    let placesInList = listItems.compactMap { placeForItem($0) }
-                    PinBrowserView(
-                        places: placesInList,
-                        title: "",
-                        showToolbar: false
-                    )
+                
+                Spacer()
+                
+                Text(list.name ?? "Untitled List")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Button(action: {
+                    // Handle menu action
+                    print("Menu tapped")
+                }) {
+                    Image(systemName: "ellipsis")
+                        .font(.title3)
+                        .foregroundColor(.primary)
+                        .rotationEffect(.degrees(90))
                 }
             }
-            .navigationBarHidden(true)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color(.systemBackground))
+            
+            Divider()
+            
+            // RList content - always use mixed content approach
+            if isQuickList {
+                // Use QuickListService for Quick List to get mixed content
+                QuickListView(
+                    context: viewContext,
+                    userId: getCurrentUserId(),
+                    onPhotoTap: { asset in
+                        // Handle photo tap - could show photo detail or photo stack
+                        print("📷 Photo tapped: \(asset.localIdentifier)")
+                    },
+                    onPinTap: { place in
+                        // Handle pin tap - could show pin detail
+                        print("📍 Pin tapped: \(place.post ?? "Unknown")")
+                    },
+                    onPhotoStackTap: { assets in
+                        // Handle photo stack tap - could show stack viewer
+                        print("📚 Photo stack tapped: \(assets.count) photos")
+                    }
+                )
+            } else if isSharedList {
+                // Use SharedListService for Shared List to get shared content
+                SharedListView(
+                    context: viewContext,
+                    userId: getCurrentUserId(),
+                    onPhotoTap: { asset in
+                        print("📷 Photo tapped: \(asset.localIdentifier)")
+                    },
+                    onPinTap: { place in
+                        print("📍 Pin tapped: \(place.post ?? "Unknown")")
+                    },
+                    onPhotoStackTap: { assets in
+                        print("📚 Photo stack tapped: \(assets.count) photos")
+                    }
+                )
+            } else {
+                // Use RListView for regular lists with mixed content
+                RListView(
+                    dataSource: .mixed(createMixedContent()),
+                    onPhotoTap: { asset in
+                        print("📷 Photo tapped: \(asset.localIdentifier)")
+                    },
+                    onPinTap: { place in
+                        print("📍 Pin tapped: \(place.post ?? "Unknown")")
+                    },
+                    onPhotoStackTap: { assets in
+                        print("📚 Photo stack tapped: \(assets.count) photos")
+                    }
+                )
+            }
         }
+        .navigationBarHidden(true)
+    }
+    
+    private func createMixedContent() -> [any RListViewItem] {
+        let placesInList = listItems.compactMap { placeForItem($0) }
+        var mixedItems: [any RListViewItem] = []
+        
+        for place in placesInList {
+            // Check if this place represents a photo from library (has special marker in URL)
+            if let url = place.url, url.hasPrefix("photo://") {
+                // Extract the photo identifier and try to get the asset
+                let photoId = String(url.dropFirst(8)) // Remove "photo://" prefix
+                if let asset = getAssetFromId(photoId) {
+                    mixedItems.append(RListPhotoItem(asset: asset))
+                } else {
+                    // Photo no longer exists, but show as pin anyway
+                    mixedItems.append(RListPinItem(place: place))
+                }
+            } else {
+                // Regular pin
+                mixedItems.append(RListPinItem(place: place))
+            }
+        }
+        
+        return mixedItems
+    }
+    
+    private func getAssetFromId(_ photoId: String) -> PHAsset? {
+        let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [photoId], options: nil)
+        return fetchResult.firstObject
+    }
+    
+    private var isQuickList: Bool {
+        return list.name == "Quick"
+    }
+    
+    private var isSharedList: Bool {
+        return list.name == "Shared"
+    }
+    
+    private func getCurrentUserId() -> String {
+        // Get the current user ID from AuthenticationService
+        return AuthenticationService.shared.currentAccount?.id ?? ""
     }
 
     private func placeForItem(_ item: ListItem) -> Place? {

@@ -27,34 +27,8 @@ struct PinBrowserView: View {
     @GestureState private var dragOffset: CGFloat = 0
     @State private var shouldScrollToSelected: Bool = true
     @State private var showingAddPhoto = false
-    @State private var selectedListId: String = "all"
-    
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \UserList.name, ascending: true)],
-        animation: .default
-    ) private var userLists: FetchedResults<UserList>
-    
-    private var listOptions: [(id: String, name: String)] {
-        var options = [("all", "My Pins")]
-        options.append(contentsOf: userLists.map { (id: $0.id ?? "", name: $0.name ?? "Untitled") })
-        return options
-    }
-    
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \ListItem.addedAt, ascending: false)],
-        animation: .default
-    ) private var listItems: FetchedResults<ListItem>
-    
     private var filteredPlaces: [Place] {
-        if selectedListId == "all" {
-            return places
-        } else {
-            // Filter places that are in the selected list
-            let selectedListItemIds = listItems.filter { $0.listId == selectedListId }.compactMap { $0.placeId }
-            return places.filter { place in
-                selectedListItemIds.contains(place.objectID.uriRepresentation().absoluteString)
-            }
-        }
+        return places
     }
 
     var body: some View {
@@ -89,35 +63,17 @@ struct PinBrowserView: View {
 
                         // Button section
                         HStack(spacing: 12) {
-                            // List combo box
-                            Menu {
-                                ForEach(listOptions, id: \.id) { option in
-                                    Button(action: {
-                                        selectedListId = option.id
-                                    }) {
-                                        HStack {
-                                            Text(option.name)
-                                            if selectedListId == option.id {
-                                                Spacer()
-                                                Image(systemName: "checkmark")
-                                            }
-                                        }
-                                    }
-                                }
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "list.bullet")
-                                    Text(listOptions.first(where: { $0.id == selectedListId })?.name ?? "My Pins")
-                                    Image(systemName: "chevron.down")
-                                        .font(.caption)
-                                }
-                                .font(.subheadline)
-                                .foregroundColor(.primary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color(.secondarySystemBackground))
-                                .cornerRadius(8)
+                            // My Pins title
+                            HStack(spacing: 6) {
+                                Image(systemName: "list.bullet")
+                                Text("My Pins")
                             }
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(8)
                             
                             Spacer()
                             
@@ -282,14 +238,6 @@ struct PinBrowserView: View {
             // Center map on first place if available
             if let firstPlace = filteredPlaces.first {
                 region.center = coordinate(item: firstPlace)
-            }
-        }
-        .onChange(of: selectedListId) { _ in
-            // Center map on first place when list selection changes
-            if let firstPlace = filteredPlaces.first {
-                withAnimation(.easeInOut(duration: 1.0)) {
-                    region.center = coordinate(item: firstPlace)
-                }
             }
         }
     }

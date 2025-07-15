@@ -63,9 +63,8 @@ struct PhotoStackView: View {
     ]
     
     var body: some View {
-        NavigationView {
-            VStack {
-                if !isCoreDataReady {
+        VStack {
+            if !isCoreDataReady {
                     // Show loading UI while Core Data is initializing
                     VStack(spacing: 20) {
                         ProgressView()
@@ -191,18 +190,6 @@ struct PhotoStackView: View {
                     .padding()
                 }
             }
-            .navigationTitle("Photos")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        showingQuickList = true
-                    }) {
-                        Image(systemName: "list.bullet.circle")
-                            .font(.title2)
-                    }
-                }
-            }
             .onAppear {
                 initializeCoreData()
                 requestPhotoAccess()
@@ -216,7 +203,6 @@ struct PhotoStackView: View {
                     }
                 }
             }
-        }
         .overlay(
             Group {
                 if let selectedStack = selectedStack {

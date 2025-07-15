@@ -35,7 +35,7 @@ struct SwipePhotoImageView: View {
                         .scaleEffect(scale)
                         .offset(offset)
                         .gesture(
-                            MagnifScationGesture()
+                            MagnificationGesture()
                                 .onChanged { value in
                                     scale = lastScale * value
                                 }

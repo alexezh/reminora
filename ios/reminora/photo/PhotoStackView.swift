@@ -16,9 +16,40 @@ struct PhotoStackView: View {
     @State private var currentFilter: PhotoFilterType = .notDisliked
     @State private var isCoreDataReady = false
     @State private var hasTriedInitialLoad = false
+    @State private var showingQuickList = false
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
+    }
+    
+    private var quickListView: some View {
+        QuickListService.createQuickListView(
+            context: viewContext,
+            userId: AuthenticationService.shared.currentAccount?.id ?? "",
+            onPhotoTap: { asset in
+                // Create a stack with just this photo and show it
+                let stack = PhotoStack(assets: [asset])
+                selectedStackIndex = 0
+                showingQuickList = false
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    selectedStack = stack
+                }
+            },
+            onPinTap: { place in
+                // Handle pin tap - you might want to show pin detail
+                showingQuickList = false
+                print("📍 Pin tapped: \(place.post ?? "Unknown")")
+            },
+            onPhotoStackTap: { assets in
+                // Create a stack and show it
+                let stack = PhotoStack(assets: assets)
+                selectedStackIndex = 0
+                showingQuickList = false
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    selectedStack = stack
+                }
+            }
+        )
     }
     
     // Time interval for grouping photos into stacks (in minutes)
@@ -162,6 +193,16 @@ struct PhotoStackView: View {
             }
             .navigationTitle("Photos")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showingQuickList = true
+                    }) {
+                        Image(systemName: "list.bullet.circle")
+                            .font(.title2)
+                    }
+                }
+            }
             .onAppear {
                 initializeCoreData()
                 requestPhotoAccess()
@@ -203,6 +244,9 @@ struct PhotoStackView: View {
                 }
             }
         )
+        .sheet(isPresented: $showingQuickList) {
+            quickListView
+        }
     }
     
     private func requestPhotoAccess() {

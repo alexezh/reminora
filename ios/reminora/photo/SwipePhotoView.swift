@@ -31,6 +31,7 @@ struct SwipePhotoView: View {
     @State private var dragOffset: CGSize = .zero
     @State private var currentPreference: PhotoPreferenceType = .neutral
     @State private var isPreferenceManagerReady = false
+    @State private var isInQuickList = false
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
@@ -96,6 +97,17 @@ struct SwipePhotoView: View {
                             }
                             
                             Spacer()
+                            
+                            // Quick List circle button
+                            Button(action: {
+                                toggleQuickList()
+                            }) {
+                                Image(systemName: isInQuickList ? "circle.fill" : "circle")
+                                    .font(.title2)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
+                                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                            }
                             
                             // Menu button (vertical dots)
                             Button(action: {
@@ -482,5 +494,48 @@ struct SwipePhotoView: View {
             // Fallback to neutral if there's an error
             currentPreference = .neutral
         }
+        
+        // Also update Quick List status
+        updateQuickListStatus()
+    }
+    
+    // MARK: - Quick List Management
+    
+    private func updateQuickListStatus() {
+        let userId = AuthenticationService.shared.currentAccount?.id ?? ""
+        isInQuickList = QuickListService.shared.isPhotoInQuickList(currentAsset, context: viewContext, userId: userId)
+    }
+    
+    private func toggleQuickList() {
+        let userId = AuthenticationService.shared.currentAccount?.id ?? ""
+        let wasInList = isInQuickList
+        
+        let success = QuickListService.shared.togglePhotoInQuickList(currentAsset, context: viewContext, userId: userId)
+        
+        if success {
+            isInQuickList = !wasInList
+            
+            // Provide haptic feedback
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+            
+            print("📝 \(wasInList ? "Removed from" : "Added to") Quick List: \(currentAsset.localIdentifier)")
+        } else {
+            print("❌ Failed to toggle Quick List status")
+        }
+    }
+    
+    // MARK: - Formatting Helpers
+    
+    private func formatLocation(_ location: CLLocation) -> String {
+        let formatter = CLGeocoder()
+        return String(format: "%.4f, %.4f", location.coordinate.latitude, location.coordinate.longitude)
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }

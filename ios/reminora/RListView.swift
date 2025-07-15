@@ -1,0 +1,517 @@
+import SwiftUI
+import Photos
+import CoreData
+import CoreLocation
+import MapKit
+
+// MARK: - RListView Item Protocol
+protocol RListViewItem: Identifiable {
+    var id: String { get }
+    var date: Date { get }
+    var itemType: RListItemType { get }
+}
+
+enum RListItemType {
+    case photo(PHAsset)
+    case photoStack([PHAsset])
+    case pin(Place)
+}
+
+// MARK: - RListView Item Implementations
+struct RListPhotoItem: RListViewItem {
+    let id: String
+    let date: Date
+    let itemType: RListItemType
+    
+    init(asset: PHAsset) {
+        self.id = asset.localIdentifier
+        self.date = asset.creationDate ?? Date()
+        self.itemType = .photo(asset)
+    }
+}
+
+struct RListPhotoStackItem: RListViewItem {
+    let id: String
+    let date: Date
+    let itemType: RListItemType
+    
+    init(assets: [PHAsset]) {
+        self.id = assets.map { $0.localIdentifier }.joined(separator: "-")
+        self.date = assets.first?.creationDate ?? Date()
+        self.itemType = .photoStack(assets)
+    }
+}
+
+struct RListPinItem: RListViewItem {
+    let id: String
+    let date: Date
+    let itemType: RListItemType
+    
+    init(place: Place) {
+        self.id = place.objectID.uriRepresentation().absoluteString
+        self.date = place.dateAdded ?? Date()
+        self.itemType = .pin(place)
+    }
+}
+
+// MARK: - RListView Data Source
+enum RListDataSource {
+    case photoLibrary([PHAsset])
+    case userList(UserList, [Place])
+    case nearbyPhotos([PHAsset])
+    case pins([Place])
+    case mixed([any RListViewItem])
+}
+
+// MARK: - Date Section
+struct RListDateSection: Identifiable {
+    let id: String
+    let date: Date
+    let title: String
+    let items: [any RListViewItem]
+    
+    init(date: Date, items: [any RListViewItem]) {
+        self.date = date
+        self.title = RListDateSection.formatDate(date)
+        self.id = title
+        self.items = items
+    }
+    
+    private static func formatDate(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else if calendar.dateInterval(of: .weekOfYear, for: now)?.contains(date) == true {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEEE" // Day of week
+            return formatter.string(from: date)
+        } else if calendar.isDate(date, equalTo: now, toGranularity: .year) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM d" // Apr 1
+            return formatter.string(from: date)
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM d, yyyy" // Apr 1, 2023
+            return formatter.string(from: date)
+        }
+    }
+}
+
+// MARK: - RListView
+struct RListView: View {
+    let dataSource: RListDataSource
+    let onPhotoTap: (PHAsset) -> Void
+    let onPinTap: (Place) -> Void
+    let onPhotoStackTap: ([PHAsset]) -> Void
+    
+    @State private var sections: [RListDateSection] = []
+    @State private var isLoading = true
+    
+    // Photo stack grouping interval (in minutes)
+    private let stackingInterval: TimeInterval = 10 * 60 // 10 minutes
+    
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                if isLoading {
+                    ProgressView("Loading...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding()
+                } else if sections.isEmpty {
+                    EmptyStateView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding()
+                } else {
+                    ForEach(sections) { section in
+                        RListSectionView(
+                            section: section,
+                            onPhotoTap: onPhotoTap,
+                            onPinTap: onPinTap,
+                            onPhotoStackTap: onPhotoStackTap
+                        )
+                    }
+                }
+            }
+        }
+        .task {
+            await loadData()
+        }
+    }
+    
+    private func loadData() async {
+        await MainActor.run {
+            isLoading = true
+        }
+        
+        let items = await processDataSource()
+        let groupedSections = groupItemsByDate(items)
+        
+        await MainActor.run {
+            self.sections = groupedSections
+            self.isLoading = false
+        }
+    }
+    
+    private func processDataSource() async -> [any RListViewItem] {
+        switch dataSource {
+        case .photoLibrary(let assets):
+            return await processPhotoAssets(assets)
+        case .userList(_, let places):
+            return places.map { RListPinItem(place: $0) }
+        case .nearbyPhotos(let assets):
+            return await processPhotoAssets(assets)
+        case .pins(let places):
+            return places.map { RListPinItem(place: $0) }
+        case .mixed(let items):
+            return items
+        }
+    }
+    
+    private func processPhotoAssets(_ assets: [PHAsset]) async -> [any RListViewItem] {
+        // Sort assets by creation date
+        let sortedAssets = assets.sorted { 
+            ($0.creationDate ?? Date.distantPast) > ($1.creationDate ?? Date.distantPast)
+        }
+        
+        var items: [any RListViewItem] = []
+        var currentStack: [PHAsset] = []
+        
+        for asset in sortedAssets {
+            let assetDate = asset.creationDate ?? Date()
+            
+            if let lastAsset = currentStack.last,
+               let lastDate = lastAsset.creationDate {
+                let timeDifference = abs(assetDate.timeIntervalSince(lastDate))
+                
+                if timeDifference <= stackingInterval && currentStack.count < 3 {
+                    // Add to current stack
+                    currentStack.append(asset)
+                } else {
+                    // Finalize current stack and start new one
+                    if currentStack.count == 1 {
+                        items.append(RListPhotoItem(asset: currentStack[0]))
+                    } else if currentStack.count > 1 {
+                        items.append(RListPhotoStackItem(assets: currentStack))
+                    }
+                    currentStack = [asset]
+                }
+            } else {
+                // First asset or no date
+                currentStack = [asset]
+            }
+        }
+        
+        // Handle remaining stack
+        if currentStack.count == 1 {
+            items.append(RListPhotoItem(asset: currentStack[0]))
+        } else if currentStack.count > 1 {
+            items.append(RListPhotoStackItem(assets: currentStack))
+        }
+        
+        return items
+    }
+    
+    private func groupItemsByDate(_ items: [any RListViewItem]) -> [RListDateSection] {
+        let calendar = Calendar.current
+        let grouped = Dictionary(grouping: items) { item in
+            calendar.startOfDay(for: item.date)
+        }
+        
+        return grouped.map { date, items in
+            RListDateSection(date: date, items: items.sorted { $0.date > $1.date })
+        }.sorted { $0.date > $1.date }
+    }
+}
+
+// MARK: - RListSectionView
+struct RListSectionView: View {
+    let section: RListDateSection
+    let onPhotoTap: (PHAsset) -> Void
+    let onPinTap: (Place) -> Void
+    let onPhotoStackTap: ([PHAsset]) -> Void
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Date separator
+            HStack {
+                Text(section.title)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color(UIColor.systemBackground))
+            
+            // Items in this section
+            LazyVStack(spacing: 8) {
+                ForEach(section.items, id: \.id) { item in
+                    RListItemView(
+                        item: item,
+                        onPhotoTap: onPhotoTap,
+                        onPinTap: onPinTap,
+                        onPhotoStackTap: onPhotoStackTap
+                    )
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
+        }
+    }
+}
+
+// MARK: - RListItemView
+struct RListItemView: View {
+    let item: any RListViewItem
+    let onPhotoTap: (PHAsset) -> Void
+    let onPinTap: (Place) -> Void
+    let onPhotoStackTap: ([PHAsset]) -> Void
+    
+    var body: some View {
+        switch item.itemType {
+        case .photo(let asset):
+            RListPhotoView(asset: asset, onTap: { onPhotoTap(asset) })
+        case .photoStack(let assets):
+            RListPhotoStackView(assets: assets, onTap: { onPhotoStackTap(assets) })
+        case .pin(let place):
+            RListPinView(place: place, onTap: { onPinTap(place) })
+        }
+    }
+}
+
+// MARK: - Individual Item Views
+struct RListPhotoView: View {
+    let asset: PHAsset
+    let onTap: () -> Void
+    
+    @State private var image: UIImage?
+    
+    var body: some View {
+        Button(action: onTap) {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(height: 200)
+                    .clipped()
+                    .cornerRadius(12)
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(height: 200)
+                    .cornerRadius(12)
+                    .overlay(
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                    )
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .task {
+            await loadImage()
+        }
+    }
+    
+    private func loadImage() async {
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .opportunistic
+        options.resizeMode = .fast
+        options.isNetworkAccessAllowed = true
+        
+        await withCheckedContinuation { continuation in
+            PHImageManager.default().requestImage(
+                for: asset,
+                targetSize: CGSize(width: 400, height: 400),
+                contentMode: .aspectFill,
+                options: options
+            ) { image, _ in
+                self.image = image
+                continuation.resume()
+            }
+        }
+    }
+}
+
+struct RListPhotoStackView: View {
+    let assets: [PHAsset]
+    let onTap: () -> Void
+    
+    @State private var images: [UIImage?] = []
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 4) {
+                ForEach(Array(assets.prefix(3).enumerated()), id: \.offset) { index, asset in
+                    if index < images.count, let image = images[index] {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(height: 120)
+                            .clipped()
+                            .cornerRadius(8)
+                    } else {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 120)
+                            .cornerRadius(8)
+                            .overlay(
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle())
+                                    .scaleEffect(0.7)
+                            )
+                    }
+                }
+                if assets.count > 3 {
+                    Rectangle()
+                        .fill(Color.black.opacity(0.7))
+                        .frame(height: 120)
+                        .cornerRadius(8)
+                        .overlay(
+                            Text("+\(assets.count - 3)")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                        )
+                }
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .task {
+            await loadImages()
+        }
+    }
+    
+    private func loadImages() async {
+        images = Array(repeating: nil, count: min(assets.count, 3))
+        
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .opportunistic
+        options.resizeMode = .fast
+        options.isNetworkAccessAllowed = true
+        
+        for (index, asset) in assets.prefix(3).enumerated() {
+            await withCheckedContinuation { continuation in
+                PHImageManager.default().requestImage(
+                    for: asset,
+                    targetSize: CGSize(width: 200, height: 200),
+                    contentMode: .aspectFill,
+                    options: options
+                ) { image, _ in
+                    DispatchQueue.main.async {
+                        if index < self.images.count {
+                            self.images[index] = image
+                        }
+                    }
+                    continuation.resume()
+                }
+            }
+        }
+    }
+}
+
+struct RListPinView: View {
+    let place: Place
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                // Pin image or placeholder
+                if let imageData = place.imageData,
+                   let uiImage = UIImage(data: imageData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 80, height: 80)
+                        .clipped()
+                        .cornerRadius(8)
+                } else {
+                    Rectangle()
+                        .fill(Color.blue.opacity(0.2))
+                        .frame(width: 80, height: 80)
+                        .cornerRadius(8)
+                        .overlay(
+                            Image(systemName: "mappin.and.ellipse")
+                                .font(.title2)
+                                .foregroundColor(.blue)
+                        )
+                }
+                
+                // Pin details
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(place.post ?? "Untitled Pin")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    
+                    if let locationData = place.value(forKey: "location") as? Data,
+                       let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
+                        HStack {
+                            Image(systemName: "location.fill")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                            Text(String(format: "%.4f, %.4f", location.coordinate.latitude, location.coordinate.longitude))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .monospaced()
+                        }
+                    }
+                    
+                    if let date = place.dateAdded {
+                        Text(date, style: .relative)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(12)
+            .background(Color(UIColor.systemBackground))
+            .cornerRadius(12)
+            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Empty State View
+struct EmptyStateView: View {
+    var body: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "photo.stack")
+                .font(.system(size: 60))
+                .foregroundColor(.gray)
+            
+            Text("No Items Found")
+                .font(.title2)
+                .fontWeight(.semibold)
+                .foregroundColor(.primary)
+            
+            Text("There are no photos or pins to display")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+    }
+}
+
+// MARK: - Preview Helper
+#Preview {
+    RListView(
+        dataSource: .mixed([]),
+        onPhotoTap: { _ in },
+        onPinTap: { _ in },
+        onPhotoStackTap: { _ in }
+    )
+}

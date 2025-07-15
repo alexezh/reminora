@@ -2,6 +2,7 @@ import CoreData
 import CoreLocation
 import SwiftUI
 
+// shows list of places saved into list
 struct RListDetailView: View {
     let list: UserList
     @Environment(\.managedObjectContext) private var viewContext

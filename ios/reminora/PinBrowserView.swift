@@ -2,6 +2,7 @@ import CoreData
 import MapKit
 import SwiftUI
 
+// list of pins with map
 struct PinBrowserView: View {
     let places: [Place]
     let title: String

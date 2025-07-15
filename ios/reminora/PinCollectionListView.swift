@@ -99,7 +99,7 @@ struct PinCollectionListView: View {
         }
         .sheet(isPresented: $showingListDetail) {
             if let selectedList = selectedList {
-                ListDetailView(list: selectedList)
+                RListDetailView(list: selectedList)
             }
         }
     }

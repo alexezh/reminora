@@ -1,0 +1,172 @@
+import SwiftUI
+import Photos
+import CoreData
+
+// MARK: - RListExampleView
+struct RListExampleView: View {
+    @Environment(\.managedObjectContext) private var viewContext
+    @State private var showingFullPhoto = false
+    @State private var selectedAsset: PHAsset?
+    @State private var selectedPlace: Place?
+    @State private var showingPinDetail = false
+    
+    // Example data sources
+    let exampleDataSource: RListDataSource
+    
+    init(dataSource: RListDataSource = .mixed([])) {
+        self.exampleDataSource = dataSource
+    }
+    
+    var body: some View {
+        NavigationView {
+            RListView(
+                dataSource: exampleDataSource,
+                onPhotoTap: { asset in
+                    selectedAsset = asset
+                    showingFullPhoto = true
+                },
+                onPinTap: { place in
+                    selectedPlace = place
+                    showingPinDetail = true
+                },
+                onPhotoStackTap: { assets in
+                    // For photo stacks, show the first photo
+                    if let firstAsset = assets.first {
+                        selectedAsset = firstAsset
+                        showingFullPhoto = true
+                    }
+                }
+            )
+            .navigationTitle("RList Demo")
+            .navigationBarTitleDisplayMode(.large)
+        }
+        .sheet(isPresented: $showingFullPhoto) {
+            if let asset = selectedAsset {
+                FullPhotoView(
+                    asset: asset,
+                    onBack: {
+                        showingFullPhoto = false
+                        selectedAsset = nil
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showingPinDetail) {
+            if let place = selectedPlace {
+                NavigationView {
+                    PinDetailView(
+                        place: place,
+                        allPlaces: [],
+                        onBack: {
+                            showingPinDetail = false
+                            selectedPlace = nil
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+// MARK: - RListView Usage Examples
+extension RListExampleView {
+    
+    // Example: Photo Library View
+    static func photoLibraryExample(with assets: [PHAsset]) -> RListExampleView {
+        RListExampleView(dataSource: .photoLibrary(assets))
+    }
+    
+    // Example: User List View
+    static func userListExample(with list: UserList, places: [Place]) -> RListExampleView {
+        RListExampleView(dataSource: .userList(list, places))
+    }
+    
+    // Example: Nearby Photos View
+    static func nearbyPhotosExample(with assets: [PHAsset]) -> RListExampleView {
+        RListExampleView(dataSource: .nearbyPhotos(assets))
+    }
+    
+    // Example: Pins Only View
+    static func pinsOnlyExample(with places: [Place]) -> RListExampleView {
+        RListExampleView(dataSource: .pins(places))
+    }
+    
+    // Example: Mixed Content View
+    static func mixedContentExample(with items: [any RListViewItem]) -> RListExampleView {
+        RListExampleView(dataSource: .mixed(items))
+    }
+}
+
+// MARK: - RListView Integration Helpers
+extension RListView {
+    
+    // Helper initializer for Photo Library integration
+    static func photoLibraryView(
+        assets: [PHAsset],
+        onPhotoTap: @escaping (PHAsset) -> Void,
+        onPhotoStackTap: @escaping ([PHAsset]) -> Void
+    ) -> RListView {
+        RListView(
+            dataSource: .photoLibrary(assets),
+            onPhotoTap: onPhotoTap,
+            onPinTap: { _ in }, // No pins in photo library
+            onPhotoStackTap: onPhotoStackTap
+        )
+    }
+    
+    // Helper initializer for User List integration
+    static func userListView(
+        list: UserList,
+        places: [Place],
+        onPinTap: @escaping (Place) -> Void
+    ) -> RListView {
+        RListView(
+            dataSource: .userList(list, places),
+            onPhotoTap: { _ in }, // No photos in user lists
+            onPinTap: onPinTap,
+            onPhotoStackTap: { _ in }
+        )
+    }
+    
+    // Helper initializer for Nearby Photos integration
+    static func nearbyPhotosView(
+        assets: [PHAsset],
+        onPhotoTap: @escaping (PHAsset) -> Void,
+        onPhotoStackTap: @escaping ([PHAsset]) -> Void
+    ) -> RListView {
+        RListView(
+            dataSource: .nearbyPhotos(assets),
+            onPhotoTap: onPhotoTap,
+            onPinTap: { _ in }, // No pins in nearby photos
+            onPhotoStackTap: onPhotoStackTap
+        )
+    }
+    
+    // Helper initializer for mixed content (photos and pins)
+    static func mixedContentView(
+        items: [any RListViewItem],
+        onPhotoTap: @escaping (PHAsset) -> Void,
+        onPinTap: @escaping (Place) -> Void,
+        onPhotoStackTap: @escaping ([PHAsset]) -> Void
+    ) -> RListView {
+        RListView(
+            dataSource: .mixed(items),
+            onPhotoTap: onPhotoTap,
+            onPinTap: onPinTap,
+            onPhotoStackTap: onPhotoStackTap
+        )
+    }
+}
+
+// MARK: - Preview
+#Preview("Photo Library") {
+    RListExampleView.photoLibraryExample(with: [])
+}
+
+#Preview("Pins Only") {
+    RListExampleView.pinsOnlyExample(with: [])
+}
+
+#Preview("Mixed Content") {
+    RListExampleView.mixedContentExample(with: [])
+}

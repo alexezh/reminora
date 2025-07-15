@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 import CoreLocation
 
-struct ListPickerView: View {
+struct RListPickerView: View {
     let place: NearbyLocation
     @Binding var isPresented: Bool
     

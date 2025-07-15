@@ -2,7 +2,7 @@ import CoreData
 import CoreLocation
 import SwiftUI
 
-struct ListDetailView: View {
+struct RListDetailView: View {
     let list: UserList
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.presentationMode) var presentationMode
@@ -138,6 +138,6 @@ struct ListDetailView: View {
     sampleList.createdAt = Date()
     sampleList.userId = "user1"
 
-    return ListDetailView(list: sampleList)
+    return RListDetailView(list: sampleList)
         .environment(\.managedObjectContext, context)
 }

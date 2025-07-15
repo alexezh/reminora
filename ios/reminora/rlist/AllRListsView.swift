@@ -29,13 +29,36 @@ struct AllRListsView: View {
     
     @State private var userLists: [UserList] = []
     @State private var isLoading = true
+    @State private var refreshTrigger = UUID()
     
     var body: some View {
         NavigationView {
             listContent
+                .navigationTitle("Lists")
+                .refreshable {
+                    await loadUserLists()
+                }
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            Task {
+                                await loadUserLists()
+                            }
+                        }) {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                    }
+                }
         }
         .task {
             await loadUserLists()
+        }
+        .task(id: refreshTrigger) {
+            await loadUserLists()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("UserListsChanged"))) { _ in
+            print("🔍 AllRListsView received UserListsChanged notification")
+            refreshTrigger = UUID()
         }
     }
     

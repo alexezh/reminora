@@ -122,7 +122,7 @@ struct SwipePhotoView: View {
                             }
                         }
                         .padding(.horizontal, 16)
-                        .padding(.top, 8)
+                        .padding(.top, 20)
                         
                         // Location and date info
                         VStack(spacing: 2) {
@@ -295,6 +295,7 @@ struct SwipePhotoView: View {
         }
         .onChange(of: currentIndex) { _, _ in
             updateCurrentPreference()
+            updateQuickListStatus()
         }
         .sheet(isPresented: $showingAddPin) {
             NavigationView {

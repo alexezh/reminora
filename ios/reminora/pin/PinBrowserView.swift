@@ -34,7 +34,8 @@ struct PinBrowserView: View {
     var body: some View {
         ZStack {
             // Map with places
-            Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: filteredPlaces) {
+            Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: filteredPlaces)
+            {
                 item in
                 MapAnnotation(coordinate: coordinate(item: item)) {
                     Button(action: {
@@ -63,20 +64,8 @@ struct PinBrowserView: View {
 
                         // Button section
                         HStack(spacing: 12) {
-                            // My Pins title
-                            HStack(spacing: 6) {
-                                Image(systemName: "list.bullet")
-                                Text("My Pins")
-                            }
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color(.secondarySystemBackground))
-                            .cornerRadius(8)
-                            
                             Spacer()
-                            
+
                             // Add button
                             Button(action: {
                                 showingAddPhoto = true
@@ -165,10 +154,11 @@ struct PinBrowserView: View {
                     )
                     .offset(
                         y: max(
-                            geometry.safeAreaInsets.top, // Don't go above safe area
+                            geometry.safeAreaInsets.top,  // Don't go above safe area
                             min(
-                                geometry.size.height - minHeight, // Don't go below minimum
-                                geometry.size.height - sheetHeight - (showToolbar ? 100 : 50) + dragOffset
+                                geometry.size.height - minHeight,  // Don't go below minimum
+                                geometry.size.height - sheetHeight - (showToolbar ? 100 : 50)
+                                    + dragOffset
                             )
                         )
                     )

@@ -392,16 +392,23 @@ struct PhotoStackCell: View {
     
     var body: some View {
         ZStack {
-            if let image = image {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Background image with tap gesture
+            Group {
+                if let image = image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .onTapGesture {
+                print("PhotoStackCell onTapGesture triggered")
+                onTap()
             }
             
             // Overlay indicators
@@ -481,10 +488,6 @@ struct PhotoStackCell: View {
                     }
                 }
             }
-        }
-        .onTapGesture {
-            print("PhotoStackCell onTapGesture triggered")
-            onTap()
         }
         .onAppear {
             loadThumbnail()

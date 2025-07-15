@@ -22,11 +22,13 @@ struct ContentView: View {
     var body: some View {
         TabView(selection: $selectedTab) {
             // Photos Tab
-            PhotoStackView()
-                .tabItem {
-                    Image(systemName: "photo.stack")
-                }
-                .tag(0)
+            NavigationView {
+                PhotoStackView()
+            }
+            .tabItem {
+                Image(systemName: "photo.stack")
+            }
+            .tag(0)
 
             // Home/Map Tab
             ZStack {
@@ -41,17 +43,24 @@ struct ContentView: View {
             }
             .tabItem {
                 Image(systemName: "mappin.and.ellipse")
-                Text("Pin")
             }
             .tag(1)
 
+            AllRListsView(
+                context: viewContext,
+                userId: authService.currentAccount?.id ?? ""
+            )
+            .tabItem {
+                Image(systemName: "list.bullet.circle")
+            }
+            .tag(2)
             // Profile Tab
             ProfileView()
                 .tabItem {
                     Image(systemName: "person.circle")
                     Text("Profile")
                 }
-                .tag(2)
+                .tag(3)
         }
         .accentColor(.blue)
         .onChange(of: selectedTab) { _, newValue in
@@ -61,17 +70,19 @@ struct ContentView: View {
             // Start background embedding computation for all photos
             startBackgroundEmbeddingComputation()
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToSharedPlace"))) { notification in
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToSharedPlace"))
+        ) { notification in
             print("🔗 ContentView received NavigateToSharedPlace notification")
-            
+
             if let place = notification.object as? Place {
                 print("🔗 ContentView navigating to shared place: \(place.post ?? "Unknown")")
-                
+
                 // Switch to Pin tab and show the shared place
                 selectedTab = 1
                 sharedPlace = place
                 showingSharedPlace = true
-                
+
                 print("🔗 ContentView set selectedTab=1, showing shared place")
             } else {
                 print("🔗 ❌ ContentView: notification object is not a Place")
@@ -92,28 +103,35 @@ struct ContentView: View {
             }
         }
     }
-    
+
     // MARK: - Background Embedding Computation
-    
+
     private func startBackgroundEmbeddingComputation() {
         print("📊 Starting background embedding computation for all photos")
-        
+
         Task {
             // Get embedding stats to see if we need to compute embeddings
             let stats = PhotoEmbeddingService.shared.getEmbeddingStats(in: viewContext)
-            print("📊 Current embedding stats: \(stats.photosWithEmbeddings)/\(stats.totalPhotos) photos analyzed (\(stats.coveragePercentage)%)")
-            
+            print(
+                "📊 Current embedding stats: \(stats.photosWithEmbeddings)/\(stats.totalPhotos) photos analyzed (\(stats.coveragePercentage)%)"
+            )
+
             // Only start computation if coverage is less than 100%
             if stats.coverage < 1.0 {
-                print("📊 Starting background computation for \(stats.totalPhotos - stats.photosWithEmbeddings) remaining photos")
-                
-                await PhotoEmbeddingService.shared.computeAllEmbeddings(in: viewContext) { processed, total in
+                print(
+                    "📊 Starting background computation for \(stats.totalPhotos - stats.photosWithEmbeddings) remaining photos"
+                )
+
+                await PhotoEmbeddingService.shared.computeAllEmbeddings(in: viewContext) {
+                    processed, total in
                     // Log progress every 10 photos to avoid spam
                     if processed % 10 == 0 || processed == total {
-                        print("📊 Embedding progress: \(processed)/\(total) photos processed (\(Int(Float(processed)/Float(total)*100))%)")
+                        print(
+                            "📊 Embedding progress: \(processed)/\(total) photos processed (\(Int(Float(processed)/Float(total)*100))%)"
+                        )
                     }
                 }
-                
+
                 print("📊 ✅ Background embedding computation completed!")
             } else {
                 print("📊 ✅ All photos already have embeddings, skipping computation")

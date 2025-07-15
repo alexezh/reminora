@@ -1,7 +1,10 @@
-add collections to photo view, following quick collection in lightroom
-button in the corner of picture. But then we do not have much room on toolbar. 
 
 maybe use pink idea - one button for creating lists ? 
+
+add facebook authentication. do not ask authentication at start. instead require auth when a user clicks share for the first time. Then push pins to backend. Limit number of pushed pins to 50. If more than 50, prompt that subscription is required and implement app store subscription
+
+record 
+
 
 add profile page for person which has a list of places person shared. profile page has follow button. pins.
 add button with image or initials on shared 

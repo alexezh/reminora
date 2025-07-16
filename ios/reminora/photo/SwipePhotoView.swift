@@ -13,7 +13,6 @@ import UIKit
 import CoreData
 import MapKit
 import CoreLocation
-import StoreKit
 
 struct SwipePhotoView: View {
     let stack: PhotoStack
@@ -33,17 +32,11 @@ struct SwipePhotoView: View {
     @State private var currentPreference: PhotoPreferenceType = .neutral
     @State private var isPreferenceManagerReady = false
     @State private var isInQuickList = false
-    @State private var showingAuthenticationView = false
-    @State private var showingSubscriptionView = false
-    @State private var showingPinShareResult = false
-    @State private var pinShareURL: String?
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
     }
     
-    @StateObject private var authService = AuthenticationService.shared
-    @StateObject private var pinSharingService = PinSharingService.shared
     @StateObject private var photoSharingService = PhotoSharingService.shared
     
     init(stack: PhotoStack, initialIndex: Int, onDismiss: @escaping () -> Void) {
@@ -188,7 +181,7 @@ struct SwipePhotoView: View {
                         }
                         
                         // Action buttons (iOS Photos style)
-                        HStack(spacing: 24) {
+                        HStack(spacing: 32) {
                             // Share Photo button
                             Button(action: sharePhoto) {
                                 VStack(spacing: 4) {
@@ -196,21 +189,7 @@ struct SwipePhotoView: View {
                                         .font(.title2)
                                         .foregroundColor(.white)
                                         .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                    Text("Share Photo")
-                                        .font(.caption2)
-                                        .foregroundColor(.white)
-                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                }
-                            }
-                            
-                            // Share Pin button
-                            Button(action: sharePinFromPhoto) {
-                                VStack(spacing: 4) {
-                                    Image(systemName: "location.circle")
-                                        .font(.title2)
-                                        .foregroundColor(.white)
-                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                    Text("Share Pin")
+                                    Text("Share")
                                         .font(.caption2)
                                         .foregroundColor(.white)
                                         .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
@@ -345,26 +324,6 @@ struct SwipePhotoView: View {
         }
         .sheet(isPresented: $showingSimilarGridView) {
             SimilarPhotosGridView(targetAsset: currentAsset)
-        }
-        .sheet(isPresented: $showingAuthenticationView) {
-            AuthenticationView()
-        }
-        .sheet(isPresented: $showingSubscriptionView) {
-            SubscriptionView()
-        }
-        .alert("Pin Shared!", isPresented: $showingPinShareResult) {
-            if let url = pinShareURL {
-                Button("Copy Link") {
-                    UIPasteboard.general.string = url
-                }
-            }
-            Button("OK") { }
-        } message: {
-            if let url = pinShareURL {
-                Text("Your pin has been shared successfully. Share link: \(url)")
-            } else {
-                Text("Your pin has been shared successfully!")
-            }
         }
     }
     

@@ -278,4 +278,21 @@ class APIService: ObservableObject {
         }
     }
     
+    // MARK: - User Profile Methods
+    
+    func getUserProfile(userId: String) async throws -> UserProfile {
+        let url = URL(string: "\(baseURL)/api/users/\(userId)/profile")!
+        let request = createRequest(url: url)
+        
+        return try await performRequest(request: request, responseType: UserProfile.self)
+    }
+    
+    func isFollowing(userId: String) async throws -> Bool {
+        let url = URL(string: "\(baseURL)/api/follows/\(userId)/status")!
+        let request = createRequest(url: url)
+        
+        let response = try await performRequest(request: request, responseType: FollowStatusResponse.self)
+        return response.isFollowing
+    }
+    
 }

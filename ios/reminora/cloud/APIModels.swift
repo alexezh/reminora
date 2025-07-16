@@ -139,6 +139,8 @@ struct UserProfile: Codable, Identifiable {
     let username: String
     let display_name: String
     let created_at: TimeInterval
+    let avatar_url: String?
+    let handle: String?
 }
 
 struct UserSearchResult: Codable, Identifiable {
@@ -179,4 +181,8 @@ struct FollowResponse: Codable {
 
 struct EmptyResponse: Codable {
     let success: Bool
+}
+
+struct FollowStatusResponse: Codable {
+    let isFollowing: Bool
 }

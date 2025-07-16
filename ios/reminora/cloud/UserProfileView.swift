@@ -1,322 +1,455 @@
 import SwiftUI
 import CoreData
-import MapKit
 
 struct UserProfileView: View {
     let userId: String
     let userName: String
+    let userHandle: String?
     
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
-    @StateObject private var authService = AuthenticationService.shared
-    @Environment(\.presentationMode) var presentationMode
     
-    @State private var userPins: [UserPin] = []
+    @State private var userProfile: UserProfile?
     @State private var isLoading = true
     @State private var isFollowing = false
-    @State private var isCheckingFollowStatus = true
-    @State private var selectedPin: UserPin?
-    @State private var showingPinDetail = false
+    @State private var isFollowActionLoading = false
+    @State private var recentPins: [Place] = []
+    @State private var recentComments: [Comment] = []
+    @State private var showingAllPins = false
+    @State private var showingAllComments = false
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // Header with user info and follow button
-                VStack(spacing: 16) {
-                    // User avatar placeholder
-                    Circle()
-                        .fill(Color.blue.opacity(0.2))
-                        .frame(width: 80, height: 80)
-                        .overlay(
-                            Text(String(userName.prefix(1)).uppercased())
-                                .font(.title)
-                                .fontWeight(.bold)
-                                .foregroundColor(.blue)
-                        )
-                    
-                    // User name
-                    Text("@\(userName)")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
-                    // Stats
-                    HStack(spacing: 24) {
-                        VStack {
-                            Text("\(userPins.count)")
-                                .font(.headline)
-                                .fontWeight(.bold)
-                            Text("Pins")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        VStack {
-                            Text("0") // TODO: Get from backend
-                                .font(.headline)
-                                .fontWeight(.bold)
-                            Text("Followers")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        VStack {
-                            Text("0") // TODO: Get from backend
-                                .font(.headline)
-                                .fontWeight(.bold)
-                            Text("Following")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    // Follow button
-                    if isCheckingFollowStatus {
-                        ProgressView()
-                            .frame(height: 36)
-                    } else if !isCurrentUser {
-                        Button(action: toggleFollow) {
-                            HStack {
-                                if isFollowing {
-                                    Image(systemName: "checkmark")
-                                    Text("Following")
-                                } else {
-                                    Image(systemName: "plus")
-                                    Text("Follow")
+            ScrollView {
+                VStack(spacing: 20) {
+                    if isLoading {
+                        ProgressView("Loading profile...")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        // Profile Header
+                        VStack(spacing: 16) {
+                            // Avatar
+                            AsyncImage(url: URL(string: userProfile?.avatar_url ?? "")) { image in
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Image(systemName: "person.circle.fill")
+                                    .font(.system(size: 80))
+                                    .foregroundColor(.gray)
+                            }
+                            .frame(width: 100, height: 100)
+                            .clipShape(Circle())
+                            
+                            // Name and Handle
+                            VStack(spacing: 4) {
+                                Text(userProfile?.display_name ?? userName)
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                
+                                if let handle = userProfile?.handle ?? userHandle {
+                                    Text("@\(handle)")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
                                 }
                             }
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(isFollowing ? .primary : .white)
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 8)
-                            .background(isFollowing ? Color.gray.opacity(0.2) : Color.blue)
-                            .cornerRadius(20)
+                            
+                            // Follow/Unfollow Button
+                            Button(action: toggleFollow) {
+                                HStack {
+                                    if isFollowActionLoading {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                            .scaleEffect(0.8)
+                                    } else {
+                                        Image(systemName: isFollowing ? "person.badge.minus" : "person.badge.plus")
+                                        Text(isFollowing ? "Unfollow" : "Follow")
+                                    }
+                                }
+                                .frame(width: 120, height: 36)
+                                .background(isFollowing ? Color.gray : Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(18)
+                            }
+                            .disabled(isFollowActionLoading)
+                        }
+                        .padding()
+                        
+                        // Stats Section
+                        HStack(spacing: 30) {
+                            VStack {
+                                Text("\(recentPins.count)")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                Text("Pins")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            VStack {
+                                Text("0") // TODO: Get from API
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                Text("Followers")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            VStack {
+                                Text("0") // TODO: Get from API
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                Text("Following")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            VStack {
+                                Text("\(recentComments.count)")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                Text("Comments")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding()
+                        
+                        // Recent Pins Section
+                        if !recentPins.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Text("Recent Pins")
+                                        .font(.headline)
+                                    
+                                    Spacer()
+                                    
+                                    if recentPins.count > 3 {
+                                        Button("View All") {
+                                            showingAllPins = true
+                                        }
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                    }
+                                }
+                                .padding(.horizontal)
+                                
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 12) {
+                                        ForEach(Array(recentPins.prefix(5)), id: \.id) { pin in
+                                            PinThumbnailView(pin: pin)
+                                        }
+                                    }
+                                    .padding(.horizontal)
+                                }
+                            }
+                        }
+                        
+                        // Recent Comments Section
+                        if !recentComments.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Text("Recent Comments")
+                                        .font(.headline)
+                                    
+                                    Spacer()
+                                    
+                                    if recentComments.count > 3 {
+                                        Button("View All") {
+                                            showingAllComments = true
+                                        }
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                    }
+                                }
+                                .padding(.horizontal)
+                                
+                                VStack(spacing: 8) {
+                                    ForEach(Array(recentComments.prefix(3)), id: \.id) { comment in
+                                        CommentPreviewView(comment: comment)
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                        }
+                        
+                        // Empty State
+                        if recentPins.isEmpty && recentComments.isEmpty && !isLoading {
+                            VStack(spacing: 16) {
+                                Image(systemName: "person.crop.circle")
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.gray)
+                                
+                                Text("No activity yet")
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+                                
+                                Text("This user hasn't shared any pins or comments yet")
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding()
                         }
                     }
                 }
-                .padding()
-                .background(Color(.systemBackground))
-                
-                Divider()
-                
-                // Pins list
-                if isLoading {
-                    VStack {
-                        Spacer()
-                        ProgressView("Loading pins...")
-                        Spacer()
+            }
+            .navigationTitle(userProfile?.display_name ?? userName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
                     }
-                } else if userPins.isEmpty {
-                    VStack {
-                        Spacer()
+                }
+            }
+        }
+        .task {
+            await loadUserProfile()
+        }
+        .sheet(isPresented: $showingAllPins) {
+            UserPinsView(userId: userId, userName: userProfile?.display_name ?? userName)
+        }
+        .sheet(isPresented: $showingAllComments) {
+            UserCommentsView(
+                userId: userId,
+                userName: userProfile?.display_name ?? userName,
+                userHandle: userProfile?.handle ?? userHandle ?? ""
+            )
+        }
+    }
+    
+    private func loadUserProfile() async {
+        isLoading = true
+        
+        do {
+            // Load user profile from API
+            let profile = try await APIService.shared.getUserProfile(userId: userId)
+            
+            // Load recent pins from local database
+            let pinFetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+            pinFetchRequest.predicate = NSPredicate(format: "cloudId != nil") // Only shared pins
+            pinFetchRequest.sortDescriptors = [NSSortDescriptor(key: "dateAdded", ascending: false)]
+            pinFetchRequest.fetchLimit = 5
+            
+            let pins = try viewContext.fetch(pinFetchRequest)
+            
+            // Load recent comments from local database
+            let commentFetchRequest: NSFetchRequest<Comment> = Comment.fetchRequest()
+            commentFetchRequest.predicate = NSPredicate(format: "authorId == %@", userId)
+            commentFetchRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+            commentFetchRequest.fetchLimit = 3
+            
+            let comments = try viewContext.fetch(commentFetchRequest)
+            
+            // Check if currently following this user
+            let following = try await APIService.shared.isFollowing(userId: userId)
+            
+            await MainActor.run {
+                self.userProfile = profile
+                self.recentPins = pins
+                self.recentComments = comments
+                self.isFollowing = following
+                self.isLoading = false
+            }
+        } catch {
+            print("Failed to load user profile: \(error)")
+            await MainActor.run {
+                self.isLoading = false
+            }
+        }
+    }
+    
+    private func toggleFollow() {
+        isFollowActionLoading = true
+        
+        Task {
+            do {
+                if isFollowing {
+                    try await APIService.shared.unfollowUser(userId: userId)
+                } else {
+                    try await APIService.shared.followUser(userId: userId)
+                }
+                
+                await MainActor.run {
+                    self.isFollowing.toggle()
+                    self.isFollowActionLoading = false
+                }
+            } catch {
+                print("Failed to toggle follow: \(error)")
+                await MainActor.run {
+                    self.isFollowActionLoading = false
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Pin Thumbnail View
+struct PinThumbnailView: View {
+    let pin: Place
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            // Pin Image
+            if let imageData = pin.imageData, let uiImage = UIImage(data: imageData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 80, height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 80, height: 80)
+                    .overlay(
+                        Image(systemName: "mappin.circle")
+                            .font(.title2)
+                            .foregroundColor(.gray)
+                    )
+            }
+            
+            // Pin Caption (if any)
+            if let post = pin.post, !post.isEmpty {
+                Text(post)
+                    .font(.caption)
+                    .lineLimit(2)
+                    .frame(width: 80)
+                    .multilineTextAlignment(.center)
+            }
+        }
+    }
+}
+
+// MARK: - Comment Preview View
+struct CommentPreviewView: View {
+    let comment: Comment
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(comment.text ?? "")
+                    .font(.body)
+                    .lineLimit(3)
+                
+                Spacer()
+            }
+            
+            if let createdAt = comment.createdAt {
+                Text(formatDate(createdAt))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+// MARK: - User Pins View
+struct UserPinsView: View {
+    let userId: String
+    let userName: String
+    
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.managedObjectContext) private var viewContext
+    @State private var pins: [Place] = []
+    @State private var isLoading = true
+    
+    var body: some View {
+        NavigationView {
+            Group {
+                if isLoading {
+                    ProgressView("Loading pins...")
+                } else if pins.isEmpty {
+                    VStack(spacing: 16) {
                         Image(systemName: "mappin.slash")
                             .font(.system(size: 50))
                             .foregroundColor(.gray)
-                        Text("No pins shared")
-                            .font(.title3)
-                            .fontWeight(.medium)
-                            .padding(.top, 8)
-                        Text("This user hasn't shared any pins yet")
-                            .font(.caption)
+                        
+                        Text("No pins yet")
+                            .font(.headline)
                             .foregroundColor(.secondary)
-                        Spacer()
                     }
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(userPins, id: \.id) { pin in
-                                UserPinCard(pin: pin) {
-                                    selectedPin = pin
-                                    showingPinDetail = true
-                                }
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 4),
+                            GridItem(.flexible(), spacing: 4),
+                            GridItem(.flexible(), spacing: 4)
+                        ], spacing: 4) {
+                            ForEach(pins, id: \.id) { pin in
+                                PinGridItemView(pin: pin)
                             }
                         }
                         .padding()
                     }
                 }
             }
+            .navigationTitle("\(userName)'s Pins")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
-                        presentationMode.wrappedValue.dismiss()
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
                     }
                 }
             }
         }
-        .sheet(isPresented: $showingPinDetail) {
-            if let pin = selectedPin {
-                UserPinDetailView(pin: pin) {
-                    showingPinDetail = false
-                    selectedPin = nil
-                }
-            }
-        }
-        .onAppear {
-            loadUserPins()
-            checkFollowStatus()
+        .task {
+            await loadPins()
         }
     }
     
-    private var isCurrentUser: Bool {
-        return userId == authService.currentAccount?.id
-    }
-    
-    private func loadUserPins() {
-        Task {
-            do {
-                print("🔍 Loading pins for user: \(userName) (ID: \(userId))")
-                let pins = try await APIService.shared.getUserPins(userId: userId)
-                
-                await MainActor.run {
-                    self.userPins = pins
-                    self.isLoading = false
-                    print("🔍 ✅ Loaded \(pins.count) pins for user: \(userName)")
-                }
-            } catch {
-                await MainActor.run {
-                    self.isLoading = false
-                    print("🔍 ❌ Failed to load pins for user \(userName): \(error)")
-                }
-            }
-        }
-    }
-    
-    private func checkFollowStatus() {
-        guard let currentUser = authService.currentAccount, !isCurrentUser else {
-            isCheckingFollowStatus = false
-            return
-        }
+    private func loadPins() async {
+        isLoading = true
         
-        // Check local Core Data first
-        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
+        let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "cloudId != nil") // Only shared pins
+        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "dateAdded", ascending: false)]
         
         do {
-            let existingFollows = try viewContext.fetch(fetchRequest)
-            isFollowing = !existingFollows.isEmpty
-            isCheckingFollowStatus = false
-            print("🔍 Follow status for \(userName): \(isFollowing)")
+            let loadedPins = try viewContext.fetch(fetchRequest)
+            await MainActor.run {
+                self.pins = loadedPins
+                self.isLoading = false
+            }
         } catch {
-            print("🔍 ❌ Failed to check follow status: \(error)")
-            isCheckingFollowStatus = false
-        }
-    }
-    
-    private func toggleFollow() {
-        guard let currentUser = authService.currentAccount else { return }
-        
-        Task {
-            do {
-                if isFollowing {
-                    // Unfollow
-                    try await APIService.shared.unfollowUser(userId: userId)
-                    
-                    // Remove from local Core Data
-                    let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
-                    fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
-                    
-                    let existingFollows = try viewContext.fetch(fetchRequest)
-                    for follow in existingFollows {
-                        viewContext.delete(follow)
-                    }
-                    try viewContext.save()
-                    
-                    await MainActor.run {
-                        self.isFollowing = false
-                        print("🔍 ✅ Unfollowed user: \(userName)")
-                    }
-                } else {
-                    // Follow
-                    try await APIService.shared.followUser(userId: userId)
-                    
-                    // Add to local Core Data
-                    let follow = UserList(context: viewContext)
-                    follow.id = UUID().uuidString
-                    follow.userId = userId
-                    follow.name = userName
-                    follow.createdAt = Date()
-                    
-                    try viewContext.save()
-                    
-                    await MainActor.run {
-                        self.isFollowing = true
-                        print("🔍 ✅ Followed user: \(userName)")
-                    }
-                }
-            } catch {
-                print("🔍 ❌ Failed to toggle follow for \(userName): \(error)")
+            print("Failed to load pins: \(error)")
+            await MainActor.run {
+                self.isLoading = false
             }
         }
     }
 }
 
-struct UserPinCard: View {
-    let pin: UserPin
-    let onTap: () -> Void
+// MARK: - Pin Grid Item View
+struct PinGridItemView: View {
+    let pin: Place
     
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                // Pin image placeholder
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 60, height: 60)
-                    .overlay(
-                        Image(systemName: "mappin.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.blue)
-                    )
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(pin.name)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .foregroundColor(.primary)
-                    
-                    if let description = pin.description, !description.isEmpty {
-                        Text(description)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
-                    }
-                    
-                    HStack {
-                        Image(systemName: "location")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                        Text(String(format: "%.4f, %.4f", pin.latitude, pin.longitude))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding()
-            .background(Color(.systemBackground))
-            .cornerRadius(12)
-            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        if let imageData = pin.imageData, let uiImage = UIImage(data: imageData) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 110, height: 110)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        } else {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 110, height: 110)
+                .overlay(
+                    Image(systemName: "mappin.circle")
+                        .font(.title2)
+                        .foregroundColor(.gray)
+                )
         }
-        .buttonStyle(PlainButtonStyle())
     }
-}
-
-struct UserPin {
-    let id: String
-    let name: String
-    let description: String?
-    let latitude: Double
-    let longitude: Double
-    let imageUrl: String?
-    let createdAt: Date
-    let isPublic: Bool
-}
-
-#Preview {
-    UserProfileView(userId: "test123", userName: "johndoe")
-        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

@@ -2,7 +2,7 @@ import SwiftUI
 import MapKit
 import CoreData
 
-struct UserPinDetailView: View {
+struct MyPinDetailView: View {
     let pin: UserPin
     let onDismiss: () -> Void
     
@@ -282,7 +282,7 @@ private let itemFormatter: DateFormatter = {
 }()
 
 #Preview {
-    UserPinDetailView(
+    MyPinDetailView(
         pin: UserPin(
             id: "test123",
             name: "Test Pin",

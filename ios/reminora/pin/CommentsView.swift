@@ -245,18 +245,24 @@ struct CommentsView: View {
 
 struct CommentRowView: View {
     let comment: Comment
+    @State private var showingUserProfile = false
     
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // User avatar
-            Circle()
-                .fill(Color.blue.opacity(0.3))
-                .frame(width: 28, height: 28)
-                .overlay(
-                    Text(userInitials)
-                        .font(.caption2)
-                        .foregroundColor(.blue)
-                )
+            // User avatar - clickable
+            Button(action: {
+                showingUserProfile = true
+            }) {
+                Circle()
+                    .fill(Color.blue.opacity(0.3))
+                    .frame(width: 28, height: 28)
+                    .overlay(
+                        Text(userInitials)
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                    )
+            }
+            .buttonStyle(PlainButtonStyle())
             
             VStack(alignment: .leading, spacing: 4) {
                 // User name and handle
@@ -302,6 +308,15 @@ struct CommentRowView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 4)
+        .sheet(isPresented: $showingUserProfile) {
+            if let userId = comment.fromUserId {
+                UserProfileView(
+                    userId: userId,
+                    userName: comment.fromUserName ?? "Unknown User",
+                    userHandle: comment.fromUserHandle
+                )
+            }
+        }
     }
     
     private var userInitials: String {

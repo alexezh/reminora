@@ -12,8 +12,6 @@
 		49540DC62E1C70A100886A08 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49540DC42E1C70A100886A08 /* ShareViewController.swift */; };
 		49540DC72E1C70A100886A08 /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 49540DC22E1C70A100886A08 /* MainInterface.storyboard */; };
 		49D0F5732E1DE50F004BABB0 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 49D0F5722E1DE50F004BABB0 /* GoogleSignIn */; };
-		49FB00032E2FFBBB004BABB0 /* FacebookLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 49FB00022E2FFBBB004BABB0 /* FacebookLogin */; };
-		49FB00052E2FFBBB004BABB0 /* FacebookCore in Frameworks */ = {isa = PBXBuildFile; productRef = 49FB00042E2FFBBB004BABB0 /* FacebookCore */; };
 		49F151FC2DE4BF3200573F48 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F151FB2DE4BF3200573F48 /* Persistence.swift */; };
 		49F1522F2DE4C42400573F48 /* ReminoraShareExt.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 49F152252DE4C42400573F48 /* ReminoraShareExt.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		49F1523D2DE4CE0700573F48 /* places.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */; };
@@ -21,6 +19,8 @@
 		49F1523F2DE4D0CF00573F48 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F151FB2DE4BF3200573F48 /* Persistence.swift */; };
 		49F152442DE4F3CA00573F48 /* CoreData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 49F152432DE4F3CA00573F48 /* CoreData.framework */; };
 		49F152452DE4F3D200573F48 /* CoreData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 49F152432DE4F3CA00573F48 /* CoreData.framework */; };
+		49FB00032E2FFBBB004BABB0 /* FacebookLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 49FB00022E2FFBBB004BABB0 /* FacebookLogin */; };
+		49FB00052E2FFBBB004BABB0 /* FacebookCore in Frameworks */ = {isa = PBXBuildFile; productRef = 49FB00042E2FFBBB004BABB0 /* FacebookCore */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */

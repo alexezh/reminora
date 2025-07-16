@@ -176,21 +176,7 @@ struct AllRListsView: View {
     }
     
     private func ensureSystemLists() async {
-        // Create Quick List if it doesn't exist
-        let quickList = UserList(context: context)
-        quickList.id = UUID().uuidString
-        quickList.name = "Quick"
-        quickList.createdAt = Date()
-        quickList.userId = userId
-        
-        // Create Shared List if it doesn't exist
-        let sharedList = UserList(context: context)
-        sharedList.id = UUID().uuidString
-        sharedList.name = "Shared"
-        sharedList.createdAt = Date()
-        sharedList.userId = userId
-        
-        // Check if they already exist and only save new ones
+        // Check if they already exist first
         let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "userId == %@ AND (name == %@ OR name == %@)", userId, "Quick", "Shared")
         
@@ -200,23 +186,33 @@ struct AllRListsView: View {
             
             var needsSave = false
             
+            // Create Quick List if it doesn't exist
             if !existingNames.contains("Quick") {
+                let quickList = UserList(context: context)
+                quickList.id = UUID().uuidString
+                quickList.name = "Quick"
+                quickList.createdAt = Date()
+                quickList.userId = userId
                 needsSave = true
-                // quickList is already created above
-            } else {
-                context.delete(quickList) // Remove the temporary one
+                print("📝 Creating Quick List for user: \(userId)")
             }
             
+            // Create Shared List if it doesn't exist
             if !existingNames.contains("Shared") {
+                let sharedList = UserList(context: context)
+                sharedList.id = UUID().uuidString
+                sharedList.name = "Shared"
+                sharedList.createdAt = Date()
+                sharedList.userId = userId
                 needsSave = true
-                // sharedList is already created above
-            } else {
-                context.delete(sharedList) // Remove the temporary one
+                print("📝 Creating Shared List for user: \(userId)")
             }
             
             if needsSave {
                 try context.save()
-                print("✅ Created missing system lists")
+                print("✅ Created missing system lists for user: \(userId)")
+            } else {
+                print("✅ System lists already exist for user: \(userId) - Quick: \(existingNames.contains("Quick")), Shared: \(existingNames.contains("Shared"))")
             }
         } catch {
             print("❌ Failed to ensure system lists: \(error)")

@@ -19,6 +19,10 @@ struct RListDetailView: View {
     @State private var showingClearConfirmation = false
     @State private var newListName = ""
     @State private var selectedListId: String?
+    
+    // View presentation states
+    @State private var selectedPhotoStack: PhotoStack? = nil
+    @State private var selectedPin: Place? = nil
 
     init(list: UserList) {
         self.list = list
@@ -89,16 +93,18 @@ struct RListDetailView: View {
                     context: viewContext,
                     userId: getCurrentUserId(),
                     onPhotoTap: { asset in
-                        // Handle photo tap - could show photo detail or photo stack
-                        print("📷 Photo tapped: \(asset.localIdentifier)")
+                        // Show SwipePhotoView for single photo
+                        let photoStack = PhotoStack(assets: [asset])
+                        selectedPhotoStack = photoStack
                     },
                     onPinTap: { place in
-                        // Handle pin tap - could show pin detail
-                        print("📍 Pin tapped: \(place.post ?? "Unknown")")
+                        // Show PinDetailView for pin
+                        selectedPin = place
                     },
                     onPhotoStackTap: { assets in
-                        // Handle photo stack tap - could show stack viewer
-                        print("📚 Photo stack tapped: \(assets.count) photos")
+                        // Show SwipePhotoView for photo stack
+                        let photoStack = PhotoStack(assets: assets)
+                        selectedPhotoStack = photoStack
                     }
                 )
             } else if isSharedList {
@@ -107,13 +113,18 @@ struct RListDetailView: View {
                     context: viewContext,
                     userId: getCurrentUserId(),
                     onPhotoTap: { asset in
-                        print("📷 Photo tapped: \(asset.localIdentifier)")
+                        // Show SwipePhotoView for single photo
+                        let photoStack = PhotoStack(assets: [asset])
+                        selectedPhotoStack = photoStack
                     },
                     onPinTap: { place in
-                        print("📍 Pin tapped: \(place.post ?? "Unknown")")
+                        // Show PinDetailView for pin
+                        selectedPin = place
                     },
                     onPhotoStackTap: { assets in
-                        print("📚 Photo stack tapped: \(assets.count) photos")
+                        // Show SwipePhotoView for photo stack
+                        let photoStack = PhotoStack(assets: assets)
+                        selectedPhotoStack = photoStack
                     }
                 )
             } else {
@@ -121,13 +132,18 @@ struct RListDetailView: View {
                 RListView(
                     dataSource: .mixed(createMixedContent()),
                     onPhotoTap: { asset in
-                        print("📷 Photo tapped: \(asset.localIdentifier)")
+                        // Show SwipePhotoView for single photo
+                        let photoStack = PhotoStack(assets: [asset])
+                        selectedPhotoStack = photoStack
                     },
                     onPinTap: { place in
-                        print("📍 Pin tapped: \(place.post ?? "Unknown")")
+                        // Show PinDetailView for pin
+                        selectedPin = place
                     },
                     onPhotoStackTap: { assets in
-                        print("📚 Photo stack tapped: \(assets.count) photos")
+                        // Show SwipePhotoView for photo stack
+                        let photoStack = PhotoStack(assets: assets)
+                        selectedPhotoStack = photoStack
                     }
                 )
             }
@@ -182,6 +198,28 @@ struct RListDetailView: View {
                     showingAddToList = false
                 }
             )
+        }
+        // Present SwipePhotoView when a photo is selected
+        .fullScreenCover(item: $selectedPhotoStack) { photoStack in
+            SwipePhotoView(
+                stack: photoStack,
+                initialIndex: 0,
+                onDismiss: {
+                    selectedPhotoStack = nil
+                }
+            )
+        }
+        // Present PinDetailView when a pin is selected
+        .sheet(item: $selectedPin) { pin in
+            NavigationView {
+                PinDetailView(
+                    place: pin,
+                    allPlaces: getAllPlaces(),
+                    onBack: {
+                        selectedPin = nil
+                    }
+                )
+            }
         }
     }
     
@@ -338,6 +376,12 @@ struct RListDetailView: View {
         default:
             return .blue
         }
+    }
+    
+    private func getAllPlaces() -> [Place] {
+        // Return all places for PinDetailView context
+        // This could be optimized to return only nearby places
+        return Array(places)
     }
 }
 

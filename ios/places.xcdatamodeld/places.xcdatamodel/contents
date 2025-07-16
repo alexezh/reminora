@@ -1,58 +1,58 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23605" systemVersion="23G93" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
     <entity name="Place" representedClassName="Place" syncable="YES" codeGenerationType="class">
-        <attribute name="cloudId" optional="YES" attributeType="String"/>
+        <attribute name="cloudId" optional="YES" attributeType="String" indexed="YES"/>
         <attribute name="cloudSyncedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="dateAdded" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="dateAdded" optional="YES" attributeType="Date" usesScalarValueType="NO" indexed="YES"/>
         <attribute name="imageData" optional="YES" attributeType="Binary"/>
         <attribute name="location" optional="YES" attributeType="Binary"/>
         <attribute name="post" optional="YES" attributeType="String"/>
-        <attribute name="url" optional="YES" attributeType="String"/>
+        <attribute name="url" optional="YES" attributeType="String" indexed="YES"/>
     </entity>
     <entity name="Comment" representedClassName="Comment" syncable="YES" codeGenerationType="class">
         <attribute name="cloudId" optional="YES" attributeType="String"/>
         <attribute name="commentText" optional="NO" attributeType="String" defaultValue=""/>
-        <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO" defaultValue="0"/>
+        <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO" defaultValue="0" indexed="YES"/>
         <attribute name="fromUserHandle" optional="NO" attributeType="String" defaultValue="unknown"/>
-        <attribute name="fromUserId" optional="NO" attributeType="String" defaultValue="unknown"/>
+        <attribute name="fromUserId" optional="NO" attributeType="String" defaultValue="unknown" indexed="YES"/>
         <attribute name="fromUserName" optional="NO" attributeType="String" defaultValue="Unknown User"/>
-        <attribute name="id" optional="NO" attributeType="String" defaultValue=""/>
+        <attribute name="id" optional="NO" attributeType="String" defaultValue="" indexed="YES"/>
         <attribute name="isReaction" optional="NO" attributeType="Boolean" defaultValue="NO" usesScalarValueType="YES"/>
-        <attribute name="targetPhotoId" optional="YES" attributeType="String"/>
-        <attribute name="targetUserId" optional="YES" attributeType="String"/>
+        <attribute name="targetPhotoId" optional="YES" attributeType="String" indexed="YES"/>
+        <attribute name="targetUserId" optional="YES" attributeType="String" indexed="YES"/>
         <attribute name="toUserHandle" optional="YES" attributeType="String"/>
         <attribute name="toUserId" optional="YES" attributeType="String"/>
         <attribute name="toUserName" optional="YES" attributeType="String"/>
-        <attribute name="type" optional="NO" attributeType="String" defaultValue="comment"/>
+        <attribute name="type" optional="NO" attributeType="String" defaultValue="comment" indexed="YES"/>
     </entity>
     <entity name="UserList" representedClassName="UserList" syncable="YES" codeGenerationType="class">
         <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="id" optional="NO" attributeType="String"/>
-        <attribute name="name" optional="NO" attributeType="String"/>
-        <attribute name="userId" optional="NO" attributeType="String"/>
+        <attribute name="id" optional="NO" attributeType="String" indexed="YES"/>
+        <attribute name="name" optional="NO" attributeType="String" indexed="YES"/>
+        <attribute name="userId" optional="NO" attributeType="String" indexed="YES"/>
     </entity>
     <entity name="ListItem" representedClassName="ListItem" syncable="YES" codeGenerationType="class">
         <attribute name="addedAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="id" optional="NO" attributeType="String"/>
-        <attribute name="listId" optional="NO" attributeType="String"/>
-        <attribute name="placeId" optional="NO" attributeType="String"/>
+        <attribute name="id" optional="NO" attributeType="String" indexed="YES"/>
+        <attribute name="listId" optional="NO" attributeType="String" indexed="YES"/>
+        <attribute name="placeId" optional="NO" attributeType="String" indexed="YES"/>
         <attribute name="sharedByUserId" optional="YES" attributeType="String"/>
         <attribute name="sharedByUserName" optional="YES" attributeType="String"/>
         <attribute name="sharedLink" optional="YES" attributeType="String"/>
     </entity>
     <entity name="PhotoLocationCache" representedClassName="PhotoLocationCache" syncable="YES" codeGenerationType="class">
-        <attribute name="photoId" optional="NO" attributeType="String"/>
+        <attribute name="photoId" optional="NO" attributeType="String" indexed="YES"/>
         <attribute name="location" optional="YES" attributeType="Binary"/>
         <attribute name="lastUpdated" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <entity name="PhotoPreference" representedClassName="PhotoPreference" syncable="YES" codeGenerationType="class">
-        <attribute name="photoId" optional="NO" attributeType="String"/>
-        <attribute name="preference" optional="NO" attributeType="String" defaultValue="neutral"/>
+        <attribute name="photoId" optional="NO" attributeType="String" indexed="YES"/>
+        <attribute name="preference" optional="NO" attributeType="String" defaultValue="neutral" indexed="YES"/>
         <attribute name="dateModified" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
     </entity>
     <entity name="PhotoEmbedding" representedClassName="PhotoEmbedding" syncable="YES" codeGenerationType="class">
-        <attribute name="localIdentifier" optional="NO" attributeType="String"/>
-        <attribute name="embedding" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="localIdentifier" optional="NO" attributeType="String" indexed="YES"/>
+        <attribute name="embedding" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES" indexed="YES"/>
         <attribute name="computedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="imageHash" optional="YES" attributeType="String"/>
         <attribute name="creationDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>

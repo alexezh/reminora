@@ -81,6 +81,12 @@ fun PhotoStackScreen(
                         },
                         getPhotoPreference = { photo ->
                             viewModel.getPhotoPreference(photo)
+                        },
+                        isPhotoInQuickList = { photo ->
+                            viewModel.isPhotoInQuickList(photo)
+                        },
+                        onQuickListToggle = { photo ->
+                            viewModel.togglePhotoInQuickList(photo)
                         }
                     )
                 }
@@ -98,7 +104,9 @@ fun PhotoStackScreen(
             onShare = { photo -> viewModel.sharePhoto(photo) },
             onLike = { photo -> viewModel.setPhotoPreference(photo, PhotoPreferenceType.LIKE) },
             onDislike = { photo -> viewModel.setPhotoPreference(photo, PhotoPreferenceType.DISLIKE) },
-            getPhotoPreference = { photo -> viewModel.getPhotoPreference(photo) }
+            getPhotoPreference = { photo -> viewModel.getPhotoPreference(photo) },
+            isPhotoInQuickList = { photo -> viewModel.isPhotoInQuickList(photo) },
+            onQuickListToggle = { photo -> viewModel.togglePhotoInQuickList(photo) }
         )
     }
 }
@@ -223,7 +231,9 @@ private fun FilterTabs(
 private fun PhotoStackGrid(
     photoStacks: List<PhotoStack>,
     onStackClick: (PhotoStack) -> Unit,
-    getPhotoPreference: (Photo) -> PhotoPreferenceType
+    getPhotoPreference: (Photo) -> PhotoPreferenceType,
+    isPhotoInQuickList: (Photo) -> Boolean,
+    onQuickListToggle: (Photo) -> Unit
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(4), // Changed to 4 columns
@@ -236,7 +246,9 @@ private fun PhotoStackGrid(
             PhotoStackCell(
                 stack = stack,
                 onClick = { onStackClick(stack) },
-                getPhotoPreference = getPhotoPreference
+                getPhotoPreference = getPhotoPreference,
+                isPhotoInQuickList = isPhotoInQuickList,
+                onQuickListToggle = onQuickListToggle
             )
         }
     }
@@ -246,12 +258,15 @@ private fun PhotoStackGrid(
 private fun PhotoStackCell(
     stack: PhotoStack,
     onClick: () -> Unit,
-    getPhotoPreference: (Photo) -> PhotoPreferenceType
+    getPhotoPreference: (Photo) -> PhotoPreferenceType,
+    isPhotoInQuickList: (Photo) -> Boolean,
+    onQuickListToggle: (Photo) -> Unit
 ) {
     val stackHasFavorite = stack.photos.any { getPhotoPreference(it) == PhotoPreferenceType.LIKE }
     val primaryPreference = getPhotoPreference(stack.primaryPhoto)
     val shouldShowFavoriteIcon = if (stack.isStack) stackHasFavorite else primaryPreference == PhotoPreferenceType.LIKE
     val shouldShowDislikeIcon = !stack.isStack && primaryPreference == PhotoPreferenceType.DISLIKE
+    val isInQuickList = isPhotoInQuickList(stack.primaryPhoto)
     
     Box(
         modifier = Modifier
@@ -323,12 +338,34 @@ private fun PhotoStackCell(
             
             Spacer(modifier = Modifier.weight(1f))
             
-            // Dislike indicator (bottom-right)
-            if (shouldShowDislikeIcon) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
+            // Bottom row with Quick List FAB and Dislike indicator
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                // Quick List FAB (bottom-left)
+                Box(
+                    modifier = Modifier
+                        .padding(4.dp)
+                        .size(24.dp)
+                        .background(
+                            if (isInQuickList) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.7f),
+                            CircleShape
+                        )
+                        .clickable { onQuickListToggle(stack.primaryPhoto) },
+                    contentAlignment = Alignment.Center
                 ) {
+                    Icon(
+                        if (isInQuickList) Icons.Default.Check else Icons.Default.Add,
+                        contentDescription = if (isInQuickList) "Remove from Quick List" else "Add to Quick List",
+                        tint = if (isInQuickList) Color.White else Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                
+                // Dislike indicator (bottom-right)
+                if (shouldShowDislikeIcon) {
                     Box(
                         modifier = Modifier
                             .padding(4.dp)
@@ -346,6 +383,8 @@ private fun PhotoStackCell(
                             modifier = Modifier.size(12.dp)
                         )
                     }
+                } else {
+                    Spacer(modifier = Modifier.size(28.dp))
                 }
             }
         }

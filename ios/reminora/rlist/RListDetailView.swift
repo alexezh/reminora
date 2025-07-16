@@ -11,6 +11,14 @@ struct RListDetailView: View {
 
     @FetchRequest private var listItems: FetchedResults<ListItem>
     @FetchRequest private var places: FetchedResults<Place>
+    
+    // Quick List menu states
+    @State private var showingMenu = false
+    @State private var showingCreateList = false
+    @State private var showingAddToList = false
+    @State private var showingClearConfirmation = false
+    @State private var newListName = ""
+    @State private var selectedListId: String?
 
     init(list: UserList) {
         self.list = list
@@ -54,14 +62,19 @@ struct RListDetailView: View {
                 Spacer()
                 
                 Button(action: {
-                    // Handle menu action
-                    print("Menu tapped")
+                    if isQuickList {
+                        showingMenu = true
+                    } else {
+                        // Handle regular list menu action
+                        print("Menu tapped for regular list")
+                    }
                 }) {
                     Image(systemName: "ellipsis")
                         .font(.title3)
                         .foregroundColor(.primary)
                         .rotationEffect(.degrees(90))
                 }
+                .disabled(isQuickList && listItems.isEmpty)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -120,6 +133,140 @@ struct RListDetailView: View {
             }
         }
         .navigationBarHidden(true)
+        .confirmationDialog("Quick List Actions", isPresented: $showingMenu, titleVisibility: .visible) {
+            if isQuickList {
+                Button("Create List") {
+                    showingCreateList = true
+                }
+                
+                Button("Add to List") {
+                    showingAddToList = true
+                }
+                
+                Button("Clear Quick") {
+                    showingClearConfirmation = true
+                }
+                
+                Button("Cancel", role: .cancel) { }
+            }
+        }
+        .alert("Create New List", isPresented: $showingCreateList) {
+            TextField("List name", text: $newListName)
+            Button("Create") {
+                createNewList()
+            }
+            .disabled(newListName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            Button("Cancel", role: .cancel) {
+                newListName = ""
+            }
+        } message: {
+            Text("Enter a name for the new list. All items from Quick List will be moved to this list.")
+        }
+        .alert("Clear Quick List", isPresented: $showingClearConfirmation) {
+            Button("Clear", role: .destructive) {
+                clearQuickList()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Are you sure you want to clear all items from Quick List? This action cannot be undone.")
+        }
+        .sheet(isPresented: $showingAddToList) {
+            AddToListPickerView(
+                context: viewContext,
+                userId: getCurrentUserId(),
+                onListSelected: { listId in
+                    selectedListId = listId
+                    addToExistingList()
+                },
+                onDismiss: {
+                    showingAddToList = false
+                }
+            )
+        }
+    }
+    
+    // MARK: - Quick List Actions
+    
+    private func createNewList() {
+        let trimmedName = newListName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+        
+        Task {
+            let success = await QuickListService.shared.createListFromQuickList(
+                newListName: trimmedName,
+                context: viewContext,
+                userId: getCurrentUserId()
+            )
+            
+            await MainActor.run {
+                if success {
+                    newListName = ""
+                    
+                    // Show success feedback
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                    impactFeedback.impactOccurred()
+                    
+                    // Navigate back to the lists view since Quick List is now empty
+                    presentationMode.wrappedValue.dismiss()
+                } else {
+                    // Handle error - could show an alert
+                    print("❌ Failed to create new list")
+                }
+            }
+        }
+    }
+    
+    private func addToExistingList() {
+        guard let listId = selectedListId else { return }
+        
+        Task {
+            let success = await QuickListService.shared.moveQuickListToExistingList(
+                targetListId: listId,
+                context: viewContext,
+                userId: getCurrentUserId()
+            )
+            
+            await MainActor.run {
+                if success {
+                    selectedListId = nil
+                    showingAddToList = false
+                    
+                    // Show success feedback
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                    impactFeedback.impactOccurred()
+                    
+                    // Navigate back to the lists view since Quick List is now empty
+                    presentationMode.wrappedValue.dismiss()
+                } else {
+                    // Handle error
+                    print("❌ Failed to add to existing list")
+                    showingAddToList = false
+                }
+            }
+        }
+    }
+    
+    private func clearQuickList() {
+        Task {
+            let success = await QuickListService.shared.clearQuickList(
+                context: viewContext,
+                userId: getCurrentUserId()
+            )
+            
+            await MainActor.run {
+                if success {
+                    // Show success feedback
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                    impactFeedback.impactOccurred()
+                    
+                    // Navigate back to the lists view since Quick List is now empty
+                    presentationMode.wrappedValue.dismiss()
+                } else {
+                    // Handle error
+                    print("❌ Failed to clear Quick List")
+                }
+            }
+        }
     }
     
     private func createMixedContent() -> [any RListViewItem] {

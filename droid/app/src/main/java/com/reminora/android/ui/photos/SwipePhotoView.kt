@@ -34,7 +34,9 @@ fun SwipePhotoView(
     onShare: (Photo) -> Unit,
     onLike: (Photo) -> Unit,
     onDislike: (Photo) -> Unit,
-    getPhotoPreference: (Photo) -> PhotoPreferenceType
+    getPhotoPreference: (Photo) -> PhotoPreferenceType,
+    isPhotoInQuickList: ((Photo) -> Boolean)? = null,
+    onQuickListToggle: ((Photo) -> Unit)? = null
 ) {
     val pagerState = rememberPagerState(
         initialPage = initialIndex,
@@ -180,7 +182,11 @@ fun SwipePhotoView(
                         .weight(1f)
                 ) { page ->
                     val photo = stack.photos[page]
-                    PhotoView(photo = photo)
+                    PhotoView(
+                        photo = photo,
+                        isPhotoInQuickList = isPhotoInQuickList,
+                        onQuickListToggle = onQuickListToggle
+                    )
                 }
                 
                 // Navigation dots for stacks
@@ -217,7 +223,9 @@ fun SwipePhotoView(
 
 @Composable
 private fun PhotoView(
-    photo: Photo
+    photo: Photo,
+    isPhotoInQuickList: ((Photo) -> Boolean)? = null,
+    onQuickListToggle: ((Photo) -> Unit)? = null
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -252,6 +260,24 @@ private fun PhotoView(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+        }
+        
+        // Quick List FAB (bottom-right)
+        if (isPhotoInQuickList != null && onQuickListToggle != null) {
+            val isInQuickList = isPhotoInQuickList(photo)
+            FloatingActionButton(
+                onClick = { onQuickListToggle(photo) },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(24.dp),
+                containerColor = if (isInQuickList) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                contentColor = if (isInQuickList) Color.White else MaterialTheme.colorScheme.onSurface
+            ) {
+                Icon(
+                    if (isInQuickList) Icons.Default.Check else Icons.Default.Add,
+                    contentDescription = if (isInQuickList) "Remove from Quick List" else "Add to Quick List"
+                )
             }
         }
     }

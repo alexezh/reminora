@@ -7,9 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +25,13 @@ fun ListsScreen(
 ) {
     val listsState by listsViewModel.listsState.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
+    
+    // Quick List menu states
+    var showQuickListMenu by remember { mutableStateOf(false) }
+    var showCreateListFromQuickDialog by remember { mutableStateOf(false) }
+    var showAddToListDialog by remember { mutableStateOf(false) }
+    var showClearQuickDialog by remember { mutableStateOf(false) }
+    var selectedQuickList by remember { mutableStateOf<SavedList?>(null) }
     
     Column(
         modifier = Modifier
@@ -113,7 +118,13 @@ fun ListsScreen(
                     items(listsState.lists) { list ->
                         ListItem(
                             list = list,
-                            onClick = { listsViewModel.selectList(list) }
+                            onClick = { listsViewModel.selectList(list) },
+                            onMenuClick = if (listsViewModel.isQuickList(list)) {
+                                { 
+                                    selectedQuickList = list
+                                    showQuickListMenu = true
+                                }
+                            } else null
                         )
                     }
                 }
@@ -131,13 +142,72 @@ fun ListsScreen(
             }
         )
     }
+    
+    // Quick List menu
+    if (showQuickListMenu && selectedQuickList != null) {
+        QuickListMenuDialog(
+            onDismiss = { 
+                showQuickListMenu = false
+                selectedQuickList = null
+            },
+            onCreateList = {
+                showQuickListMenu = false
+                showCreateListFromQuickDialog = true
+            },
+            onAddToList = {
+                showQuickListMenu = false
+                showAddToListDialog = true
+            },
+            onClearQuick = {
+                showQuickListMenu = false
+                showClearQuickDialog = true
+            }
+        )
+    }
+    
+    // Create list from Quick List dialog
+    if (showCreateListFromQuickDialog) {
+        CreateListDialog(
+            title = "Create List from Quick List",
+            description = "Enter a name for the new list. All items from Quick List will be moved to this list.",
+            onDismiss = { showCreateListFromQuickDialog = false },
+            onCreateList = { name ->
+                listsViewModel.createListFromQuickList(name)
+                showCreateListFromQuickDialog = false
+            }
+        )
+    }
+    
+    // Add to existing list dialog
+    if (showAddToListDialog) {
+        AddToListDialog(
+            lists = listsState.lists.filter { !listsViewModel.isQuickList(it) },
+            onDismiss = { showAddToListDialog = false },
+            onListSelected = { listId ->
+                listsViewModel.moveQuickListToExistingList(listId)
+                showAddToListDialog = false
+            }
+        )
+    }
+    
+    // Clear Quick List confirmation dialog
+    if (showClearQuickDialog) {
+        ClearQuickListDialog(
+            onDismiss = { showClearQuickDialog = false },
+            onConfirm = {
+                listsViewModel.clearQuickList()
+                showClearQuickDialog = false
+            }
+        )
+    }
 }
 
 @Composable
 fun ListItem(
     list: SavedList,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onMenuClick: (() -> Unit)? = null
 ) {
     Card(
         modifier = modifier
@@ -190,18 +260,31 @@ fun ListItem(
                 )
             }
             
-            // Special badges for system lists
+            // Special badges for system lists or menu button
             if (list.name == "Shared" || list.name == "Quick") {
-                Surface(
-                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = "System",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
+                if (onMenuClick != null && list.name == "Quick") {
+                    IconButton(
+                        onClick = onMenuClick,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "Quick List Menu",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                } else {
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "System",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
             }
         }
@@ -211,16 +294,18 @@ fun ListItem(
 @Composable
 fun CreateListDialog(
     onDismiss: () -> Unit,
-    onCreateList: (String) -> Unit
+    onCreateList: (String) -> Unit,
+    title: String = "Create New List",
+    description: String = "Enter a name for your new list:"
 ) {
     var listName by remember { mutableStateOf("") }
     
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create New List") },
+        title = { Text(title) },
         text = {
             Column {
-                Text("Enter a name for your new list:")
+                Text(description)
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = listName,
@@ -237,6 +322,130 @@ fun CreateListDialog(
                 enabled = listName.isNotBlank()
             ) {
                 Text("Create")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun QuickListMenuDialog(
+    onDismiss: () -> Unit,
+    onCreateList: () -> Unit,
+    onAddToList: () -> Unit,
+    onClearQuick: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Quick List Actions") },
+        text = {
+            Column {
+                TextButton(
+                    onClick = onCreateList,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Create List")
+                    }
+                }
+                
+                TextButton(
+                    onClick = onAddToList,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.List, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add to List")
+                    }
+                }
+                
+                TextButton(
+                    onClick = onClearQuick,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Clear, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Clear Quick")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun AddToListDialog(
+    lists: List<SavedList>,
+    onDismiss: () -> Unit,
+    onListSelected: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add to Existing List") },
+        text = {
+            LazyColumn {
+                items(lists) { list ->
+                    TextButton(
+                        onClick = { onListSelected(list.id) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.List, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(list.name)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun ClearQuickListDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Clear Quick List") },
+        text = {
+            Text("Are you sure you want to clear all items from Quick List? This action cannot be undone.")
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Clear")
             }
         },
         dismissButton = {

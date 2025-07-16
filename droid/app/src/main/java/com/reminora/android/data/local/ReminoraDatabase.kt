@@ -21,6 +21,8 @@ import android.content.Context
 abstract class ReminoraDatabase : RoomDatabase() {
     abstract fun placeDao(): PlaceDao
     abstract fun commentDao(): CommentDao
+    abstract fun userListDao(): UserListDao
+    abstract fun listItemDao(): ListItemDao
     
     companion object {
         @Volatile

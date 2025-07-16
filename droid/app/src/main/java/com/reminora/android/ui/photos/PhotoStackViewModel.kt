@@ -5,6 +5,7 @@ import android.content.Context
 import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.reminora.android.ui.quicklist.QuickListService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +30,8 @@ enum class PhotoFilterType(val displayName: String, val iconName: String) {
 
 @HiltViewModel
 class PhotoStackViewModel @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val quickListService: QuickListService
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(PhotoStackUiState())
@@ -38,8 +40,14 @@ class PhotoStackViewModel @Inject constructor(
     // Photo preferences storage (in-memory for demo)
     private val photoPreferences = mutableMapOf<String, PhotoPreferenceType>()
     
+    // Quick List state
+    private val quickListPhotoIds = mutableSetOf<String>()
+    
     private var allPhotoStacks: List<PhotoStack> = emptyList()
     private var currentFilter = PhotoFilterType.NOT_DISLIKED
+    
+    // Mock user ID for demo
+    private val userId = "demo_user"
     
     init {
         loadPhotos()
@@ -117,6 +125,41 @@ class PhotoStackViewModel @Inject constructor(
     fun setFilter(filter: PhotoFilterType) {
         currentFilter = filter
         applyCurrentFilter()
+    }
+    
+    // MARK: - Quick List Methods
+    
+    fun isPhotoInQuickList(photo: Photo): Boolean {
+        return quickListPhotoIds.contains(photo.id)
+    }
+    
+    fun togglePhotoInQuickList(photo: Photo) {
+        viewModelScope.launch {
+            val isInQuickList = quickListService.togglePhotoInQuickList(photo.id, userId)
+            if (isInQuickList) {
+                quickListPhotoIds.add(photo.id)
+            } else {
+                quickListPhotoIds.remove(photo.id)
+            }
+        }
+    }
+    
+    fun addPhotoToQuickList(photo: Photo) {
+        viewModelScope.launch {
+            val success = quickListService.addPhotoToQuickList(photo.id, userId)
+            if (success) {
+                quickListPhotoIds.add(photo.id)
+            }
+        }
+    }
+    
+    fun removePhotoFromQuickList(photo: Photo) {
+        viewModelScope.launch {
+            val success = quickListService.removePhotoFromQuickList(photo.id, userId)
+            if (success) {
+                quickListPhotoIds.remove(photo.id)
+            }
+        }
     }
     
     private fun applyCurrentFilter() {

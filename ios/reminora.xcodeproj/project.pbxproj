@@ -12,6 +12,8 @@
 		49540DC62E1C70A100886A08 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49540DC42E1C70A100886A08 /* ShareViewController.swift */; };
 		49540DC72E1C70A100886A08 /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 49540DC22E1C70A100886A08 /* MainInterface.storyboard */; };
 		49D0F5732E1DE50F004BABB0 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 49D0F5722E1DE50F004BABB0 /* GoogleSignIn */; };
+		49FB00032E2FFBBB004BABB0 /* FacebookLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 49FB00022E2FFBBB004BABB0 /* FacebookLogin */; };
+		49FB00052E2FFBBB004BABB0 /* FacebookCore in Frameworks */ = {isa = PBXBuildFile; productRef = 49FB00042E2FFBBB004BABB0 /* FacebookCore */; };
 		49F151FC2DE4BF3200573F48 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F151FB2DE4BF3200573F48 /* Persistence.swift */; };
 		49F1522F2DE4C42400573F48 /* ReminoraShareExt.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 49F152252DE4C42400573F48 /* ReminoraShareExt.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		49F1523D2DE4CE0700573F48 /* places.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */; };
@@ -113,6 +115,8 @@
 			files = (
 				49F152442DE4F3CA00573F48 /* CoreData.framework in Frameworks */,
 				49D0F5732E1DE50F004BABB0 /* GoogleSignIn in Frameworks */,
+				49FB00032E2FFBBB004BABB0 /* FacebookLogin in Frameworks */,
+				49FB00052E2FFBBB004BABB0 /* FacebookCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -218,6 +222,8 @@
 			name = reminora;
 			packageProductDependencies = (
 				49D0F5722E1DE50F004BABB0 /* GoogleSignIn */,
+				49FB00022E2FFBBB004BABB0 /* FacebookLogin */,
+				49FB00042E2FFBBB004BABB0 /* FacebookCore */,
 			);
 			productName = reminora;
 			productReference = 49F151EF2DE4BF3100573F48 /* reminora.app */;
@@ -325,6 +331,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				49D0F56C2E1D5B6D004BABB0 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				49FB00012E2FFBBB004BABB0 /* XCRemoteSwiftPackageReference "facebook-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 49F151F02DE4BF3100573F48 /* Products */;
@@ -807,6 +814,14 @@
 				minimumVersion = 9.0.0;
 			};
 		};
+		49FB00012E2FFBBB004BABB0 /* XCRemoteSwiftPackageReference "facebook-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/facebook/facebook-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 17.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -814,6 +829,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 49D0F56C2E1D5B6D004BABB0 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignIn;
+		};
+		49FB00022E2FFBBB004BABB0 /* FacebookLogin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 49FB00012E2FFBBB004BABB0 /* XCRemoteSwiftPackageReference "facebook-ios-sdk" */;
+			productName = FacebookLogin;
+		};
+		49FB00042E2FFBBB004BABB0 /* FacebookCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 49FB00012E2FFBBB004BABB0 /* XCRemoteSwiftPackageReference "facebook-ios-sdk" */;
+			productName = FacebookCore;
 		};
 /* End XCSwiftPackageProductDependency section */
 

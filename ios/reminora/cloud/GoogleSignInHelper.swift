@@ -46,6 +46,10 @@ class GoogleSignInHelper {
             }
         }
     }
+    
+    func signOut() {
+        GIDSignIn.sharedInstance.signOut()
+    }
 }
 
 struct GoogleOAuthResult {

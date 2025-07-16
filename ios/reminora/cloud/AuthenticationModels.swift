@@ -61,12 +61,14 @@ enum OAuthProvider: String, CaseIterable {
     case google = "google"
     case apple = "apple"
     case github = "github"
+    case facebook = "facebook"
     
     var displayName: String {
         switch self {
         case .google: return "Google"
         case .apple: return "Apple"
         case .github: return "GitHub"
+        case .facebook: return "Facebook"
         }
     }
     
@@ -75,6 +77,7 @@ enum OAuthProvider: String, CaseIterable {
         case .google: return "globe"
         case .apple: return "applelogo"
         case .github: return "laptopcomputer"
+        case .facebook: return "person.crop.circle"
         }
     }
 }

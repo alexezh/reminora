@@ -13,6 +13,7 @@ import UIKit
 import CoreData
 import MapKit
 import CoreLocation
+import StoreKit
 
 struct SwipePhotoView: View {
     let stack: PhotoStack
@@ -32,10 +33,18 @@ struct SwipePhotoView: View {
     @State private var currentPreference: PhotoPreferenceType = .neutral
     @State private var isPreferenceManagerReady = false
     @State private var isInQuickList = false
+    @State private var showingAuthenticationView = false
+    @State private var showingSubscriptionView = false
+    @State private var showingPinShareResult = false
+    @State private var pinShareURL: String?
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
     }
+    
+    @StateObject private var authService = AuthenticationService.shared
+    @StateObject private var pinSharingService = PinSharingService.shared
+    @StateObject private var photoSharingService = PhotoSharingService.shared
     
     init(stack: PhotoStack, initialIndex: Int, onDismiss: @escaping () -> Void) {
         self.stack = stack
@@ -179,15 +188,29 @@ struct SwipePhotoView: View {
                         }
                         
                         // Action buttons (iOS Photos style)
-                        HStack(spacing: 32) {
-                            // Share button
+                        HStack(spacing: 24) {
+                            // Share Photo button
                             Button(action: sharePhoto) {
                                 VStack(spacing: 4) {
                                     Image(systemName: "square.and.arrow.up")
                                         .font(.title2)
                                         .foregroundColor(.white)
                                         .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                    Text("Share")
+                                    Text("Share Photo")
+                                        .font(.caption2)
+                                        .foregroundColor(.white)
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                }
+                            }
+                            
+                            // Share Pin button
+                            Button(action: sharePinFromPhoto) {
+                                VStack(spacing: 4) {
+                                    Image(systemName: "location.circle")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                    Text("Share Pin")
                                         .font(.caption2)
                                         .foregroundColor(.white)
                                         .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
@@ -323,6 +346,26 @@ struct SwipePhotoView: View {
         .sheet(isPresented: $showingSimilarGridView) {
             SimilarPhotosGridView(targetAsset: currentAsset)
         }
+        .sheet(isPresented: $showingAuthenticationView) {
+            AuthenticationView()
+        }
+        .sheet(isPresented: $showingSubscriptionView) {
+            SubscriptionView()
+        }
+        .alert("Pin Shared!", isPresented: $showingPinShareResult) {
+            if let url = pinShareURL {
+                Button("Copy Link") {
+                    UIPasteboard.general.string = url
+                }
+            }
+            Button("OK") { }
+        } message: {
+            if let url = pinShareURL {
+                Text("Your pin has been shared successfully. Share link: \(url)")
+            } else {
+                Text("Your pin has been shared successfully!")
+            }
+        }
     }
     
     
@@ -365,7 +408,18 @@ struct SwipePhotoView: View {
     }
     
     private func sharePhoto() {
-        // First create a Place from this photo, then share it
+        // Use stock photo app style sharing
+        photoSharingService.sharePhoto(currentAsset)
+    }
+    
+    private func sharePinFromPhoto() {
+        // Check if authentication is required
+        if pinSharingService.requiresAuthentication() {
+            showingAuthenticationView = true
+            return
+        }
+        
+        // Create a Place from this photo and share it to the backend
         let imageManager = PHImageManager.default()
         let options = PHImageRequestOptions()
         options.isSynchronous = false
@@ -374,12 +428,12 @@ struct SwipePhotoView: View {
         imageManager.requestImage(for: currentAsset, targetSize: CGSize(width: 1024, height: 1024), contentMode: .aspectFit, options: options) { image, _ in
             guard let image = image,
                   let imageData = image.jpegData(compressionQuality: 0.8) else {
-                print("Failed to get image data for sharing")
+                print("Failed to get image data for pin sharing")
                 return
             }
             
             DispatchQueue.main.async {
-                // Create new Place for sharing
+                // Create new Place for pin sharing
                 let newPlace = Place(context: viewContext)
                 newPlace.imageData = imageData
                 newPlace.dateAdded = currentAsset.creationDate ?? Date()
@@ -401,12 +455,30 @@ struct SwipePhotoView: View {
                 
                 do {
                     try viewContext.save()
-                    print("Successfully saved place for sharing")
+                    print("Successfully saved place for pin sharing")
                     
-                    // Now create the share URL using the new Place
-                    createShareURL(for: newPlace)
+                    // Share the pin to the backend
+                    Task {
+                        do {
+                            let shareResponse = try await pinSharingService.sharePin(newPlace)
+                            await MainActor.run {
+                                pinShareURL = shareResponse.shareUrl
+                                showingPinShareResult = true
+                            }
+                        } catch PinSharingError.subscriptionRequired {
+                            await MainActor.run {
+                                showingSubscriptionView = true
+                            }
+                        } catch PinSharingError.notAuthenticated {
+                            await MainActor.run {
+                                showingAuthenticationView = true
+                            }
+                        } catch {
+                            print("Failed to share pin: \(error)")
+                        }
+                    }
                 } catch {
-                    print("Failed to save photo as place for sharing: \(error)")
+                    print("Failed to save photo as place for pin sharing: \(error)")
                 }
             }
         }

@@ -64,6 +64,34 @@ class AuthenticationService: NSObject, ObservableObject {
         }
     }
     
+    func signInWithFacebook() {
+        isLoading = true
+        
+        Task {
+            do {
+                print("Starting Facebook Sign-In...")
+                let result = try await FacebookSignInHelper.shared.signIn()
+                print("Facebook Sign-In successful: \(result.email)")
+                
+                await handleOAuthCallback(
+                    provider: .facebook,
+                    oauthId: result.oauthId,
+                    email: result.email,
+                    name: result.name,
+                    avatarUrl: result.avatarUrl,
+                    accessToken: result.accessToken,
+                    refreshToken: nil
+                )
+            } catch {
+                print("Facebook Sign-In failed: \(error)")
+                await MainActor.run {
+                    self.isLoading = false
+                    self.authState = .error(error)
+                }
+            }
+        }
+    }
+    
     func completeSetup(handle: String) async throws {
         guard let session = currentSession else {
             throw AuthError.noSession
@@ -130,6 +158,10 @@ class AuthenticationService: NSObject, ObservableObject {
         
         // Clear local storage
         clearStoredAuth()
+        
+        // Sign out from all OAuth providers
+        GoogleSignInHelper.shared.signOut()
+        FacebookSignInHelper.shared.signOut()
         
         await MainActor.run {
             self.currentSession = nil

@@ -71,19 +71,19 @@ struct LoginView: View {
                                 .cornerRadius(25)
                             }
                             
-                            // GitHub Sign In (placeholder)
+                            // Facebook Sign In
                             Button(action: {
-                                // GitHub OAuth would be implemented here
+                                authService.signInWithFacebook()
                             }) {
                                 HStack {
-                                    Image(systemName: "laptopcomputer")
+                                    Image(systemName: "f.circle.fill")
                                         .font(.title2)
-                                    Text("Continue with GitHub")
+                                    Text("Continue with Facebook")
                                         .fontWeight(.semibold)
                                 }
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 50)
-                                .background(Color.black)
+                                .background(Color.blue)
                                 .foregroundColor(.white)
                                 .cornerRadius(25)
                             }

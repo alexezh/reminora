@@ -328,7 +328,7 @@ struct CommentPreviewView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(comment.text ?? "")
+                Text(comment.commentText ?? "")
                     .font(.body)
                     .lineLimit(3)
                 

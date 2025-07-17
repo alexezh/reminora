@@ -48,6 +48,52 @@ class SharedListService: ObservableObject {
     
     // MARK: - Shared Items Management
     
+    /// Adds a pin to the shared list
+    func addToSharedList(place: Place, userId: String? = nil) async {
+        guard let context = place.managedObjectContext else {
+            print("❌ No managed object context for place")
+            return
+        }
+        
+        let currentUserId = userId ?? AuthenticationService.shared.currentAccount?.id ?? ""
+        guard !currentUserId.isEmpty else {
+            print("❌ No user ID available for shared list")
+            return
+        }
+        
+        await MainActor.run {
+            // Get or create the shared list
+            let sharedList = getOrCreateSharedList(in: context, userId: currentUserId)
+            
+            // Check if this place is already in the shared list
+            let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", 
+                                               sharedList.id ?? "", 
+                                               place.objectID.uriRepresentation().absoluteString)
+            
+            do {
+                let existingItems = try context.fetch(fetchRequest)
+                if existingItems.isEmpty {
+                    // Add the pin to the shared list
+                    let listItem = ListItem(context: context)
+                    listItem.id = UUID().uuidString
+                    listItem.placeId = place.objectID.uriRepresentation().absoluteString
+                    listItem.addedAt = Date()
+                    listItem.listId = sharedList.id ?? ""
+                    listItem.sharedByUserId = currentUserId
+                    listItem.sharedByUserName = AuthenticationService.shared.currentAccount?.display_name
+                    
+                    try context.save()
+                    print("✅ Added shared pin to shared list")
+                } else {
+                    print("📌 Pin already exists in shared list")
+                }
+            } catch {
+                print("❌ Failed to add pin to shared list: \(error)")
+            }
+        }
+    }
+    
     /// Gets all items shared with the current user
     func getSharedItems(context: NSManagedObjectContext, userId: String) async -> [any RListViewItem] {
         // For now, return items in the Shared list
@@ -142,35 +188,39 @@ struct SharedListView: View {
     @State private var isLoading = true
     
     var body: some View {
-        Group {
-            if isLoading {
-                ProgressView("Loading...")
+        NavigationView {
+            Group {
+                if isLoading {
+                    ProgressView("Loading...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if items.isEmpty {
+                    VStack(spacing: 20) {
+                        Image(systemName: "shared.with.you")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                        
+                        Text("No Shared Items")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                        
+                        Text("Items shared with you will appear here")
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if items.isEmpty {
-                VStack(spacing: 20) {
-                    Image(systemName: "shared.with.you")
-                        .font(.system(size: 60))
-                        .foregroundColor(.gray)
-                    
-                    Text("No Shared Items")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    
-                    Text("Items shared with you will appear here")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                } else {
+                    RListView(
+                        dataSource: .mixed(items),
+                        onPhotoTap: onPhotoTap,
+                        onPinTap: onPinTap,
+                        onPhotoStackTap: onPhotoStackTap
+                    )
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                RListView(
-                    dataSource: .mixed(items),
-                    onPhotoTap: onPhotoTap,
-                    onPinTap: onPinTap,
-                    onPhotoStackTap: onPhotoStackTap
-                )
             }
+            .navigationTitle("Shared")
+            .navigationBarTitleDisplayMode(.inline)
         }
         .task {
             await loadItems()
@@ -180,6 +230,7 @@ struct SharedListView: View {
     private func loadItems() async {
         isLoading = true
         let loadedItems = await SharedListService.shared.getSharedItems(context: context, userId: userId)
+        print("🔍 SharedListView loaded \(loadedItems.count) items")
         await MainActor.run {
             self.items = loadedItems
             self.isLoading = false

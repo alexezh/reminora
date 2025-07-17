@@ -24,6 +24,11 @@ ios/GoogleService-Info.plist
 ios/reminora/GoogleService-Info.plist
 droid/app/google-services.json
 
+# Facebook Configuration
+Facebook-Info.plist
+ios/Facebook-Info.plist
+ios/reminora/Facebook-Info.plist
+
 # Firebase
 firebase-debug.log
 .firebaserc

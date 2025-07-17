@@ -9,6 +9,8 @@ import SwiftUI
 import GoogleSignIn
 import CoreData
 import CoreLocation
+import FacebookCore
+import UIKit
 
 @main
 struct reminoraApp: App {
@@ -18,6 +20,7 @@ struct reminoraApp: App {
 
     init() {
         configureGoogleSignIn()
+        configureFacebookSDK()
     }
 
     var body: some Scene {
@@ -86,6 +89,27 @@ struct reminoraApp: App {
         let config = GIDConfiguration(clientID: clientId)
         GIDSignIn.sharedInstance.configuration = config
         print("Google Sign-In configured successfully")
+    }
+    
+    private func configureFacebookSDK() {
+        // Load Facebook configuration from Facebook-Info.plist
+        guard let path = Bundle.main.path(forResource: "Facebook-Info", ofType: "plist"),
+              let facebookPlist = NSDictionary(contentsOfFile: path),
+              let appID = facebookPlist["FacebookAppID"] as? String,
+              let clientToken = facebookPlist["FacebookClientToken"] as? String else {
+            print("Facebook-Info.plist not found or missing required keys")
+            return
+        }
+        
+        // Initialize Facebook SDK
+        ApplicationDelegate.shared.application(
+            UIApplication.shared,
+            didFinishLaunchingWithOptions: nil
+        )
+        
+        Settings.shared.appID = appID
+        Settings.shared.clientToken = clientToken
+        print("Facebook SDK configured successfully with App ID: \(appID)")
     }
     
     private func handleReminoraLink(_ url: URL) {

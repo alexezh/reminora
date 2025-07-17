@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreData
 import MapKit
+import CoreLocation
 
 struct MyProfileView: View {
     let userId: String
@@ -16,6 +17,8 @@ struct MyProfileView: View {
     @State private var isCheckingFollowStatus = true
     @State private var selectedPin: UserPin?
     @State private var showingPinDetail = false
+    @State private var showingDebugDialog = false
+    @State private var debugURL = ""
     
     var body: some View {
         NavigationView {
@@ -141,6 +144,14 @@ struct MyProfileView: View {
                         presentationMode.wrappedValue.dismiss()
                     }
                 }
+                
+                if isCurrentUser {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Debug Open Link") {
+                            showingDebugDialog = true
+                        }
+                    }
+                }
             }
         }
         .sheet(isPresented: $showingPinDetail) {
@@ -154,6 +165,15 @@ struct MyProfileView: View {
         .onAppear {
             loadUserPins()
             checkFollowStatus()
+        }
+        .alert("Debug Open Link", isPresented: $showingDebugDialog) {
+            TextField("Enter URL", text: $debugURL)
+            Button("OK") {
+                processDebugURL()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("Enter a deep link URL to test (e.g., reminora://place/123?name=Test&lat=37.7749&lon=-122.4194)")
         }
     }
     
@@ -246,6 +266,171 @@ struct MyProfileView: View {
             } catch {
                 print("🔍 ❌ Failed to toggle follow for \(userName): \(error)")
             }
+        }
+    }
+    
+    private func processDebugURL() {
+        guard let url = URL(string: debugURL) else {
+            print("❌ Invalid URL format")
+            return
+        }
+        
+        print("🔗 Debug processing URL: \(url)")
+        
+        // Process the URL using the same logic as the main app
+        processReminoraDeepLink(url: url)
+        
+        // Clear the debug URL
+        debugURL = ""
+    }
+    
+    private func processReminoraDeepLink(url: URL) {
+        print("🔗 Processing Reminora deep link: \(url)")
+        
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            print("❌ Failed to parse URL components")
+            return
+        }
+        
+        let pathComponents = components.path.components(separatedBy: "/").filter { !$0.isEmpty }
+        
+        guard pathComponents.count >= 2,
+              pathComponents[0] == "place" else {
+            print("❌ Invalid path format. Expected: /place/{id}")
+            return
+        }
+        
+        let placeId = pathComponents[1]
+        let queryItems = components.queryItems ?? []
+        
+        var name: String?
+        var latitude: Double?
+        var longitude: Double?
+        var ownerId: String?
+        var ownerHandle: String?
+        
+        for item in queryItems {
+            switch item.name {
+            case "name":
+                name = item.value
+            case "lat":
+                if let value = item.value {
+                    latitude = Double(value)
+                }
+            case "lon":
+                if let value = item.value {
+                    longitude = Double(value)
+                }
+            case "ownerId":
+                ownerId = item.value
+            case "ownerHandle":
+                ownerHandle = item.value
+            default:
+                break
+            }
+        }
+        
+        guard let placeName = name,
+              let lat = latitude,
+              let lon = longitude else {
+            print("❌ Missing required parameters: name, lat, lon")
+            return
+        }
+        
+        print("✅ Creating shared place: \(placeName) at (\(lat), \(lon))")
+        
+        // Create the shared place in Core Data
+        let context = viewContext
+        
+        // Check if place already exists
+        let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "cloudId == %@", placeId)
+        
+        do {
+            let existingPlaces = try context.fetch(fetchRequest)
+            
+            if let existingPlace = existingPlaces.first {
+                print("ℹ️ Place already exists: \(existingPlace.post ?? "No name")")
+                return
+            }
+            
+            // Create new place
+            let place = Place(context: context)
+            place.post = placeName
+            place.dateAdded = Date()
+            place.cloudId = placeId
+            
+            // Set location
+            let location = CLLocation(latitude: lat, longitude: lon)
+            let locationData = try NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
+            place.setValue(locationData, forKey: "location")
+            
+            // Add owner info to URL field
+            if let ownerId = ownerId, let ownerHandle = ownerHandle {
+                place.url = "Shared by @\(ownerHandle) (ID: \(ownerId))"
+            }
+            
+            try context.save()
+            print("✅ Successfully created shared place")
+            
+            // Add to shared list
+            addToSharedList(place: place)
+            
+            // Post notification to navigate to the place
+            NotificationCenter.default.post(
+                name: Notification.Name("NavigateToSharedPlace"),
+                object: place
+            )
+            
+        } catch {
+            print("❌ Failed to create shared place: \(error)")
+        }
+    }
+    
+    private func addToSharedList(place: Place) {
+        let context = viewContext
+        
+        // Check if "Shared" list exists
+        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "name == %@", "Shared")
+        
+        do {
+            let existingLists = try context.fetch(fetchRequest)
+            let sharedList: UserList
+            
+            if let existing = existingLists.first {
+                sharedList = existing
+            } else {
+                // Create "Shared" list
+                sharedList = UserList(context: context)
+                sharedList.id = UUID().uuidString
+                sharedList.name = "Shared"
+                sharedList.createdAt = Date()
+                // Note: UserList doesn't have isSystem property
+            }
+            
+            // Check if place is already in the list
+            let itemFetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            itemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", sharedList.id ?? "", place.cloudId ?? "")
+            
+            let existingItems = try context.fetch(itemFetchRequest)
+            
+            if existingItems.isEmpty {
+                // Add place to shared list
+                let item = ListItem(context: context)
+                item.id = UUID().uuidString
+                item.listId = sharedList.id
+                item.placeId = place.cloudId
+                item.addedAt = Date()
+                
+                try context.save()
+                print("✅ Added place to Shared list")
+            } else {
+                print("ℹ️ Place already in Shared list")
+            }
+            
+        } catch {
+            print("❌ Failed to add to shared list: \(error)")
         }
     }
 }

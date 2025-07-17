@@ -123,6 +123,9 @@ class PinSharingService: ObservableObject {
             try? place.managedObjectContext?.save()
         }
         
+        // Add the shared pin to the shared list
+        await SharedListService.shared.addToSharedList(place: place)
+        
         // Refresh subscription status
         try await checkSubscriptionStatus()
         

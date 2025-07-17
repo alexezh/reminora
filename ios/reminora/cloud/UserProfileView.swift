@@ -54,24 +54,26 @@ struct UserProfileView: View {
                                 }
                             }
                             
-                            // Follow/Unfollow Button
-                            Button(action: toggleFollow) {
-                                HStack {
-                                    if isFollowActionLoading {
-                                        ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                            .scaleEffect(0.8)
-                                    } else {
-                                        Image(systemName: isFollowing ? "person.badge.minus" : "person.badge.plus")
-                                        Text(isFollowing ? "Unfollow" : "Follow")
+                            // Follow/Unfollow Button (only for other users)
+                            if userId != AuthenticationService.shared.currentAccount?.id {
+                                Button(action: toggleFollow) {
+                                    HStack {
+                                        if isFollowActionLoading {
+                                            ProgressView()
+                                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                                .scaleEffect(0.8)
+                                        } else {
+                                            Image(systemName: isFollowing ? "person.badge.minus" : "person.badge.plus")
+                                            Text(isFollowing ? "Unfollow" : "Follow")
+                                        }
                                     }
+                                    .frame(width: 120, height: 36)
+                                    .background(isFollowing ? Color.gray : Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(18)
                                 }
-                                .frame(width: 120, height: 36)
-                                .background(isFollowing ? Color.gray : Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(18)
+                                .disabled(isFollowActionLoading)
                             }
-                            .disabled(isFollowActionLoading)
                         }
                         .padding()
                         
@@ -228,7 +230,18 @@ struct UserProfileView: View {
             
             // Load recent pins from local database
             let pinFetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
-            pinFetchRequest.predicate = NSPredicate(format: "cloudId != nil") // Only shared pins
+            
+            // Check if this is the current user's profile
+            let isCurrentUser = userId == AuthenticationService.shared.currentAccount?.id
+            
+            if isCurrentUser {
+                // For current user, show ALL pins (local and shared)
+                pinFetchRequest.predicate = nil
+            } else {
+                // For other users, only show shared pins
+                pinFetchRequest.predicate = NSPredicate(format: "cloudId != nil")
+            }
+            
             pinFetchRequest.sortDescriptors = [NSSortDescriptor(key: "dateAdded", ascending: false)]
             pinFetchRequest.fetchLimit = 5
             
@@ -242,8 +255,8 @@ struct UserProfileView: View {
             
             let comments = try viewContext.fetch(commentFetchRequest)
             
-            // Check if currently following this user
-            let following = try await APIService.shared.isFollowing(userId: userId)
+            // Check if currently following this user (skip for current user)
+            let following = isCurrentUser ? false : try await APIService.shared.isFollowing(userId: userId)
             
             await MainActor.run {
                 self.userProfile = profile
@@ -412,7 +425,18 @@ struct UserPinsView: View {
         isLoading = true
         
         let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "cloudId != nil") // Only shared pins
+        
+        // Check if this is the current user's profile
+        let isCurrentUser = userId == AuthenticationService.shared.currentAccount?.id
+        
+        if isCurrentUser {
+            // For current user, show ALL pins (local and shared)
+            fetchRequest.predicate = nil
+        } else {
+            // For other users, only show shared pins
+            fetchRequest.predicate = NSPredicate(format: "cloudId != nil")
+        }
+        
         fetchRequest.sortDescriptors = [NSSortDescriptor(key: "dateAdded", ascending: false)]
         
         do {

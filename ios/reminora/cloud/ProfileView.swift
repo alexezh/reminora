@@ -284,9 +284,13 @@ struct ProfileView: View {
         if pathString.hasPrefix("/place/x-coredata:") {
             // Extract the Core Data URI from the path
             let coreDataURI = String(pathString.dropFirst("/place/".count))
-            // Use the full Core Data URI as the placeId for now
             placeId = coreDataURI
             print("🔍 Using Core Data URI as placeId: \(placeId)")
+        } else if pathString.hasPrefix("/x-coredata:") {
+            // Handle case where URL is missing the "place" part
+            let coreDataURI = String(pathString.dropFirst(1)) // Remove leading "/"
+            placeId = coreDataURI
+            print("🔍 Using Core Data URI without place prefix as placeId: \(placeId)")
         } else {
             // Normal path parsing
             let pathComponents = pathString.components(separatedBy: "/").filter { !$0.isEmpty }
@@ -372,6 +376,11 @@ struct ProfileView: View {
             try context.save()
             print("✅ Successfully created shared place")
             
+            // Fetch photo from cloud/original source asynchronously
+            Task {
+                await fetchPhotoForSharedPlace(place: place, originalPlaceId: placeId)
+            }
+            
             // Add to shared list
             addToSharedList(place: place)
             
@@ -430,6 +439,84 @@ struct ProfileView: View {
         } catch {
             print("❌ Failed to add to shared list: \(error)")
         }
+    }
+    
+    private func fetchPhotoForSharedPlace(place: Place, originalPlaceId: String) async {
+        print("🔍 Fetching photo for shared place from: \(originalPlaceId)")
+        
+        let context = viewContext
+        
+        // If it's a Core Data URI, try to find the original place in the database
+        if originalPlaceId.hasPrefix("x-coredata:") {
+            await fetchFromLocalCoreData(place: place, coreDataURI: originalPlaceId, context: context)
+        } else {
+            // For regular IDs, try to fetch from cloud
+            await fetchFromCloud(place: place, cloudId: originalPlaceId, context: context)
+        }
+    }
+    
+    private func fetchFromLocalCoreData(place: Place, coreDataURI: String, context: NSManagedObjectContext) async {
+        do {
+            // Try to create URL from Core Data URI
+            guard let url = URL(string: coreDataURI),
+                  let coordinator = context.persistentStoreCoordinator,
+                  let objectID = coordinator.managedObjectID(forURIRepresentation: url) else {
+                print("❌ Failed to create object ID from Core Data URI: \(coreDataURI)")
+                return
+            }
+            
+            // Try to fetch the original place
+            let originalPlace = try context.existingObject(with: objectID) as? Place
+            
+            await MainActor.run {
+                if let originalPlace = originalPlace, let imageData = originalPlace.imageData {
+                    place.imageData = imageData
+                    do {
+                        try context.save()
+                        print("✅ Successfully copied image from original place")
+                    } catch {
+                        print("❌ Failed to save image data: \(error)")
+                    }
+                } else {
+                    print("❌ Original place not found or has no image data")
+                }
+            }
+        } catch {
+            print("❌ Failed to fetch from Core Data: \(error)")
+        }
+    }
+    
+    private func fetchFromCloud(place: Place, cloudId: String, context: NSManagedObjectContext) async {
+        // This would be implemented to fetch from cloud storage
+        // For now, we'll just log that we would fetch from cloud
+        print("🔍 Would fetch photo from cloud for cloudId: \(cloudId)")
+        
+        // TODO: Implement cloud photo fetching
+        // This could involve:
+        // 1. Making API call to get photo URL
+        // 2. Downloading image data
+        // 3. Storing in place.imageData
+        
+        // Example implementation structure:
+        /*
+        do {
+            let photoURL = try await APIService.shared.getPhotoURL(cloudId: cloudId)
+            let imageData = try await downloadImage(from: photoURL)
+            
+            await MainActor.run {
+                place.imageData = imageData
+                try? context.save()
+                print("✅ Successfully fetched and saved image from cloud")
+            }
+        } catch {
+            print("❌ Failed to fetch from cloud: \(error)")
+        }
+        */
+    }
+    
+    private func downloadImage(from url: URL) async throws -> Data {
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return data
     }
 }
 

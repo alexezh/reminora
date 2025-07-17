@@ -1,14 +1,25 @@
-import SwiftUI
 import CoreData
+import SwiftUI
+
+struct UserPin {
+    let id: String
+    let name: String
+    let description: String?
+    let latitude: Double
+    let longitude: Double
+    let imageUrl: String?
+    let createdAt: Date
+    let isPublic: Bool
+}
 
 struct UserProfileView: View {
     let userId: String
     let userName: String
     let userHandle: String?
-    
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
-    
+
     @State private var userProfile: UserProfile?
     @State private var isLoading = true
     @State private var isFollowing = false
@@ -17,7 +28,7 @@ struct UserProfileView: View {
     @State private var recentComments: [Comment] = []
     @State private var showingAllPins = false
     @State private var showingAllComments = false
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
@@ -40,30 +51,34 @@ struct UserProfileView: View {
                             }
                             .frame(width: 100, height: 100)
                             .clipShape(Circle())
-                            
+
                             // Name and Handle
                             VStack(spacing: 4) {
                                 Text(userProfile?.display_name ?? userName)
                                     .font(.title2)
                                     .fontWeight(.bold)
-                                
+
                                 if let handle = userProfile?.handle ?? userHandle {
                                     Text("@\(handle)")
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
                                 }
                             }
-                            
+
                             // Follow/Unfollow Button (only for other users)
                             if userId != AuthenticationService.shared.currentAccount?.id {
                                 Button(action: toggleFollow) {
                                     HStack {
                                         if isFollowActionLoading {
                                             ProgressView()
-                                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                                .progressViewStyle(
+                                                    CircularProgressViewStyle(tint: .white)
+                                                )
                                                 .scaleEffect(0.8)
                                         } else {
-                                            Image(systemName: isFollowing ? "person.badge.minus" : "person.badge.plus")
+                                            Image(
+                                                systemName: isFollowing
+                                                    ? "person.badge.minus" : "person.badge.plus")
                                             Text(isFollowing ? "Unfollow" : "Follow")
                                         }
                                     }
@@ -76,7 +91,7 @@ struct UserProfileView: View {
                             }
                         }
                         .padding()
-                        
+
                         // Stats Section
                         HStack(spacing: 30) {
                             VStack {
@@ -87,25 +102,25 @@ struct UserProfileView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            
+
                             VStack {
-                                Text("0") // TODO: Get from API
+                                Text("0")  // TODO: Get from API
                                     .font(.title2)
                                     .fontWeight(.bold)
                                 Text("Followers")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            
+
                             VStack {
-                                Text("0") // TODO: Get from API
+                                Text("0")  // TODO: Get from API
                                     .font(.title2)
                                     .fontWeight(.bold)
                                 Text("Following")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            
+
                             VStack {
                                 Text("\(recentComments.count)")
                                     .font(.title2)
@@ -116,16 +131,16 @@ struct UserProfileView: View {
                             }
                         }
                         .padding()
-                        
+
                         // Recent Pins Section
                         if !recentPins.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack {
                                     Text("Recent Pins")
                                         .font(.headline)
-                                    
+
                                     Spacer()
-                                    
+
                                     if recentPins.count > 3 {
                                         Button("View All") {
                                             showingAllPins = true
@@ -135,7 +150,7 @@ struct UserProfileView: View {
                                     }
                                 }
                                 .padding(.horizontal)
-                                
+
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 12) {
                                         ForEach(Array(recentPins.prefix(5)), id: \.id) { pin in
@@ -146,16 +161,16 @@ struct UserProfileView: View {
                                 }
                             }
                         }
-                        
+
                         // Recent Comments Section
                         if !recentComments.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack {
                                     Text("Recent Comments")
                                         .font(.headline)
-                                    
+
                                     Spacer()
-                                    
+
                                     if recentComments.count > 3 {
                                         Button("View All") {
                                             showingAllComments = true
@@ -165,7 +180,7 @@ struct UserProfileView: View {
                                     }
                                 }
                                 .padding(.horizontal)
-                                
+
                                 VStack(spacing: 8) {
                                     ForEach(Array(recentComments.prefix(3)), id: \.id) { comment in
                                         CommentPreviewView(comment: comment)
@@ -174,18 +189,18 @@ struct UserProfileView: View {
                                 .padding(.horizontal)
                             }
                         }
-                        
+
                         // Empty State
                         if recentPins.isEmpty && recentComments.isEmpty && !isLoading {
                             VStack(spacing: 16) {
                                 Image(systemName: "person.crop.circle")
                                     .font(.system(size: 50))
                                     .foregroundColor(.gray)
-                                
+
                                 Text("No activity yet")
                                     .font(.headline)
                                     .foregroundColor(.secondary)
-                                
+
                                 Text("This user hasn't shared any pins or comments yet")
                                     .font(.body)
                                     .foregroundColor(.secondary)
@@ -220,20 +235,20 @@ struct UserProfileView: View {
             )
         }
     }
-    
+
     private func loadUserProfile() async {
         isLoading = true
-        
+
         do {
             // Load user profile from API
             let profile = try await APIService.shared.getUserProfile(userId: userId)
-            
+
             // Load recent pins from local database
             let pinFetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
-            
+
             // Check if this is the current user's profile
             let isCurrentUser = userId == AuthenticationService.shared.currentAccount?.id
-            
+
             if isCurrentUser {
                 // For current user, show ALL pins (local and shared)
                 pinFetchRequest.predicate = nil
@@ -241,23 +256,26 @@ struct UserProfileView: View {
                 // For other users, only show shared pins
                 pinFetchRequest.predicate = NSPredicate(format: "cloudId != nil")
             }
-            
+
             pinFetchRequest.sortDescriptors = [NSSortDescriptor(key: "dateAdded", ascending: false)]
             pinFetchRequest.fetchLimit = 5
-            
+
             let pins = try viewContext.fetch(pinFetchRequest)
-            
+
             // Load recent comments from local database
             let commentFetchRequest: NSFetchRequest<Comment> = Comment.fetchRequest()
             commentFetchRequest.predicate = NSPredicate(format: "authorId == %@", userId)
-            commentFetchRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+            commentFetchRequest.sortDescriptors = [
+                NSSortDescriptor(key: "createdAt", ascending: false)
+            ]
             commentFetchRequest.fetchLimit = 3
-            
+
             let comments = try viewContext.fetch(commentFetchRequest)
-            
+
             // Check if currently following this user (skip for current user)
-            let following = isCurrentUser ? false : try await APIService.shared.isFollowing(userId: userId)
-            
+            let following =
+                isCurrentUser ? false : try await APIService.shared.isFollowing(userId: userId)
+
             await MainActor.run {
                 self.userProfile = profile
                 self.recentPins = pins
@@ -272,10 +290,10 @@ struct UserProfileView: View {
             }
         }
     }
-    
+
     private func toggleFollow() {
         isFollowActionLoading = true
-        
+
         Task {
             do {
                 if isFollowing {
@@ -283,7 +301,7 @@ struct UserProfileView: View {
                 } else {
                     try await APIService.shared.followUser(userId: userId)
                 }
-                
+
                 await MainActor.run {
                     self.isFollowing.toggle()
                     self.isFollowActionLoading = false
@@ -301,7 +319,7 @@ struct UserProfileView: View {
 // MARK: - Pin Thumbnail View
 struct PinThumbnailView: View {
     let pin: Place
-    
+
     var body: some View {
         VStack(spacing: 4) {
             // Pin Image
@@ -321,7 +339,7 @@ struct PinThumbnailView: View {
                             .foregroundColor(.gray)
                     )
             }
-            
+
             // Pin Caption (if any)
             if let post = pin.post, !post.isEmpty {
                 Text(post)
@@ -337,17 +355,17 @@ struct PinThumbnailView: View {
 // MARK: - Comment Preview View
 struct CommentPreviewView: View {
     let comment: Comment
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(comment.commentText ?? "")
                     .font(.body)
                     .lineLimit(3)
-                
+
                 Spacer()
             }
-            
+
             if let createdAt = comment.createdAt {
                 Text(formatDate(createdAt))
                     .font(.caption)
@@ -358,7 +376,7 @@ struct CommentPreviewView: View {
         .background(Color(.systemGray6))
         .cornerRadius(8)
     }
-    
+
     private func formatDate(_ date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
@@ -370,12 +388,12 @@ struct CommentPreviewView: View {
 struct UserPinsView: View {
     let userId: String
     let userName: String
-    
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @State private var pins: [Place] = []
     @State private var isLoading = true
-    
+
     var body: some View {
         NavigationView {
             Group {
@@ -386,18 +404,20 @@ struct UserPinsView: View {
                         Image(systemName: "mappin.slash")
                             .font(.system(size: 50))
                             .foregroundColor(.gray)
-                        
+
                         Text("No pins yet")
                             .font(.headline)
                             .foregroundColor(.secondary)
                     }
                 } else {
                     ScrollView {
-                        LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: 4),
-                            GridItem(.flexible(), spacing: 4),
-                            GridItem(.flexible(), spacing: 4)
-                        ], spacing: 4) {
+                        LazyVGrid(
+                            columns: [
+                                GridItem(.flexible(), spacing: 4),
+                                GridItem(.flexible(), spacing: 4),
+                                GridItem(.flexible(), spacing: 4),
+                            ], spacing: 4
+                        ) {
                             ForEach(pins, id: \.id) { pin in
                                 PinGridItemView(pin: pin)
                             }
@@ -420,15 +440,15 @@ struct UserPinsView: View {
             await loadPins()
         }
     }
-    
+
     private func loadPins() async {
         isLoading = true
-        
+
         let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
-        
+
         // Check if this is the current user's profile
         let isCurrentUser = userId == AuthenticationService.shared.currentAccount?.id
-        
+
         if isCurrentUser {
             // For current user, show ALL pins (local and shared)
             fetchRequest.predicate = nil
@@ -436,9 +456,9 @@ struct UserPinsView: View {
             // For other users, only show shared pins
             fetchRequest.predicate = NSPredicate(format: "cloudId != nil")
         }
-        
+
         fetchRequest.sortDescriptors = [NSSortDescriptor(key: "dateAdded", ascending: false)]
-        
+
         do {
             let loadedPins = try viewContext.fetch(fetchRequest)
             await MainActor.run {
@@ -457,7 +477,7 @@ struct UserPinsView: View {
 // MARK: - Pin Grid Item View
 struct PinGridItemView: View {
     let pin: Place
-    
+
     var body: some View {
         if let imageData = pin.imageData, let uiImage = UIImage(data: imageData) {
             Image(uiImage: uiImage)

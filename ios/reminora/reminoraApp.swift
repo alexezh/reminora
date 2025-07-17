@@ -12,6 +12,32 @@ import CoreLocation
 import FacebookCore
 import UIKit
 
+// MARK: - Facebook Configuration Helper
+class FacebookConfigHelper {
+    static func loadAndConfigureFacebook() {
+        guard let path = Bundle.main.path(forResource: "Facebook-Info", ofType: "plist"),
+              let facebookPlist = NSDictionary(contentsOfFile: path),
+              let appID = facebookPlist["FacebookAppID"] as? String,
+              let clientToken = facebookPlist["FacebookClientToken"] as? String else {
+            print("❌ Facebook-Info.plist not found or missing required keys")
+            return
+        }
+        
+        // Check if Facebook is disabled
+        if appID == "DISABLED" || clientToken == "DISABLED" {
+            print("ℹ️ Facebook SDK is disabled in configuration")
+            return
+        }
+        
+        // Set Facebook settings before any SDK initialization
+        Settings.shared.appID = appID
+        Settings.shared.clientToken = clientToken
+        Settings.shared.displayName = facebookPlist["FacebookDisplayName"] as? String ?? "Reminora"
+        
+        print("✅ Facebook SDK pre-configured with App ID: \(appID)")
+    }
+}
+
 @main
 struct reminoraApp: App {
     let persistenceController = PersistenceController.shared
@@ -19,6 +45,8 @@ struct reminoraApp: App {
     @State private var pendingURL: URL?
 
     init() {
+        // Configure Facebook FIRST - before any other initialization
+        FacebookConfigHelper.loadAndConfigureFacebook()
         configureGoogleSignIn()
         configureFacebookSDK()
     }
@@ -92,24 +120,14 @@ struct reminoraApp: App {
     }
     
     private func configureFacebookSDK() {
-        // Load Facebook configuration from Facebook-Info.plist
-        guard let path = Bundle.main.path(forResource: "Facebook-Info", ofType: "plist"),
-              let facebookPlist = NSDictionary(contentsOfFile: path),
-              let appID = facebookPlist["FacebookAppID"] as? String,
-              let clientToken = facebookPlist["FacebookClientToken"] as? String else {
-            print("Facebook-Info.plist not found or missing required keys")
-            return
-        }
-        
-        // Initialize Facebook SDK
+        // Initialize Facebook SDK ApplicationDelegate
+        // Settings should already be configured by FacebookConfigHelper
         ApplicationDelegate.shared.application(
             UIApplication.shared,
             didFinishLaunchingWithOptions: nil
         )
         
-        Settings.shared.appID = appID
-        Settings.shared.clientToken = clientToken
-        print("Facebook SDK configured successfully with App ID: \(appID)")
+        print("✅ Facebook SDK ApplicationDelegate initialized")
     }
     
     private func handleReminoraLink(_ url: URL) {

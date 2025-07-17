@@ -37,10 +37,17 @@ If you're using a different Facebook App ID, update the URL scheme in `Info.plis
 </array>
 ```
 
+## How It Works
+- `Facebook-Info.plist` contains the actual credentials (gitignored)
+- `FacebookConfigHelper` loads credentials at app startup
+- Settings are configured before Facebook SDK initialization
+- `Info.plist` contains placeholder values for safety
+
 ## Security Notes
 - ✅ `Facebook-Info.plist` is in `.gitignore` 
 - ✅ Template file is committed for reference
 - ✅ Real credentials are never committed to git
+- ✅ `Info.plist` only contains placeholder values
 - ⚠️ Never commit actual Facebook credentials
 
 ## Files Structure
@@ -49,7 +56,7 @@ ios/reminora/
 ├── Facebook-Info.plist          # Your actual config (gitignored)
 ├── Facebook-Info.plist.template # Template for other developers
 ├── FACEBOOK_SETUP.md           # This setup guide
-└── Info.plist                  # Main app config (no sensitive data)
+└── Info.plist                  # Main app config (placeholder values only)
 ```
 
 ## Troubleshooting

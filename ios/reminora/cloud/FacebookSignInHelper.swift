@@ -18,6 +18,13 @@ class FacebookSignInHelper: NSObject, ObservableObject {
     }
     
     func signIn() async throws -> FacebookSignInResult {
+        // Check if Facebook is configured
+        guard let appID = Settings.shared.appID, 
+              !appID.isEmpty, 
+              appID != "DISABLED" else {
+            throw NSError(domain: "FacebookSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Facebook SDK is not configured or disabled"])
+        }
+        
         return try await withCheckedThrowingContinuation { continuation in
             Task { @MainActor in
                 guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,

@@ -145,12 +145,12 @@ struct MyProfileView: View {
                     }
                 }
                 
-                if isCurrentUser {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Debug Open Link") {
-                            showingDebugDialog = true
-                        }
+                // Debug button - always show for now
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Debug Open Link") {
+                        showingDebugDialog = true
                     }
+                    .foregroundColor(.red) // Make it obvious for debugging
                 }
             }
         }
@@ -178,7 +178,10 @@ struct MyProfileView: View {
     }
     
     private var isCurrentUser: Bool {
-        return userId == authService.currentAccount?.id
+        let currentAccountId = authService.currentAccount?.id
+        let result = userId == currentAccountId
+        print("🔍 isCurrentUser check: userId=\(userId), currentAccountId=\(currentAccountId ?? "nil"), result=\(result)")
+        return result
     }
     
     private func loadUserPins() {

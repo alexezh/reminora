@@ -203,20 +203,26 @@ struct PhotoStackView: View {
                     }
                 }
             }
-        .fullScreenCover(item: Binding<PhotoStack?>(
-            get: { selectedStack },
-            set: { _ in selectedStack = nil }
-        )) { stack in
-            SwipePhotoView(
-                stack: stack,
-                initialIndex: selectedStackIndex,
-                onDismiss: {
-                    print("SwipePhotoView dismissed")
-                    selectedStack = nil
-                    // Refresh filter to remove disliked photos from view
-                    applyFilter()
-                }
-            )
+        .overlay {
+            if let selectedStack = selectedStack {
+                SwipePhotoView(
+                    stack: selectedStack,
+                    initialIndex: selectedStackIndex,
+                    onDismiss: {
+                        print("SwipePhotoView dismissed")
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            self.selectedStack = nil
+                        }
+                        // Refresh filter to remove disliked photos from view
+                        applyFilter()
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.1).combined(with: .opacity),
+                    removal: .scale(scale: 0.1).combined(with: .opacity)
+                ))
+                .zIndex(999)
+            }
         }
         .sheet(isPresented: $showingQuickList) {
             quickListView

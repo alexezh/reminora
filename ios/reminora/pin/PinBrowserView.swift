@@ -138,6 +138,16 @@ struct PinBrowserView: View {
                                 lastTappedPlace = item
                                 lastTapTime = now
                             },
+                            onLongPress: { item in
+                                // Long press detected - show detail view directly
+                                selectedPlace = item
+                                
+                                // Provide haptic feedback
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                impactFeedback.impactOccurred()
+                                
+                                showPlaceDetail = true
+                            },
                             onDelete: showToolbar ? deleteItems : { _ in },
                             mapCenter: region.center
                         )

@@ -2,6 +2,7 @@ import CoreData
 import CoreLocation
 import SwiftUI
 import Photos
+import MapKit
 
 // shows list of places saved into list
 struct RListDetailView: View {
@@ -105,6 +106,10 @@ struct RListDetailView: View {
                         // Show SwipePhotoView for photo stack
                         let photoStack = PhotoStack(assets: assets)
                         selectedPhotoStack = photoStack
+                    },
+                    onLocationTap: { location in
+                        // Open location in native map
+                        openLocationInMap(location)
                     }
                 )
             } else if isSharedList {
@@ -125,6 +130,10 @@ struct RListDetailView: View {
                         // Show SwipePhotoView for photo stack
                         let photoStack = PhotoStack(assets: assets)
                         selectedPhotoStack = photoStack
+                    },
+                    onLocationTap: { location in
+                        // Open location in native map
+                        openLocationInMap(location)
                     }
                 )
             } else {
@@ -144,6 +153,10 @@ struct RListDetailView: View {
                         // Show SwipePhotoView for photo stack
                         let photoStack = PhotoStack(assets: assets)
                         selectedPhotoStack = photoStack
+                    },
+                    onLocationTap: { location in
+                        // Open location in native map
+                        openLocationInMap(location)
                     }
                 )
             }
@@ -382,6 +395,12 @@ struct RListDetailView: View {
         // Return all places for PinDetailView context
         // This could be optimized to return only nearby places
         return Array(places)
+    }
+    
+    private func openLocationInMap(_ location: NearbyLocation) {
+        let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: location.coordinate))
+        mapItem.name = location.name
+        mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
     }
 }
 

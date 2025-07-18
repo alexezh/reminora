@@ -128,8 +128,6 @@ struct NearbyPhotosGridView: View {
                                 selectedRange: selectedRange
                             )
                         }
-                        .navigationTitle("Nearby Photos")
-                        .navigationBarTitleDisplayMode(.inline)
                         .toolbar {
                             ToolbarItem(placement: .navigationBarTrailing) {
                                 Button("Close") {

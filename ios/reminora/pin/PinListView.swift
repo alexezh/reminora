@@ -6,6 +6,7 @@ struct PinListView: View {
   let items: [Place]
   let selectedPlace: Place?
   let onSelect: (Place) -> Void
+  let onLongPress: ((Place) -> Void)?
   let onDelete: (IndexSet) -> Void
   let mapCenter: CLLocationCoordinate2D
 
@@ -65,6 +66,9 @@ struct PinListView: View {
         .id(item.objectID)  // Important for ScrollViewReader
         .onTapGesture {
           onSelect(item)
+        }
+        .onLongPressGesture(minimumDuration: 0.5) {
+          onLongPress?(item)
         }
       }
       .onDelete(perform: onDelete)

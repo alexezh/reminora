@@ -1,8 +1,8 @@
 //
-//  QuickListView.swift
+//  SharedListView.swift
 //  reminora
 //
-//  Created by alexezh on 7/14/25.
+//  Created by alexezh on 7/17/25.
 //
 
 
@@ -11,8 +11,8 @@ import CoreData
 import Photos
 import SwiftUI
 
-// MARK: - Quick List View
-struct QuickListView: View {
+// MARK: - Shared List View
+struct SharedListView: View {
     let context: NSManagedObjectContext
     let userId: String
     let onPhotoTap: (PHAsset) -> Void
@@ -31,15 +31,15 @@ struct QuickListView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if items.isEmpty {
                     VStack(spacing: 20) {
-                        Image(systemName: "list.bullet.circle")
+                        Image(systemName: "shared.with.you")
                             .font(.system(size: 60))
                             .foregroundColor(.gray)
                         
-                        Text("Quick List is Empty")
+                        Text("No Shared Items")
                             .font(.title2)
                             .fontWeight(.semibold)
                         
-                        Text("Add photos and pins to see them here")
+                        Text("Items shared with you will appear here")
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -56,7 +56,7 @@ struct QuickListView: View {
                     )
                 }
             }
-            .navigationTitle("Quick List")
+            .navigationTitle("Shared")
             .navigationBarTitleDisplayMode(.inline)
         }
         .task {
@@ -66,8 +66,8 @@ struct QuickListView: View {
     
     private func loadItems() async {
         isLoading = true
-        let loadedItems = await QuickListService.shared.getQuickListItems(context: context, userId: userId)
-        print("🔍 QuickListView loaded \(loadedItems.count) items")
+        let loadedItems = await SharedListService.shared.getSharedItems(context: context, userId: userId)
+        print("🔍 SharedListView loaded \(loadedItems.count) items")
         await MainActor.run {
             self.items = loadedItems
             self.isLoading = false

@@ -34,7 +34,6 @@ struct AllRListsView: View {
     var body: some View {
         NavigationView {
             listContent
-                .navigationTitle("Lists")
                 .refreshable {
                     await loadUserLists()
                 }

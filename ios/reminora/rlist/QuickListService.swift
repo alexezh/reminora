@@ -538,14 +538,16 @@ extension QuickListService {
         userId: String,
         onPhotoTap: @escaping (PHAsset) -> Void,
         onPinTap: @escaping (Place) -> Void,
-        onPhotoStackTap: @escaping ([PHAsset]) -> Void
+        onPhotoStackTap: @escaping ([PHAsset]) -> Void,
+        onLocationTap: ((NearbyLocation) -> Void)? = nil
     ) -> some View {
         QuickListView(
             context: context,
             userId: userId,
             onPhotoTap: onPhotoTap,
             onPinTap: onPinTap,
-            onPhotoStackTap: onPhotoStackTap
+            onPhotoStackTap: onPhotoStackTap,
+            onLocationTap: onLocationTap
         )
     }
 }

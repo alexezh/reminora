@@ -15,6 +15,7 @@ enum RListItemType {
     case photo(PHAsset)
     case photoStack([PHAsset])
     case pin(Place)
+    case location(NearbyLocation)
 }
 
 // MARK: - RListView Item Implementations
@@ -54,12 +55,25 @@ struct RListPinItem: RListViewItem {
     }
 }
 
+struct RListLocationItem: RListViewItem {
+    let id: String
+    let date: Date
+    let itemType: RListItemType
+    
+    init(location: NearbyLocation) {
+        self.id = location.id
+        self.date = Date() // Use current date for shared locations
+        self.itemType = .location(location)
+    }
+}
+
 // MARK: - RListView Data Source
 enum RListDataSource {
     case photoLibrary([PHAsset])
     case userList(UserList, [Place])
     case nearbyPhotos([PHAsset])
     case pins([Place])
+    case locations([NearbyLocation])
     case mixed([any RListViewItem])
 }
 
@@ -107,6 +121,7 @@ struct RListView: View {
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (Place) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
+    let onLocationTap: ((NearbyLocation) -> Void)?
     
     @State private var sections: [RListDateSection] = []
     @State private var isLoading = true
@@ -131,7 +146,8 @@ struct RListView: View {
                             section: section,
                             onPhotoTap: onPhotoTap,
                             onPinTap: onPinTap,
-                            onPhotoStackTap: onPhotoStackTap
+                            onPhotoStackTap: onPhotoStackTap,
+                            onLocationTap: onLocationTap
                         )
                     }
                 }
@@ -166,6 +182,8 @@ struct RListView: View {
             return await processPhotoAssets(assets)
         case .pins(let places):
             return places.map { RListPinItem(place: $0) }
+        case .locations(let locations):
+            return locations.map { RListLocationItem(location: $0) }
         case .mixed(let items):
             return items
         }
@@ -233,6 +251,7 @@ struct RListSectionView: View {
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (Place) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
+    let onLocationTap: ((NearbyLocation) -> Void)?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -255,7 +274,8 @@ struct RListSectionView: View {
                         row: row,
                         onPhotoTap: onPhotoTap,
                         onPinTap: onPinTap,
-                        onPhotoStackTap: onPhotoStackTap
+                        onPhotoStackTap: onPhotoStackTap,
+                        onLocationTap: onLocationTap
                     )
                 }
             }
@@ -280,14 +300,14 @@ struct RListSectionView: View {
                     currentPhotoRow = []
                 }
                 
-            case .pin(_):
+            case .pin(_), .location(_):
                 // Finish any pending photo row first
                 if !currentPhotoRow.isEmpty {
                     rows.append(RListRow(items: currentPhotoRow, type: .photoRow))
                     currentPhotoRow = []
                 }
                 
-                // Add pin as its own row
+                // Add pin or location as its own row
                 rows.append(RListRow(items: [item], type: .pinRow))
             }
         }
@@ -318,6 +338,7 @@ struct RListRowView: View {
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (Place) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
+    let onLocationTap: ((NearbyLocation) -> Void)?
     
     var body: some View {
         switch row.type {
@@ -346,7 +367,8 @@ struct RListRowView: View {
                     item: item,
                     onPhotoTap: onPhotoTap,
                     onPinTap: onPinTap,
-                    onPhotoStackTap: onPhotoStackTap
+                    onPhotoStackTap: onPhotoStackTap,
+                    onLocationTap: onLocationTap
                 )
             }
         }
@@ -365,7 +387,7 @@ struct RListPhotoGridItemView: View {
             RListPhotoGridView(asset: asset, onTap: { onPhotoTap(asset) })
         case .photoStack(let assets):
             RListPhotoStackGridView(assets: assets, onTap: { onPhotoStackTap(assets) })
-        case .pin(_):
+        case .pin(_), .location(_):
             // This shouldn't happen in photo rows, but handle gracefully
             EmptyView()
         }
@@ -378,6 +400,7 @@ struct RListItemView: View {
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (Place) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
+    let onLocationTap: ((NearbyLocation) -> Void)?
     
     var body: some View {
         switch item.itemType {
@@ -387,6 +410,8 @@ struct RListItemView: View {
             RListPhotoStackView(assets: assets, onTap: { onPhotoStackTap(assets) })
         case .pin(let place):
             RListPinView(place: place, onTap: { onPinTap(place) })
+        case .location(let location):
+            RListLocationView(location: location, onTap: { onLocationTap?(location) })
         }
     }
 }
@@ -616,6 +641,72 @@ struct RListPinView: View {
     }
 }
 
+struct RListLocationView: View {
+    let location: NearbyLocation
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                // Location icon
+                Rectangle()
+                    .fill(Color.green.opacity(0.2))
+                    .frame(width: 80, height: 80)
+                    .cornerRadius(8)
+                    .overlay(
+                        Image(systemName: "location.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.green)
+                    )
+                
+                // Location details
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(location.name)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    
+                    Text(location.address)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                    
+                    HStack {
+                        Image(systemName: "location.fill")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                        Text(String(format: "%.4f, %.4f", location.coordinate.latitude, location.coordinate.longitude))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .monospaced()
+                    }
+                    
+                    HStack {
+                        Image(systemName: "arrow.triangle.turn.up.right.diamond")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        Text("\(String(format: "%.1f", location.distance / 1000)) km away")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(12)
+            .background(Color(UIColor.systemBackground))
+            .cornerRadius(12)
+            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
 // MARK: - Grid-specific Photo Views
 struct RListPhotoGridView: View {
     let asset: PHAsset
@@ -798,6 +889,7 @@ struct EmptyStateView: View {
         dataSource: .mixed([]),
         onPhotoTap: { _ in },
         onPinTap: { _ in },
-        onPhotoStackTap: { _ in }
+        onPhotoStackTap: { _ in },
+        onLocationTap: { _ in }
     )
 }

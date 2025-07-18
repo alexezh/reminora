@@ -2,6 +2,7 @@ import Foundation
 import CoreData
 import Photos
 import SwiftUI
+import CoreLocation
 
 // MARK: - Shared List Service
 class SharedListService: ObservableObject {
@@ -125,6 +126,14 @@ class SharedListService: ObservableObject {
                             // Photo no longer exists, but show as pin anyway
                             result.append(RListPinItem(place: place))
                         }
+                    } else if let url = place.url, url.hasPrefix("location://") {
+                        // This is a shared location, convert to NearbyLocation
+                        if let nearbyLocation = convertPlaceToNearbyLocation(place) {
+                            result.append(RListLocationItem(location: nearbyLocation))
+                        } else {
+                            // Fallback to showing as pin if conversion fails
+                            result.append(RListPinItem(place: place))
+                        }
                     } else {
                         // Regular pin
                         result.append(RListPinItem(place: place))
@@ -154,6 +163,59 @@ class SharedListService: ObservableObject {
         let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [photoId], options: nil)
         return fetchResult.firstObject
     }
+    
+    private func convertPlaceToNearbyLocation(_ place: Place) -> NearbyLocation? {
+        guard let url = place.url,
+              url.hasPrefix("location://"),
+              let placeName = place.post else {
+            return nil
+        }
+        
+        // Extract location data
+        let urlComponents = url.dropFirst("location://".count)
+        let parts = urlComponents.components(separatedBy: "|")
+        
+        guard let locationId = parts.first else { return nil }
+        
+        // Get location address and distance from URL if available
+        var address = "Unknown address"
+        var distance: Double = 0
+        
+        if parts.count > 1 {
+            let infoString = parts[1]
+            let infoLines = infoString.components(separatedBy: "\n")
+            
+            if infoLines.count >= 2 {
+                address = infoLines[0]
+                let distanceLine = infoLines[1]
+                
+                // Extract distance from "Distance: X.X km" format
+                if let distanceMatch = distanceLine.range(of: #"Distance: ([\d.]+) km"#, options: .regularExpression) {
+                    let distanceString = String(distanceLine[distanceMatch]).replacingOccurrences(of: "Distance: ", with: "").replacingOccurrences(of: " km", with: "")
+                    distance = Double(distanceString) ?? 0
+                    distance *= 1000 // Convert km to meters
+                }
+            }
+        }
+        
+        // Get location coordinates from Core Data
+        var coordinate = CLLocationCoordinate2D(latitude: 0, longitude: 0)
+        if let locationData = place.value(forKey: "location") as? Data,
+           let clLocation = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
+            coordinate = clLocation.coordinate
+        }
+        
+        return NearbyLocation(
+            id: locationId,
+            name: placeName,
+            address: address,
+            coordinate: coordinate,
+            distance: distance,
+            category: "shared location",
+            phoneNumber: nil,
+            url: nil
+        )
+    }
 }
 
 // MARK: - Shared List View Helper
@@ -164,76 +226,18 @@ extension SharedListService {
         userId: String,
         onPhotoTap: @escaping (PHAsset) -> Void,
         onPinTap: @escaping (Place) -> Void,
-        onPhotoStackTap: @escaping ([PHAsset]) -> Void
+        onPhotoStackTap: @escaping ([PHAsset]) -> Void,
+        onLocationTap: ((NearbyLocation) -> Void)? = nil
     ) -> some View {
         SharedListView(
             context: context,
             userId: userId,
             onPhotoTap: onPhotoTap,
             onPinTap: onPinTap,
-            onPhotoStackTap: onPhotoStackTap
+            onPhotoStackTap: onPhotoStackTap,
+            onLocationTap: onLocationTap
         )
     }
 }
 
-// MARK: - Shared List View
-struct SharedListView: View {
-    let context: NSManagedObjectContext
-    let userId: String
-    let onPhotoTap: (PHAsset) -> Void
-    let onPinTap: (Place) -> Void
-    let onPhotoStackTap: ([PHAsset]) -> Void
-    
-    @State private var items: [any RListViewItem] = []
-    @State private var isLoading = true
-    
-    var body: some View {
-        NavigationView {
-            Group {
-                if isLoading {
-                    ProgressView("Loading...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if items.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: "shared.with.you")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray)
-                        
-                        Text("No Shared Items")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                        
-                        Text("Items shared with you will appear here")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    RListView(
-                        dataSource: .mixed(items),
-                        onPhotoTap: onPhotoTap,
-                        onPinTap: onPinTap,
-                        onPhotoStackTap: onPhotoStackTap
-                    )
-                }
-            }
-            .navigationTitle("Shared")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-        .task {
-            await loadItems()
-        }
-    }
-    
-    private func loadItems() async {
-        isLoading = true
-        let loadedItems = await SharedListService.shared.getSharedItems(context: context, userId: userId)
-        print("🔍 SharedListView loaded \(loadedItems.count) items")
-        await MainActor.run {
-            self.items = loadedItems
-            self.isLoading = false
-        }
-    }
-}
+

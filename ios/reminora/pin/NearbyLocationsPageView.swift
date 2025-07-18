@@ -242,21 +242,19 @@ struct NearbyLocationsPageView: View {
     }
     
     private func sharePlace(_ place: NearbyLocation) {
-        // Create a reminora link for the place
-        let placeId = place.id
+        // Create platform map URL
         let encodedName = place.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let lat = place.coordinate.latitude
         let lon = place.coordinate.longitude
         
-        // Add owner information from auth service
-        let authService = AuthenticationService.shared
-        let ownerId = authService.currentAccount?.id ?? ""
-        let ownerHandle = authService.currentAccount?.handle ?? ""
-        let encodedOwnerHandle = ownerHandle.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        // Create Apple Maps URL (works on iOS, falls back to web on other platforms)
+        let mapURL = "https://maps.apple.com/?q=\(encodedName)&ll=\(lat),\(lon)&t=m"
         
-        let reminoraLink = "reminora://place/\(placeId)?name=\(encodedName)&lat=\(lat)&lon=\(lon)&ownerId=\(ownerId)&ownerHandle=\(encodedOwnerHandle)"
+        shareText = "Check out \(place.name)!\n\n\(place.address)\nDistance: \(String(format: "%.1f", place.distance / 1000)) km away\n\n\(mapURL)"
         
-        shareText = "Check out \(place.name) on Reminora!\n\n\(place.address)\nDistance: \(String(format: "%.1f", place.distance / 1000)) km\n\n\(reminoraLink)"
+        // Add location to shared list
+        addLocationToSharedList(place)
+        
         showingShareSheet = true
     }
     
@@ -269,6 +267,76 @@ struct NearbyLocationsPageView: View {
         let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: place.coordinate))
         mapItem.name = place.name
         mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
+    }
+    
+    private func addLocationToSharedList(_ location: NearbyLocation) {
+        let context = viewContext
+        
+        // Check if "Shared" list exists
+        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "name == %@", "Shared")
+        
+        do {
+            let existingLists = try context.fetch(fetchRequest)
+            let sharedList: UserList
+            
+            if let existing = existingLists.first {
+                sharedList = existing
+            } else {
+                // Create "Shared" list
+                sharedList = UserList(context: context)
+                sharedList.id = UUID().uuidString
+                sharedList.name = "Shared"
+                sharedList.createdAt = Date()
+                sharedList.userId = AuthenticationService.shared.currentAccount?.id ?? ""
+            }
+            
+            // Create a location entry as a Place object with special identifier
+            let locationPlace = Place(context: context)
+            locationPlace.post = location.name
+            locationPlace.url = "location://\(location.id)" // Special marker for locations
+            locationPlace.dateAdded = Date()
+            locationPlace.cloudId = "location_\(location.id)"
+            
+            // Store location coordinates
+            let clLocation = CLLocation(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+            if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: clLocation, requiringSecureCoding: false) {
+                locationPlace.setValue(locationData, forKey: "location")
+            }
+            
+            // Store additional location info in the description field
+            let locationInfo = "\(location.address)\nDistance: \(String(format: "%.1f", location.distance / 1000)) km"
+            // We can store this in the URL field along with the location:// marker
+            locationPlace.url = "location://\(location.id)|\(locationInfo)"
+            
+            // Check if location is already in the list
+            let itemFetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            itemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", 
+                                                   sharedList.id ?? "", 
+                                                   locationPlace.objectID.uriRepresentation().absoluteString)
+            
+            let existingItems = try context.fetch(itemFetchRequest)
+            
+            if existingItems.isEmpty {
+                // Save the place first to get its object ID
+                try context.save()
+                
+                // Add location to shared list
+                let item = ListItem(context: context)
+                item.id = UUID().uuidString
+                item.listId = sharedList.id
+                item.placeId = locationPlace.objectID.uriRepresentation().absoluteString
+                item.addedAt = Date()
+                
+                try context.save()
+                print("✅ Added location '\(location.name)' to Shared list")
+            } else {
+                print("ℹ️ Location '\(location.name)' already in Shared list")
+            }
+            
+        } catch {
+            print("❌ Failed to add location to shared list: \(error)")
+        }
     }
 }
 

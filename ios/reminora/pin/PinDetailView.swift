@@ -149,6 +149,27 @@ struct PinDetailView: View {
                             .foregroundColor(.primary)
                             .multilineTextAlignment(.leading)
                     }
+                    
+                    // Share button
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            sharePlace()
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("Share")
+                            }
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.blue.opacity(0.1))
+                            .cornerRadius(20)
+                        }
+                        Spacer()
+                    }
+                    .padding(.top, 12)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
@@ -240,9 +261,6 @@ struct PinDetailView: View {
                     },
                     .default(Text("Add to Quick List")) {
                         addToQuickList()
-                    },
-                    .default(Text("Share")) {
-                        sharePlace()
                     },
                     .cancel()
                 ]

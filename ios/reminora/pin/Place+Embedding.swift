@@ -109,6 +109,7 @@ extension Place {
         place.post = post
         place.url = url
         place.dateAdded = dateAdded ?? Date()
+        place.isPrivate = false  // Default to public
         
         // Compute embedding in background
         Task.detached {

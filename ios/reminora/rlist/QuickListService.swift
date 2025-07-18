@@ -298,6 +298,7 @@ class QuickListService: ObservableObject {
         place.dateAdded = asset.creationDate ?? Date()
         place.url = photoURL // Special marker to indicate this is a photo from library
         place.post = "Photo from library"
+        place.isPrivate = false  // Default to public
         
         // Store location if available
         if let location = asset.location {

@@ -385,6 +385,7 @@ struct ProfileView: View {
             place.post = placeName
             place.dateAdded = Date()
             place.cloudId = placeId
+            place.isPrivate = false  // Default to public
             
             // Set location
             let location = CLLocation(latitude: lat, longitude: lon)

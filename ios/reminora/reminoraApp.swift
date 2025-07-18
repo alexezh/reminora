@@ -203,6 +203,7 @@ struct reminoraApp: App {
         newPlace.dateAdded = Date()
         newPlace.post = name
         newPlace.url = "Shared via Reminora link"
+        newPlace.isPrivate = false  // Shared places are public by default
         
         print("🔗 ✅ Created new place with name: \(name)")
         
@@ -214,6 +215,11 @@ struct reminoraApp: App {
             if let originalDate = originalPlace.dateAdded {
                 newPlace.dateAdded = originalDate
             }
+            print("🔗 ✅ Successfully copied image data from original place")
+        } else {
+            print("🔗 ⚠️ Could not find original place, creating placeholder")
+            // Create a placeholder image for shared places when original can't be found
+            newPlace.imageData = createPlaceholderImageData()
         }
         
         // Store location
@@ -297,6 +303,56 @@ struct reminoraApp: App {
             return try? context.existingObject(with: objectID) as? Place
         }
         return nil
+    }
+    
+    private func createPlaceholderImageData() -> Data? {
+        // Create a simple placeholder image
+        let size = CGSize(width: 400, height: 300)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        
+        let image = renderer.image { context in
+            // Fill with a gradient background
+            let colors = [UIColor.systemBlue.cgColor, UIColor.systemTeal.cgColor]
+            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors as CFArray, locations: nil)!
+            
+            context.cgContext.drawLinearGradient(
+                gradient,
+                start: CGPoint(x: 0, y: 0),
+                end: CGPoint(x: size.width, y: size.height),
+                options: []
+            )
+            
+            // Add a map pin icon
+            let pinSize: CGFloat = 80
+            let pinRect = CGRect(
+                x: (size.width - pinSize) / 2,
+                y: (size.height - pinSize) / 2,
+                width: pinSize,
+                height: pinSize
+            )
+            
+            UIColor.white.setFill()
+            let pinPath = UIBezierPath(ovalIn: pinRect)
+            pinPath.fill()
+            
+            // Add text
+            let text = "📍 Shared Place"
+            let font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: UIColor.white
+            ]
+            let textSize = text.size(withAttributes: attributes)
+            let textRect = CGRect(
+                x: (size.width - textSize.width) / 2,
+                y: size.height - 40,
+                width: textSize.width,
+                height: textSize.height
+            )
+            text.draw(in: textRect, withAttributes: attributes)
+        }
+        
+        return image.jpegData(compressionQuality: 0.8)
     }
 }
 

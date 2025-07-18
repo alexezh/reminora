@@ -297,6 +297,7 @@ struct NearbyLocationsPageView: View {
             locationPlace.url = "location://\(location.id)" // Special marker for locations
             locationPlace.dateAdded = Date()
             locationPlace.cloudId = "location_\(location.id)"
+            locationPlace.isPrivate = false  // Default to public
             
             // Store location coordinates
             let clLocation = CLLocation(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)

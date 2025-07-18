@@ -145,6 +145,7 @@ class CloudSyncService: ObservableObject {
         place.setValue(Date(timeIntervalSince1970: cloudPhoto.created_at), forKey: "dateAdded")
         place.setValue(cloudPhoto.caption, forKey: "post")
         place.setValue(Date(), forKey: "cloudSyncedAt")
+        place.setValue(false, forKey: "isPrivate")  // Cloud photos are public by default
         
         // Convert image data
         if let imageData = Data(base64Encoded: cloudPhoto.photo_data.image_data) {

@@ -64,6 +64,7 @@
 /* Begin PBXFileReference section */
 		491FBCAD2E1F8B46000C36A4 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		491FBCBD2E232B9F000C36A4 /* app_icon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = app_icon.png; sourceTree = "<group>"; };
+		491FC28F2E29E80E000C36A4 /* places 2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "places 2.xcdatamodel"; sourceTree = "<group>"; };
 		49540DC02E1C70A100886A08 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		49540DC12E1C70A100886A08 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/MainInterface.storyboard; sourceTree = "<group>"; };
 		49540DC32E1C70A100886A08 /* ReminoraShareExt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ReminoraShareExt.entitlements; sourceTree = "<group>"; };
@@ -846,6 +847,7 @@
 		49F1523B2DE4CE0700573F48 /* places.xcdatamodeld */ = {
 			isa = XCVersionGroup;
 			children = (
+				491FC28F2E29E80E000C36A4 /* places 2.xcdatamodel */,
 				49F1523C2DE4CE0700573F48 /* places.xcdatamodel */,
 			);
 			currentVersion = 49F1523C2DE4CE0700573F48 /* places.xcdatamodel */;

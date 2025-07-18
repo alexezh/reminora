@@ -27,6 +27,7 @@ struct PinBrowserView: View {
     @GestureState private var dragOffset: CGFloat = 0
     @State private var shouldScrollToSelected: Bool = true
     @State private var showingAddPhoto = false
+    @State private var isSwipePhotoViewOpenInSheet = false
     private var filteredPlaces: [Place] {
         return places
     }
@@ -232,7 +233,7 @@ struct PinBrowserView: View {
             }
         }
         .sheet(isPresented: $showingAddPhoto) {
-            PhotoStackView()
+            PhotoStackView(isSwipePhotoViewOpen: $isSwipePhotoViewOpenInSheet)
         }
         .onAppear {
             // Center map on first place if available

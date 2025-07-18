@@ -269,6 +269,7 @@ struct ProfileView: View {
     
     private func processReminoraDeepLink(url: URL) {
         print("🔗 Processing Reminora deep link: \(url)")
+        print("🔗 Note: This is the DEBUG mechanism - for actual app deep links, see reminoraApp.swift")
         
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             print("❌ Failed to parse URL components")
@@ -286,11 +287,14 @@ struct ProfileView: View {
             let coreDataURI = String(pathString.dropFirst("/place/".count))
             placeId = coreDataURI
             print("🔍 Using Core Data URI as placeId: \(placeId)")
+            print("⚠️ Warning: Core Data URIs may not resolve correctly in debug mode")
+            print("⚠️ Recommendation: Use actual app deep link handling instead")
         } else if pathString.hasPrefix("/x-coredata:") {
             // Handle case where URL is missing the "place" part
             let coreDataURI = String(pathString.dropFirst(1)) // Remove leading "/"
             placeId = coreDataURI
             print("🔍 Using Core Data URI without place prefix as placeId: \(placeId)")
+            print("⚠️ Warning: Core Data URIs may not resolve correctly in debug mode")
         } else {
             // Normal path parsing
             let pathComponents = pathString.components(separatedBy: "/").filter { !$0.isEmpty }
@@ -345,19 +349,38 @@ struct ProfileView: View {
         // Create the shared place in Core Data
         let context = viewContext
         
-        // Check if place already exists
+        // Check if place already exists (by cloudId or similar content)
         let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "cloudId == %@", placeId)
+        
+        // First try to find by cloudId
+        if !placeId.isEmpty {
+            fetchRequest.predicate = NSPredicate(format: "cloudId == %@", placeId)
+        } else {
+            // Fallback: check for similar content
+            fetchRequest.predicate = NSPredicate(format: "post == %@", placeName)
+        }
         
         do {
             let existingPlaces = try context.fetch(fetchRequest)
             
             if let existingPlace = existingPlaces.first {
                 print("ℹ️ Place already exists: \(existingPlace.post ?? "No name")")
+                print("ℹ️ Navigating to existing place instead of creating duplicate")
+                
+                // Navigate to the existing place
+                NotificationCenter.default.post(
+                    name: Notification.Name("NavigateToSharedPlace"),
+                    object: existingPlace
+                )
                 return
             }
-            
-            // Create new place
+        } catch {
+            print("❌ Failed to check for existing places: \(error)")
+            // Continue with creation despite the error
+        }
+        
+        // Create new place
+        do {
             let place = Place(context: context)
             place.post = placeName
             place.dateAdded = Date()
@@ -456,33 +479,109 @@ struct ProfileView: View {
     }
     
     private func fetchFromLocalCoreData(place: Place, coreDataURI: String, context: NSManagedObjectContext) async {
+        print("🔍 Attempting to resolve Core Data URI: \(coreDataURI)")
+        
         do {
-            // Try to create URL from Core Data URI
-            guard let url = URL(string: coreDataURI),
-                  let coordinator = context.persistentStoreCoordinator,
-                  let objectID = coordinator.managedObjectID(forURIRepresentation: url) else {
-                print("❌ Failed to create object ID from Core Data URI: \(coreDataURI)")
+            // Validate URI format first
+            guard coreDataURI.hasPrefix("x-coredata://") else {
+                print("❌ Invalid Core Data URI format: \(coreDataURI)")
+                await fallbackToCloudFetch(place: place, context: context)
                 return
             }
+            
+            // Try to create URL from Core Data URI
+            guard let url = URL(string: coreDataURI) else {
+                print("❌ Failed to create URL from Core Data URI: \(coreDataURI)")
+                await fallbackToCloudFetch(place: place, context: context)
+                return
+            }
+            
+            // Check if persistent store coordinator is available
+            guard let coordinator = context.persistentStoreCoordinator else {
+                print("❌ Persistent store coordinator is nil")
+                await fallbackToCloudFetch(place: place, context: context)
+                return
+            }
+            
+            // Try to create managed object ID
+            guard let objectID = coordinator.managedObjectID(forURIRepresentation: url) else {
+                print("❌ Failed to create object ID from Core Data URI: \(coreDataURI)")
+                print("🔍 This might happen if the original place was deleted or is in a different Core Data store")
+                await fallbackToCloudFetch(place: place, context: context)
+                return
+            }
+            
+            print("✅ Successfully created object ID: \(objectID)")
             
             // Try to fetch the original place
             let originalPlace = try context.existingObject(with: objectID) as? Place
             
             await MainActor.run {
-                if let originalPlace = originalPlace, let imageData = originalPlace.imageData {
-                    place.imageData = imageData
-                    do {
-                        try context.save()
-                        print("✅ Successfully copied image from original place")
-                    } catch {
-                        print("❌ Failed to save image data: \(error)")
+                if let originalPlace = originalPlace {
+                    print("✅ Found original place: \(originalPlace.post ?? "No title")")
+                    
+                    if let imageData = originalPlace.imageData {
+                        place.imageData = imageData
+                        do {
+                            try context.save()
+                            print("✅ Successfully copied image from original place")
+                        } catch {
+                            print("❌ Failed to save image data: \(error)")
+                        }
+                    } else {
+                        print("⚠️ Original place has no image data")
                     }
                 } else {
-                    print("❌ Original place not found or has no image data")
+                    print("❌ Original place not found or is not a Place entity")
+                    Task {
+                        await fallbackToCloudFetch(place: place, context: context)
+                    }
                 }
             }
         } catch {
             print("❌ Failed to fetch from Core Data: \(error)")
+            print("🔍 Error details: \(error.localizedDescription)")
+            await fallbackToCloudFetch(place: place, context: context)
+        }
+    }
+    
+    private func fallbackToCloudFetch(place: Place, context: NSManagedObjectContext) async {
+        print("🔄 Falling back to alternative fetch method for shared place")
+        
+        // Try to find a place with matching coordinates and name
+        await MainActor.run {
+            guard let placeName = place.post,
+                  let locationData = place.value(forKey: "location") as? Data,
+                  let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation else {
+                print("❌ Cannot extract location data for fallback search")
+                return
+            }
+            
+            let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "post == %@", placeName)
+            
+            do {
+                let similarPlaces = try context.fetch(fetchRequest)
+                
+                // Find a place with similar location (within 100 meters)
+                for similarPlace in similarPlaces {
+                    if let similarLocationData = similarPlace.value(forKey: "location") as? Data,
+                       let similarLocation = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(similarLocationData) as? CLLocation {
+                        
+                        let distance = location.distance(from: similarLocation)
+                        if distance < 100 && similarPlace.imageData != nil { // Within 100 meters
+                            place.imageData = similarPlace.imageData
+                            try? context.save()
+                            print("✅ Found similar place and copied image data (distance: \(Int(distance))m)")
+                            return
+                        }
+                    }
+                }
+                
+                print("⚠️ No similar places found with image data")
+            } catch {
+                print("❌ Failed to search for similar places: \(error)")
+            }
         }
     }
     

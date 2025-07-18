@@ -52,9 +52,9 @@ class CloudSyncService: ObservableObject {
     private func uploadLocalPhotos() async throws {
         let context = persistenceController.container.viewContext
         
-        // Fetch photos that haven't been uploaded yet
+        // Fetch photos that haven't been uploaded yet (excluding private photos)
         let request: NSFetchRequest<Place> = Place.fetchRequest()
-        request.predicate = NSPredicate(format: "cloudId == nil AND imageData != nil")
+        request.predicate = NSPredicate(format: "cloudId == nil AND imageData != nil AND isPrivate == false")
         
         let localPhotos = try context.fetch(request)
         

@@ -57,6 +57,8 @@ class PersistenceController {
         let storeURL = sharedURL.appendingPathComponent("places.sqlite")
 
         let storeDescription = NSPersistentStoreDescription(url: storeURL)
+        storeDescription.shouldMigrateStoreAutomatically = true
+        storeDescription.shouldInferMappingModelAutomatically = true
         container.persistentStoreDescriptions = [storeDescription]
 
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
@@ -83,7 +85,7 @@ class PersistenceController {
     }
 
     // Save the image data with optional URL string to Core Data
-    public func saveImageDataToCoreData(imageData: Data, url: URL?, contentText: String?) {
+    public func saveImageDataToCoreData(imageData: Data, url: URL?, contentText: String?, isPrivate: Bool = false) {
         let scaledData: Data
 
         if let url = url, let downsampled = downsampleImage(at: url, to: 1024),
@@ -112,6 +114,7 @@ class PersistenceController {
                     withRootObject: coordinate, requiringSecureCoding: false)
                 sharedImage.setValue(locationData, forKey: "location")
             }
+            sharedImage.setValue(isPrivate, forKey: "isPrivate")
             // Store reference to last inserted Place for use in didSelectPost
             do {
                 try context.save()
@@ -123,7 +126,7 @@ class PersistenceController {
     }
 
     // Save the image data with optional location to Core Data
-    public func saveImageDataToCoreData(imageData: Data, location: CLLocation?, contentText: String?) {
+    public func saveImageDataToCoreData(imageData: Data, location: CLLocation?, contentText: String?, isPrivate: Bool = false) {
         let scaledData: Data
         
         if let image = UIImage(data: imageData),
@@ -148,6 +151,7 @@ class PersistenceController {
                     withRootObject: location, requiringSecureCoding: false)
                 sharedImage.setValue(locationData, forKey: "location")
             }
+            sharedImage.setValue(isPrivate, forKey: "isPrivate")
             
             do {
                 try context.save()

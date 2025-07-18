@@ -18,12 +18,13 @@ struct ContentView: View {
     @State private var showPhotoLibrary = false
     @State private var showingSharedPlace = false
     @State private var sharedPlace: Place?
+    @State private var isSwipePhotoViewOpen = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
             // Photos Tab
             NavigationView {
-                PhotoStackView()
+                PhotoStackView(isSwipePhotoViewOpen: $isSwipePhotoViewOpen)
             }
             .tabItem {
                 Image(systemName: "photo.stack")
@@ -63,6 +64,7 @@ struct ContentView: View {
                 .tag(3)
         }
         .accentColor(.blue)
+        .toolbar(isSwipePhotoViewOpen ? .hidden : .visible, for: .tabBar)
         .onChange(of: selectedTab) { _, newValue in
             UserDefaults.standard.set(newValue, forKey: "selectedTab")
         }

@@ -35,6 +35,10 @@ struct RListExampleView: View {
                         selectedAsset = firstAsset
                         showingFullPhoto = true
                     }
+                },
+                onLocationTap: { location in
+                    // Handle location tap if needed
+                    print("Location tapped: \(location.name)")
                 }
             )
             .navigationTitle("RList Demo")
@@ -110,7 +114,8 @@ extension RListView {
             dataSource: .photoLibrary(assets),
             onPhotoTap: onPhotoTap,
             onPinTap: { _ in }, // No pins in photo library
-            onPhotoStackTap: onPhotoStackTap
+            onPhotoStackTap: onPhotoStackTap,
+            onLocationTap: nil // No locations in photo library
         )
     }
     
@@ -124,7 +129,8 @@ extension RListView {
             dataSource: .userList(list, places),
             onPhotoTap: { _ in }, // No photos in user lists
             onPinTap: onPinTap,
-            onPhotoStackTap: { _ in }
+            onPhotoStackTap: { _ in },
+            onLocationTap: nil // No locations in basic user lists
         )
     }
     
@@ -138,7 +144,8 @@ extension RListView {
             dataSource: .nearbyPhotos(assets),
             onPhotoTap: onPhotoTap,
             onPinTap: { _ in }, // No pins in nearby photos
-            onPhotoStackTap: onPhotoStackTap
+            onPhotoStackTap: onPhotoStackTap,
+            onLocationTap: nil // No locations in nearby photos
         )
     }
     
@@ -153,7 +160,8 @@ extension RListView {
             dataSource: .mixed(items),
             onPhotoTap: onPhotoTap,
             onPinTap: onPinTap,
-            onPhotoStackTap: onPhotoStackTap
+            onPhotoStackTap: onPhotoStackTap,
+            onLocationTap: nil // Mixed content may have locations in future
         )
     }
 }

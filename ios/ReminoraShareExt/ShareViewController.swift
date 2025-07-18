@@ -67,7 +67,7 @@ class ShareViewController: SLComposeServiceViewController {
             // Extract location from image data
             let location = extractLocationFromImageData(data)
             PersistenceController.shared.saveImageDataToCoreData(
-                imageData: data, location: location, contentText: self.contentText)
+                imageData: data, location: location, contentText: self.contentText, isPrivate: false)
         }
         // Inform the host that we're done, so it un-blocks its UI. Note: Alternatively you could call super's -didSelectPost, which will similarly complete the extension context.
         self.extensionContext!.completeRequest(returningItems: [], completionHandler: nil)

@@ -10,6 +10,7 @@ struct FullPhotoView: View {
   @State private var image: UIImage? = nil
   @State private var caption: String = ""
   @State private var photoLocation: CLLocationCoordinate2D?
+  @State private var isPrivate: Bool = false
   @FocusState private var isTextFieldFocused: Bool
 
   var body: some View {
@@ -29,7 +30,7 @@ struct FullPhotoView: View {
             .frame(height: 300)
         }
         
-        // Caption text field - bigger area
+        // Caption text field and privacy toggle
         VStack(spacing: 0) {
           HStack {
             TextField("Add a caption...", text: $caption, axis: .vertical)
@@ -39,6 +40,22 @@ struct FullPhotoView: View {
               .cornerRadius(12)
               .padding([.horizontal, .bottom], 16)
               .focused($isTextFieldFocused)
+          }
+          
+          // Private/Public toggle
+          HStack {
+            Toggle(isOn: $isPrivate) {
+              HStack(spacing: 6) {
+                Image(systemName: isPrivate ? "lock.fill" : "globe")
+                  .foregroundColor(isPrivate ? .orange : .green)
+                Text(isPrivate ? "Private" : "Public")
+                  .foregroundColor(isPrivate ? .orange : .green)
+              }
+              .font(.subheadline)
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
+            Spacer()
           }
           .background(Color.black.opacity(0.8))
         }
@@ -98,7 +115,7 @@ struct FullPhotoView: View {
       ToolbarItem(placement: .navigationBarTrailing) {
         Button(action: {
           if let image = image {
-            saveImageDataToCoreData(image: image, caption: caption)
+            saveImageDataToCoreData(image: image, caption: caption, isPrivate: isPrivate)
           }
           onBack()
         }) {
@@ -149,7 +166,7 @@ struct FullPhotoView: View {
 
 
   private func saveImageDataToCoreData(
-    image: UIImage, caption: String) {
+    image: UIImage, caption: String, isPrivate: Bool) {
     guard let data = image.jpegData(compressionQuality: 0.9) else { return }
     
     // Use the location from the photo asset if available
@@ -158,7 +175,8 @@ struct FullPhotoView: View {
     PersistenceController.shared.saveImageDataToCoreData(
       imageData: data,
       location: location,
-      contentText: caption.isEmpty ? nil : caption
+      contentText: caption.isEmpty ? nil : caption,
+      isPrivate: isPrivate
     )
   }
 }

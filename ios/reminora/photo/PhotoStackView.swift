@@ -8,6 +8,7 @@ import CoreLocation
 
 struct PhotoStackView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Binding var isSwipePhotoViewOpen: Bool
     @State private var photoAssets: [PHAsset] = []
     @State private var filteredPhotoStacks: [PhotoStack] = []
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
@@ -33,6 +34,7 @@ struct PhotoStackView: View {
                 showingQuickList = false
                 withAnimation(.easeInOut(duration: 0.2)) {
                     selectedStack = stack
+                    isSwipePhotoViewOpen = true
                 }
             },
             onPinTap: { place in
@@ -47,6 +49,7 @@ struct PhotoStackView: View {
                 showingQuickList = false
                 withAnimation(.easeInOut(duration: 0.2)) {
                     selectedStack = stack
+                    isSwipePhotoViewOpen = true
                 }
             }
         )
@@ -151,6 +154,7 @@ struct PhotoStackView: View {
                                                 selectedStackIndex = 0
                                                 withAnimation(.easeInOut(duration: 0.2)) {
                                                     selectedStack = stack
+                                                    isSwipePhotoViewOpen = true
                                                 }
                                                 print("Set selectedStack")
                                             }
@@ -790,6 +794,8 @@ extension SwipePhotoView {
     }
 }
 
-#Preview {
-    PhotoStackView()
+struct PhotoStackView_Previews: PreviewProvider {
+    static var previews: some View {
+        PhotoStackView(isSwipePhotoViewOpen: .constant(false))
+    }
 }

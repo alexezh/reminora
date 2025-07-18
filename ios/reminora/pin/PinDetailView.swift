@@ -17,6 +17,7 @@ struct PinDetailView: View {
     @State private var shareData: PinShareData?
     @State private var showingNearbyPhotos = false
     @State private var showingNearbyPlaces = false
+    @State private var showingActionMenu = false
 
     init(place: Place, allPlaces: [Place], onBack: @escaping () -> Void) {
         self.place = place
@@ -76,75 +77,6 @@ struct PinDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Action buttons at top
-                HStack {
-                    Spacer()
-
-                    Button(action: {
-                        showNearbyPlaces()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "map")
-                            Text("Map")
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(16)
-                    }
-
-                    Button(action: {
-                        showNearbyPhotos()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "photo.on.rectangle.angled")
-                            Text("Photos")
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(16)
-                    }
-
-                    Button(action: {
-                        addToQuickList()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "bolt.fill")
-                            Text("Quick")
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(16)
-                    }
-
-                    Button(action: {
-                        sharePlace()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "square.and.arrow.up")
-                            Text("Share")
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(16)
-                    }
-
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color(.systemBackground))
 
                 // Photo taking full width
                 if let imageData = place.imageData, let image = UIImage(data: imageData) {
@@ -166,34 +98,46 @@ struct PinDetailView: View {
 
                 // Photo caption and details
                 VStack(alignment: .leading, spacing: 8) {
-                    // Shared indicator with follow button if applicable
-                    if isSharedItem {
-                        HStack {
-                            Image(systemName: "shared.with.you")
+                    // Private/Public indicator and shared indicator
+                    HStack {
+                        // Private/Public indicator
+                        HStack(spacing: 4) {
+                            Image(systemName: place.isPrivate ? "lock.fill" : "globe")
                                 .font(.caption)
-                                .foregroundColor(.green)
-                            
-                            if let shareInfo = sharedByInfo {
-                                Text("Shared by @\(shareInfo.userName)")
+                                .foregroundColor(place.isPrivate ? .orange : .green)
+                            Text(place.isPrivate ? "Private" : "Public")
+                                .font(.caption)
+                                .foregroundColor(place.isPrivate ? .orange : .green)
+                        }
+                        
+                        Spacer()
+                        
+                        // Shared indicator with follow button if applicable
+                        if isSharedItem {
+                            HStack {
+                                Image(systemName: "shared.with.you")
                                     .font(.caption)
-                                    .foregroundColor(.green)
+                                    .foregroundColor(.blue)
                                 
-                                Spacer()
-                                
-                                Button("Follow") {
-                                    followUser(userId: shareInfo.userId, userName: shareInfo.userName)
+                                if let shareInfo = sharedByInfo {
+                                    Text("by @\(shareInfo.userName)")
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                    
+                                    Button("Follow") {
+                                        followUser(userId: shareInfo.userId, userName: shareInfo.userName)
+                                    }
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.blue)
+                                    .cornerRadius(12)
+                                } else {
+                                    Text("Shared")
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
                                 }
-                                .font(.caption)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.blue)
-                                .cornerRadius(12)
-                            } else {
-                                Text("Shared with you")
-                                    .font(.caption)
-                                    .foregroundColor(.green)
-                                Spacer()
                             }
                         }
                     }
@@ -255,7 +199,17 @@ struct PinDetailView: View {
                     .foregroundColor(.blue)
                 }
             }
+            
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showingActionMenu = true
+                }) {
+                    Image(systemName: "ellipsis.circle")
+                        .foregroundColor(.blue)
+                }
+            }
         }
+        .ignoresSafeArea(.container, edges: .top)
         .sheet(item: $shareData) { data in
             let _ = print("PinDetailView ShareSheet - text: '\(data.message)', url: '\(data.link)'")
             ShareSheet(text: data.message, url: data.link)
@@ -272,6 +226,26 @@ struct PinDetailView: View {
             NearbyLocationsPageView(
                 searchLocation: Self.coordinate(item: place),
                 locationName: place.post ?? "this location"
+            )
+        }
+        .actionSheet(isPresented: $showingActionMenu) {
+            ActionSheet(
+                title: Text("Actions"),
+                buttons: [
+                    .default(Text("View on Map")) {
+                        showNearbyPlaces()
+                    },
+                    .default(Text("Nearby Photos")) {
+                        showNearbyPhotos()
+                    },
+                    .default(Text("Add to Quick List")) {
+                        addToQuickList()
+                    },
+                    .default(Text("Share")) {
+                        sharePlace()
+                    },
+                    .cancel()
+                ]
             )
         }
     }

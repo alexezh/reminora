@@ -90,7 +90,7 @@
         <attribute name="cloudSyncedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="dateAdded" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="imageData" optional="YES" attributeType="Binary"/>
-        <attribute name="isPrivate" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="isPrivate" optional="YES" attributeType="Boolean" defaultValue="NO" usesScalarValueType="YES"/>
         <attribute name="location" optional="YES" attributeType="Binary"/>
         <attribute name="post" optional="YES" attributeType="String"/>
         <attribute name="url" optional="YES" attributeType="String"/>

@@ -5,7 +5,6 @@ import CoreData
 // MARK: - RListExampleView
 struct RListExampleView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @State private var showingFullPhoto = false
     @State private var selectedAsset: PHAsset?
     @State private var selectedPlace: Place?
     @State private var showingPinDetail = false
@@ -23,7 +22,6 @@ struct RListExampleView: View {
                 dataSource: exampleDataSource,
                 onPhotoTap: { asset in
                     selectedAsset = asset
-                    showingFullPhoto = true
                 },
                 onPinTap: { place in
                     selectedPlace = place
@@ -33,7 +31,6 @@ struct RListExampleView: View {
                     // For photo stacks, show the first photo
                     if let firstAsset = assets.first {
                         selectedAsset = firstAsset
-                        showingFullPhoto = true
                     }
                 },
                 onLocationTap: { location in
@@ -43,17 +40,6 @@ struct RListExampleView: View {
             )
             .navigationTitle("RList Demo")
             .navigationBarTitleDisplayMode(.large)
-        }
-        .sheet(isPresented: $showingFullPhoto) {
-            if let asset = selectedAsset {
-                FullPhotoView(
-                    asset: asset,
-                    onBack: {
-                        showingFullPhoto = false
-                        selectedAsset = nil
-                    }
-                )
-            }
         }
         .sheet(isPresented: $showingPinDetail) {
             if let place = selectedPlace {

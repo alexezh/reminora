@@ -83,7 +83,11 @@
 		49D0F5772E1DE737004BABB0 /* Exceptions for "reminora" folder in "reminora" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				cloud/CLAUDE.md,
 				Info.plist,
+				photo/CLAUDE.md,
+				pin/CLAUDE.md,
+				rlist/CLAUDE.md,
 			);
 			target = 49F151EE2DE4BF3100573F48 /* reminora */;
 		};

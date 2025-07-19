@@ -560,43 +560,13 @@
             endingLineNumber = "64"
             landmarkName = "init(inMemory:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "75190048-A23F-4337-8F38-BA863514C5CB - fdf2bcf3c39e66ec"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "reminora.PersistenceController.init(inMemory: Swift.Bool) -&gt; reminora.PersistenceController"
-                  moduleName = "reminora.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/ios/shared/Persistence.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "64"
-                  endingLineNumber = "64">
-               </Location>
-               <Location
-                  uuid = "75190048-A23F-4337-8F38-BA863514C5CB - 93b77033c75139c4"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 (__C.NSPersistentStoreDescription, Swift.Optional&lt;Swift.Error&gt;) -&gt; () in reminora.PersistenceController.init(inMemory: Swift.Bool) -&gt; reminora.PersistenceController"
-                  moduleName = "reminora.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/ios/shared/Persistence.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "64"
-                  endingLineNumber = "64">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "7A7E539F-D0FC-4055-B18A-1C28293992C0"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "shared/Persistence.swift"

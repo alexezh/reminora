@@ -75,32 +75,35 @@ struct PinDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
+        ZStack {
+            // Full-screen background
+            Color(.systemBackground)
+                .ignoresSafeArea(.all)
+            
+            ScrollView {
+                VStack(spacing: 0) {
+                    
+                    // Title below navigation area
+                    VStack(alignment: .leading, spacing: 8) {
+                        if let post = place.post, !post.isEmpty {
+                            Text(post)
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 100) // Space for navigation buttons
 
-                // Photo taking full width
-                if let imageData = place.imageData, let image = UIImage(data: imageData) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 400)
-                        .clipped()
-                } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(height: 300)
-                        .overlay(
-                            Image(systemName: "photo")
-                                .font(.system(size: 48))
-                                .foregroundColor(.gray)
-                        )
-                }
+                    // Comments section
+                    SimpleCommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
+                        .padding(.top, 16)
 
-                // Photo caption and details
-                VStack(alignment: .leading, spacing: 8) {
-                    // Private/Public indicator and shared indicator
+                    // Private/Public indicator and Share button on same line
                     HStack {
-                        // Private/Public indicator
+                        // Private/Public indicator and shared indicator
                         HStack(spacing: 4) {
                             Image(systemName: place.isPrivate ? "lock.fill" : "globe")
                                 .font(.caption)
@@ -108,51 +111,40 @@ struct PinDetailView: View {
                             Text(place.isPrivate ? "Private" : "Public")
                                 .font(.caption)
                                 .foregroundColor(place.isPrivate ? .orange : .green)
-                        }
-                        
-                        Spacer()
-                        
-                        // Shared indicator with follow button if applicable
-                        if isSharedItem {
-                            HStack {
-                                Image(systemName: "shared.with.you")
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
-                                
-                                if let shareInfo = sharedByInfo {
-                                    Text("by @\(shareInfo.userName)")
+                            
+                            // Shared indicator with follow button if applicable
+                            if isSharedItem {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "shared.with.you")
                                         .font(.caption)
                                         .foregroundColor(.blue)
                                     
-                                    Button("Follow") {
-                                        followUser(userId: shareInfo.userId, userName: shareInfo.userName)
-                                    }
-                                    .font(.caption)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.blue)
-                                    .cornerRadius(12)
-                                } else {
-                                    Text("Shared")
+                                    if let shareInfo = sharedByInfo {
+                                        Text("by @\(shareInfo.userName)")
+                                            .font(.caption)
+                                            .foregroundColor(.blue)
+                                        
+                                        Button("Follow") {
+                                            followUser(userId: shareInfo.userId, userName: shareInfo.userName)
+                                        }
                                         .font(.caption)
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.blue)
+                                        .cornerRadius(12)
+                                    } else {
+                                        Text("Shared")
+                                            .font(.caption)
+                                            .foregroundColor(.blue)
+                                    }
                                 }
                             }
                         }
-                    }
-
-                    // Caption text (Facebook-style)
-                    if let post = place.post, !post.isEmpty {
-                        Text(post)
-                            .font(.body)
-                            .foregroundColor(.primary)
-                            .multilineTextAlignment(.leading)
-                    }
-                    
-                    // Share button
-                    HStack {
+                        
                         Spacer()
+                        
+                        // Share button on the right
                         Button(action: {
                             sharePlace()
                         }) {
@@ -167,70 +159,98 @@ struct PinDetailView: View {
                             .background(Color.blue.opacity(0.1))
                             .cornerRadius(20)
                         }
-                        Spacer()
                     }
-                    .padding(.top, 12)
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 20)
 
-                // Comments section (simplified, no box)
-                SimpleCommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
-                    .padding(.top, 8)
-
-                // Date below comments
-                if let date = place.dateAdded {
-                    Text(date, formatter: itemFormatter)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                // Map at the bottom
-                Map(coordinateRegion: $region, annotationItems: [place] + nearbyPlaces) { item in
-                    MapAnnotation(coordinate: Self.coordinate(item: item)) {
-                        Button(action: {
-                            // Could navigate to this place if desired
-                        }) {
-                            Image(
-                                systemName: item.objectID == place.objectID
-                                    ? "mappin.circle.fill" : "mappin.circle"
+                    // Photo
+                    if let imageData = place.imageData, let image = UIImage(data: imageData) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 400)
+                            .clipped()
+                            .padding(.top, 20)
+                    } else {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: 300)
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.gray)
                             )
-                            .font(.title2)
-                            .foregroundColor(item.objectID == place.objectID ? .red : .blue)
+                            .padding(.top, 20)
+                    }
+
+                    // Date below photo
+                    if let date = place.dateAdded {
+                        Text(date, formatter: itemFormatter)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    // Map at the bottom
+                    Map(coordinateRegion: $region, annotationItems: [place] + nearbyPlaces) { item in
+                        MapAnnotation(coordinate: Self.coordinate(item: item)) {
+                            Button(action: {
+                                // Could navigate to this place if desired
+                            }) {
+                                Image(
+                                    systemName: item.objectID == place.objectID
+                                        ? "mappin.circle.fill" : "mappin.circle"
+                                )
+                                .font(.title2)
+                                .foregroundColor(item.objectID == place.objectID ? .red : .blue)
+                            }
                         }
                     }
-                }
-                .frame(height: 200)
-                .allowsHitTesting(false)
-                .padding(.top, 16)
-            }
-        }
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: onBack) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "chevron.left")
-                        Text("Back")
-                    }
-                    .foregroundColor(.blue)
+                    .frame(height: 250)
+                    .allowsHitTesting(false)
+                    .padding(.top, 20)
+                    .padding(.bottom, 40) // Bottom safe area
                 }
             }
             
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    showingActionMenu = true
-                }) {
-                    Image(systemName: "ellipsis.circle")
-                        .foregroundColor(.blue)
+            // Floating navigation overlay (similar to SwipePhotoView)
+            VStack {
+                HStack {
+                    // Back button
+                    Button(action: onBack) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                    }
+                    
+                    Spacer()
+                    
+                    // Action button
+                    Button(action: {
+                        showingActionMenu = true
+                    }) {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title2)
+                            .foregroundColor(.primary)
+                            .padding(8)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 60) // Safe area + some spacing
+                
+                Spacer()
             }
         }
-        .ignoresSafeArea(.container, edges: .top)
+        .navigationBarHidden(true)
         .sheet(item: $shareData) { data in
             let _ = print("PinDetailView ShareSheet - text: '\(data.message)', url: '\(data.link)'")
             ShareSheet(text: data.message, url: data.link)

@@ -35,22 +35,26 @@ struct PhotoThumbnailView: View {
   var body: some View {
     Group {
       if let image = image {
-        Image(uiImage: image)
-          .resizable()
-          .scaledToFill()
-          .conditionalModifier(isSelected != nil) { view in
-            // SwipePhotoView style: fixed size with corner radius and selection border
-            view
-              .frame(width: 50, height: 50)
-              .clipped()
-              .cornerRadius(8)
-              .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                  .stroke((isSelected == true) ? Color.white : Color.clear, lineWidth: 2)
-              )
-              .scaleEffect((isSelected == true) ? 1.1 : 1.0)
-              .animation(.easeInOut(duration: 0.2), value: isSelected)
-          }
+        if isSelected != nil {
+          // SwipePhotoView style: fixed size with corner radius and selection border
+          Image(uiImage: image)
+            .resizable()
+            .scaledToFill()
+            .frame(width: 50, height: 50)
+            .clipped()
+            .cornerRadius(8)
+            .overlay(
+              RoundedRectangle(cornerRadius: 8)
+                .stroke((isSelected == true) ? Color.white : Color.clear, lineWidth: 2)
+            )
+            .scaleEffect((isSelected == true) ? 1.1 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isSelected)
+        } else {
+          // PhotoLibraryView style: default behavior
+          Image(uiImage: image)
+            .resizable()
+            .scaledToFill()
+        }
       } else {
         if isSelected != nil {
           // SwipePhotoView style loading state

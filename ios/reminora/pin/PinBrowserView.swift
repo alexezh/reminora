@@ -219,17 +219,19 @@ struct PinBrowserView: View {
                 }
             }
         }
-        .sheet(isPresented: $showPlaceDetail) {
-            if let selectedPlace = selectedPlace {
-                NavigationView {
-                    PinDetailView(
-                        place: selectedPlace,
-                        allPlaces: filteredPlaces,
-                        onBack: {
-                            showPlaceDetail = false
-                        }
-                    )
-                }
+        .overlay {
+            if showPlaceDetail, let selectedPlace = selectedPlace {
+                PinDetailView(
+                    place: selectedPlace,
+                    allPlaces: filteredPlaces,
+                    onBack: {
+                        showPlaceDetail = false
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.1).combined(with: .opacity),
+                    removal: .scale(scale: 0.1).combined(with: .opacity)
+                ))
             }
         }
         .sheet(isPresented: $showingAddPhoto) {

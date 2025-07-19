@@ -112,7 +112,7 @@ struct PinDetailView: View {
         ZStack {
             // Full-screen background
             Color(.systemBackground)
-                .ignoresSafeArea(.all)
+                .ignoresSafeArea(.all, edges: .all)
             
             ScrollView {
                 VStack(spacing: 0) {
@@ -129,7 +129,7 @@ struct PinDetailView: View {
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 100) // Space for navigation buttons
+                    .padding(.top, 80) // Reduced space for navigation buttons
 
                     // Comments section
                     SimpleCommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
@@ -297,7 +297,7 @@ struct PinDetailView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 60) // Safe area + some spacing
+                .padding(.top, 10) // Minimal top spacing - closer to top
                 
                 Spacer()
             }

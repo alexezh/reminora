@@ -223,15 +223,19 @@ struct RListDetailView: View {
             )
         }
         // Present PinDetailView when a pin is selected
-        .sheet(item: $selectedPin) { pin in
-            NavigationView {
+        .overlay {
+            if let selectedPin = selectedPin {
                 PinDetailView(
-                    place: pin,
+                    place: selectedPin,
                     allPlaces: getAllPlaces(),
                     onBack: {
-                        selectedPin = nil
+                        self.selectedPin = nil
                     }
                 )
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.1).combined(with: .opacity),
+                    removal: .scale(scale: 0.1).combined(with: .opacity)
+                ))
             }
         }
     }

@@ -15,7 +15,6 @@ struct ContentView: View {
     @EnvironmentObject private var authService: AuthenticationService
 
     @State private var selectedTab = UserDefaults.standard.integer(forKey: "selectedTab")
-    @State private var showPhotoLibrary = false
     @State private var showingSharedPlace = false
     @State private var sharedPlace: Place?
     @State private var isSwipePhotoViewOpen = false
@@ -34,13 +33,6 @@ struct ContentView: View {
             // Home/Map Tab
             ZStack {
                 PinMainView()
-
-                // Show the system photo picker as a sheet when showPhotoLibrary is true
-                if showPhotoLibrary {
-                    PhotoLibraryView(isPresented: $showPhotoLibrary)
-                        .ignoresSafeArea()
-                        .transition(.move(edge: .bottom))
-                }
             }
             .tabItem {
                 Image(systemName: "mappin.and.ellipse")
@@ -90,18 +82,20 @@ struct ContentView: View {
                 print("🔗 ❌ ContentView: notification object is not a Place")
             }
         }
-        .sheet(isPresented: $showingSharedPlace) {
-            if let place = sharedPlace {
-                NavigationView {
-                    PinDetailView(
-                        place: place,
-                        allPlaces: [],
-                        onBack: {
-                            showingSharedPlace = false
-                            sharedPlace = nil
-                        }
-                    )
-                }
+        .overlay {
+            if showingSharedPlace, let place = sharedPlace {
+                PinDetailView(
+                    place: place,
+                    allPlaces: [],
+                    onBack: {
+                        showingSharedPlace = false
+                        sharedPlace = nil
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.1).combined(with: .opacity),
+                    removal: .scale(scale: 0.1).combined(with: .opacity)
+                ))
             }
         }
     }

@@ -14,6 +14,7 @@ import CoreData
 import MapKit
 import CoreLocation
 
+// presented as overlay; takes whole screen
 struct SwipePhotoView: View {
     let stack: PhotoStack
     let initialIndex: Int

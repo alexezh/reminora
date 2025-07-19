@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23788.4" systemVersion="24F74" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="Comment" representedClassName="Comment" syncable="YES" codeGenerationType="class">
+        <attribute name="cloudId" optional="YES" attributeType="String"/>
+        <attribute name="commentText" attributeType="String"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="fromUserHandle" attributeType="String"/>
+        <attribute name="fromUserId" attributeType="String"/>
+        <attribute name="fromUserName" attributeType="String"/>
+        <attribute name="id" attributeType="String"/>
+        <attribute name="isReaction" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="targetPhotoId" optional="YES" attributeType="String"/>
+        <attribute name="targetUserId" optional="YES" attributeType="String"/>
+        <attribute name="toUserHandle" optional="YES" attributeType="String"/>
+        <attribute name="toUserId" optional="YES" attributeType="String"/>
+        <attribute name="toUserName" optional="YES" attributeType="String"/>
+        <attribute name="type" attributeType="String"/>
+        <fetchIndex name="byCreatedAtIndex">
+            <fetchIndexElement property="createdAt" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byFromUserIdIndex">
+            <fetchIndexElement property="fromUserId" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byIdIndex">
+            <fetchIndexElement property="id" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byTargetPhotoIdIndex">
+            <fetchIndexElement property="targetPhotoId" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byTargetUserIdIndex">
+            <fetchIndexElement property="targetUserId" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byTypeIndex">
+            <fetchIndexElement property="type" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <entity name="ListItem" representedClassName="ListItem" syncable="YES" codeGenerationType="class">
+        <attribute name="addedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" attributeType="String"/>
+        <attribute name="listId" attributeType="String"/>
+        <attribute name="placeId" attributeType="String"/>
+        <attribute name="sharedByUserId" optional="YES" attributeType="String"/>
+        <attribute name="sharedByUserName" optional="YES" attributeType="String"/>
+        <attribute name="sharedLink" optional="YES" attributeType="String"/>
+        <fetchIndex name="byIdIndex">
+            <fetchIndexElement property="id" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byListIdIndex">
+            <fetchIndexElement property="listId" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byPlaceIdIndex">
+            <fetchIndexElement property="placeId" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <entity name="PhotoEmbedding" representedClassName="PhotoEmbedding" syncable="YES" codeGenerationType="class">
+        <attribute name="computedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="creationDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="embedding" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="imageHash" optional="YES" attributeType="String"/>
+        <attribute name="localIdentifier" attributeType="String"/>
+        <attribute name="modificationDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <fetchIndex name="byEmbeddingIndex">
+            <fetchIndexElement property="embedding" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byLocalIdentifierIndex">
+            <fetchIndexElement property="localIdentifier" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <entity name="PhotoLocationCache" representedClassName="PhotoLocationCache" syncable="YES" codeGenerationType="class">
+        <attribute name="lastUpdated" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="location" optional="YES" attributeType="Binary"/>
+        <attribute name="photoId" attributeType="String"/>
+        <fetchIndex name="byPhotoIdIndex">
+            <fetchIndexElement property="photoId" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <entity name="PhotoPreference" representedClassName="PhotoPreference" syncable="YES" codeGenerationType="class">
+        <attribute name="dateModified" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="photoId" attributeType="String"/>
+        <attribute name="preference" attributeType="String"/>
+        <fetchIndex name="byPhotoIdIndex">
+            <fetchIndexElement property="photoId" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byPreferenceIndex">
+            <fetchIndexElement property="preference" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <entity name="Place" representedClassName="Place" syncable="YES" codeGenerationType="class">
+        <attribute name="cloudId" optional="YES" attributeType="String"/>
+        <attribute name="cloudSyncedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="dateAdded" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="imageData" optional="YES" attributeType="Binary"/>
+        <attribute name="isPrivate" optional="YES" attributeType="Boolean" defaultValue="NO" usesScalarValueType="YES"/>
+        <attribute name="location" optional="YES" attributeType="Binary"/>
+        <attribute name="locations" optional="YES" attributeType="String"/>
+        <attribute name="post" optional="YES" attributeType="String"/>
+        <attribute name="url" optional="YES" attributeType="String"/>
+        <fetchIndex name="byCloudIdIndex">
+            <fetchIndexElement property="cloudId" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byDateAddedIndex">
+            <fetchIndexElement property="dateAdded" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byUrlIndex">
+            <fetchIndexElement property="url" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <entity name="UserList" representedClassName="UserList" syncable="YES" codeGenerationType="class">
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" attributeType="String"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="userId" attributeType="String"/>
+        <fetchIndex name="byIdIndex">
+            <fetchIndexElement property="id" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byNameIndex">
+            <fetchIndexElement property="name" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byUserIdIndex">
+            <fetchIndexElement property="userId" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+</model>

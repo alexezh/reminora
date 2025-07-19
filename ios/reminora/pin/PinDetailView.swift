@@ -2,6 +2,25 @@ import CoreData
 import MapKit
 import SwiftUI
 
+struct PlaceAddress: Codable, Identifiable {
+    let id = UUID()
+    let coordinates: PlaceCoordinates
+    let country: String?
+    let city: String?
+    let phone: String?
+    let website: String?
+    let fullAddress: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case coordinates, country, city, phone, website, fullAddress
+    }
+}
+
+struct PlaceCoordinates: Codable {
+    let latitude: Double
+    let longitude: Double
+}
+
 /// show list of places on the map
 struct PinDetailView: View {
     let place: Place
@@ -51,6 +70,21 @@ struct PinDetailView: View {
     var isSharedItem: Bool {
         // Check if this place came from a shared link by looking at the URL field
         return place.url?.contains("Shared via Reminora link") == true
+    }
+    
+    var placeAddresses: [PlaceAddress] {
+        guard let locationsJSON = place.locations,
+              !locationsJSON.isEmpty,
+              let data = locationsJSON.data(using: .utf8) else {
+            return []
+        }
+        
+        do {
+            return try JSONDecoder().decode([PlaceAddress].self, from: data)
+        } catch {
+            print("Failed to decode place addresses: \(error)")
+            return []
+        }
     }
     
     // Get the owner information from the ListItem that contains this place
@@ -162,6 +196,24 @@ struct PinDetailView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 20)
+
+                    // Addresses section
+                    if !placeAddresses.isEmpty {
+                        VStack(spacing: 12) {
+                            HStack {
+                                Text("Locations")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                            }
+                            
+                            ForEach(placeAddresses) { address in
+                                AddressCardView(address: address)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 20)
+                    }
 
                     // Photo
                     if let imageData = place.imageData, let image = UIImage(data: imageData) {
@@ -437,4 +489,70 @@ struct PinShareData: Identifiable {
     let id = UUID()
     let message: String
     let link: String
+}
+
+struct AddressCardView: View {
+    let address: PlaceAddress
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Full address or city/country
+            if let fullAddress = address.fullAddress, !fullAddress.isEmpty {
+                Text(fullAddress)
+                    .font(.body)
+                    .foregroundColor(.primary)
+            } else if let city = address.city, let country = address.country {
+                Text("\(city), \(country)")
+                    .font(.body)
+                    .foregroundColor(.primary)
+            }
+            
+            // Additional info in a horizontal layout
+            HStack(spacing: 16) {
+                // Phone
+                if let phone = address.phone, !phone.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "phone.fill")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        Text(phone)
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                    .onTapGesture {
+                        if let url = URL(string: "tel:\(phone)") {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                }
+                
+                // Website
+                if let website = address.website, !website.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "globe")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        Text("Website")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                    .onTapGesture {
+                        if let url = URL(string: website) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                // Coordinates
+                Text(String(format: "%.4f, %.4f", address.coordinates.latitude, address.coordinates.longitude))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(12)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
 }

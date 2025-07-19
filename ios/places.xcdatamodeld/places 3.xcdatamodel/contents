@@ -92,6 +92,7 @@
         <attribute name="imageData" optional="YES" attributeType="Binary"/>
         <attribute name="isPrivate" optional="YES" attributeType="Boolean" defaultValue="NO" usesScalarValueType="YES"/>
         <attribute name="location" optional="YES" attributeType="Binary"/>
+        <attribute name="locations" optional="YES" attributeType="String"/>
         <attribute name="post" optional="YES" attributeType="String"/>
         <attribute name="url" optional="YES" attributeType="String"/>
         <fetchIndex name="byCloudIdIndex">

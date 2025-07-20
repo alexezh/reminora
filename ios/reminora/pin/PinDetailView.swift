@@ -30,6 +30,7 @@ struct PinDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var authService = AuthenticationService.shared
     @StateObject private var locationManager = LocationManager()
+    @StateObject private var pinSharingService = PinSharingService.shared
 
     @State private var region: MKCoordinateRegion
     @State private var showingListPicker = false
@@ -37,6 +38,7 @@ struct PinDetailView: View {
     @State private var showingNearbyPhotos = false
     @State private var showingNearbyPlaces = false
     @State private var showingActionMenu = false
+    @State private var showingUserProfile = false
 
     init(place: Place, allPlaces: [Place], onBack: @escaping () -> Void) {
         self.place = place
@@ -68,8 +70,7 @@ struct PinDetailView: View {
     }
 
     var isSharedItem: Bool {
-        // Check if this place came from a shared link by looking at the URL field
-        return place.url?.contains("Shared via Reminora link") == true
+        return pinSharingService.isSharedItem(place)
     }
     
     var placeAddresses: [PlaceAddress] {
@@ -89,23 +90,14 @@ struct PinDetailView: View {
     
     // Get the owner information from the ListItem that contains this place
     private var sharedByInfo: (userId: String, userName: String)? {
-        // Fetch the ListItem that contains this place
-        let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "placeId == %@", place.objectID.uriRepresentation().absoluteString)
-        
-        do {
-            let items = try viewContext.fetch(fetchRequest)
-            if let item = items.first,
-               let userId = item.sharedByUserId,
-               let userName = item.sharedByUserName,
-               !userId.isEmpty && !userName.isEmpty {
-                return (userId: userId, userName: userName)
-            }
-        } catch {
-            print("Failed to fetch ListItem for shared info: \(error)")
-        }
-        
-        return nil
+        return pinSharingService.getSharedUserInfo(from: place, context: viewContext)
+    }
+    
+    // Determine if this pin belongs to another user
+    private var isFromOtherUser: Bool {
+        let result = pinSharingService.isSharedFromOtherUser(place, context: viewContext)
+        print("🔍 PinDetailView isFromOtherUser: \(result) for place: \(place.post ?? "Unknown")")
+        return result
     }
 
     var body: some View {
@@ -135,44 +127,45 @@ struct PinDetailView: View {
                     SimpleCommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
                         .padding(.top, 16)
 
-                    // Private/Public indicator and Share button on same line
+                    // Author info and Share button on same line
                     HStack {
-                        // Private/Public indicator and shared indicator
-                        HStack(spacing: 4) {
-                            Image(systemName: place.isPrivate ? "lock.fill" : "globe")
-                                .font(.caption)
-                                .foregroundColor(place.isPrivate ? .orange : .green)
-                            Text(place.isPrivate ? "Private" : "Public")
-                                .font(.caption)
-                                .foregroundColor(place.isPrivate ? .orange : .green)
-                            
-                            // Shared indicator with follow button if applicable
-                            if isSharedItem {
+                        if isFromOtherUser {
+                            // Show user profile button for other users' pins
+                            if let shareInfo = sharedByInfo {
+                                Button(action: {
+                                    showingUserProfile = true
+                                }) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "person.circle")
+                                        Text("@\(shareInfo.userName)")
+                                    }
+                                    .font(.subheadline)
+                                    .foregroundColor(.blue)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Color.blue.opacity(0.1))
+                                    .cornerRadius(20)
+                                }
+                            } else {
+                                // Fallback for shared pins without clear ownership
                                 HStack(spacing: 4) {
                                     Image(systemName: "shared.with.you")
                                         .font(.caption)
                                         .foregroundColor(.blue)
-                                    
-                                    if let shareInfo = sharedByInfo {
-                                        Text("by @\(shareInfo.userName)")
-                                            .font(.caption)
-                                            .foregroundColor(.blue)
-                                        
-                                        Button("Follow") {
-                                            followUser(userId: shareInfo.userId, userName: shareInfo.userName)
-                                        }
+                                    Text("Shared")
                                         .font(.caption)
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.blue)
-                                        .cornerRadius(12)
-                                    } else {
-                                        Text("Shared")
-                                            .font(.caption)
-                                            .foregroundColor(.blue)
-                                    }
+                                        .foregroundColor(.blue)
                                 }
+                            }
+                        } else {
+                            // Show private/public indicator for current user's pins
+                            HStack(spacing: 4) {
+                                Image(systemName: place.isPrivate ? "lock.fill" : "globe")
+                                    .font(.caption)
+                                    .foregroundColor(place.isPrivate ? .orange : .green)
+                                Text(place.isPrivate ? "Private" : "Public")
+                                    .font(.caption)
+                                    .foregroundColor(place.isPrivate ? .orange : .green)
                             }
                         }
                         
@@ -337,6 +330,15 @@ struct PinDetailView: View {
                     .cancel()
                 ]
             )
+        }
+        .sheet(isPresented: $showingUserProfile) {
+            if let shareInfo = sharedByInfo {
+                UserProfileView(
+                    userId: shareInfo.userId,
+                    userName: shareInfo.userName,
+                    userHandle: shareInfo.userName
+                )
+            }
         }
     }
 

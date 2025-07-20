@@ -71,6 +71,135 @@ Update the `baseURL` in `APIService.swift` to point to your deployed worker:
 private let baseURL = "https://reminora-backend.your-worker.workers.dev"
 ```
 
+## Production Deployment
+
+### Prerequisites
+- Cloudflare account with Workers plan
+- Node.js 18+ and npm installed
+- Wrangler CLI configured with your account
+
+### Step-by-Step Deployment
+
+#### 1. Configure Wrangler
+```bash
+# Login to Cloudflare (first time only)
+npx wrangler login
+
+# Verify account access
+npx wrangler whoami
+```
+
+#### 2. Create Production Database
+```bash
+# Create production D1 database
+npx wrangler d1 create reminora-prod-db
+
+# Update wrangler.toml with production database ID
+# Replace the database_id in the [[env.production]] section
+```
+
+#### 3. Apply Database Schema
+```bash
+# Apply schema to production database
+npx wrangler d1 execute reminora-prod-db --env production --file=./migrations/0001_initial.sql
+
+# Verify tables were created
+npx wrangler d1 execute reminora-prod-db --env production --command="SELECT name FROM sqlite_master WHERE type='table';"
+```
+
+#### 4. Deploy Worker
+```bash
+# Deploy to production environment
+npm run deploy -- --env production
+
+# Verify deployment
+npx wrangler deployments list --env production
+```
+
+#### 5. Configure Custom Domain (Optional)
+```bash
+# Add custom domain through Cloudflare dashboard or CLI
+npx wrangler route add "api.yourdomain.com/*" --env production
+```
+
+### Environment Configuration
+
+The `wrangler.toml` file supports multiple environments:
+
+```toml
+# Development environment (default)
+[[d1_databases]]
+binding = "DB"
+database_name = "reminora-db"
+database_id = "your-dev-database-id"
+
+# Production environment
+[env.production]
+[[env.production.d1_databases]]
+binding = "DB" 
+database_name = "reminora-prod-db"
+database_id = "your-prod-database-id"
+```
+
+### Monitoring and Maintenance
+
+#### Check Deployment Status
+```bash
+# View recent deployments
+npx wrangler deployments list
+
+# Check worker logs
+npx wrangler tail --env production
+
+# Monitor database usage
+npx wrangler d1 info reminora-prod-db
+```
+
+#### Database Backup
+```bash
+# Export database backup
+npx wrangler d1 export reminora-prod-db --output backup.sql --env production
+
+# Import from backup (if needed)
+npx wrangler d1 execute reminora-prod-db --env production --file=backup.sql
+```
+
+### Troubleshooting
+
+#### Common Issues
+
+**Database Connection Errors**
+- Verify database ID in `wrangler.toml` matches the created database
+- Ensure migrations have been applied with correct environment flag
+- Check binding name matches code expectations (`DB`)
+
+**Authentication Failures**
+- Run `wrangler login` and verify account access
+- Check API tokens have correct permissions in Cloudflare dashboard
+- Ensure you're deploying to the correct environment
+
+**Worker Deployment Failures**
+- Verify `package.json` scripts and dependencies are correct
+- Check worker size limits (1MB for free tier, 10MB for paid)
+- Review syntax errors in worker code before deployment
+
+**iOS App Connection Issues**
+- Update `baseURL` in `APIService.swift` to production worker URL
+- Verify CORS headers if testing from web browsers
+- Check network connectivity and DNS resolution
+
+#### Debug Commands
+```bash
+# Test worker locally with production database
+npx wrangler dev --env production --local
+
+# Validate wrangler.toml configuration
+npx wrangler deploy --dry-run --env production
+
+# Check worker resource usage
+npx wrangler metrics --env production
+```
+
 ## Database Schema
 
 ### Tables

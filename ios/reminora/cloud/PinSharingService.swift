@@ -171,6 +171,76 @@ class PinSharingService: ObservableObject {
         // The UI should present authentication options
     }
     
+    // MARK: - Shared Pin Analysis
+    
+    /// Check if a place is shared from another user
+    func isSharedFromOtherUser(_ place: Place, context: NSManagedObjectContext) -> Bool {
+        // Check if this place came from a shared link
+        guard isSharedItem(place) else { return false }
+        
+        // Get the shared user info and compare with current user
+        if let sharedInfo = getSharedUserInfo(from: place, context: context) {
+            let currentUserId = authService.currentAccount?.id ?? ""
+            return sharedInfo.userId != currentUserId
+        }
+        
+        // If it's shared but no clear owner info, assume it's from another user
+        return true
+    }
+    
+    /// Check if a place is a shared item
+    func isSharedItem(_ place: Place) -> Bool {
+        if let url = place.url {
+            return url.contains("Shared via Reminora link") || url.contains("Shared by @")
+        }
+        return false
+    }
+    
+    /// Extract shared user information from a place
+    func getSharedUserInfo(from place: Place, context: NSManagedObjectContext) -> (userId: String, userName: String)? {
+        // First try to get from ListItem
+        let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "placeId == %@", place.objectID.uriRepresentation().absoluteString)
+        
+        do {
+            let items = try context.fetch(fetchRequest)
+            if let item = items.first,
+               let userId = item.sharedByUserId,
+               let userName = item.sharedByUserName,
+               !userId.isEmpty && !userName.isEmpty {
+                return (userId: userId, userName: userName)
+            }
+        } catch {
+            print("Failed to fetch ListItem for shared info: \(error)")
+        }
+        
+        // If not found in ListItem, try to parse from place URL
+        return parseUserInfoFromURL(place.url)
+    }
+    
+    /// Parse user info from URL format "Shared by @username (ID: user-id)"
+    private func parseUserInfoFromURL(_ url: String?) -> (userId: String, userName: String)? {
+        guard let url = url, url.contains("Shared by @") else { return nil }
+        
+        let pattern = #"Shared by @([^(]+) \(ID: ([^)]+)\)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)) else {
+            return nil
+        }
+        
+        let usernameRange = Range(match.range(at: 1), in: url)
+        let userIdRange = Range(match.range(at: 2), in: url)
+        
+        guard let usernameRange = usernameRange,
+              let userIdRange = userIdRange else { return nil }
+        
+        let username = String(url[usernameRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let userId = String(url[userIdRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        print("🔍 PinSharingService parsed from URL - username: \(username), userId: \(userId)")
+        return (userId: userId, userName: username)
+    }
+    
     // MARK: - Private Methods
     
     private func createPinShareRequest(from place: Place) -> PinShareRequest? {

@@ -240,8 +240,22 @@ struct UserProfileView: View {
         isLoading = true
 
         do {
-            // Load user profile from API
-            let profile = try await APIService.shared.getUserProfile(userId: userId)
+            // Try to load user profile from API, but handle failures gracefully
+            let profile: UserProfile
+            do {
+                profile = try await APIService.shared.getUserProfile(userId: userId)
+            } catch {
+                print("API unavailable, creating offline profile: \(error)")
+                // Create a fallback profile for offline mode
+                profile = UserProfile(
+                    id: userId,
+                    username: userHandle ?? "unknown_user",
+                    display_name: userHandle ?? "Unknown User",
+                    created_at: Date().timeIntervalSince1970,
+                    avatar_url: nil,
+                    handle: userHandle
+                )
+            }
 
             // Load recent pins from local database
             let pinFetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
@@ -264,7 +278,7 @@ struct UserProfileView: View {
 
             // Load recent comments from local database
             let commentFetchRequest: NSFetchRequest<Comment> = Comment.fetchRequest()
-            commentFetchRequest.predicate = NSPredicate(format: "authorId == %@", userId)
+            commentFetchRequest.predicate = NSPredicate(format: "fromUserId == %@", userId)
             commentFetchRequest.sortDescriptors = [
                 NSSortDescriptor(key: "createdAt", ascending: false)
             ]
@@ -273,8 +287,17 @@ struct UserProfileView: View {
             let comments = try viewContext.fetch(commentFetchRequest)
 
             // Check if currently following this user (skip for current user)
-            let following =
-                isCurrentUser ? false : try await APIService.shared.isFollowing(userId: userId)
+            let following: Bool
+            if isCurrentUser {
+                following = false
+            } else {
+                do {
+                    following = try await APIService.shared.isFollowing(userId: userId)
+                } catch {
+                    print("Cannot check follow status, defaulting to not following: \(error)")
+                    following = false
+                }
+            }
 
             await MainActor.run {
                 self.userProfile = profile
@@ -307,9 +330,12 @@ struct UserProfileView: View {
                     self.isFollowActionLoading = false
                 }
             } catch {
-                print("Failed to toggle follow: \(error)")
+                print("Failed to toggle follow (API unavailable): \(error)")
                 await MainActor.run {
+                    // In offline mode, just toggle the UI state locally
+                    self.isFollowing.toggle()
                     self.isFollowActionLoading = false
+                    print("Follow status changed locally (offline mode)")
                 }
             }
         }

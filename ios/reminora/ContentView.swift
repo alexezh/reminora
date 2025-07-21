@@ -18,6 +18,7 @@ struct ContentView: View {
     @State private var showingSharedPlace = false
     @State private var sharedPlace: Place?
     @State private var isSwipePhotoViewOpen = false
+    @StateObject private var toolbarManager = ToolbarManager()
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -56,9 +57,21 @@ struct ContentView: View {
                 .tag(3)
         }
         .accentColor(.blue)
-        .toolbar(isSwipePhotoViewOpen ? .hidden : .visible, for: .tabBar)
+        .toolbar(toolbarManager.hideDefaultTabBar || isSwipePhotoViewOpen ? .hidden : .visible, for: .tabBar)
         .onChange(of: selectedTab) { _, newValue in
             UserDefaults.standard.set(newValue, forKey: "selectedTab")
+        }
+        .environment(\.toolbarManager, toolbarManager)
+        .overlay(alignment: .bottom) {
+            // Custom dynamic toolbar
+            if toolbarManager.showCustomToolbar && !isSwipePhotoViewOpen {
+                DynamicToolbar(
+                    buttons: toolbarManager.customButtons,
+                    position: .bottom,
+                    backgroundColor: Color(.systemBackground),
+                    isVisible: toolbarManager.showCustomToolbar
+                )
+            }
         }
         .onAppear {
             // Start background embedding computation for all photos
@@ -99,6 +112,7 @@ struct ContentView: View {
             }
         }
     }
+
 
     // MARK: - Background Embedding Computation
 

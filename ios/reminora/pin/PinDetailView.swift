@@ -28,6 +28,7 @@ struct PinDetailView: View {
     let onBack: () -> Void
 
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.toolbarManager) private var toolbarManager
     @StateObject private var authService = AuthenticationService.shared
     @StateObject private var locationManager = LocationManager()
     @StateObject private var pinSharingService = PinSharingService.shared
@@ -333,6 +334,45 @@ struct PinDetailView: View {
                 )
             }
         }
+        .onAppear {
+            setupToolbar()
+        }
+        .onDisappear {
+            toolbarManager.hideCustomToolbar()
+        }
+    }
+
+    // MARK: - Toolbar Setup
+    
+    private func setupToolbar() {
+        let toolbarButtons = [
+            ToolbarButtonConfig(
+                title: "Share",
+                systemImage: "square.and.arrow.up",
+                action: sharePlace,
+                color: .blue
+            ),
+            ToolbarButtonConfig(
+                title: "View on Map",
+                systemImage: "map",
+                action: showNearbyPlaces,
+                color: .green
+            ),
+            ToolbarButtonConfig(
+                title: "Nearby Photos",
+                systemImage: "photo.stack",
+                action: showNearbyPhotos,
+                color: .orange
+            ),
+            ToolbarButtonConfig(
+                title: "Add to List",
+                systemImage: "plus.square",
+                action: addToQuickList,
+                color: .purple
+            )
+        ]
+        
+        toolbarManager.setCustomToolbar(buttons: toolbarButtons, hideDefaultTabBar: true)
     }
 
     // MARK: - Actions

@@ -21,6 +21,7 @@ struct SwipePhotoView: View {
     let onDismiss: () -> Void
     
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.toolbarManager) private var toolbarManager
     @State private var currentIndex: Int
     @State private var showingNearbyPhotos = false
     @State private var showingAddPin = false
@@ -382,10 +383,15 @@ struct SwipePhotoView: View {
             }
             print("Starting preference manager initialization...")
             initializePreferenceManager()
+            setupToolbar()
+        }
+        .onDisappear {
+            toolbarManager.hideCustomToolbar()
         }
         .onChange(of: currentIndex) { _, _ in
             updateCurrentPreference()
             updateQuickListStatus()
+            updateToolbar()
         }
         .sheet(isPresented: $showingAddPin) {
             NavigationView {
@@ -648,6 +654,50 @@ struct SwipePhotoView: View {
         }
     }
     
+    // MARK: - Toolbar Setup
+    
+    private func setupToolbar() {
+        let toolbarButtons = [
+            ToolbarButtonConfig(
+                title: "Share",
+                systemImage: "square.and.arrow.up",
+                action: sharePhoto,
+                color: .blue
+            ),
+            ToolbarButtonConfig(
+                title: currentAsset.isFavorite ? "Unfavorite" : "Favorite",
+                systemImage: currentAsset.isFavorite ? "heart.fill" : "heart",
+                action: toggleFavorite,
+                color: currentAsset.isFavorite ? .red : .primary
+            ),
+            ToolbarButtonConfig(
+                title: currentPreference == .dislike ? "Unreject" : "Reject",
+                systemImage: currentPreference == .dislike ? "x.circle.fill" : "x.circle",
+                action: thumbsDown,
+                color: currentPreference == .dislike ? .orange : .primary
+            ),
+            ToolbarButtonConfig(
+                title: "Add Pin",
+                systemImage: "mappin.and.ellipse",
+                action: { showingAddPin = true },
+                color: .green
+            ),
+            ToolbarButtonConfig(
+                title: "Find Similar",
+                systemImage: "magnifyingglass",
+                action: { showingSimilarGridView = true },
+                color: .purple
+            )
+        ]
+        
+        toolbarManager.setCustomToolbar(buttons: toolbarButtons, hideDefaultTabBar: true)
+    }
+    
+    private func updateToolbar() {
+        // Update toolbar when photo changes
+        setupToolbar()
+    }
+
     // MARK: - Formatting Helpers
     
     private func formatLocation(_ location: CLLocation) -> String {

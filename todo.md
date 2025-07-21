@@ -3,22 +3,44 @@ maybe use pink idea - one button for creating lists ?
 
 click to favor should remove favorite.
 fix menu to ios 16 style
+instagram style view. profile button, name, location, 
+comments below image
+image - swipe up - show map and details. add show details to menu
 
-add facebook authentication. do not ask authentication at start. instead require auth when a user clicks share for the first time. Then push pins to backend. Limit number of pushed pins to 50. If more than 50, prompt that subscription is required and implement app store subscription. Change photo share to just send a photo similar to stock photo app.
 
-record activity and log to backend every 10 min into log table containing json 
+Near places , share url
+
+Alllist remove title
+Nearby photos - remove space 
+Long click on pin to open
+
+Filter view for map
+Distance in pin wrong
+Future place
+Public private
+Move map and photos to action menu
+Make PinDetailView take whole screen. Right now there is space on top
 
 
-add profile page for person which has a list of places person shared. profile page has follow button. pins.
-add button with image or initials on shared 
+Smart search , remember and discard 
+Remember searches forever , combine most interesting 
+Scroll map for pin to be visible
+Photo list limited 
+
+Make swipe view show full list
+Make photos separate app ? 
+
+Other features
+Photos - make collage from list ? 
+Presets for effects ?
+Crop
+Share with droid ? Make album ? Difference with Facebook ? 
+Book ? 
+
 
 nearbyphotos - remove add and places buttons. use StackListView when displaying photos. add close button to nearbu photos. change done button in nearby photo 
 
-for stack photo, make design similar to ios photos. list of small thumbnails on bottom. share, fav, reject items below. location and date on top. 
-
 Add find similar using model. 
-
-use core ml to compare similarity of two pictures. when 
 
 do not resort items unless call search here, done on top right of the map
 

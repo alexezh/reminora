@@ -106,22 +106,35 @@ struct UserProfileView: View {
 
                         // Content Section - Using RListView for pins and comments
                         if !contentItems.isEmpty {
-                            RListView(
-                                dataSource: .mixed(contentItems),
-                                onPhotoTap: { asset in
-                                    // Handle photo tap if needed
-                                },
-                                onPinTap: { place in
-                                    selectedPin = place
-                                },
-                                onPhotoStackTap: { assets in
-                                    selectedPhotoStack = PhotoStack(assets: assets)
-                                },
-                                onLocationTap: { location in
-                                    // Handle location tap if needed
-                                }
-                            )
-                            .frame(minHeight: 400)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("User Content (\(contentItems.count) items)")
+                                    .font(.headline)
+                                    .padding(.horizontal, 16)
+                                
+                                RListView(
+                                    dataSource: .mixed(contentItems),
+                                    onPhotoTap: { asset in
+                                        // Handle photo tap if needed
+                                    },
+                                    onPinTap: { place in
+                                        selectedPin = place
+                                    },
+                                    onPhotoStackTap: { assets in
+                                        // Handle photo stack tap if needed
+                                    },
+                                    onLocationTap: { location in
+                                        // Handle location tap if needed
+                                    }
+                                )
+                                .frame(minHeight: 400)
+                            }
+                        } else if !isLoading {
+                            VStack(spacing: 16) {
+                                Text("Debug: contentItems is empty")
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                                    .padding()
+                            }
                         }
 
 
@@ -174,19 +187,19 @@ struct UserProfileView: View {
                 ))
             }
         }
-        .fullScreenCover(item: $selectedPhotoStack) { photoStack in
-            SwipePhotoView(
-                stack: photoStack,
-                initialIndex: 0,
-                onDismiss: {
-                    selectedPhotoStack = nil
-                }
-            )
-        }
     }
 
     private func loadUserProfile() async {
         isLoading = true
+
+        // Check authentication before loading profile
+        guard AuthenticationService.shared.currentSession != nil else {
+            print("❌ Authentication required to view user profiles")
+            await MainActor.run {
+                isLoading = false
+            }
+            return
+        }
 
         do {
             // Try to load user profile from API, but handle failures gracefully
@@ -222,9 +235,12 @@ struct UserProfileView: View {
                 }
             }
 
+            // Load user content (pins and comments)
+            let userContentItems = await loadUserContent()
+
             await MainActor.run {
                 self.userProfile = profile
-                self.contentItems = contentItems
+                self.contentItems = userContentItems
                 self.isFollowing = following
                 self.isLoading = false
             }
@@ -261,6 +277,217 @@ struct UserProfileView: View {
                 }
             }
         }
+    }
+    
+    private func loadUserContent() async -> [UserContentItem] {
+        var contentItems: [UserContentItem] = []
+        
+        do {
+            // Fetch user pins from cloud API (limit 50)
+            //print("🌐 Fetching user pins from cloud for user: \(userId)")
+            let userPins = try await APIService.shared.getUserPins(userId: userId, limit: 50)
+            //print("🌐 Received \(userPins.count) pins from API")
+            
+            for userPin in userPins {
+                // Convert UserPin to a Core Data Place for RListView
+//                let place = await MainActor.run {
+//                    convertUserPinToPlace(userPin, context: viewContext)
+//                }
+//                
+//                let contentItem = UserContentItem(
+//                    id: userPin.id,
+//                    date: userPin.createdAt,
+//                    itemType: .pin(place),
+//                    sourceType: .userPin(place)
+//                )
+//                contentItems.append(contentItem)
+            }
+            
+            print("✅ Loaded \(userPins.count) pins from cloud")
+            
+        } catch {
+            print("❌ Failed to load user pins from cloud: \(error)")
+            // Fallback to local data if cloud fails
+            await loadLocalUserContent(&contentItems)
+        }
+        
+        // Sort all content by date (most recent first)
+        contentItems.sort { $0.date > $1.date }
+        
+        // Limit to 50 most recent items total
+        if contentItems.count > 50 {
+            contentItems = Array(contentItems.prefix(50))
+        }
+        
+        print("📋 Loaded \(contentItems.count) total content items for user \(userId)")
+        return contentItems
+    }
+    
+    private func loadLocalUserContent(_ contentItems: inout [UserContentItem]) async {
+        await MainActor.run {
+            print("📱 Falling back to local data for user: \(userId)")
+            
+            // Load user's pins from local Core Data as fallback
+            let pinFetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+            
+            // Check if this is current user or other user
+            let isCurrentUser = userId == AuthenticationService.shared.currentAccount?.id
+            
+            if isCurrentUser {
+                // For current user, show ALL pins (local and shared)
+                pinFetchRequest.predicate = nil
+            } else {
+                // For other users, only show shared pins (pins with cloudId)
+                pinFetchRequest.predicate = NSPredicate(format: "cloudId != nil")
+            }
+            
+            pinFetchRequest.sortDescriptors = [NSSortDescriptor(key: "dateAdded", ascending: false)]
+            pinFetchRequest.fetchLimit = 30 // Limit for fallback
+            
+            do {
+                let pins = try viewContext.fetch(pinFetchRequest)
+                for pin in pins {
+                    let contentItem = UserContentItem(
+                        id: pin.objectID.uriRepresentation().absoluteString,
+                        date: pin.dateAdded ?? Date(),
+                        itemType: .pin(pin),
+                        sourceType: .userPin(pin)
+                    )
+                    contentItems.append(contentItem)
+                }
+                print("📱 Loaded \(pins.count) local pins as fallback")
+            } catch {
+                print("❌ Failed to load local pins: \(error)")
+            }
+            
+            // Load user's comments from local Core Data
+            let commentFetchRequest: NSFetchRequest<Comment> = Comment.fetchRequest()
+            commentFetchRequest.predicate = NSPredicate(format: "fromUserId == %@", userId)
+            commentFetchRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
+            commentFetchRequest.fetchLimit = 20 // Limit for comments
+            
+            do {
+                let comments = try viewContext.fetch(commentFetchRequest)
+                for comment in comments {
+                    // Create a virtual place for the comment to display in RListView
+                    let virtualPlace = createVirtualPlaceForComment(comment, in: viewContext)
+                    
+                    let commentData = UserCommentData(
+                        id: comment.id ?? UUID().uuidString,
+                        text: comment.commentText ?? "",
+                        createdAt: comment.createdAt ?? Date(),
+                        targetInfo: comment.targetPhotoId != nil ? "on a photo" : "on a profile"
+                    )
+                    
+                    let contentItem = UserContentItem(
+                        id: comment.id ?? UUID().uuidString,
+                        date: comment.createdAt ?? Date(),
+                        itemType: .pin(virtualPlace),
+                        sourceType: .userComment(commentData)
+                    )
+                    contentItems.append(contentItem)
+                }
+                print("📱 Loaded \(comments.count) local comments as fallback")
+            } catch {
+                print("❌ Failed to load local comments: \(error)")
+            }
+        }
+    }
+    
+    private func convertUserPinToPlace(_ userPin: UserPin, context: NSManagedObjectContext) async -> Place {
+        // Create a virtual place from UserPin for RListView display
+        let place = Place(context: context)
+        place.post = userPin.name
+        place.url = userPin.description ?? ""
+        place.dateAdded = userPin.createdAt
+        place.isPrivate = !userPin.isPublic
+        place.setValue(userPin.id, forKey: "cloudId")
+        
+        // Store location
+        let location = CLLocation(latitude: userPin.latitude, longitude: userPin.longitude)
+        if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
+            place.setValue(locationData, forKey: "location")
+        }
+        
+        // Load image from URL if available
+        if let imageUrl = userPin.imageUrl {
+            await loadImageFromURL(imageUrl, for: place)
+        } else {
+            // Create placeholder image for pins without images
+            place.imageData = createPinPlaceholderImageData()
+        }
+        
+        // Ensure this doesn't get saved to Core Data (it's virtual)
+        context.refresh(place, mergeChanges: false)
+        
+        return place
+    }
+    
+    private func loadImageFromURL(_ urlString: String, for place: Place) async {
+        do {
+            guard let url = URL(string: urlString) else { 
+                print("❌ Invalid image URL: \(urlString)")
+                await MainActor.run {
+                    place.imageData = createPinPlaceholderImageData()
+                }
+                return 
+            }
+            
+            print("📸 Loading image from URL: \(urlString)")
+            let (data, _) = try await URLSession.shared.data(from: url)
+            print("✅ Successfully loaded image data: \(data.count) bytes")
+            
+            await MainActor.run {
+                place.imageData = data
+            }
+        } catch {
+            print("❌ Failed to load image from URL: \(error)")
+            await MainActor.run {
+                place.imageData = createPinPlaceholderImageData()
+            }
+        }
+    }
+    
+    private func createPinPlaceholderImageData() -> Data? {
+        let size = CGSize(width: 200, height: 200)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        
+        let image = renderer.image { context in
+            // Create a pin-themed placeholder
+            UIColor.systemGreen.withAlphaComponent(0.2).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            
+            // Add pin icon
+            let iconSize: CGFloat = 80
+            let iconRect = CGRect(
+                x: (size.width - iconSize) / 2,
+                y: (size.height - iconSize) / 2,
+                width: iconSize,
+                height: iconSize
+            )
+            
+            UIColor.systemGreen.setFill()
+            let iconPath = UIBezierPath(ovalIn: iconRect)
+            iconPath.fill()
+            
+            // Add pin text
+            let text = "📍"
+            let font = UIFont.systemFont(ofSize: 40)
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: UIColor.white
+            ]
+            let textSize = text.size(withAttributes: attributes)
+            let textRect = CGRect(
+                x: (size.width - textSize.width) / 2,
+                y: (size.height - textSize.height) / 2,
+                width: textSize.width,
+                height: textSize.height
+            )
+            text.draw(in: textRect, withAttributes: attributes)
+        }
+        
+        return image.jpegData(compressionQuality: 0.8)
     }
     
     // Create a virtual place for comment display in RListView

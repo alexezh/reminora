@@ -504,7 +504,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "F73521BA-FEC7-486C-9B59-E0DE5866F1D7"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "reminora/photo/PhotoEmbeddingService.swift"
@@ -546,6 +546,168 @@
             endingLineNumber = "66"
             landmarkName = "init(inMemory:)"
             landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "55BCEAC9-8E76-43E2-8374-CDB66EC88FFD"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "reminora/photo/PhotoEmbeddingService.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "117"
+            endingLineNumber = "117"
+            landmarkName = "findSimilarPhotos(to:in:threshold:limit:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "55BCEAC9-8E76-43E2-8374-CDB66EC88FFD - 3419fef5f7bd7163"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for reminora.PhotoEmbeddingService.findSimilarPhotos(to: __C.PHAsset, in: __C.NSManagedObjectContext, threshold: Swift.Float, limit: Swift.Int) async -&gt; Swift.Array&lt;reminora.PhotoSimilarity&gt;"
+                  moduleName = "reminora.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexezh/prj/wahi/ios/reminora/photo/PhotoEmbeddingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "117"
+                  endingLineNumber = "117">
+               </Location>
+               <Location
+                  uuid = "55BCEAC9-8E76-43E2-8374-CDB66EC88FFD - 3419fef5f7bd7163"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for reminora.PhotoEmbeddingService.findSimilarPhotos(to: __C.PHAsset, in: __C.NSManagedObjectContext, threshold: Swift.Float, limit: Swift.Int) async -&gt; Swift.Array&lt;reminora.PhotoSimilarity&gt;"
+                  moduleName = "reminora.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexezh/prj/wahi/ios/reminora/photo/PhotoEmbeddingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "117"
+                  endingLineNumber = "117">
+               </Location>
+               <Location
+                  uuid = "55BCEAC9-8E76-43E2-8374-CDB66EC88FFD - fdb6cd4ab4fb9d5d"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(5) suspend resume partial function for reminora.PhotoEmbeddingService.findSimilarPhotos(to: __C.PHAsset, in: __C.NSManagedObjectContext, threshold: Swift.Float, limit: Swift.Int) async -&gt; Swift.Array&lt;reminora.PhotoSimilarity&gt;"
+                  moduleName = "reminora.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexezh/prj/wahi/ios/reminora/photo/PhotoEmbeddingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "117"
+                  endingLineNumber = "117">
+               </Location>
+               <Location
+                  uuid = "55BCEAC9-8E76-43E2-8374-CDB66EC88FFD - fdb6cd4ab4fb9d5d"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(5) suspend resume partial function for reminora.PhotoEmbeddingService.findSimilarPhotos(to: __C.PHAsset, in: __C.NSManagedObjectContext, threshold: Swift.Float, limit: Swift.Int) async -&gt; Swift.Array&lt;reminora.PhotoSimilarity&gt;"
+                  moduleName = "reminora.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexezh/prj/wahi/ios/reminora/photo/PhotoEmbeddingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "117"
+                  endingLineNumber = "117">
+               </Location>
+               <Location
+                  uuid = "55BCEAC9-8E76-43E2-8374-CDB66EC88FFD - a6c3a19a6a39c957"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(7) suspend resume partial function for reminora.PhotoEmbeddingService.findSimilarPhotos(to: __C.PHAsset, in: __C.NSManagedObjectContext, threshold: Swift.Float, limit: Swift.Int) async -&gt; Swift.Array&lt;reminora.PhotoSimilarity&gt;"
+                  moduleName = "reminora.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexezh/prj/wahi/ios/reminora/photo/PhotoEmbeddingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "117"
+                  endingLineNumber = "117">
+               </Location>
+               <Location
+                  uuid = "55BCEAC9-8E76-43E2-8374-CDB66EC88FFD - a6c3a19a6a39c957"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(7) suspend resume partial function for reminora.PhotoEmbeddingService.findSimilarPhotos(to: __C.PHAsset, in: __C.NSManagedObjectContext, threshold: Swift.Float, limit: Swift.Int) async -&gt; Swift.Array&lt;reminora.PhotoSimilarity&gt;"
+                  moduleName = "reminora.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexezh/prj/wahi/ios/reminora/photo/PhotoEmbeddingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "117"
+                  endingLineNumber = "117">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "93E48ADE-2D1B-487E-809E-B9A73B881846"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "reminora/photo/PhotoEmbeddingService.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "118"
+            endingLineNumber = "118"
+            landmarkName = "findSimilarPhotos(to:in:threshold:limit:)"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "93E48ADE-2D1B-487E-809E-B9A73B881846 - 3419fef5f7bd7140"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(3) suspend resume partial function for reminora.PhotoEmbeddingService.findSimilarPhotos(to: __C.PHAsset, in: __C.NSManagedObjectContext, threshold: Swift.Float, limit: Swift.Int) async -&gt; Swift.Array&lt;reminora.PhotoSimilarity&gt;"
+                  moduleName = "reminora.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexezh/prj/wahi/ios/reminora/photo/PhotoEmbeddingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "118"
+                  endingLineNumber = "118">
+               </Location>
+               <Location
+                  uuid = "93E48ADE-2D1B-487E-809E-B9A73B881846 - fdb6cd4ab4fb9d7e"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(5) suspend resume partial function for reminora.PhotoEmbeddingService.findSimilarPhotos(to: __C.PHAsset, in: __C.NSManagedObjectContext, threshold: Swift.Float, limit: Swift.Int) async -&gt; Swift.Array&lt;reminora.PhotoSimilarity&gt;"
+                  moduleName = "reminora.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexezh/prj/wahi/ios/reminora/photo/PhotoEmbeddingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "118"
+                  endingLineNumber = "118">
+               </Location>
+               <Location
+                  uuid = "93E48ADE-2D1B-487E-809E-B9A73B881846 - a6c3a19a6a39c974"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(7) suspend resume partial function for reminora.PhotoEmbeddingService.findSimilarPhotos(to: __C.PHAsset, in: __C.NSManagedObjectContext, threshold: Swift.Float, limit: Swift.Int) async -&gt; Swift.Array&lt;reminora.PhotoSimilarity&gt;"
+                  moduleName = "reminora.debug.dylib"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/alexezh/prj/wahi/ios/reminora/photo/PhotoEmbeddingService.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "118"
+                  endingLineNumber = "118">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

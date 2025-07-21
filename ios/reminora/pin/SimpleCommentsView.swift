@@ -11,6 +11,7 @@ struct SimpleCommentsView: View {
     @State private var newCommentText = ""
     @State private var showAllComments = false
     @State private var isLoading = false
+    @State private var showingAuthentication = false
     @FocusState private var isCommentFieldFocused: Bool
     
     @FetchRequest private var comments: FetchedResults<Comment>
@@ -49,7 +50,7 @@ struct SimpleCommentsView: View {
     }
     
     private var canComment: Bool {
-        authService.currentAccount != nil
+        authService.currentAccount != nil && authService.currentSession != nil
     }
     
     private var currentUserInitials: String {
@@ -130,11 +131,27 @@ struct SimpleCommentsView: View {
                 .padding(.top, 8)
             }
         }
+        .sheet(isPresented: $showingAuthentication) {
+            AuthenticationView()
+        }
     }
     
     private func submitComment() {
-        guard let currentUser = authService.currentAccount,
-              !newCommentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        // Check authentication first and trigger login if needed
+        guard let currentUser = authService.currentAccount else {
+            print("❌ No account found - authentication required")
+            showingAuthentication = true
+            return
+        }
+        
+        guard authService.currentSession != nil else {
+            print("❌ No session found - authentication required")
+            showingAuthentication = true
+            return
+        }
+        
+        guard !newCommentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            print("❌ Comment text is empty")
             return
         }
         

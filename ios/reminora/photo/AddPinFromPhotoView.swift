@@ -18,10 +18,12 @@ struct AddPinFromPhotoView: View {
     let onDismiss: () -> Void
     
     @Environment(\.managedObjectContext) private var viewContext
+    @StateObject private var authService = AuthenticationService.shared
     @State private var image: UIImage?
     @State private var caption: String = ""
     @State private var isSaving = false
     @State private var isPrivate = false
+    @State private var showingAuthentication = false
     
     private let cloudSyncService = CloudSyncService.shared
     
@@ -67,6 +69,12 @@ struct AddPinFromPhotoView: View {
                     
                     Toggle("Keep private (don't sync to cloud)", isOn: $isPrivate)
                         .font(.subheadline)
+                        .onChange(of: isPrivate) { oldValue, newValue in
+                            // If switching from private to public, check authentication
+                            if oldValue == true && newValue == false {
+                                checkAuthenticationForSharing()
+                            }
+                        }
                 }
                 .frame(maxWidth: .infinity)
                 
@@ -147,6 +155,21 @@ struct AddPinFromPhotoView: View {
         .onAppear {
             loadImage()
         }
+        .sheet(isPresented: $showingAuthentication) {
+            AuthenticationView()
+        }
+    }
+    
+    private func checkAuthenticationForSharing() {
+        let authenticationService = AuthenticationService.shared
+        guard authenticationService.currentAccount != nil && authenticationService.currentSession != nil else {
+            print("❌ Authentication required for sharing pins")
+            showingAuthentication = true
+            // Revert to private if authentication fails
+            isPrivate = true
+            return
+        }
+        print("✅ Authentication verified for sharing")
     }
     
     private func loadImage() {

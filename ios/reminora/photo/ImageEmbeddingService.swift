@@ -86,6 +86,33 @@ class ImageEmbeddingService {
         return dotProduct / (magnitude1 * magnitude2)
     }
     
+    func cosineSimilarity2(_ embedding1: [Float], _ embedding2: UnsafeBufferPointer<Float>) -> Float {
+        guard embedding1.count == embedding2.count else {
+            print("Embedding vectors must have the same length")
+            return 0.0
+        }
+
+        var dotProduct: Float = 0
+        var magnitude1: Float = 0
+        var magnitude2: Float = 0
+
+        for i in 0..<embedding1.count {
+            let v1 = embedding1[i]
+            let v2 = embedding2[i]
+
+            dotProduct += v1 * v2
+            magnitude1 += v1 * v1
+            magnitude2 += v2 * v2
+        }
+
+        let mag1 = sqrt(magnitude1)
+        let mag2 = sqrt(magnitude2)
+
+        guard mag1 > 0 && mag2 > 0 else { return 0.0 }
+
+        return dotProduct / (mag1 * mag2)
+    }
+
     /// Find similar images by comparing embeddings
     func findSimilarImages(to targetEmbedding: [Float], in embeddings: [(String, [Float])], threshold: Float = 0.8) -> [(String, Float)] {
         var similarities: [(String, Float)] = []

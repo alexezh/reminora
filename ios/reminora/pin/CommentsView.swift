@@ -11,6 +11,7 @@ struct CommentsView: View {
     @State private var newCommentText = ""
     @State private var showAllComments = false
     @State private var isLoading = false
+    @State private var showingAuthentication = false
     @FocusState private var isCommentFieldFocused: Bool
     
     @FetchRequest private var comments: FetchedResults<Comment>
@@ -152,20 +153,27 @@ struct CommentsView: View {
         .onAppear {
             loadComments()
         }
+        .sheet(isPresented: $showingAuthentication) {
+            AuthenticationView()
+        }
     }
     
     // MARK: - Computed Properties
     
     private var canComment: Bool {
-        guard let currentUser = authService.currentAccount else { return false }
+        // Must be authenticated to comment
+        guard let currentUser = authService.currentAccount,
+              authService.currentSession != nil else { 
+            return false 
+        }
         
-        // Can always comment on photos
+        // Can always comment on photos if authenticated
         if targetPhotoId != nil {
             return true
         }
         
         // Can comment on users you follow (this would need to be implemented)
-        // For now, allow commenting on any user
+        // For now, allow commenting on any user if authenticated
         if targetUserId != nil {
             return true
         }
@@ -193,8 +201,21 @@ struct CommentsView: View {
     }
     
     private func submitComment() {
-        guard let currentUser = authService.currentAccount,
-              !newCommentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        // Check authentication first and trigger login if needed
+        guard let currentUser = authService.currentAccount else {
+            print("❌ No account found - authentication required")
+            showingAuthentication = true
+            return
+        }
+        
+        guard authService.currentSession != nil else {
+            print("❌ No session found - authentication required")
+            showingAuthentication = true
+            return
+        }
+        
+        guard !newCommentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            print("❌ Comment text is empty")
             return
         }
         

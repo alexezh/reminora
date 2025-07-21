@@ -278,16 +278,26 @@ struct PinDetailView: View {
                     
                     Spacer()
                     
-                    // Action button
-                    Button(action: {
-                        showingActionMenu = true
-                    }) {
+                    // Action button - iOS 16 style menu
+                    Menu {
+                        Button("View on Map") {
+                            showNearbyPlaces()
+                        }
+                        Button("Nearby Photos") {
+                            showNearbyPhotos()
+                        }
+                        Button("Add to Quick List") {
+                            addToQuickList()
+                        }
+                    } label: {
                         Image(systemName: "ellipsis.circle")
                             .font(.title2)
                             .foregroundColor(.primary)
                             .padding(8)
                             .background(.ultraThinMaterial, in: Circle())
                     }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 10) // Minimal top spacing - closer to top
@@ -312,23 +322,6 @@ struct PinDetailView: View {
             NearbyLocationsPageView(
                 searchLocation: Self.coordinate(item: place),
                 locationName: place.post ?? "this location"
-            )
-        }
-        .actionSheet(isPresented: $showingActionMenu) {
-            ActionSheet(
-                title: Text("Actions"),
-                buttons: [
-                    .default(Text("View on Map")) {
-                        showNearbyPlaces()
-                    },
-                    .default(Text("Nearby Photos")) {
-                        showNearbyPhotos()
-                    },
-                    .default(Text("Add to Quick List")) {
-                        addToQuickList()
-                    },
-                    .cancel()
-                ]
             )
         }
         .sheet(isPresented: $showingUserProfile) {

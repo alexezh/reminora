@@ -112,10 +112,18 @@ struct SwipePhotoView: View {
                                     .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                             }
                             
-                            // Menu button (vertical dots)
-                            Button(action: {
-                                showingMenu = true
-                            }) {
+                            // Menu button (vertical dots) - iOS 16 style popup
+                            Menu {
+                                Button("Find Similar") {
+                                    showingSimilarGridView = true
+                                }
+                                Button("Share Photo") {
+                                    sharePhoto()
+                                }
+                                Button("Add Pin", action: {
+                                    showingAddPin = true
+                                })
+                            } label: {
                                 Image(systemName: "ellipsis")
                                     .font(.title2)
                                     .fontWeight(.medium)
@@ -123,6 +131,8 @@ struct SwipePhotoView: View {
                                     .rotationEffect(.degrees(90))
                                     .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                             }
+                            .menuStyle(.borderlessButton)
+                            .menuIndicator(.hidden)
                         }
                         .padding(.horizontal, 16)
                         .padding(.top, 20)
@@ -197,12 +207,12 @@ struct SwipePhotoView: View {
                                 }
                             }
                             
-                            // Favorite button
-                            Button(action: thumbsUp) {
+                            // Favorite button - toggles iOS native favorite status
+                            Button(action: toggleFavorite) {
                                 VStack(spacing: 4) {
-                                    Image(systemName: currentPreference == .like ? "heart.fill" : "heart")
+                                    Image(systemName: currentAsset.isFavorite ? "heart.fill" : "heart")
                                         .font(.title2)
-                                        .foregroundColor(currentPreference == .like ? .red : .white)
+                                        .foregroundColor(currentAsset.isFavorite ? .red : .white)
                                         .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                                     Text("Favorite")
                                         .font(.caption2)
@@ -317,15 +327,10 @@ struct SwipePhotoView: View {
         .sheet(isPresented: $showingSimilarImages) {
             PhotoSimilarityView(targetAsset: currentAsset)
         }
-        .confirmationDialog("Photo Options", isPresented: $showingMenu, titleVisibility: .hidden) {
-            Button("Find Similar") {
-                showingSimilarGridView = true
-            }
-            Button("Cancel", role: .cancel) { }
-        }
         .sheet(isPresented: $showingSimilarGridView) {
             SimilarPhotosGridView(targetAsset: currentAsset)
         }
+        .navigationBarHidden(true)
     }
     
     
@@ -359,6 +364,27 @@ struct SwipePhotoView: View {
         // Auto-dismiss after marking as disliked
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             onDismiss()
+        }
+    }
+    
+    private func toggleFavorite() {
+        print("Toggling favorite for photo at index \(currentIndex)")
+        
+        // Toggle the iOS native favorite status
+        PHPhotoLibrary.shared().performChanges({
+            let request = PHAssetChangeRequest(for: self.currentAsset)
+            request.isFavorite = !self.currentAsset.isFavorite
+        }) { success, error in
+            DispatchQueue.main.async {
+                if success {
+                    print("✅ Successfully toggled favorite status")
+                    // Provide haptic feedback
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                    impactFeedback.impactOccurred()
+                } else {
+                    print("❌ Failed to toggle favorite: \(error?.localizedDescription ?? "Unknown error")")
+                }
+            }
         }
     }
     

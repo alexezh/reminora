@@ -284,23 +284,21 @@ struct UserProfileView: View {
         
         do {
             // Fetch user pins from cloud API (limit 50)
-            //print("🌐 Fetching user pins from cloud for user: \(userId)")
+            print("🌐 Fetching user pins from cloud for user: \(userId)")
             let userPins = try await APIService.shared.getUserPins(userId: userId, limit: 50)
-            //print("🌐 Received \(userPins.count) pins from API")
+            print("🌐 Received \(userPins.count) pins from API")
             
             for userPin in userPins {
                 // Convert UserPin to a Core Data Place for RListView
-//                let place = await MainActor.run {
-//                    convertUserPinToPlace(userPin, context: viewContext)
-//                }
-//                
-//                let contentItem = UserContentItem(
-//                    id: userPin.id,
-//                    date: userPin.createdAt,
-//                    itemType: .pin(place),
-//                    sourceType: .userPin(place)
-//                )
-//                contentItems.append(contentItem)
+                let place = await convertUserPinToPlace(userPin, context: viewContext)
+                
+                let contentItem = UserContentItem(
+                    id: userPin.id,
+                    date: userPin.createdAt,
+                    itemType: .pin(place),
+                    sourceType: .userPin(place)
+                )
+                contentItems.append(contentItem)
             }
             
             print("✅ Loaded \(userPins.count) pins from cloud")
@@ -394,6 +392,7 @@ struct UserProfileView: View {
         }
     }
     
+    @MainActor
     private func convertUserPinToPlace(_ userPin: UserPin, context: NSManagedObjectContext) async -> Place {
         // Create a virtual place from UserPin for RListView display
         let place = Place(context: context)

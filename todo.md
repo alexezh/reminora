@@ -6,6 +6,9 @@ fix menu to ios 16 style
 instagram style view. profile button, name, location, 
 comments below image
 image - swipe up - show map and details. add show details to menu
+image - scale to fit area between title and tumbnails
+use time on photo as pin time
+
 
 
 Near places , share url
@@ -17,10 +20,7 @@ Long click on pin to open
 Filter view for map
 Distance in pin wrong
 Future place
-Public private
-Move map and photos to action menu
 Make PinDetailView take whole screen. Right now there is space on top
-
 
 Smart search , remember and discard 
 Remember searches forever , combine most interesting 

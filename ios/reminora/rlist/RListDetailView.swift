@@ -66,20 +66,38 @@ struct RListDetailView: View {
                 
                 Spacer()
                 
-                Button(action: {
-                    if isQuickList {
-                        showingMenu = true
-                    } else {
+                // iOS 16 style menu for Quick List
+                if isQuickList {
+                    Menu {
+                        Button("Create List") {
+                            showingCreateList = true
+                        }
+                        Button("Add to List") {
+                            showingAddToList = true
+                        }
+                        Button("Clear Quick") {
+                            showingClearConfirmation = true
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.title3)
+                            .foregroundColor(.primary)
+                            .rotationEffect(.degrees(90))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .disabled(listItems.isEmpty)
+                } else {
+                    Button(action: {
                         // Handle regular list menu action
                         print("Menu tapped for regular list")
+                    }) {
+                        Image(systemName: "ellipsis")
+                            .font(.title3)
+                            .foregroundColor(.primary)
+                            .rotationEffect(.degrees(90))
                     }
-                }) {
-                    Image(systemName: "ellipsis")
-                        .font(.title3)
-                        .foregroundColor(.primary)
-                        .rotationEffect(.degrees(90))
                 }
-                .disabled(isQuickList && listItems.isEmpty)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -162,23 +180,6 @@ struct RListDetailView: View {
             }
         }
         .navigationBarHidden(true)
-        .confirmationDialog("Quick List Actions", isPresented: $showingMenu, titleVisibility: .visible) {
-            if isQuickList {
-                Button("Create List") {
-                    showingCreateList = true
-                }
-                
-                Button("Add to List") {
-                    showingAddToList = true
-                }
-                
-                Button("Clear Quick") {
-                    showingClearConfirmation = true
-                }
-                
-                Button("Cancel", role: .cancel) { }
-            }
-        }
         .alert("Create New List", isPresented: $showingCreateList) {
             TextField("List name", text: $newListName)
             Button("Create") {

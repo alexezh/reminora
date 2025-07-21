@@ -1,15 +1,28 @@
 import CoreData
 import SwiftUI
+import CoreLocation
+import UIKit
+import Photos
 
-struct UserPin {
+// In-memory representation of user content for profile display
+struct UserContentItem: RListViewItem {
     let id: String
-    let name: String
-    let description: String?
-    let latitude: Double
-    let longitude: Double
-    let imageUrl: String?
+    let date: Date
+    let itemType: RListItemType
+    let sourceType: UserContentSourceType
+}
+
+enum UserContentSourceType {
+    case userPin(Place)
+    case userComment(UserCommentData)
+}
+
+// In-memory comment data structure
+struct UserCommentData {
+    let id: String
+    let text: String
     let createdAt: Date
-    let isPublic: Bool
+    let targetInfo: String // Info about what the comment is on
 }
 
 struct UserProfileView: View {
@@ -24,10 +37,9 @@ struct UserProfileView: View {
     @State private var isLoading = true
     @State private var isFollowing = false
     @State private var isFollowActionLoading = false
-    @State private var recentPins: [Place] = []
-    @State private var recentComments: [Comment] = []
-    @State private var showingAllPins = false
-    @State private var showingAllComments = false
+    @State private var contentItems: [UserContentItem] = []
+    @State private var selectedPin: Place?
+    @State private var selectedPhotoStack: PhotoStack?
 
     var body: some View {
         NavigationView {
@@ -92,106 +104,29 @@ struct UserProfileView: View {
                         }
                         .padding()
 
-                        // Stats Section
-                        HStack(spacing: 30) {
-                            VStack {
-                                Text("\(recentPins.count)")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                Text("Pins")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            VStack {
-                                Text("0")  // TODO: Get from API
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                Text("Followers")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            VStack {
-                                Text("0")  // TODO: Get from API
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                Text("Following")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-
-                            VStack {
-                                Text("\(recentComments.count)")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                Text("Comments")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding()
-
-                        // Recent Pins Section
-                        if !recentPins.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack {
-                                    Text("Recent Pins")
-                                        .font(.headline)
-
-                                    Spacer()
-
-                                    if recentPins.count > 3 {
-                                        Button("View All") {
-                                            showingAllPins = true
-                                        }
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                    }
+                        // Content Section - Using RListView for pins and comments
+                        if !contentItems.isEmpty {
+                            RListView(
+                                dataSource: .mixed(contentItems),
+                                onPhotoTap: { asset in
+                                    // Handle photo tap if needed
+                                },
+                                onPinTap: { place in
+                                    selectedPin = place
+                                },
+                                onPhotoStackTap: { assets in
+                                    selectedPhotoStack = PhotoStack(assets: assets)
+                                },
+                                onLocationTap: { location in
+                                    // Handle location tap if needed
                                 }
-                                .padding(.horizontal)
-
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 12) {
-                                        ForEach(Array(recentPins.prefix(5)), id: \.id) { pin in
-                                            PinThumbnailView(pin: pin)
-                                        }
-                                    }
-                                    .padding(.horizontal)
-                                }
-                            }
+                            )
+                            .frame(minHeight: 400)
                         }
 
-                        // Recent Comments Section
-                        if !recentComments.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack {
-                                    Text("Recent Comments")
-                                        .font(.headline)
-
-                                    Spacer()
-
-                                    if recentComments.count > 3 {
-                                        Button("View All") {
-                                            showingAllComments = true
-                                        }
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                    }
-                                }
-                                .padding(.horizontal)
-
-                                VStack(spacing: 8) {
-                                    ForEach(Array(recentComments.prefix(3)), id: \.id) { comment in
-                                        CommentPreviewView(comment: comment)
-                                    }
-                                }
-                                .padding(.horizontal)
-                            }
-                        }
 
                         // Empty State
-                        if recentPins.isEmpty && recentComments.isEmpty && !isLoading {
+                        if contentItems.isEmpty && !isLoading {
                             VStack(spacing: 16) {
                                 Image(systemName: "person.crop.circle")
                                     .font(.system(size: 50))
@@ -224,14 +159,28 @@ struct UserProfileView: View {
         .task {
             await loadUserProfile()
         }
-        .sheet(isPresented: $showingAllPins) {
-            UserPinsView(userId: userId, userName: userProfile?.display_name ?? userName)
+        .overlay {
+            if let selectedPin = selectedPin {
+                PinDetailView(
+                    place: selectedPin,
+                    allPlaces: [],
+                    onBack: {
+                        self.selectedPin = nil
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.1).combined(with: .opacity),
+                    removal: .scale(scale: 0.1).combined(with: .opacity)
+                ))
+            }
         }
-        .sheet(isPresented: $showingAllComments) {
-            UserCommentsView(
-                userId: userId,
-                userName: userProfile?.display_name ?? userName,
-                userHandle: userProfile?.handle ?? userHandle ?? ""
+        .fullScreenCover(item: $selectedPhotoStack) { photoStack in
+            SwipePhotoView(
+                stack: photoStack,
+                initialIndex: 0,
+                onDismiss: {
+                    selectedPhotoStack = nil
+                }
             )
         }
     }
@@ -257,34 +206,8 @@ struct UserProfileView: View {
                 )
             }
 
-            // Load recent pins from local database
-            let pinFetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
-
             // Check if this is the current user's profile
             let isCurrentUser = userId == AuthenticationService.shared.currentAccount?.id
-
-            if isCurrentUser {
-                // For current user, show ALL pins (local and shared)
-                pinFetchRequest.predicate = nil
-            } else {
-                // For other users, only show shared pins
-                pinFetchRequest.predicate = NSPredicate(format: "cloudId != nil")
-            }
-
-            pinFetchRequest.sortDescriptors = [NSSortDescriptor(key: "dateAdded", ascending: false)]
-            pinFetchRequest.fetchLimit = 5
-
-            let pins = try viewContext.fetch(pinFetchRequest)
-
-            // Load recent comments from local database
-            let commentFetchRequest: NSFetchRequest<Comment> = Comment.fetchRequest()
-            commentFetchRequest.predicate = NSPredicate(format: "fromUserId == %@", userId)
-            commentFetchRequest.sortDescriptors = [
-                NSSortDescriptor(key: "createdAt", ascending: false)
-            ]
-            commentFetchRequest.fetchLimit = 3
-
-            let comments = try viewContext.fetch(commentFetchRequest)
 
             // Check if currently following this user (skip for current user)
             let following: Bool
@@ -301,8 +224,7 @@ struct UserProfileView: View {
 
             await MainActor.run {
                 self.userProfile = profile
-                self.recentPins = pins
-                self.recentComments = comments
+                self.contentItems = contentItems
                 self.isFollowing = following
                 self.isLoading = false
             }
@@ -339,6 +261,74 @@ struct UserProfileView: View {
                 }
             }
         }
+    }
+    
+    // Create a virtual place for comment display in RListView
+    private func createVirtualPlaceForComment(_ comment: Comment, in context: NSManagedObjectContext) -> Place {
+        // Note: This is an in-memory only object, not saved to Core Data
+        let virtualPlace = Place(context: context)
+        virtualPlace.post = comment.commentText ?? "Comment"
+        virtualPlace.dateAdded = comment.createdAt ?? Date()
+        virtualPlace.url = "virtual-comment-\(comment.id ?? UUID().uuidString)"
+        virtualPlace.isPrivate = false
+        
+        // Create a placeholder location if needed
+        if let locationData = try? NSKeyedArchiver.archivedData(
+            withRootObject: CLLocation(latitude: 0, longitude: 0),
+            requiringSecureCoding: false
+        ) {
+            virtualPlace.setValue(locationData, forKey: "location")
+        }
+        
+        // Create placeholder image data for comments
+        virtualPlace.imageData = createCommentPlaceholderImageData()
+        
+        // Ensure this doesn't get saved to Core Data
+        context.refresh(virtualPlace, mergeChanges: false)
+        
+        return virtualPlace
+    }
+    
+    private func createCommentPlaceholderImageData() -> Data? {
+        let size = CGSize(width: 200, height: 200)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        
+        let image = renderer.image { context in
+            // Create a comment-themed placeholder
+            UIColor.systemBlue.withAlphaComponent(0.2).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            
+            // Add comment icon
+            let iconSize: CGFloat = 80
+            let iconRect = CGRect(
+                x: (size.width - iconSize) / 2,
+                y: (size.height - iconSize) / 2,
+                width: iconSize,
+                height: iconSize
+            )
+            
+            UIColor.systemBlue.setFill()
+            let iconPath = UIBezierPath(ovalIn: iconRect)
+            iconPath.fill()
+            
+            // Add text
+            let text = "💬"
+            let font = UIFont.systemFont(ofSize: 40)
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: UIColor.white
+            ]
+            let textSize = text.size(withAttributes: attributes)
+            let textRect = CGRect(
+                x: (size.width - textSize.width) / 2,
+                y: (size.height - textSize.height) / 2,
+                width: textSize.width,
+                height: textSize.height
+            )
+            text.draw(in: textRect, withAttributes: attributes)
+        }
+        
+        return image.jpegData(compressionQuality: 0.8)
     }
 }
 

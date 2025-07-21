@@ -23,7 +23,7 @@ class APIService: ObservableObject {
         method: String = "GET",
         body: Data? = nil
     ) -> URLRequest? {
-        // Get current session token
+        // Get current session token for authentication
         guard case .authenticated(_, let session) = authService.authState else {
             return nil
         }
@@ -55,6 +55,13 @@ class APIService: ObservableObject {
         }
         
         if httpResponse.statusCode >= 400 {
+            // Enhanced debugging for 404 errors
+            if httpResponse.statusCode == 404 {
+                print("🚨 API 404 Error: \(request.url?.absoluteString ?? "unknown URL")")
+                print("📋 Request headers: \(request.allHTTPHeaderFields ?? [:])")
+                print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+            }
+            
             if let errorData = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
                 throw APIError.serverError(errorData.message)
             } else {
@@ -281,18 +288,33 @@ class APIService: ObservableObject {
     // MARK: - User Profile Methods
     
     func getUserProfile(userId: String) async throws -> UserProfile {
-        let url = URL(string: "\(baseURL)/api/users/\(userId)/profile")!
+        let url = URL(string: "\(baseURL)/api/accounts/\(userId)")!
         let request = createRequest(url: url)
         
-        return try await performRequest(request: request, responseType: UserProfile.self)
+        // Get AccountProfile and convert to UserProfile
+        let accountProfile = try await performRequest(request: request, responseType: AccountProfile.self)
+        
+        // Convert AccountProfile to UserProfile format
+        return UserProfile(
+            id: accountProfile.id,
+            username: accountProfile.username,
+            display_name: accountProfile.display_name,
+            created_at: accountProfile.created_at,
+            avatar_url: nil, // AccountProfile doesn't have avatar_url
+            handle: accountProfile.username
+        )
     }
     
     func isFollowing(userId: String) async throws -> Bool {
-        let url = URL(string: "\(baseURL)/api/follows/\(userId)/status")!
-        let request = createRequest(url: url)
-        
-        let response = try await performRequest(request: request, responseType: FollowStatusResponse.self)
-        return response.isFollowing
+        // Since there's no direct isFollowing endpoint, check the following list
+        do {
+            let following = try await getFollowing(limit: 100) // Get current user's following list
+            return following.contains { $0.id == userId }
+        } catch {
+            // If we can't get the following list, default to false
+            print("Could not check following status: \(error)")
+            return false
+        }
     }
     
 }

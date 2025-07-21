@@ -483,7 +483,7 @@ export async function authenticateSession(request, env) {
             email: session.email
         };
 
-        return null; // Success, continue to next handler
+        // Success, continue to next handler
     } catch (error) {
         console.error('Session auth error:', error);
         return new Response(JSON.stringify({ 

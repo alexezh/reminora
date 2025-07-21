@@ -168,6 +168,17 @@ struct UserPinAPI: Codable, Identifiable {
     let is_public: Bool
 }
 
+struct UserPin {
+    let id: String
+    let name: String
+    let description: String?
+    let latitude: Double
+    let longitude: Double
+    let imageUrl: String?
+    let createdAt: Date
+    let isPublic: Bool
+}
+
 struct UserPinsResponse: Codable {
     let pins: [UserPinAPI]
     let total: Int

@@ -238,6 +238,14 @@ class PinSharingService: ObservableObject {
         let userId = String(url[userIdRange]).trimmingCharacters(in: .whitespacesAndNewlines)
         
         print("🔍 PinSharingService parsed from URL - username: \(username), userId: \(userId)")
+        
+        // Debug current authentication state
+        if let currentSession = authService.currentSession {
+            print("📱 Current session exists - token: \(currentSession.token.prefix(10))..., expires: \(currentSession.expiresAt)")
+        } else {
+            print("❌ No current session found")
+        }
+        
         return (userId: userId, userName: username)
     }
     

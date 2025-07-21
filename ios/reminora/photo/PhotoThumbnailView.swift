@@ -12,6 +12,7 @@ import Photos
 import PhotosUI
 import SwiftUI
 
+// used by swipe photo to display line of photos
 struct PhotoThumbnailView: View {
   let asset: PHAsset
   let isSelected: Bool?

@@ -3,6 +3,7 @@
  */
 
 import { generateId } from '../utils/helpers.js';
+import { authenticateSession } from './auth.js';
 
 export function accountRoutes(router) {
     // Create account
@@ -59,20 +60,24 @@ export function accountRoutes(router) {
 
     // Get account profile
     router.get('/api/accounts/:id', async (request, env) => {
+        // Check authentication
+        const authResult = await authenticateSession(request, env);
+        if (authResult instanceof Response) {
+            return authResult;
+        }
+        
         try {
             const accountId = request.params.id;
             
             const account = await env.DB.prepare(`
-                SELECT id, username, display_name, bio, created_at,
-                       (SELECT COUNT(*) FROM photos WHERE account_id = accounts.id) as photo_count,
-                       (SELECT COUNT(*) FROM follows WHERE following_id = accounts.id) as follower_count,
-                       (SELECT COUNT(*) FROM follows WHERE follower_id = accounts.id) as following_count
+                SELECT id, username, display_name, bio, created_at
                 FROM accounts WHERE id = ?
             `).bind(accountId).first();
 
             if (!account) {
                 return new Response(JSON.stringify({
-                    error: 'Account not found'
+                    error: 'Account not found',
+                    accountId: accountId
                 }), {
                     status: 404,
                     headers: { 
@@ -105,6 +110,12 @@ export function accountRoutes(router) {
 
     // Update account
     router.put('/api/accounts/:id', async (request, env) => {
+        // Check authentication
+        const authResult = await authenticateSession(request, env);
+        if (authResult instanceof Response) {
+            return authResult;
+        }
+        
         try {
             const accountId = request.params.id;
             

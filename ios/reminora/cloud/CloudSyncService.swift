@@ -47,6 +47,96 @@ class CloudSyncService: ObservableObject {
         }
     }
     
+    // MARK: - Pin Management
+    
+    /**
+     * Save a pin locally and sync to cloud
+     * Use this for new pins created from photos
+     */
+    func savePinAndSyncToCloud(
+        imageData: Data,
+        location: CLLocation?,
+        caption: String,
+        isPrivate: Bool = false,
+        context: NSManagedObjectContext
+    ) async throws -> Place {
+        
+        // First, save to local database
+        let place = try await MainActor.run {
+            let newPlace = Place(context: context)
+            newPlace.imageData = imageData
+            newPlace.dateAdded = Date()
+            newPlace.post = caption.isEmpty ? "Added from Photos" : caption
+            newPlace.isPrivate = isPrivate
+            
+            if let location = location {
+                let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
+                newPlace.location = locationData
+            }
+            
+            do {
+                try context.save()
+                print("📍 CloudSyncService: Pin saved locally")
+                return newPlace
+            } catch {
+                print("❌ CloudSyncService: Failed to save pin locally: \(error)")
+                throw error
+            }
+        }
+        
+        // If not private, sync to cloud immediately
+        if !isPrivate {
+            do {
+                print("☁️ CloudSyncService: Syncing pin to cloud...")
+                try await uploadPin(place: place)
+                print("✅ CloudSyncService: Pin synced to cloud successfully")
+            } catch {
+                print("❌ CloudSyncService: Failed to sync pin to cloud: \(error)")
+                // Don't throw error - local save succeeded, cloud sync can be retried later
+            }
+        }
+        
+        return place
+    }
+    
+    /**
+     * Upload a specific pin to cloud
+     */
+    func uploadPin(place: Place) async throws {
+        guard let imageData = place.imageData else {
+            throw APIError.invalidResponse
+        }
+        
+        // Extract location from place
+        var location: CLLocation?
+        if let locationData = place.value(forKey: "location") as? Data,
+           let storedLocation = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
+            location = storedLocation
+        }
+        
+        print("🌐 CloudSyncService: Uploading pin to backend...")
+        
+        // Upload to cloud using photos API (pins are stored as photos in backend)
+        let cloudPhoto = try await apiService.uploadPhoto(
+            imageData: imageData,
+            location: location,
+            caption: place.post
+        )
+        
+        // Update local record with cloud ID
+        await MainActor.run {
+            place.setValue(cloudPhoto.id, forKey: "cloudId")
+            place.setValue(Date(), forKey: "cloudSyncedAt")
+            
+            do {
+                try persistenceController.container.viewContext.save()
+                print("💾 CloudSyncService: Updated pin with cloudId: \(cloudPhoto.id)")
+            } catch {
+                print("❌ CloudSyncService: Failed to save cloudId: \(error)")
+            }
+        }
+    }
+    
     // MARK: - Upload Local Photos
     
     private func uploadLocalPhotos() async throws {
@@ -69,33 +159,8 @@ class CloudSyncService: ObservableObject {
     }
     
     private func uploadPhoto(place: Place) async throws {
-        guard let imageData = place.imageData else { return }
-        
-        // Extract location from place
-        var location: CLLocation?
-        if let locationData = place.value(forKey: "location") as? Data,
-           let storedLocation = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
-            location = storedLocation
-        }
-        
-        // Upload to cloud
-        let cloudPhoto = try await apiService.uploadPhoto(
-            imageData: imageData,
-            location: location,
-            caption: place.post
-        )
-        
-        // Update local record with cloud ID
-        await MainActor.run {
-            place.setValue(cloudPhoto.id, forKey: "cloudId")
-            place.setValue(Date(), forKey: "cloudSyncedAt")
-            
-            do {
-                try persistenceController.container.viewContext.save()
-            } catch {
-                print("Failed to save cloud ID: \(error)")
-            }
-        }
+        // Use the new uploadPin method
+        try await uploadPin(place: place)
     }
     
     // MARK: - Download Timeline Photos

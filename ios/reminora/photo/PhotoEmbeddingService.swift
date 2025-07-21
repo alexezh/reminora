@@ -79,15 +79,24 @@ class PhotoEmbeddingService {
     
     /// Find similar photos for a given PHAsset
     func findSimilarPhotos(to asset: PHAsset, in context: NSManagedObjectContext, threshold: Float = 0.7, limit: Int = 20) async -> [PhotoSimilarity] {
+        let findSimilarStartTime = CFAbsoluteTimeGetCurrent()
+        
         // Get or compute embedding for target asset
         var targetEmbedding: PhotoEmbedding?
+        var embeddingComputeTime: Double = 0
         
         if let existing = await getEmbedding(for: asset, in: context) {
             targetEmbedding = existing
+            print("⚡ Using existing embedding for target asset")
         } else {
-            // Compute embedding on the fly
-            if await computeAndStoreEmbedding(for: asset, in: context) {
+            // Compute embedding on the fly and time it
+            let computeStartTime = CFAbsoluteTimeGetCurrent()
+            let success = await computeAndStoreEmbedding(for: asset, in: context)
+            embeddingComputeTime = CFAbsoluteTimeGetCurrent() - computeStartTime
+            
+            if success {
                 targetEmbedding = await getEmbedding(for: asset, in: context)
+                print("⏱️ Single embedding computation time: \(String(format: "%.3f", embeddingComputeTime)) seconds")
             }
         }
         
@@ -117,7 +126,16 @@ class PhotoEmbeddingService {
             
             // Sort by similarity (highest first) and limit results
             similarities.sort { $0.similarity > $1.similarity }
-            return Array(similarities.prefix(limit))
+            let results = Array(similarities.prefix(limit))
+            
+            let totalTime = CFAbsoluteTimeGetCurrent() - findSimilarStartTime
+            print("📊 findSimilarPhotos completed in \(String(format: "%.3f", totalTime)) seconds")
+            print("📊 Found \(results.count) similar photos above threshold \(threshold)")
+            if embeddingComputeTime > 0 {
+                print("📊 Target embedding computation: \(String(format: "%.3f", embeddingComputeTime)) seconds")
+            }
+            
+            return results
             
         } catch {
             print("Failed to fetch embeddings for similarity search: \(error)")
@@ -129,6 +147,8 @@ class PhotoEmbeddingService {
     
     /// Compute embeddings for all photos in the library using waterline approach
     func computeAllEmbeddings(in context: NSManagedObjectContext, progressCallback: @escaping (Int, Int) -> Void = { _, _ in }) async {
+        let batchStartTime = CFAbsoluteTimeGetCurrent()
+        
         let waterline = getEmbeddingWaterline()
         print("📊 Current embedding waterline: \(waterline?.description ?? "none")")
         
@@ -154,6 +174,8 @@ class PhotoEmbeddingService {
         
         var processedCount = 0
         var latestProcessedDate: Date?
+        var totalComputeTime: Double = 0
+        var actualComputeCount = 0
         
         for index in 0..<totalCount {
             let asset = allPhotos.object(at: index)
@@ -171,14 +193,20 @@ class PhotoEmbeddingService {
                 continue
             }
             
+            // Time the embedding computation
+            let computeStartTime = CFAbsoluteTimeGetCurrent()
             let success = await computeAndStoreEmbedding(for: asset, in: context)
+            let computeTime = CFAbsoluteTimeGetCurrent() - computeStartTime
+            
             processedCount += 1
             
             if success {
+                totalComputeTime += computeTime
+                actualComputeCount += 1
                 latestProcessedDate = asset.creationDate ?? latestProcessedDate
-                print("📊 Processed \(processedCount)/\(totalCount): \(asset.localIdentifier)")
+                print("📊 Processed \(processedCount)/\(totalCount): \(asset.localIdentifier) (\(String(format: "%.3f", computeTime))s)")
             } else {
-                print("📊 Failed \(processedCount)/\(totalCount): \(asset.localIdentifier)")
+                print("📊 Failed \(processedCount)/\(totalCount): \(asset.localIdentifier) (\(String(format: "%.3f", computeTime))s)")
             }
             
             await MainActor.run {
@@ -192,6 +220,21 @@ class PhotoEmbeddingService {
             setEmbeddingWaterline(latestDate)
             print("📊 Updated embedding waterline to: \(latestDate)")
         }
+        
+        // Print timing statistics
+        let totalBatchTime = CFAbsoluteTimeGetCurrent() - batchStartTime
+        print("📊 ================= BATCH EMBEDDING STATS =================")
+        print("📊 Total batch time: \(String(format: "%.3f", totalBatchTime)) seconds")
+        print("📊 Photos processed: \(processedCount)/\(totalCount)")
+        print("📊 Embeddings computed: \(actualComputeCount)")
+        
+        if actualComputeCount > 0 {
+            let avgComputeTime = totalComputeTime / Double(actualComputeCount)
+            print("📊 Average embedding computation time: \(String(format: "%.3f", avgComputeTime)) seconds")
+            print("📊 Total compute time: \(String(format: "%.3f", totalComputeTime)) seconds")
+            print("📊 Overhead time: \(String(format: "%.3f", totalBatchTime - totalComputeTime)) seconds")
+        }
+        print("📊 ========================================================")
     }
     
     /// Get statistics about embedding coverage

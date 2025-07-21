@@ -21,6 +21,9 @@ struct AddPinFromPhotoView: View {
     @State private var image: UIImage?
     @State private var caption: String = ""
     @State private var isSaving = false
+    @State private var isPrivate = false
+    
+    private let cloudSyncService = CloudSyncService.shared
     
     var body: some View {
         ScrollView {
@@ -53,6 +56,17 @@ struct AddPinFromPhotoView: View {
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(3...6)
                         .frame(maxWidth: .infinity)
+                }
+                .frame(maxWidth: .infinity)
+                
+                // Privacy setting
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Privacy")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Toggle("Keep private (don't sync to cloud)", isOn: $isPrivate)
+                        .font(.subheadline)
                 }
                 .frame(maxWidth: .infinity)
                 
@@ -165,24 +179,29 @@ struct AddPinFromPhotoView: View {
                 return
             }
             
-            DispatchQueue.main.async {
-                let newPlace = Place(context: viewContext)
-                newPlace.imageData = imageData
-                newPlace.dateAdded = asset.creationDate ?? Date()
-                newPlace.post = caption.isEmpty ? "Added from Photos" : caption
-                
-                if let location = asset.location {
-                    let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
-                    newPlace.location = locationData
-                }
-                
+            Task {
                 do {
-                    try viewContext.save()
-                    isSaving = false
-                    onDismiss()
+                    print("📍 AddPinFromPhoto: Saving pin with CloudSyncService")
+                    
+                    _ = try await cloudSyncService.savePinAndSyncToCloud(
+                        imageData: imageData,
+                        location: asset.location,
+                        caption: caption,
+                        isPrivate: isPrivate,
+                        context: viewContext
+                    )
+                    
+                    await MainActor.run {
+                        isSaving = false
+                        onDismiss()
+                    }
+                    
+                    print("✅ AddPinFromPhoto: Pin saved and synced successfully")
                 } catch {
-                    print("Failed to save pin: \(error)")
-                    isSaving = false
+                    print("❌ AddPinFromPhoto: Failed to save pin: \(error)")
+                    await MainActor.run {
+                        isSaving = false
+                    }
                 }
             }
         }

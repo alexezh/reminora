@@ -173,7 +173,7 @@ class QuickListService: ObservableObject {
     private func isAssetInList(_ asset: PHAsset, list: UserList, context: NSManagedObjectContext) -> Bool {
         // Look for a place with URL pattern "photo://localIdentifier"
         let photoURL = "photo://\(asset.localIdentifier)"
-        print("🔍 Checking if asset \(asset.localIdentifier) is in list \(list.id ?? "nil")")
+        //print("🔍 Checking if asset \(asset.localIdentifier) is in list \(list.id ?? "nil")")
         
         // First find places with this URL
         let placeFetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
@@ -181,7 +181,7 @@ class QuickListService: ObservableObject {
         
         do {
             let places = try context.fetch(placeFetchRequest)
-            print("🔍 Found \(places.count) places with URL: \(photoURL)")
+            //print("🔍 Found \(places.count) places with URL: \(photoURL)")
             
             if places.count > 1 {
                 print("🔍 ⚠️ WARNING: Multiple places found for same photo URL!")

@@ -3,20 +3,32 @@
  */
 
 import { generateId } from '../utils/helpers.js';
+import { authenticateSession } from './auth.js';
 
 export function photoRoutes(router) {
     // Create/upload photo
     router.post('/api/photos', async (request, env) => {
+        // Check authentication
+        const authResult = await authenticateSession(request, env);
+        if (authResult instanceof Response) {
+            return authResult;
+        }
+        
         try {
+            console.log('📸 Photos: Starting photo upload');
+            const body = await request.json();
+            console.log('📋 Photos: Request body keys:', Object.keys(body));
+            
             const { 
                 photo_data, 
                 latitude, 
                 longitude, 
                 location_name, 
                 caption 
-            } = await request.json();
+            } = body;
             
             if (!photo_data) {
+                console.log('❌ Photos: Missing photo_data field');
                 return new Response(JSON.stringify({
                     error: 'Missing photo data',
                     message: 'photo_data field is required'
@@ -32,6 +44,8 @@ export function photoRoutes(router) {
             const photoId = generateId();
             const accountId = request.account.id;
             const now = Math.floor(Date.now() / 1000);
+            
+            console.log('💾 Photos: Creating photo with ID:', photoId, 'for account:', accountId);
 
             // Insert photo
             await env.DB.prepare(`
@@ -81,6 +95,8 @@ export function photoRoutes(router) {
                 WHERE p.id = ?
             `).bind(photoId).first();
 
+            console.log('✅ Photos: Photo created successfully, returning response');
+            
             return new Response(JSON.stringify({
                 ...photo,
                 photo_data: JSON.parse(photo.photo_data)

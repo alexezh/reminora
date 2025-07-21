@@ -59,12 +59,17 @@ class PinSharingService: ObservableObject {
     private init() {}
     
     // MARK: - Pin Sharing
-    
+    // share pin with external over sms
     func sharePin(_ place: Place) async throws -> PinShareResponse {
+        print("🔗 PinSharingService: Starting to share pin")
+        
         // Check authentication first
         guard let session = authService.currentSession else {
+            print("❌ PinSharingService: No current session, authentication required")
             throw PinSharingError.notAuthenticated
         }
+        
+        print("📱 PinSharingService: Session valid, token: \(session.token.prefix(10))...")
         
         // Check subscription status
         try await checkSubscriptionStatus()
@@ -89,25 +94,38 @@ class PinSharingService: ObservableObject {
         }
         
         // Prepare pin data
-        guard let pinRequest = createPinShareRequest(from: place) else {
+        guard let pinRequestDict = createPinShareRequest(from: place) else {
+            print("❌ PinSharingService: Failed to create pin share request")
             throw PinSharingError.invalidData
         }
         
+        let lat = pinRequestDict["latitude"] as? Double ?? 0.0
+        let lng = pinRequestDict["longitude"] as? Double ?? 0.0
+        print("📍 PinSharingService: Created pin request - lat: \(lat), lng: \(lng)")
+        
         // Send to backend
-        let url = URL(string: "\(baseURL)/api/pins/share")!
+        let url = URL(string: "\(baseURL)/api/photos")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(session.token)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try JSONEncoder().encode(pinRequest)
+        request.httpBody = try JSONSerialization.data(withJSONObject: pinRequestDict)
+        
+        print("🌐 PinSharingService: Sending POST request to \(url)")
         
         let (data, response) = try await urlSession.data(for: request)
         
         guard let httpResponse = response as? HTTPURLResponse else {
+            print("❌ PinSharingService: Invalid HTTP response")
             throw PinSharingError.networkError
         }
         
+        print("📊 PinSharingService: Received response - Status: \(httpResponse.statusCode)")
+        
         if httpResponse.statusCode >= 400 {
+            let responseText = String(data: data, encoding: .utf8) ?? "nil"
+            print("❌ PinSharingService: Error response (\(httpResponse.statusCode)): \(responseText)")
+            
             if let errorData = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
                 throw PinSharingError.serverError(errorData.error)
             } else {
@@ -115,7 +133,21 @@ class PinSharingService: ObservableObject {
             }
         }
         
-        let shareResponse = try JSONDecoder().decode(PinShareResponse.self, from: data)
+        let responseText = String(data: data, encoding: .utf8) ?? "nil"
+        print("✅ PinSharingService: Success response: \(responseText)")
+        
+        // Parse the photo response
+        guard let responseDict = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let photoId = responseDict["id"] as? String else {
+            throw PinSharingError.invalidData
+        }
+        
+        // Create share response with photo ID
+        let shareResponse = PinShareResponse(
+            id: photoId,
+            shareUrl: "",
+            cloudId: photoId
+        )
         
         // Update local place with cloud ID
         await MainActor.run {
@@ -123,11 +155,15 @@ class PinSharingService: ObservableObject {
             try? place.managedObjectContext?.save()
         }
         
+        print("💾 PinSharingService: Updated place with cloudId: \(shareResponse.cloudId)")
+        
         // Add the shared pin to the shared list
         await SharedListService.shared.addToSharedList(place: place)
         
         // Refresh subscription status
         try await checkSubscriptionStatus()
+        
+        print("✅ PinSharingService: Pin sharing completed successfully")
         
         return shareResponse
     }
@@ -241,7 +277,7 @@ class PinSharingService: ObservableObject {
         
         // Debug current authentication state
         if let currentSession = authService.currentSession {
-            print("📱 Current session exists - token: \(currentSession.token.prefix(10))..., expires: \(currentSession.expiresAt)")
+            print("📱 Current session exists - token: \(currentSession.token.prefix(10))..., expires: \(currentSession.expires_at)")
         } else {
             print("❌ No current session found")
         }
@@ -251,7 +287,7 @@ class PinSharingService: ObservableObject {
     
     // MARK: - Private Methods
     
-    private func createPinShareRequest(from place: Place) -> PinShareRequest? {
+    private func createPinShareRequest(from place: Place) -> [String: Any]? {
         // Extract location
         guard let locationData = place.value(forKey: "location") as? Data,
               let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation else {
@@ -259,18 +295,22 @@ class PinSharingService: ObservableObject {
         }
         
         // Convert image to base64 if available
-        var imageDataString: String?
+        var photoData: [String: Any]?
         if let imageData = place.imageData {
-            imageDataString = imageData.base64EncodedString()
+            photoData = [
+                "image_data": imageData.base64EncodedString(),
+                "image_format": "jpeg",
+                "created_at": Date().timeIntervalSince1970
+            ]
         }
         
-        return PinShareRequest(
-            post: place.post,
-            latitude: location.coordinate.latitude,
-            longitude: location.coordinate.longitude,
-            imageData: imageDataString,
-            url: place.url
-        )
+        return [
+            "photo_data": photoData as Any,
+            "latitude": location.coordinate.latitude,
+            "longitude": location.coordinate.longitude,
+            "location_name": NSNull(),
+            "caption": place.post as Any
+        ]
     }
 }
 

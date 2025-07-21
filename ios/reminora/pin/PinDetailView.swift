@@ -96,7 +96,7 @@ struct PinDetailView: View {
     // Determine if this pin belongs to another user
     private var isFromOtherUser: Bool {
         let result = pinSharingService.isSharedFromOtherUser(place, context: viewContext)
-        print("🔍 PinDetailView isFromOtherUser: \(result) for place: \(place.post ?? "Unknown")")
+        //print("🔍 PinDetailView isFromOtherUser: \(result) for place: \(place.post ?? "Unknown")")
         return result
     }
 

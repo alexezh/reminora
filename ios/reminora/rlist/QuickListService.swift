@@ -188,7 +188,7 @@ class QuickListService: ObservableObject {
             }
             
             guard let place = places.first else { 
-                print("🔍 No place found for URL: \(photoURL)")
+                //print("🔍 No place found for URL: \(photoURL)")
                 return false 
             }
             

@@ -17,6 +17,12 @@ class SharedListService: ObservableObject {
     
     /// Gets or creates the Shared List for the current user
     func getOrCreateSharedList(in context: NSManagedObjectContext, userId: String) -> UserList {
+        // Validate userId is not empty
+        guard !userId.isEmpty else {
+            print("❌ Cannot create SharedList with empty userId")
+            fatalError("SharedList requires valid userId")
+        }
+        
         let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", Self.sharedListName, userId)
         
@@ -26,6 +32,7 @@ class SharedListService: ObservableObject {
                 return sharedList
             } else {
                 // Create new Shared List
+                print("🗂️ Creating new Shared List for userId: \(userId)")
                 let sharedList = UserList(context: context)
                 sharedList.id = UUID().uuidString
                 sharedList.name = Self.sharedListName
@@ -37,12 +44,15 @@ class SharedListService: ObservableObject {
             }
         } catch {
             print("❌ Failed to get/create Shared List: \(error)")
-            // Return a temporary one if database fails
+            // Return a temporary one if database fails - but don't insert it into context
+            print("🗂️ Creating temporary Shared List for userId: \(userId)")
             let tempList = UserList(context: context)
             tempList.id = UUID().uuidString
             tempList.name = Self.sharedListName
             tempList.createdAt = Date()
             tempList.userId = userId
+            
+            // Don't save the context here - let the caller decide
             return tempList
         }
     }
@@ -58,7 +68,7 @@ class SharedListService: ObservableObject {
         
         let currentUserId = userId ?? AuthenticationService.shared.currentAccount?.id ?? ""
         guard !currentUserId.isEmpty else {
-            print("❌ No user ID available for shared list")
+            print("⚠️ No user ID available for shared list - skipping shared list addition")
             return
         }
         

@@ -157,8 +157,8 @@ class PinSharingService: ObservableObject {
         
         print("💾 PinSharingService: Updated place with cloudId: \(shareResponse.cloudId)")
         
-        // Add the shared pin to the shared list
-        await SharedListService.shared.addToSharedList(place: place)
+        // Note: Pin sharing (via sharePin) adds to shared list, but regular pin upload doesn't
+        // This ensures we only add explicitly shared pins to the shared list
         
         // Refresh subscription status
         try await checkSubscriptionStatus()
@@ -276,11 +276,11 @@ class PinSharingService: ObservableObject {
         print("🔍 PinSharingService parsed from URL - username: \(username), userId: \(userId)")
         
         // Debug current authentication state
-        if let currentSession = authService.currentSession {
-            print("📱 Current session exists - token: \(currentSession.token.prefix(10))..., expires: \(currentSession.expires_at)")
-        } else {
-            print("❌ No current session found")
-        }
+        // if let currentSession = authService.currentSession {
+        //     print("📱 Current session exists - token: \(currentSession.token.prefix(10))..., expires: \(currentSession.expires_at)")
+        // } else {
+        //     print("❌ No current session found")
+        // }
         
         return (userId: userId, userName: username)
     }

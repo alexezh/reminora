@@ -52,11 +52,8 @@ struct AccountProfile: Codable, Identifiable {
     let id: String
     let username: String
     let display_name: String
-    let bio: String
+    let bio: String?
     let created_at: TimeInterval
-    let photo_count: Int
-    let follower_count: Int
-    let following_count: Int
 }
 
 struct CreateAccountRequest: Codable {

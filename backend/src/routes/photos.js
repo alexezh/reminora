@@ -18,6 +18,8 @@ export function photoRoutes(router) {
             console.log('📸 Photos: Starting photo upload');
             const body = await request.json();
             console.log('📋 Photos: Request body keys:', Object.keys(body));
+            console.log('📋 Photos: latitude:', body.latitude, 'longitude:', body.longitude);
+            console.log('📋 Photos: location_name:', body.location_name, 'caption:', body.caption);
             
             const { 
                 photo_data, 
@@ -47,7 +49,7 @@ export function photoRoutes(router) {
             
             console.log('💾 Photos: Creating photo with ID:', photoId, 'for account:', accountId);
 
-            // Insert photo
+            // Insert photo with null handling
             await env.DB.prepare(`
                 INSERT INTO photos (id, account_id, photo_data, latitude, longitude, location_name, caption, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -55,10 +57,10 @@ export function photoRoutes(router) {
                 photoId, 
                 accountId, 
                 JSON.stringify(photo_data), 
-                latitude, 
-                longitude, 
-                location_name, 
-                caption, 
+                latitude || null, 
+                longitude || null, 
+                location_name || null, 
+                caption || null, 
                 now, 
                 now
             ).run();

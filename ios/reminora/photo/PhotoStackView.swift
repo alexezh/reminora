@@ -292,9 +292,9 @@ struct PhotoStackView: View {
             print("Core Data not ready, skipping filter")
             return 
         }
-        print("Applying filter: \(currentFilter.displayName) to \(photoAssets.count) assets")
+        //print("Applying filter: \(currentFilter.displayName) to \(photoAssets.count) assets")
         let filteredAssets = preferenceManager.getFilteredAssets(from: photoAssets, filter: currentFilter)
-        print("Filtered to \(filteredAssets.count) assets")
+        //print("Filtered to \(filteredAssets.count) assets")
         createPhotoStacks(from: filteredAssets)
     }
     

@@ -514,36 +514,6 @@
             endingLineNumber = "89"
             landmarkName = "findSimilarPhotos(to:in:threshold:limit:)"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "F73521BA-FEC7-486C-9B59-E0DE5866F1D7 - 3419fef5f7bd7507"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(3) suspend resume partial function for reminora.PhotoEmbeddingService.findSimilarPhotos(to: __C.PHAsset, in: __C.NSManagedObjectContext, threshold: Swift.Float, limit: Swift.Int) async -&gt; Swift.Array&lt;reminora.PhotoSimilarity&gt;"
-                  moduleName = "reminora.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/ios/reminora/photo/PhotoEmbeddingService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "89"
-                  endingLineNumber = "89">
-               </Location>
-               <Location
-                  uuid = "F73521BA-FEC7-486C-9B59-E0DE5866F1D7 - fdb6cd4ab4fb9939"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "(5) suspend resume partial function for reminora.PhotoEmbeddingService.findSimilarPhotos(to: __C.PHAsset, in: __C.NSManagedObjectContext, threshold: Swift.Float, limit: Swift.Int) async -&gt; Swift.Array&lt;reminora.PhotoSimilarity&gt;"
-                  moduleName = "reminora.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/ios/reminora/photo/PhotoEmbeddingService.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "89"
-                  endingLineNumber = "89">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy

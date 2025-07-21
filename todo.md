@@ -2,7 +2,6 @@
 maybe use pink idea - one button for creating lists ? 
 
 click to favor should remove favorite.
-fix menu to ios 16 style
 instagram style view. profile button, name, location, 
 comments below image
 image - swipe up - show map and details. add show details to menu

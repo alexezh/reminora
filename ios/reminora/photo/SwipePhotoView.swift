@@ -33,6 +33,9 @@ struct SwipePhotoView: View {
     @State private var currentPreference: PhotoPreferenceType = .neutral
     @State private var isPreferenceManagerReady = false
     @State private var isInQuickList = false
+    @State private var swipeUpOffset: CGFloat = 0
+    @State private var showingMap = false
+    @State private var mapDragOffset: CGFloat = 0
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
@@ -68,20 +71,92 @@ struct SwipePhotoView: View {
                         .padding(.top, 16)
                 }
             } else {
-                // Full-screen photo display
-                if !stack.assets.isEmpty {
-                    TabView(selection: $currentIndex) {
-                        ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                            SwipePhotoImageView(asset: asset, isLoading: $isLoading)
-                                .tag(index)
+                GeometryReader { geometry in
+                    // Calculate safe area for photo to avoid overlap with UI
+                    let topSafeArea: CGFloat = 120 // Space for top navigation
+                    let bottomSafeArea: CGFloat = showingMap ? 0 : (stack.assets.count > 1 ? 160 : 120) // Space for thumbnails + action buttons
+                    let photoHeight = geometry.size.height - topSafeArea - bottomSafeArea
+                    
+                    VStack(spacing: 0) {
+                        // Top spacer for navigation
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(height: topSafeArea)
+                        
+                        // Photo display area (constrained to avoid overlap)
+                        if !stack.assets.isEmpty {
+                            TabView(selection: $currentIndex) {
+                                ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                                    SwipePhotoImageView(asset: asset, isLoading: $isLoading)
+                                        .tag(index)
+                                }
+                            }
+                            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                            .frame(height: photoHeight)
+                            .offset(y: swipeUpOffset)
+                            .gesture(
+                                DragGesture()
+                                    .onChanged { value in
+                                        handleSwipeUpGesture(value: value, geometry: geometry)
+                                    }
+                                    .onEnded { value in
+                                        handleSwipeUpEnd(value: value, geometry: geometry)
+                                    }
+                            )
+                        } else {
+                            // Fallback for empty stack
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .frame(height: photoHeight)
                         }
+                        
+                        // Bottom spacer (will be covered by UI)
+                        Rectangle()
+                            .fill(Color.clear)
+                            .frame(height: bottomSafeArea)
                     }
-                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                    .ignoresSafeArea(.all)
-                } else {
-                    // Fallback for empty stack
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                }
+                .ignoresSafeArea(.all)
+                
+                // Map overlay (iOS Photos style)
+                if showingMap {
+                    VStack {
+                        Spacer()
+                        
+                        MapViewForPhoto(location: currentAsset.location)
+                            .frame(height: UIScreen.main.bounds.height * 0.4)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .offset(y: mapDragOffset)
+                            .gesture(
+                                DragGesture()
+                                    .onChanged { value in
+                                        // Only allow downward drag to dismiss
+                                        if value.translation.height > 0 {
+                                            mapDragOffset = value.translation.height
+                                        }
+                                    }
+                                    .onEnded { value in
+                                        if value.translation.height > 100 {
+                                            // Dismiss map
+                                            withAnimation(.spring()) {
+                                                showingMap = false
+                                                mapDragOffset = 0
+                                                swipeUpOffset = 0
+                                            }
+                                        } else {
+                                            // Snap back
+                                            withAnimation(.spring()) {
+                                                mapDragOffset = 0
+                                            }
+                                        }
+                                    }
+                            )
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 40)
+                    }
+                    .background(Color.clear)
+                    .zIndex(10)
                 }
                 
                 // Floating top navigation overlay
@@ -170,101 +245,103 @@ struct SwipePhotoView: View {
                     
                     Spacer()
                     
-                    // Floating bottom section with thumbnails and action buttons
-                    VStack(spacing: 12) {
-                        // Thumbnail strip (iOS Photos style)
-                        if stack.assets.count > 1 {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 4) {
-                                    ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                                        PhotoThumbnailView(
-                                            asset: asset,
-                                            isSelected: index == currentIndex,
-                                            onTap: {
-                                                currentIndex = index
-                                            }
-                                        )
+                    // Floating bottom section with thumbnails and action buttons (hide when map is shown)
+                    if !showingMap {
+                        VStack(spacing: 12) {
+                            // Thumbnail strip (iOS Photos style)
+                            if stack.assets.count > 1 {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 4) {
+                                        ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                                            PhotoThumbnailView(
+                                                asset: asset,
+                                                isSelected: index == currentIndex,
+                                                onTap: {
+                                                    currentIndex = index
+                                                }
+                                            )
+                                        }
+                                    }
+                                    .padding(.horizontal, 16)
+                                }
+                                .frame(height: 60)
+                            }
+                            
+                            // Action buttons (iOS Photos style)
+                            HStack(spacing: 32) {
+                                // Share Photo button
+                                Button(action: sharePhoto) {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "square.and.arrow.up")
+                                            .font(.title2)
+                                            .foregroundColor(.white)
+                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                        Text("Share")
+                                            .font(.caption2)
+                                            .foregroundColor(.white)
+                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                                     }
                                 }
-                                .padding(.horizontal, 16)
+                                
+                                // Favorite button - toggles iOS native favorite status
+                                Button(action: toggleFavorite) {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: currentAsset.isFavorite ? "heart.fill" : "heart")
+                                            .font(.title2)
+                                            .foregroundColor(currentAsset.isFavorite ? .red : .white)
+                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                        Text("Favorite")
+                                            .font(.caption2)
+                                            .foregroundColor(.white)
+                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                    }
+                                }
+                                
+                                // Reject button
+                                Button(action: thumbsDown) {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: currentPreference == .dislike ? "x.circle.fill" : "x.circle")
+                                            .font(.title2)
+                                            .foregroundColor(currentPreference == .dislike ? .orange : .white)
+                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                        Text("Reject")
+                                            .font(.caption2)
+                                            .foregroundColor(.white)
+                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                    }
+                                }
+                                
+                                // Pin button
+                                Button {
+                                    showingAddPin = true
+                                } label: {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "mappin.and.ellipse")
+                                            .font(.title2)
+                                            .foregroundColor(.white)
+                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                        Text("Pin")
+                                            .font(.caption2)
+                                            .foregroundColor(.white)
+                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                    }
+                                }
                             }
-                            .frame(height: 60)
+                            .padding(.horizontal, 32)
                         }
-                        
-                        // Action buttons (iOS Photos style)
-                        HStack(spacing: 32) {
-                            // Share Photo button
-                            Button(action: sharePhoto) {
-                                VStack(spacing: 4) {
-                                    Image(systemName: "square.and.arrow.up")
-                                        .font(.title2)
-                                        .foregroundColor(.white)
-                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                    Text("Share")
-                                        .font(.caption2)
-                                        .foregroundColor(.white)
-                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                }
-                            }
-                            
-                            // Favorite button - toggles iOS native favorite status
-                            Button(action: toggleFavorite) {
-                                VStack(spacing: 4) {
-                                    Image(systemName: currentAsset.isFavorite ? "heart.fill" : "heart")
-                                        .font(.title2)
-                                        .foregroundColor(currentAsset.isFavorite ? .red : .white)
-                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                    Text("Favorite")
-                                        .font(.caption2)
-                                        .foregroundColor(.white)
-                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                }
-                            }
-                            
-                            // Reject button
-                            Button(action: thumbsDown) {
-                                VStack(spacing: 4) {
-                                    Image(systemName: currentPreference == .dislike ? "x.circle.fill" : "x.circle")
-                                        .font(.title2)
-                                        .foregroundColor(currentPreference == .dislike ? .orange : .white)
-                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                    Text("Reject")
-                                        .font(.caption2)
-                                        .foregroundColor(.white)
-                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                }
-                            }
-                            
-                            // Pin button
-                            Button {
-                                showingAddPin = true
-                            } label: {
-                                VStack(spacing: 4) {
-                                    Image(systemName: "mappin.and.ellipse")
-                                        .font(.title2)
-                                        .foregroundColor(.white)
-                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                    Text("Pin")
-                                        .font(.caption2)
-                                        .foregroundColor(.white)
-                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 32)
-                    }
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                Color.clear,
-                                Color.black.opacity(0.3),
-                                Color.black.opacity(0.6)
-                            ]),
-                            startPoint: .top,
-                            endPoint: .bottom
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.clear,
+                                    Color.black.opacity(0.3),
+                                    Color.black.opacity(0.6)
+                                ]),
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
                         )
-                    )
-                    .padding(.bottom, 34) // Safe area padding
+                        .padding(.bottom, 34) // Safe area padding
+                    }
                 }
             }
         }
@@ -333,6 +410,49 @@ struct SwipePhotoView: View {
         .navigationBarHidden(true)
     }
     
+    // MARK: - Swipe Up Gesture Handlers
+    
+    private func handleSwipeUpGesture(value: DragGesture.Value, geometry: GeometryProxy) {
+        // Only handle upward swipes
+        let translation = value.translation.height
+        if translation < 0 {
+            let progress = min(abs(translation) / (geometry.size.height * 0.3), 1.0)
+            
+            // Stage 1: Move photo up
+            if progress < 0.5 {
+                swipeUpOffset = translation * 0.5 // Dampen the movement
+            } else {
+                // Stage 2: Show map preview
+                swipeUpOffset = -(geometry.size.height * 0.15)
+                if !showingMap {
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                        showingMap = true
+                    }
+                }
+            }
+        }
+    }
+    
+    private func handleSwipeUpEnd(value: DragGesture.Value, geometry: GeometryProxy) {
+        let translation = value.translation.height
+        let velocity = value.velocity.height
+        
+        // Check if this was an upward swipe with sufficient velocity or distance
+        if translation < -100 || velocity < -500 {
+            // Complete the swipe up - show map fully
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                showingMap = true
+                swipeUpOffset = -(geometry.size.height * 0.2)
+            }
+        } else {
+            // Snap back to original position
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                showingMap = false
+                swipeUpOffset = 0
+                mapDragOffset = 0
+            }
+        }
+    }
     
     private func thumbsUp() {
         guard isPreferenceManagerReady else { return }
@@ -541,4 +661,59 @@ struct SwipePhotoView: View {
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
+}
+
+// MARK: - MapView Component
+
+struct MapViewForPhoto: View {
+    let location: CLLocation?
+    @State private var region: MKCoordinateRegion
+    
+    init(location: CLLocation?) {
+        self.location = location
+        
+        if let location = location {
+            self._region = State(initialValue: MKCoordinateRegion(
+                center: location.coordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+            ))
+        } else {
+            // Default to San Francisco if no location
+            self._region = State(initialValue: MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
+                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+            ))
+        }
+    }
+    
+    var body: some View {
+        if let location = location {
+            Map(coordinateRegion: $region, annotationItems: [PhotoMapAnnotationItem(coordinate: location.coordinate)]) { item in
+                MapAnnotation(coordinate: item.coordinate) {
+                    Image(systemName: "mappin.circle.fill")
+                        .font(.title)
+                        .foregroundColor(.red)
+                        .background(Circle().fill(Color.white).scaleEffect(0.8))
+                }
+            }
+            .disabled(true) // Disable interaction to prevent conflicts with swipe gestures
+        } else {
+            // Show message when no location available
+            VStack {
+                Image(systemName: "location.slash")
+                    .font(.largeTitle)
+                    .foregroundColor(.gray)
+                Text("No location data")
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.systemGray6))
+        }
+    }
+}
+
+struct PhotoMapAnnotationItem: Identifiable {
+    let id = UUID()
+    let coordinate: CLLocationCoordinate2D
 }

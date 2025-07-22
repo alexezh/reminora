@@ -369,26 +369,26 @@ struct UserProfileView: View {
         do {
             // Fetch user pins from cloud API (limit 50)
             print("🌐 Fetching user pins from cloud for user: \(userId)")
-            let userPins = try await APIService.shared.getUserPins(userId: userId, limit: 50)
-            print("🌐 Received \(userPins.count) pins from API")
+            let photos = try await APIService.shared.getUserPins(userId: userId, limit: 50)
+            print("🌐 Received \(photos.count) pins from API")
             
             // Sync cloud pins to local storage for persistence
-            await syncCloudPinsToLocal(userPins)
+            await syncCloudPhotosToLocal(photos)
             
-            for userPin in userPins {
-                // Convert UserPin to a Core Data Place for RListView
-                let place = await convertUserPinToPlace(userPin, context: viewContext)
+            for photo in photos {
+                // Convert Photo to a Core Data Place for RListView
+                let place = await convertPhotoToPlace(photo, context: viewContext)
                 
                 let contentItem = UserContentItem(
-                    id: userPin.id,
-                    date: userPin.createdAt,
+                    id: photo.id,
+                    date: Date(timeIntervalSince1970: photo.created_at),
                     itemType: .pin(place),
                     sourceType: .userPin(place)
                 )
                 contentItems.append(contentItem)
             }
             
-            print("✅ Loaded \(userPins.count) pins from cloud and synced to local")
+            print("✅ Loaded \(photos.count) pins from cloud and synced to local")
             
         } catch {
             print("❌ Failed to load user pins from cloud: \(error)")
@@ -408,14 +408,14 @@ struct UserProfileView: View {
         return contentItems
     }
     
-    private func syncCloudPinsToLocal(_ userPins: [UserPin]) async {
+    private func syncCloudPhotosToLocal(_ photos: [Photo]) async {
         await MainActor.run {
-            print("🔄 Syncing \(userPins.count) cloud pins to local storage")
+            print("🔄 Syncing \(photos.count) cloud photos to local storage")
             
-            for userPin in userPins {
-                // Check if this pin already exists locally
+            for photo in photos {
+                // Check if this photo already exists locally
                 let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
-                fetchRequest.predicate = NSPredicate(format: "cloudId == %@", userPin.id)
+                fetchRequest.predicate = NSPredicate(format: "cloudId == %@", photo.id)
                 
                 do {
                     let existingPlaces = try viewContext.fetch(fetchRequest)
@@ -423,40 +423,51 @@ struct UserProfileView: View {
                     if existingPlaces.isEmpty {
                         // Create new local place from cloud data
                         let place = Place(context: viewContext)
-                        place.post = userPin.name
-                        place.url = userPin.description ?? ""
-                        place.dateAdded = userPin.createdAt
-                        place.isPrivate = !userPin.isPublic
-                        place.setValue(userPin.id, forKey: "cloudId")
+                        place.post = photo.caption ?? ""
+                        place.url = photo.location_name ?? ""
+                        place.dateAdded = Date(timeIntervalSince1970: photo.created_at)
+                        place.isPrivate = false // Photos from API are shared
+                        place.setValue(photo.id, forKey: "cloudId")
                         
                         // Store location
-                        let location = CLLocation(latitude: userPin.latitude, longitude: userPin.longitude)
-                        if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
-                            place.setValue(locationData, forKey: "location")
+                        if let location = photo.location {
+                            if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
+                                place.setValue(locationData, forKey: "location")
+                            }
                         }
                         
-                        print("📱 Created local place for cloud pin: \(userPin.name)")
+                        // Store image data
+                        if let imageData = Data(base64Encoded: photo.photo_data.image_data) {
+                            place.imageData = imageData
+                        }
+                        
+                        print("📱 Created local place for cloud photo: \(photo.caption ?? photo.id)")
                     } else {
                         // Update existing local place with cloud data
                         let place = existingPlaces.first!
-                        place.post = userPin.name
-                        place.url = userPin.description ?? ""
-                        place.dateAdded = userPin.createdAt
-                        place.isPrivate = !userPin.isPublic
+                        place.post = photo.caption ?? ""
+                        place.url = photo.location_name ?? ""
+                        place.dateAdded = Date(timeIntervalSince1970: photo.created_at)
+                        place.isPrivate = false
                         
-                        print("📱 Updated local place for cloud pin: \(userPin.name)")
+                        // Update image data
+                        if let imageData = Data(base64Encoded: photo.photo_data.image_data) {
+                            place.imageData = imageData
+                        }
+                        
+                        print("📱 Updated local place for cloud photo: \(photo.caption ?? photo.id)")
                     }
                 } catch {
-                    print("❌ Failed to sync pin \(userPin.id): \(error)")
+                    print("❌ Failed to sync photo \(photo.id): \(error)")
                 }
             }
             
             // Save all changes
             do {
                 try viewContext.save()
-                print("✅ Successfully synced cloud pins to local storage")
+                print("✅ Successfully synced cloud photos to local storage")
             } catch {
-                print("❌ Failed to save synced pins: \(error)")
+                print("❌ Failed to save synced photos: \(error)")
             }
         }
     }
@@ -533,26 +544,27 @@ struct UserProfileView: View {
     }
     
     @MainActor
-    private func convertUserPinToPlace(_ userPin: UserPin, context: NSManagedObjectContext) async -> Place {
-        // Create a virtual place from UserPin for RListView display
+    private func convertPhotoToPlace(_ photo: Photo, context: NSManagedObjectContext) async -> Place {
+        // Create a virtual place from Photo for RListView display
         let place = Place(context: context)
-        place.post = userPin.name
-        place.url = userPin.description ?? ""
-        place.dateAdded = userPin.createdAt
-        place.isPrivate = !userPin.isPublic
-        place.setValue(userPin.id, forKey: "cloudId")
+        place.post = photo.caption ?? ""
+        place.url = photo.location_name ?? ""
+        place.dateAdded = Date(timeIntervalSince1970: photo.created_at)
+        place.isPrivate = false // Photos from API are shared
+        place.setValue(photo.id, forKey: "cloudId")
         
         // Store location
-        let location = CLLocation(latitude: userPin.latitude, longitude: userPin.longitude)
-        if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
-            place.setValue(locationData, forKey: "location")
+        if let location = photo.location {
+            if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
+                place.setValue(locationData, forKey: "location")
+            }
         }
         
-        // Load image from URL if available
-        if let imageUrl = userPin.imageUrl {
-            await loadImageFromURL(imageUrl, for: place)
+        // Store image data directly from photo
+        if let imageData = Data(base64Encoded: photo.photo_data.image_data) {
+            place.imageData = imageData
         } else {
-            // Create placeholder image for pins without images
+            // Create placeholder image for photos without images
             place.imageData = createPinPlaceholderImageData()
         }
         
@@ -562,30 +574,6 @@ struct UserProfileView: View {
         return place
     }
     
-    private func loadImageFromURL(_ urlString: String, for place: Place) async {
-        do {
-            guard let url = URL(string: urlString) else { 
-                print("❌ Invalid image URL: \(urlString)")
-                await MainActor.run {
-                    place.imageData = createPinPlaceholderImageData()
-                }
-                return 
-            }
-            
-            print("📸 Loading image from URL: \(urlString)")
-            let (data, _) = try await URLSession.shared.data(from: url)
-            print("✅ Successfully loaded image data: \(data.count) bytes")
-            
-            await MainActor.run {
-                place.imageData = data
-            }
-        } catch {
-            print("❌ Failed to load image from URL: \(error)")
-            await MainActor.run {
-                place.imageData = createPinPlaceholderImageData()
-            }
-        }
-    }
     
     private func createPinPlaceholderImageData() -> Data? {
         let size = CGSize(width: 200, height: 200)

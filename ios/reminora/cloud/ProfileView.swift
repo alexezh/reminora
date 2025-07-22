@@ -6,7 +6,6 @@ struct ProfileView: View {
     @EnvironmentObject private var authService: AuthenticationService
     @StateObject private var cloudSync = CloudSyncService.shared
     @Environment(\.managedObjectContext) private var viewContext
-    @State private var showingFollowers = false
     @State private var showingFollowing = false
     @State private var showingComments = false
     @State private var isSigningOut = false
@@ -60,17 +59,6 @@ struct ProfileView: View {
                                 .foregroundColor(.secondary)
                         }
                         
-                        Button(action: { showingFollowers = true }) {
-                            VStack {
-                                Text("0")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                Text("Followers")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
                         
                         Button(action: { showingFollowing = true }) {
                             VStack {
@@ -222,9 +210,6 @@ struct ProfileView: View {
             } message: {
                 Text("Enter a deep link URL to test (e.g., reminora://place/123?name=Test&lat=37.7749&lon=-122.4194)")
             }
-        }
-        .sheet(isPresented: $showingFollowers) {
-            FollowersView()
         }
         .sheet(isPresented: $showingFollowing) {
             FollowingView()
@@ -647,71 +632,6 @@ struct SettingsRow: View {
     }
 }
 
-struct FollowersView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var followers: [UserProfile] = []
-    @State private var isLoading = true
-    
-    var body: some View {
-        NavigationView {
-            List(followers) { follower in
-                HStack {
-                    Image(systemName: "person.circle")
-                        .font(.title2)
-                        .foregroundColor(.blue)
-                    
-                    VStack(alignment: .leading) {
-                        Text(follower.display_name)
-                            .fontWeight(.medium)
-                        Text("@\(follower.username)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                }
-                .padding(.vertical, 4)
-            }
-            .navigationTitle("Followers")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-            .onAppear {
-                loadFollowers()
-            }
-            .overlay {
-                if isLoading {
-                    ProgressView()
-                } else if followers.isEmpty {
-                    Text("No followers yet")
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-    }
-    
-    private func loadFollowers() {
-        Task {
-            do {
-                let result = try await APIService.shared.getFollowers()
-                await MainActor.run {
-                    self.followers = result
-                    self.isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.isLoading = false
-                }
-                print("Failed to load followers: \(error)")
-            }
-        }
-    }
-}
 
 struct FollowingView: View {
     @Environment(\.dismiss) private var dismiss

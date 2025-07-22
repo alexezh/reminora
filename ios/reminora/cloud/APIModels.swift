@@ -152,35 +152,6 @@ struct UserSearchResult: Codable, Identifiable {
     }
 }
 
-// MARK: - User Pin Models
-
-struct UserPinAPI: Codable, Identifiable {
-    let id: String
-    let name: String
-    let description: String?
-    let latitude: Double
-    let longitude: Double
-    let image_url: String?
-    let created_at: TimeInterval
-    let is_public: Bool
-}
-
-struct UserPin {
-    let id: String
-    let name: String
-    let description: String?
-    let latitude: Double
-    let longitude: Double
-    let imageUrl: String?
-    let createdAt: Date
-    let isPublic: Bool
-}
-
-struct UserPinsResponse: Codable {
-    let pins: [UserPinAPI]
-    let total: Int
-    let has_more: Bool
-}
 
 struct FollowResponse: Codable {
     let success: Bool

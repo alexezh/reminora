@@ -104,7 +104,7 @@ class PinSharingService: ObservableObject {
         print("📍 PinSharingService: Created pin request - lat: \(lat), lng: \(lng)")
         
         // Send to backend
-        let url = URL(string: "\(baseURL)/api/photos")!
+        let url = URL(string: "\(baseURL)/api/pins")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

@@ -176,7 +176,7 @@ class CloudSyncService: ObservableObject {
         }
     }
     
-    private func createOrUpdateLocalPhoto(from cloudPhoto: Photo) {
+    private func createOrUpdateLocalPhoto(from cloudPhoto: PinAPI) {
         let context = persistenceController.container.viewContext
         
         // Check if we already have this photo
@@ -201,7 +201,7 @@ class CloudSyncService: ObservableObject {
         }
     }
     
-    private func createPlaceFromCloudPhoto(cloudPhoto: Photo, context: NSManagedObjectContext) {
+    private func createPlaceFromCloudPhoto(cloudPhoto: PinAPI, context: NSManagedObjectContext) {
         let entity = NSEntityDescription.entity(forEntityName: "Place", in: context)!
         let place = NSManagedObject(entity: entity, insertInto: context)
         
@@ -231,7 +231,7 @@ class CloudSyncService: ObservableObject {
         place.setValue(userInfo, forKey: "url") // Using URL field for user info
     }
     
-    private func updatePlaceFromCloudPhoto(place: Place, cloudPhoto: Photo) {
+    private func updatePlaceFromCloudPhoto(place: Place, cloudPhoto: PinAPI) {
         // Update caption if it changed
         if place.post != cloudPhoto.caption {
             place.setValue(cloudPhoto.caption, forKey: "post")

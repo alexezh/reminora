@@ -126,6 +126,12 @@ export function pinRoutes(router) {
 
     // Get pins since waterline (timeline)
     router.get('/api/pins/timeline', async (request, env) => {
+        // Check authentication
+        const authResult = await authenticateSession(request, env);
+        if (authResult instanceof Response) {
+            return authResult;
+        }
+        
         try {
             const url = new URL(request.url);
             const since = url.searchParams.get('since') || '0';
@@ -174,35 +180,19 @@ export function pinRoutes(router) {
 
     // Get pins by account
     router.get('/api/pins/account/:accountId', async (request, env) => {
+        // Check authentication
+        const authResult = await authenticateSession(request, env);
+        if (authResult instanceof Response) {
+            return authResult;
+        }
+        
         try {
             const targetAccountId = request.params.accountId;
             const url = new URL(request.url);
             const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
             const offset = parseInt(url.searchParams.get('offset') || '0');
 
-            // Check if requester follows the target account or it's their own account
-            const currentAccountId = request.account.id;
-            let canView = targetAccountId === currentAccountId;
-
-            if (!canView) {
-                const follow = await env.DB.prepare(
-                    'SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?'
-                ).bind(currentAccountId, targetAccountId).first();
-                canView = !!follow;
-            }
-
-            if (!canView) {
-                return new Response(JSON.stringify({
-                    error: 'Permission denied',
-                    message: 'You must follow this account to view their pins'
-                }), {
-                    status: 403,
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        ...request.corsHeaders 
-                    }
-                });
-            }
+            // No permission check required - pins are publicly viewable
 
             const photos = await env.DB.prepare(`
                 SELECT p.*, a.username, a.display_name 
@@ -213,10 +203,15 @@ export function pinRoutes(router) {
                 LIMIT ? OFFSET ?
             `).bind(targetAccountId, limit, offset).all();
 
-            const result = photos.results.map(photo => ({
-                ...photo,
-                photo_data: JSON.parse(photo.photo_data)
-            }));
+            const result = photos.results.map(photo => {
+                console.log(`📍 Pin ${photo.id}: caption="${photo.caption}", has_photo_data=${!!photo.photo_data}`);
+                const parsed = {
+                    ...photo,
+                    photo_data: JSON.parse(photo.photo_data)
+                };
+                console.log(`📍 Pin ${photo.id}: photo_data.image_data length=${parsed.photo_data?.image_data?.length || 0}`);
+                return parsed;
+            });
 
             return new Response(JSON.stringify(result), {
                 headers: { 
@@ -241,6 +236,12 @@ export function pinRoutes(router) {
 
     // Get single pin
     router.get('/api/pins/:id', async (request, env) => {
+        // Check authentication
+        const authResult = await authenticateSession(request, env);
+        if (authResult instanceof Response) {
+            return authResult;
+        }
+        
         try {
             const photoId = request.params.id;
             
@@ -263,29 +264,7 @@ export function pinRoutes(router) {
                 });
             }
 
-            // Check if requester can view this photo
-            const currentAccountId = request.account.id;
-            let canView = photo.account_id === currentAccountId;
-
-            if (!canView) {
-                const follow = await env.DB.prepare(
-                    'SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?'
-                ).bind(currentAccountId, photo.account_id).first();
-                canView = !!follow;
-            }
-
-            if (!canView) {
-                return new Response(JSON.stringify({
-                    error: 'Permission denied',
-                    message: 'You must follow this account to view their pins'
-                }), {
-                    status: 403,
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        ...request.corsHeaders 
-                    }
-                });
-            }
+            // No permission check required - pins are publicly viewable
 
             return new Response(JSON.stringify({
                 ...photo,
@@ -313,6 +292,12 @@ export function pinRoutes(router) {
 
     // Delete pin
     router.delete('/api/pins/:id', async (request, env) => {
+        // Check authentication
+        const authResult = await authenticateSession(request, env);
+        if (authResult instanceof Response) {
+            return authResult;
+        }
+        
         try {
             const photoId = request.params.id;
             const accountId = request.account.id;

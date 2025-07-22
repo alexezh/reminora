@@ -408,7 +408,7 @@ struct UserProfileView: View {
         return contentItems
     }
     
-    private func syncCloudPhotosToLocal(_ photos: [Photo]) async {
+    private func syncCloudPhotosToLocal(_ photos: [PinAPI]) async {
         await MainActor.run {
             print("🔄 Syncing \(photos.count) cloud photos to local storage")
             
@@ -544,7 +544,7 @@ struct UserProfileView: View {
     }
     
     @MainActor
-    private func convertPhotoToPlace(_ photo: Photo, context: NSManagedObjectContext) async -> Place {
+    private func convertPhotoToPlace(_ photo: PinAPI, context: NSManagedObjectContext) async -> Place {
         // Create a virtual place from Photo for RListView display
         let place = Place(context: context)
         place.post = photo.caption ?? ""

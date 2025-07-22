@@ -142,7 +142,7 @@ class APIService: ObservableObject {
         imageData: Data,
         location: CLLocation?,
         caption: String?
-    ) async throws -> Photo {
+    ) async throws -> PinAPI {
         let url = URL(string: "\(baseURL)/api/pins")!
         
         // Convert image data to base64 for JSON storage
@@ -154,7 +154,7 @@ class APIService: ObservableObject {
             created_at: Date().timeIntervalSince1970
         )
         
-        let body = CreatePhotoRequest(
+        let body = CreatePinRequest(
             photo_data: photoData,
             latitude: location?.coordinate.latitude,
             longitude: location?.coordinate.longitude,
@@ -165,7 +165,7 @@ class APIService: ObservableObject {
         let data = try JSONEncoder().encode(body)
         let request = createRequest(url: url, method: "POST", body: data)
         
-        return try await performRequest(request: request, responseType: Photo.self)
+        return try await performRequest(request: request, responseType: PinAPI.self)
     }
     
     func getTimeline(since: TimeInterval = 0, limit: Int = 50) async throws -> TimelineResponse {
@@ -183,7 +183,7 @@ class APIService: ObservableObject {
         accountId: String,
         limit: Int = 50,
         offset: Int = 0
-    ) async throws -> [Photo] {
+    ) async throws -> [PinAPI] {
         var components = URLComponents(string: "\(baseURL)/api/pins/account/\(accountId)")!
         components.queryItems = [
             URLQueryItem(name: "limit", value: String(limit)),
@@ -191,7 +191,7 @@ class APIService: ObservableObject {
         ]
         
         let request = createRequest(url: components.url!)
-        return try await performRequest(request: request, responseType: [Photo].self)
+        return try await performRequest(request: request, responseType: [PinAPI].self)
     }
     
     func deletePhoto(id: String) async throws {
@@ -255,7 +255,7 @@ class APIService: ObservableObject {
     
     // MARK: - User Pins
     
-    func getUserPins(userId: String, limit: Int = 50, offset: Int = 0) async throws -> [Photo] {
+    func getUserPins(userId: String, limit: Int = 50, offset: Int = 0) async throws -> [PinAPI] {
         var components = URLComponents(string: "\(baseURL)/api/pins/account/\(userId)")!
         components.queryItems = [
             URLQueryItem(name: "limit", value: String(limit)),
@@ -263,7 +263,7 @@ class APIService: ObservableObject {
         ]
         
         let request = createRequest(url: components.url!)
-        return try await performRequest(request: request, responseType: [Photo].self)
+        return try await performRequest(request: request, responseType: [PinAPI].self)
     }
     
     // MARK: - User Profile Methods

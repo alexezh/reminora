@@ -76,7 +76,7 @@ struct PhotoData: Codable {
     let created_at: TimeInterval
 }
 
-struct Photo: Codable, Identifiable {
+struct PinAPI: Codable, Identifiable {
     let id: String
     let account_id: String
     let photo_data: PhotoData
@@ -103,7 +103,7 @@ struct Photo: Codable, Identifiable {
     }
 }
 
-struct CreatePhotoRequest: Codable {
+struct CreatePinRequest: Codable {
     let photo_data: PhotoData
     let latitude: Double?
     let longitude: Double?
@@ -112,7 +112,7 @@ struct CreatePhotoRequest: Codable {
 }
 
 struct TimelineResponse: Codable {
-    let photos: [Photo]
+    let photos: [PinAPI]
     let waterline: String
 }
 

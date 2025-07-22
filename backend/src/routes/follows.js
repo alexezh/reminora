@@ -3,10 +3,17 @@
  */
 
 import { generateId } from '../utils/helpers.js';
+import { authenticateSession } from './auth.js';
 
 export function followRoutes(router) {
     // Follow a user
     router.post('/api/follows', async (request, env) => {
+        // Check authentication
+        const authResult = await authenticateSession(request, env);
+        if (authResult instanceof Response) {
+            return authResult;
+        }
+        
         try {
             const { following_id } = await request.json();
             const follower_id = request.account.id;
@@ -124,6 +131,12 @@ export function followRoutes(router) {
 
     // Unfollow a user
     router.delete('/api/follows/:following_id', async (request, env) => {
+        // Check authentication
+        const authResult = await authenticateSession(request, env);
+        if (authResult instanceof Response) {
+            return authResult;
+        }
+        
         try {
             const following_id = request.params.following_id;
             const follower_id = request.account.id;
@@ -178,6 +191,12 @@ export function followRoutes(router) {
 
     // Get following list
     router.get('/api/follows/following', async (request, env) => {
+        // Check authentication
+        const authResult = await authenticateSession(request, env);
+        if (authResult instanceof Response) {
+            return authResult;
+        }
+        
         try {
             const url = new URL(request.url);
             const accountId = url.searchParams.get('account_id') || request.account.id;
@@ -216,6 +235,12 @@ export function followRoutes(router) {
 
     // Search users to follow
     router.get('/api/follows/search', async (request, env) => {
+        // Check authentication
+        const authResult = await authenticateSession(request, env);
+        if (authResult instanceof Response) {
+            return authResult;
+        }
+        
         try {
             const url = new URL(request.url);
             const query = url.searchParams.get('q');

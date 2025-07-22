@@ -216,6 +216,7 @@ struct PhotoStackView: View {
                         print("SwipePhotoView dismissed")
                         withAnimation(.easeInOut(duration: 0.3)) {
                             self.selectedStack = nil
+                            isSwipePhotoViewOpen = false
                         }
                         // Refresh filter to remove disliked photos from view
                         applyFilter()

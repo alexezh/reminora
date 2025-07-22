@@ -9,21 +9,31 @@ import SwiftUI
 
 // MARK: - Toolbar Button Configuration
 
-struct ToolbarButtonConfig: Identifiable {
-    let id = UUID()
+struct ToolbarButtonConfig: Identifiable, Equatable {
+    let id: String
     let title: String
     let systemImage: String
     let action: () -> Void
     let isEnabled: Bool
     let color: Color
     
+    static func == (lhs: ToolbarButtonConfig, rhs: ToolbarButtonConfig) -> Bool {
+        return lhs.id == rhs.id &&
+               lhs.title == rhs.title &&
+               lhs.systemImage == rhs.systemImage &&
+               lhs.isEnabled == rhs.isEnabled &&
+               lhs.color == rhs.color
+    }
+    
     init(
+        id: String,
         title: String,
         systemImage: String,
         action: @escaping () -> Void,
         isEnabled: Bool = true,
         color: Color = .primary
     ) {
+        self.id = id
         self.title = title
         self.systemImage = systemImage
         self.action = action
@@ -46,17 +56,20 @@ struct DynamicToolbar: View {
     let position: ToolbarPosition
     let backgroundColor: Color
     let isVisible: Bool
+    let version: Int
     
     init(
         buttons: [ToolbarButtonConfig],
         position: ToolbarPosition = .bottom,
         backgroundColor: Color = .clear,
-        isVisible: Bool = true
+        isVisible: Bool = true,
+        version: Int = 0
     ) {
         self.buttons = buttons
         self.position = position
         self.backgroundColor = backgroundColor
         self.isVisible = isVisible
+        self.version = version
     }
     
     var body: some View {
@@ -119,11 +132,20 @@ class ToolbarManager: ObservableObject {
     @Published var customButtons: [ToolbarButtonConfig] = []
     @Published var showCustomToolbar = false
     @Published var hideDefaultTabBar = false
+    @Published var version = 0
     
     func setCustomToolbar(buttons: [ToolbarButtonConfig], hideDefaultTabBar: Bool = true) {
+        print("🔧 ToolbarManager: Setting \(buttons.count) toolbar buttons with IDs: \(buttons.map { $0.id })")
         customButtons = buttons
         showCustomToolbar = !buttons.isEmpty
         self.hideDefaultTabBar = hideDefaultTabBar
+    }
+    
+    func updateCustomToolbar(buttons: [ToolbarButtonConfig]) {
+        print("🔄 ToolbarManager: Updating toolbar buttons (replacing existing)")
+        customButtons = buttons
+        showCustomToolbar = !buttons.isEmpty
+        version += 1 // Force UI update
     }
     
     func hideCustomToolbar() {
@@ -152,28 +174,33 @@ extension EnvironmentValues {
         DynamicToolbar(
             buttons: [
                 ToolbarButtonConfig(
+                    id: "home",
                     title: "Home",
                     systemImage: "house",
                     action: { print("Home tapped") }
                 ),
                 ToolbarButtonConfig(
+                    id: "search",
                     title: "Search",
                     systemImage: "magnifyingglass",
                     action: { print("Search tapped") }
                 ),
                 ToolbarButtonConfig(
+                    id: "favorite",
                     title: "Favorite",
                     systemImage: "heart",
                     action: { print("Favorite tapped") },
                     color: .red
                 ),
                 ToolbarButtonConfig(
+                    id: "profile",
                     title: "Profile",
                     systemImage: "person.circle",
                     action: { print("Profile tapped") },
                     isEnabled: false
                 )
-            ]
+            ],
+            version: 1
         )
     }
 }

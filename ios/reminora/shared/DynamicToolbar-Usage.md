@@ -49,12 +49,14 @@ struct MyView: View {
     private func setupToolbar() {
         let buttons = [
             ToolbarButtonConfig(
+                id: "action",
                 title: "Action",
                 systemImage: "star",
                 action: { performAction() },
                 color: .blue
             ),
             ToolbarButtonConfig(
+                id: "share",
                 title: "Share",
                 systemImage: "square.and.arrow.up", 
                 action: { shareContent() },
@@ -72,10 +74,15 @@ struct MyView: View {
 
 ### SwipePhotoView Toolbar
 - **Share**: Share current photo
-- **Favorite/Unfavorite**: Toggle iOS native favorite status  
-- **Reject/Unreject**: Toggle photo preference
-- **Add Pin**: Create location pin from photo
+- **Favorite**: Toggle iOS native favorite status (heart fills when favorited)
+- **Reject**: Toggle photo preference (orange when rejected)
+- **Quick List**: Add/remove from Quick List (fills when in list)
+
+### SwipePhotoView Menu (Top Right)
 - **Find Similar**: Search for similar photos
+- **Add Pin**: Create location pin from photo
+
+*Note: Main action buttons are in the toolbar, while secondary actions are in the top menu for cleaner organization*
 
 ### PinDetailView Toolbar  
 - **Share**: Share place/pin
@@ -100,11 +107,14 @@ struct MyView: View {
 ## Customization
 
 ### Button Configuration
+- **id**: Stable identifier for the button (required for proper updates)
 - **title**: Display text (can be empty)
 - **systemImage**: SF Symbol icon name
 - **action**: Closure to execute on tap
 - **isEnabled**: Whether button is interactive (default: true)
 - **color**: Button tint color (default: .primary)
+
+**Important**: Use stable IDs (e.g., "share", "favorite") instead of generated UUIDs to ensure proper button replacement when toolbar updates.
 
 ### Toolbar Positioning  
 - Currently supports bottom positioning
@@ -122,7 +132,17 @@ struct MyView: View {
 2. **Consistent**: Unified toolbar appearance across views
 3. **Flexible**: Easy to add/remove/modify buttons
 4. **Dynamic**: Buttons update based on current state
-5. **Clean**: Replaces multiple floating action buttons
+5. **Clean**: Replaces multiple floating action buttons and overcrowded navigation
+6. **Organized**: All actions accessible in one location at bottom of screen
+7. **iOS Standard**: Follows iOS design patterns for toolbars
+
+## Technical Implementation
+
+- **Environment-based**: Uses SwiftUI environment for clean data flow
+- **Button replacement**: Uses stable IDs and version counter for proper SwiftUI updates
+- **Equatable configs**: `ToolbarButtonConfig` conforms to `Equatable` for change detection
+- **State management**: Centralized through `ToolbarManager` with `@Published` properties
+- **Update mechanism**: `updateCustomToolbar()` method with version increment for forced updates
 
 ## Future Enhancements
 

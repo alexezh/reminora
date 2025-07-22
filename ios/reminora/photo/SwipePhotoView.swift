@@ -75,7 +75,7 @@ struct SwipePhotoView: View {
                 GeometryReader { geometry in
                     // Calculate safe area for photo to avoid overlap with UI
                     let topSafeArea: CGFloat = 120 // Space for top navigation
-                    let bottomSafeArea: CGFloat = showingMap ? 0 : (stack.assets.count > 1 ? 160 : 120) // Space for thumbnails + action buttons
+                    let bottomSafeArea: CGFloat = showingMap ? 0 : (stack.assets.count > 1 ? 80 : 20) // Space for thumbnails only
                     let photoHeight = geometry.size.height - topSafeArea - bottomSafeArea
                     
                     VStack(spacing: 0) {
@@ -177,24 +177,10 @@ struct SwipePhotoView: View {
                             
                             Spacer()
                             
-                            // Quick List circle button
-                            Button(action: {
-                                toggleQuickList()
-                            }) {
-                                Image(systemName: isInQuickList ? "circle.fill" : "circle")
-                                    .font(.title2)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.white)
-                                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                            }
-                            
                             // Menu button (vertical dots) - iOS 16 style popup
                             Menu {
                                 Button("Find Similar") {
                                     showingSimilarGridView = true
-                                }
-                                Button("Share Photo") {
-                                    sharePhoto()
                                 }
                                 Button("Add Pin", action: {
                                     showingAddPin = true
@@ -268,67 +254,66 @@ struct SwipePhotoView: View {
                                 .frame(height: 60)
                             }
                             
-                            // Action buttons (iOS Photos style)
-                            HStack(spacing: 32) {
-                                // Share Photo button
-                                Button(action: sharePhoto) {
-                                    VStack(spacing: 4) {
-                                        Image(systemName: "square.and.arrow.up")
-                                            .font(.title2)
-                                            .foregroundColor(.white)
-                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                        Text("Share")
-                                            .font(.caption2)
-                                            .foregroundColor(.white)
-                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                    }
-                                }
+                            // Floating action buttons (iOS Photos style)
+                            HStack {
+                                Spacer()
                                 
-                                // Favorite button - toggles iOS native favorite status
-                                Button(action: toggleFavorite) {
-                                    VStack(spacing: 4) {
-                                        Image(systemName: currentAsset.isFavorite ? "heart.fill" : "heart")
-                                            .font(.title2)
-                                            .foregroundColor(currentAsset.isFavorite ? .red : .white)
-                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                        Text("Favorite")
-                                            .font(.caption2)
-                                            .foregroundColor(.white)
-                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                HStack(spacing: 20) {
+                                    // Share button
+                                    Button(action: sharePhoto) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(Color.black.opacity(0.7))
+                                                .frame(width: 44, height: 44)
+                                            
+                                            Image(systemName: "square.and.arrow.up")
+                                                .font(.title2)
+                                                .foregroundColor(.white)
+                                        }
+                                    }
+                                    
+                                    // Favorite button
+                                    Button(action: toggleFavorite) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(Color.black.opacity(0.7))
+                                                .frame(width: 44, height: 44)
+                                            
+                                            Image(systemName: currentAsset.isFavorite ? "heart.fill" : "heart")
+                                                .font(.title2)
+                                                .foregroundColor(currentAsset.isFavorite ? .red : .white)
+                                        }
+                                    }
+                                    
+                                    // Quick List button
+                                    Button(action: toggleQuickList) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(Color.black.opacity(0.7))
+                                                .frame(width: 44, height: 44)
+                                            
+                                            Image(systemName: isInQuickList ? "circle.fill" : "circle")
+                                                .font(.title2)
+                                                .foregroundColor(isInQuickList ? .orange : .white)
+                                        }
+                                    }
+                                    
+                                    // Reject button
+                                    Button(action: thumbsDown) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(Color.black.opacity(0.7))
+                                                .frame(width: 44, height: 44)
+                                            
+                                            Image(systemName: currentPreference == .dislike ? "x.circle.fill" : "x.circle")
+                                                .font(.title2)
+                                                .foregroundColor(currentPreference == .dislike ? .orange : .white)
+                                        }
                                     }
                                 }
-                                
-                                // Reject button
-                                Button(action: thumbsDown) {
-                                    VStack(spacing: 4) {
-                                        Image(systemName: currentPreference == .dislike ? "x.circle.fill" : "x.circle")
-                                            .font(.title2)
-                                            .foregroundColor(currentPreference == .dislike ? .orange : .white)
-                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                        Text("Reject")
-                                            .font(.caption2)
-                                            .foregroundColor(.white)
-                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                    }
-                                }
-                                
-                                // Pin button
-                                Button {
-                                    showingAddPin = true
-                                } label: {
-                                    VStack(spacing: 4) {
-                                        Image(systemName: "mappin.and.ellipse")
-                                            .font(.title2)
-                                            .foregroundColor(.white)
-                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                        Text("Pin")
-                                            .font(.caption2)
-                                            .foregroundColor(.white)
-                                            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                                    }
-                                }
+                                .padding(.horizontal, 16)
                             }
-                            .padding(.horizontal, 32)
+                            .padding(.bottom, 8)
                         }
                         .background(
                             LinearGradient(
@@ -383,15 +368,10 @@ struct SwipePhotoView: View {
             }
             print("Starting preference manager initialization...")
             initializePreferenceManager()
-            setupToolbar()
-        }
-        .onDisappear {
-            toolbarManager.hideCustomToolbar()
         }
         .onChange(of: currentIndex) { _, _ in
             updateCurrentPreference()
             updateQuickListStatus()
-            updateToolbar()
         }
         .sheet(isPresented: $showingAddPin) {
             NavigationView {
@@ -654,49 +634,6 @@ struct SwipePhotoView: View {
         }
     }
     
-    // MARK: - Toolbar Setup
-    
-    private func setupToolbar() {
-        let toolbarButtons = [
-            ToolbarButtonConfig(
-                title: "Share",
-                systemImage: "square.and.arrow.up",
-                action: sharePhoto,
-                color: .blue
-            ),
-            ToolbarButtonConfig(
-                title: currentAsset.isFavorite ? "Unfavorite" : "Favorite",
-                systemImage: currentAsset.isFavorite ? "heart.fill" : "heart",
-                action: toggleFavorite,
-                color: currentAsset.isFavorite ? .red : .primary
-            ),
-            ToolbarButtonConfig(
-                title: currentPreference == .dislike ? "Unreject" : "Reject",
-                systemImage: currentPreference == .dislike ? "x.circle.fill" : "x.circle",
-                action: thumbsDown,
-                color: currentPreference == .dislike ? .orange : .primary
-            ),
-            ToolbarButtonConfig(
-                title: "Add Pin",
-                systemImage: "mappin.and.ellipse",
-                action: { showingAddPin = true },
-                color: .green
-            ),
-            ToolbarButtonConfig(
-                title: "Find Similar",
-                systemImage: "magnifyingglass",
-                action: { showingSimilarGridView = true },
-                color: .purple
-            )
-        ]
-        
-        toolbarManager.setCustomToolbar(buttons: toolbarButtons, hideDefaultTabBar: true)
-    }
-    
-    private func updateToolbar() {
-        // Update toolbar when photo changes
-        setupToolbar()
-    }
 
     // MARK: - Formatting Helpers
     

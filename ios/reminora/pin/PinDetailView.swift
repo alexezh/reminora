@@ -347,24 +347,28 @@ struct PinDetailView: View {
     private func setupToolbar() {
         let toolbarButtons = [
             ToolbarButtonConfig(
+                id: "share",
                 title: "Share",
                 systemImage: "square.and.arrow.up",
                 action: sharePlace,
                 color: .blue
             ),
             ToolbarButtonConfig(
+                id: "map",
                 title: "View on Map",
                 systemImage: "map",
                 action: showNearbyPlaces,
                 color: .green
             ),
             ToolbarButtonConfig(
+                id: "photos",
                 title: "Nearby Photos",
                 systemImage: "photo.stack",
                 action: showNearbyPhotos,
                 color: .orange
             ),
             ToolbarButtonConfig(
+                id: "list",
                 title: "Add to List",
                 systemImage: "plus.square",
                 action: addToQuickList,

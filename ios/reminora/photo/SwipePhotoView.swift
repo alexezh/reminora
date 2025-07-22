@@ -30,13 +30,11 @@ struct SwipePhotoView: View {
     @State private var showingMenu = false
     @State private var shareData: PhotoShareData?
     @State private var isLoading = false
-    @State private var dragOffset: CGSize = .zero
     @State private var currentPreference: PhotoPreferenceType = .neutral
     @State private var isPreferenceManagerReady = false
     @State private var isInQuickList = false
-    @State private var swipeUpOffset: CGFloat = 0
+    @State private var scrollOffset: CGFloat = 0
     @State private var showingMap = false
-    @State private var mapDragOffset: CGFloat = 0
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
@@ -75,8 +73,8 @@ struct SwipePhotoView: View {
                 GeometryReader { geometry in
                     // Calculate safe area for photo to avoid overlap with UI
                     let topSafeArea: CGFloat = 120 // Space for top navigation
-                    let bottomSafeArea: CGFloat = showingMap ? 0 : (stack.assets.count > 1 ? 80 : 20) // Space for thumbnails only
-                    let photoHeight = geometry.size.height - topSafeArea - bottomSafeArea
+                    let bottomSafeArea: CGFloat = stack.assets.count > 1 ? 80 : 20 // Space for thumbnails
+                    let availableHeight = geometry.size.height - topSafeArea - bottomSafeArea
                     
                     VStack(spacing: 0) {
                         // Top spacer for navigation
@@ -84,31 +82,105 @@ struct SwipePhotoView: View {
                             .fill(Color.clear)
                             .frame(height: topSafeArea)
                         
-                        // Photo display area (constrained to avoid overlap)
-                        if !stack.assets.isEmpty {
-                            TabView(selection: $currentIndex) {
-                                ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                                    SwipePhotoImageView(asset: asset, isLoading: $isLoading)
-                                        .tag(index)
+                        // Scrollable photo and map area
+                        ScrollViewReader { scrollProxy in
+                            ScrollView(.vertical, showsIndicators: false) {
+                                VStack(spacing: 0) {
+                                    // Photo section
+                                    if !stack.assets.isEmpty {
+                                        TabView(selection: $currentIndex) {
+                                            ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                                                SwipePhotoImageView(asset: asset, isLoading: $isLoading)
+                                                    .tag(index)
+                                            }
+                                        }
+                                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                                        .frame(height: availableHeight)
+                                        .id("photo")
+                                    } else {
+                                        // Fallback for empty stack
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                            .frame(height: availableHeight)
+                                            .id("photo")
+                                    }
+                                    
+                                    // Map section (only show if photo has location)
+                                    if currentAsset.location != nil {
+                                        VStack(spacing: 16) {
+                                            // Section header
+                                            HStack {
+                                                Image(systemName: "map")
+                                                    .font(.title2)
+                                                    .foregroundColor(.white)
+                                                Text("Location")
+                                                    .font(.title2)
+                                                    .fontWeight(.medium)
+                                                    .foregroundColor(.white)
+                                                Spacer()
+                                            }
+                                            .padding(.horizontal, 20)
+                                            .padding(.top, 20)
+                                            
+                                            // Map view
+                                            MapViewForPhoto(location: currentAsset.location)
+                                                .frame(height: availableHeight * 0.8)
+                                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                                .padding(.horizontal, 20)
+                                            
+                                            // Location details
+                                            if let location = currentAsset.location {
+                                                VStack(spacing: 8) {
+                                                    Text("Coordinates")
+                                                        .font(.headline)
+                                                        .foregroundColor(.white.opacity(0.9))
+                                                    Text(formatLocation(location))
+                                                        .font(.body)
+                                                        .foregroundColor(.white.opacity(0.7))
+                                                        .multilineTextAlignment(.center)
+                                                }
+                                                .padding(.horizontal, 20)
+                                            }
+                                            
+                                            // Bottom spacing
+                                            Rectangle()
+                                                .fill(Color.clear)
+                                                .frame(height: 60)
+                                        }
+                                        .background(
+                                            LinearGradient(
+                                                gradient: Gradient(colors: [
+                                                    Color.clear,
+                                                    Color.black.opacity(0.3),
+                                                    Color.black.opacity(0.6)
+                                                ]),
+                                                startPoint: .top,
+                                                endPoint: .bottom
+                                            )
+                                        )
+                                        .id("map")
+                                    }
                                 }
                             }
-                            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                            .frame(height: photoHeight)
-                            .offset(y: swipeUpOffset)
+                            .frame(height: availableHeight)
                             .gesture(
                                 DragGesture()
                                     .onChanged { value in
-                                        handleSwipeUpGesture(value: value, geometry: geometry)
+                                        handleScrollGesture(value: value, geometry: geometry)
                                     }
                                     .onEnded { value in
-                                        handleSwipeUpEnd(value: value, geometry: geometry)
+                                        handleScrollEnd(value: value, geometry: geometry) { id, anchor in
+                                            scrollProxy.scrollTo(id, anchor: anchor)
+                                        }
                                     }
                             )
-                        } else {
-                            // Fallback for empty stack
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .frame(height: photoHeight)
+                            .onChange(of: currentIndex) { _, _ in
+                                // Reset to photo view and show thumbnails when changing photos
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    scrollProxy.scrollTo("photo", anchor: .top)
+                                    showingMap = false
+                                }
+                            }
                         }
                         
                         // Bottom spacer (will be covered by UI)
@@ -118,47 +190,6 @@ struct SwipePhotoView: View {
                     }
                 }
                 .ignoresSafeArea(.all)
-                
-                // Map overlay (iOS Photos style)
-                if showingMap {
-                    VStack {
-                        Spacer()
-                        
-                        MapViewForPhoto(location: currentAsset.location)
-                            .frame(height: UIScreen.main.bounds.height * 0.4)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .offset(y: mapDragOffset)
-                            .gesture(
-                                DragGesture()
-                                    .onChanged { value in
-                                        // Only allow downward drag to dismiss
-                                        if value.translation.height > 0 {
-                                            mapDragOffset = value.translation.height
-                                        }
-                                    }
-                                    .onEnded { value in
-                                        if value.translation.height > 100 {
-                                            // Dismiss map
-                                            withAnimation(.spring()) {
-                                                showingMap = false
-                                                mapDragOffset = 0
-                                                swipeUpOffset = 0
-                                            }
-                                        } else {
-                                            // Snap back
-                                            withAnimation(.spring()) {
-                                                mapDragOffset = 0
-                                            }
-                                        }
-                                    }
-                            )
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 40)
-                    }
-                    .background(Color.clear)
-                    .zIndex(10)
-                }
                 
                 // Floating top navigation overlay
                 VStack {
@@ -232,7 +263,7 @@ struct SwipePhotoView: View {
                     
                     Spacer()
                     
-                    // Floating bottom section with thumbnails (hide when map is shown)
+                    // Floating bottom section with thumbnails (hide when map is showing)
                     if !showingMap {
                         VStack(spacing: 12) {
                             // Thumbnail strip (iOS Photos style)
@@ -266,38 +297,11 @@ struct SwipePhotoView: View {
                             )
                         )
                         .padding(.bottom, 34) // Safe area padding
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
             }
         }
-        .offset(y: dragOffset.height)
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    // Only respond to primarily vertical drags (more vertical than horizontal)
-                    let translation = value.translation
-                    let isVerticalDrag = abs(translation.height) > abs(translation.width) * 1.5
-                    
-                    // Only allow vertical downward drags that are primarily vertical
-                    if translation.height > 0 && isVerticalDrag {
-                        dragOffset = CGSize(width: 0, height: translation.height)
-                    }
-                }
-                .onEnded { value in
-                    let translation = value.translation
-                    let isVerticalDrag = abs(translation.height) > abs(translation.width) * 1.5
-                    
-                    // Only dismiss if it was a primarily vertical drag
-                    if translation.height > 150 && isVerticalDrag {
-                        onDismiss()
-                    } else {
-                        // Snap back to original position
-                        withAnimation(.spring()) {
-                            dragOffset = .zero
-                        }
-                    }
-                }
-        )
         .onAppear {
             print("SwipePhotoView onAppear called with stack of \(stack.assets.count) assets")
             isLoading = true
@@ -340,46 +344,43 @@ struct SwipePhotoView: View {
         .navigationBarHidden(true)
     }
     
-    // MARK: - Swipe Up Gesture Handlers
+    // MARK: - Scroll Gesture Handlers
     
-    private func handleSwipeUpGesture(value: DragGesture.Value, geometry: GeometryProxy) {
-        // Only handle upward swipes
-        let translation = value.translation.height
-        if translation < 0 {
-            let progress = min(abs(translation) / (geometry.size.height * 0.3), 1.0)
-            
-            // Stage 1: Move photo up
-            if progress < 0.5 {
-                swipeUpOffset = translation * 0.5 // Dampen the movement
-            } else {
-                // Stage 2: Show map preview
-                swipeUpOffset = -(geometry.size.height * 0.15)
-                if !showingMap {
+    private func handleScrollGesture(value: DragGesture.Value, geometry: GeometryProxy) {
+        // Handle vertical scroll gestures - we don't need to manually track offset since ScrollView handles it
+        // This is just for feedback during drag
+    }
+    
+    private func handleScrollEnd(value: DragGesture.Value, geometry: GeometryProxy, scrollTo: @escaping (AnyHashable, UnitPoint) -> Void) {
+        let translation = value.translation
+        let velocity = value.velocity.height
+        
+        // Only handle gestures that are primarily vertical
+        let isVerticalSwipe = abs(translation.height) > abs(translation.width) * 1.5
+        
+        if isVerticalSwipe {
+            // Handle swipe up
+            if translation.height < -100 || velocity < -500 {
+                if !showingMap && currentAsset.location != nil {
+                    // Show map and hide thumbnails
                     withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                        scrollTo("map", .top)
                         showingMap = true
                     }
                 }
             }
-        }
-    }
-    
-    private func handleSwipeUpEnd(value: DragGesture.Value, geometry: GeometryProxy) {
-        let translation = value.translation.height
-        let velocity = value.velocity.height
-        
-        // Check if this was an upward swipe with sufficient velocity or distance
-        if translation < -100 || velocity < -500 {
-            // Complete the swipe up - show map fully
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                showingMap = true
-                swipeUpOffset = -(geometry.size.height * 0.2)
-            }
-        } else {
-            // Snap back to original position
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                showingMap = false
-                swipeUpOffset = 0
-                mapDragOffset = 0
+            // Handle swipe down
+            else if translation.height > 100 || velocity > 500 {
+                if showingMap {
+                    // Close map and show thumbnails
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                        scrollTo("photo", .top)
+                        showingMap = false
+                    }
+                } else {
+                    // Close the entire view
+                    onDismiss()
+                }
             }
         }
     }

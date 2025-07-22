@@ -281,13 +281,13 @@ struct PinDetailView: View {
                     
                     // Action button - iOS 16 style menu
                     Menu {
-                        Button("View on Map") {
+                        Button("Map") {
                             showNearbyPlaces()
                         }
-                        Button("Nearby Photos") {
+                        Button("Photos") {
                             showNearbyPhotos()
                         }
-                        Button("Add to Quick List") {
+                        Button("Quick") {
                             addToQuickList()
                         }
                     } label: {
@@ -355,21 +355,21 @@ struct PinDetailView: View {
             ),
             ToolbarButtonConfig(
                 id: "map",
-                title: "View on Map",
+                title: "Map",
                 systemImage: "map",
                 action: showNearbyPlaces,
                 color: .green
             ),
             ToolbarButtonConfig(
                 id: "photos",
-                title: "Nearby Photos",
+                title: "Photos",
                 systemImage: "photo.stack",
                 action: showNearbyPhotos,
                 color: .orange
             ),
             ToolbarButtonConfig(
                 id: "list",
-                title: "Add to List",
+                title: "Quick",
                 systemImage: "plus.square",
                 action: addToQuickList,
                 color: .purple

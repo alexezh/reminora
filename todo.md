@@ -7,7 +7,7 @@ comments below image
 image - swipe up - show map and details. add show details to menu
 image - scale to fit area between title and tumbnails
 use time on photo as pin time
-
+make all toolbar buttons the same color.
 
 
 Near places , share url

@@ -55,25 +55,40 @@ class APIService: ObservableObject {
         }
         
         if httpResponse.statusCode >= 400 {
-            // Enhanced debugging for 404 errors
-            if httpResponse.statusCode == 404 {
-                print("🚨 API 404 Error: \(request.url?.absoluteString ?? "unknown URL")")
+            // Enhanced debugging for various error codes
+            let errorMessage = "HTTP \(httpResponse.statusCode)"
+            let url = request.url?.absoluteString ?? "unknown URL"
+            
+            switch httpResponse.statusCode {
+            case 404:
+                print("🚨 API 404 Error: \(url)")
                 print("📋 Request headers: \(request.allHTTPHeaderFields ?? [:])")
                 print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+            case 405:
+                print("🚨 API 405 Method Not Allowed: \(url)")
+                print("🔧 Method used: \(request.httpMethod ?? "unknown")")
+                print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+            case 401, 403:
+                print("🚨 API Authentication Error (\(httpResponse.statusCode)): \(url)")
+            case 500...599:
+                print("🚨 API Server Error (\(httpResponse.statusCode)): \(url)")
+                print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+            default:
+                print("🚨 API Error (\(httpResponse.statusCode)): \(url)")
             }
             
             if let errorData = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
                 throw APIError.serverError(errorData.message)
             } else {
-                throw APIError.serverError("HTTP \(httpResponse.statusCode)")
+                throw APIError.serverError(errorMessage)
             }
         }
         
         do {
             return try JSONDecoder().decode(responseType.self, from: data)
         } catch {
-            print("Decode error: \(error)")
-            print("Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+            print("❌ Decode error for \(responseType): \(error)")
+            print("📄 Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
             throw APIError.decodingError
         }
     }
@@ -128,7 +143,7 @@ class APIService: ObservableObject {
         location: CLLocation?,
         caption: String?
     ) async throws -> Photo {
-        let url = URL(string: "\(baseURL)/api/photos")!
+        let url = URL(string: "\(baseURL)/api/pins")!
         
         // Convert image data to base64 for JSON storage
         let base64Image = imageData.base64EncodedString()
@@ -154,7 +169,7 @@ class APIService: ObservableObject {
     }
     
     func getTimeline(since: TimeInterval = 0, limit: Int = 50) async throws -> TimelineResponse {
-        var components = URLComponents(string: "\(baseURL)/api/photos/timeline")!
+        var components = URLComponents(string: "\(baseURL)/api/pins/timeline")!
         components.queryItems = [
             URLQueryItem(name: "since", value: String(Int(since))),
             URLQueryItem(name: "limit", value: String(limit))
@@ -169,7 +184,7 @@ class APIService: ObservableObject {
         limit: Int = 50,
         offset: Int = 0
     ) async throws -> [Photo] {
-        var components = URLComponents(string: "\(baseURL)/api/photos/account/\(accountId)")!
+        var components = URLComponents(string: "\(baseURL)/api/pins/account/\(accountId)")!
         components.queryItems = [
             URLQueryItem(name: "limit", value: String(limit)),
             URLQueryItem(name: "offset", value: String(offset))
@@ -180,7 +195,7 @@ class APIService: ObservableObject {
     }
     
     func deletePhoto(id: String) async throws {
-        let url = URL(string: "\(baseURL)/api/photos/\(id)")!
+        let url = URL(string: "\(baseURL)/api/pins/\(id)")!
         let request = createRequest(url: url, method: "DELETE")
         
         _ = try await performRequest(request: request, responseType: SuccessResponse.self)
@@ -205,26 +220,6 @@ class APIService: ObservableObject {
         let _: EmptyResponse = try await performRequest(request: request, responseType: EmptyResponse.self)
     }
     
-    func getFollowers(
-        accountId: String? = nil,
-        limit: Int = 50,
-        offset: Int = 0
-    ) async throws -> [UserProfile] {
-        var components = URLComponents(string: "\(baseURL)/api/follows/followers")!
-        var queryItems: [URLQueryItem] = [
-            URLQueryItem(name: "limit", value: String(limit)),
-            URLQueryItem(name: "offset", value: String(offset))
-        ]
-        
-        if let accountId = accountId {
-            queryItems.append(URLQueryItem(name: "account_id", value: accountId))
-        }
-        
-        components.queryItems = queryItems
-        let request = createRequest(url: components.url!)
-        
-        return try await performRequest(request: request, responseType: [UserProfile].self)
-    }
     
     func getFollowing(
         accountId: String? = nil,
@@ -260,29 +255,15 @@ class APIService: ObservableObject {
     
     // MARK: - User Pins
     
-    func getUserPins(userId: String, limit: Int = 50, offset: Int = 0) async throws -> [UserPin] {
-        var components = URLComponents(string: "\(baseURL)/api/users/\(userId)/pins")!
+    func getUserPins(userId: String, limit: Int = 50, offset: Int = 0) async throws -> [Photo] {
+        var components = URLComponents(string: "\(baseURL)/api/pins/account/\(userId)")!
         components.queryItems = [
             URLQueryItem(name: "limit", value: String(limit)),
             URLQueryItem(name: "offset", value: String(offset))
         ]
         
         let request = createRequest(url: components.url!)
-        
-        // Convert API response to UserPin objects
-        let response = try await performRequest(request: request, responseType: UserPinsResponse.self)
-        return response.pins.map { apiPin in
-            UserPin(
-                id: apiPin.id,
-                name: apiPin.name,
-                description: apiPin.description,
-                latitude: apiPin.latitude,
-                longitude: apiPin.longitude,
-                imageUrl: apiPin.image_url,
-                createdAt: Date(timeIntervalSince1970: apiPin.created_at),
-                isPublic: apiPin.is_public
-            )
-        }
+        return try await performRequest(request: request, responseType: [Photo].self)
     }
     
     // MARK: - User Profile Methods
@@ -306,15 +287,9 @@ class APIService: ObservableObject {
     }
     
     func isFollowing(userId: String) async throws -> Bool {
-        // Since there's no direct isFollowing endpoint, check the following list
-        do {
-            let following = try await getFollowing(limit: 100) // Get current user's following list
-            return following.contains { $0.id == userId }
-        } catch {
-            // If we can't get the following list, default to false
-            print("Could not check following status: \(error)")
-            return false
-        }
+        // Check the following list to determine if we're following this user
+        let following = try await getFollowing(limit: 100) // Get current user's following list
+        return following.contains { $0.id == userId }
     }
     
 }

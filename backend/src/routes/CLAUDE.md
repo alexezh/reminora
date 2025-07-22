@@ -31,15 +31,15 @@ All route files implement **session-based authentication only**:
   - `POST /api/accounts` - Create account
   - `PUT /api/accounts/:id` - Update account
 
-### photos.js
-- **Purpose**: Photo storage and timeline
+### pins.js
+- **Purpose**: Pin storage and timeline
 - **Authentication**: Session required for all routes  
 - **Routes**:
-  - `POST /api/photos` - Upload photo
-  - `GET /api/photos/timeline` - Get timeline
-  - `GET /api/photos/account/:accountId` - Get user photos
-  - `GET /api/photos/:id` - Get single photo
-  - `DELETE /api/photos/:id` - Delete photo
+  - `POST /api/pins` - Upload pin
+  - `GET /api/pins/timeline` - Get timeline
+  - `GET /api/pins/account/:accountId` - Get user pins
+  - `GET /api/pins/:id` - Get single pin
+  - `DELETE /api/pins/:id` - Delete pin
 
 ### follows.js
 - **Purpose**: Social following system
@@ -47,7 +47,6 @@ All route files implement **session-based authentication only**:
 - **Routes**:
   - `POST /api/follows` - Follow user
   - `DELETE /api/follows/:following_id` - Unfollow user
-  - `GET /api/follows/followers` - Get followers list
   - `GET /api/follows/following` - Get following list  
   - `GET /api/follows/search` - Search users
 
@@ -57,7 +56,7 @@ Each protected route uses this pattern:
 ```javascript
 // Applied in index.js
 router.all('/api/accounts/*', authenticateSession);
-router.all('/api/photos/*', authenticateSession);
+router.all('/api/pins/*', authenticateSession);
 router.all('/api/follows/*', authenticateSession);
 
 // Route handlers access account via request.account

@@ -26,7 +26,7 @@ Source code for the Reminora Cloudflare Workers backend.
 ### Route Handlers
 - **routes/auth.js** - OAuth login, session management, token handling
 - **routes/accounts.js** - User account CRUD operations
-- **routes/photos.js** - Photo upload, retrieval, timeline
+- **routes/pins.js** - Pin upload, retrieval, timeline
 - **routes/follows.js** - Social following system
 
 ### Utilities
@@ -43,7 +43,7 @@ Source code for the Reminora Cloudflare Workers backend.
 
 2. **Protected Endpoints** (Session Auth Required):
    - All `/api/accounts/*` endpoints
-   - All `/api/photos/*` endpoints  
+   - All `/api/pins/*` endpoints  
    - All `/api/follows/*` endpoints
 
 3. **Session Validation**:

@@ -6,7 +6,7 @@
 import { Router } from 'itty-router';
 import { handleCORS } from './middleware/cors.js';
 import { authRoutes } from './routes/auth.js';
-import { photoRoutes } from './routes/photos.js';
+import { pinRoutes } from './routes/pins.js';
 import { followRoutes } from './routes/follows.js';
 import { accountRoutes } from './routes/accounts.js';
 
@@ -41,7 +41,7 @@ authRoutes(router);
 
 // Register all route handlers (they handle authentication internally)
 accountRoutes(router);
-photoRoutes(router);
+pinRoutes(router);
 followRoutes(router);
 
 // 404 handler

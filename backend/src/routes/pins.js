@@ -1,13 +1,13 @@
 /**
- * Photo management routes
+ * Pin management routes
  */
 
 import { generateId } from '../utils/helpers.js';
 import { authenticateSession } from './auth.js';
 
-export function photoRoutes(router) {
-    // Create/upload photo
-    router.post('/api/photos', async (request, env) => {
+export function pinRoutes(router) {
+    // Create/upload pin
+    router.post('/api/pins', async (request, env) => {
         // Check authentication
         const authResult = await authenticateSession(request, env);
         if (authResult instanceof Response) {
@@ -124,8 +124,8 @@ export function photoRoutes(router) {
         }
     });
 
-    // Get photos since waterline (timeline)
-    router.get('/api/photos/timeline', async (request, env) => {
+    // Get pins since waterline (timeline)
+    router.get('/api/pins/timeline', async (request, env) => {
         try {
             const url = new URL(request.url);
             const since = url.searchParams.get('since') || '0';
@@ -172,8 +172,8 @@ export function photoRoutes(router) {
         }
     });
 
-    // Get photos by account
-    router.get('/api/photos/account/:accountId', async (request, env) => {
+    // Get pins by account
+    router.get('/api/pins/account/:accountId', async (request, env) => {
         try {
             const targetAccountId = request.params.accountId;
             const url = new URL(request.url);
@@ -194,7 +194,7 @@ export function photoRoutes(router) {
             if (!canView) {
                 return new Response(JSON.stringify({
                     error: 'Permission denied',
-                    message: 'You must follow this account to view their photos'
+                    message: 'You must follow this account to view their pins'
                 }), {
                     status: 403,
                     headers: { 
@@ -239,8 +239,8 @@ export function photoRoutes(router) {
         }
     });
 
-    // Get single photo
-    router.get('/api/photos/:id', async (request, env) => {
+    // Get single pin
+    router.get('/api/pins/:id', async (request, env) => {
         try {
             const photoId = request.params.id;
             
@@ -277,7 +277,7 @@ export function photoRoutes(router) {
             if (!canView) {
                 return new Response(JSON.stringify({
                     error: 'Permission denied',
-                    message: 'You must follow this account to view their photos'
+                    message: 'You must follow this account to view their pins'
                 }), {
                     status: 403,
                     headers: { 
@@ -311,8 +311,8 @@ export function photoRoutes(router) {
         }
     });
 
-    // Delete photo
-    router.delete('/api/photos/:id', async (request, env) => {
+    // Delete pin
+    router.delete('/api/pins/:id', async (request, env) => {
         try {
             const photoId = request.params.id;
             const accountId = request.account.id;
@@ -337,7 +337,7 @@ export function photoRoutes(router) {
             if (photo.account_id !== accountId) {
                 return new Response(JSON.stringify({
                     error: 'Permission denied',
-                    message: 'You can only delete your own photos'
+                    message: 'You can only delete your own pins'
                 }), {
                     status: 403,
                     headers: { 

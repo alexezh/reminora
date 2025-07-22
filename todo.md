@@ -10,7 +10,8 @@ image - scale to fit area between title and tumbnails
 use time on photo as pin time
 
 
-Near places , share url
+PinDetailsView. add country, city below 
+Near places , share brings empty sms without text. pin brings empty screen. 
 
 Alllist remove title
 Nearby photos - remove space 

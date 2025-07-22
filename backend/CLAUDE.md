@@ -14,14 +14,14 @@ Cloudflare Workers backend for the Reminora photo sharing app using D1 database.
 - `/health` - **No auth required** (public health check)
 - `/api/auth/*` - **Public** (OAuth login/logout)
 - `/api/accounts/*` - **Session auth required**
-- `/api/photos/*` - **Session auth required** 
+- `/api/pins/*` - **Session auth required** 
 - `/api/follows/*` - **Session auth required**
 
 ## Key Components
 - **src/index.js** - Main router and middleware setup
 - **src/routes/auth.js** - OAuth login and session management
 - **src/routes/accounts.js** - User account management
-- **src/routes/photos.js** - Photo storage and retrieval
+- **src/routes/pins.js** - Pin storage and retrieval
 - **src/routes/follows.js** - Social following system
 - **src/middleware/** - CORS and authentication middleware
 - **migrations/** - Database schema and updates

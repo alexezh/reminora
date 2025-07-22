@@ -175,43 +175,6 @@ export function followRoutes(router) {
         }
     });
 
-    // Get followers list
-    router.get('/api/follows/followers', async (request, env) => {
-        try {
-            const url = new URL(request.url);
-            const accountId = url.searchParams.get('account_id') || request.account.id;
-            const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
-            const offset = parseInt(url.searchParams.get('offset') || '0');
-
-            const followers = await env.DB.prepare(`
-                SELECT f.created_at, a.id, a.username, a.display_name
-                FROM follows f
-                JOIN accounts a ON f.follower_id = a.id
-                WHERE f.following_id = ?
-                ORDER BY f.created_at DESC
-                LIMIT ? OFFSET ?
-            `).bind(accountId, limit, offset).all();
-
-            return new Response(JSON.stringify(followers.results), {
-                headers: { 
-                    'Content-Type': 'application/json',
-                    ...request.corsHeaders 
-                }
-            });
-        } catch (error) {
-            console.error('Get followers error:', error);
-            return new Response(JSON.stringify({
-                error: 'Failed to get followers',
-                message: error.message
-            }), {
-                status: 500,
-                headers: { 
-                    'Content-Type': 'application/json',
-                    ...request.corsHeaders 
-                }
-            });
-        }
-    });
 
     // Get following list
     router.get('/api/follows/following', async (request, env) => {
@@ -307,4 +270,5 @@ export function followRoutes(router) {
             });
         }
     });
+
 }

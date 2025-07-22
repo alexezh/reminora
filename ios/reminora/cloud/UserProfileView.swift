@@ -172,6 +172,9 @@ struct UserProfileView: View {
         .task {
             await loadUserProfile()
         }
+        .refreshable {
+            await refreshUserProfile()
+        }
         .overlay {
             if let selectedPin = selectedPin {
                 PinDetailView(
@@ -227,11 +230,24 @@ struct UserProfileView: View {
             if isCurrentUser {
                 following = false
             } else {
+                // First check local follow status
+                let localFollowing = await checkLocalFollowStatus()
+                
+                // Try to sync with API and use local as fallback
                 do {
-                    following = try await APIService.shared.isFollowing(userId: userId)
+                    let apiFollowing = try await APIService.shared.isFollowing(userId: userId)
+                    
+                    // If API status differs from local, sync local to match API
+                    if apiFollowing != localFollowing {
+                        print("🔄 Syncing follow status: API=\(apiFollowing), Local=\(localFollowing)")
+                        await persistFollowStatus(apiFollowing)
+                        following = apiFollowing
+                    } else {
+                        following = localFollowing
+                    }
                 } catch {
-                    print("Cannot check follow status, defaulting to not following: \(error)")
-                    following = false
+                    print("API unavailable for follow status, using local: \(localFollowing)")
+                    following = localFollowing
                 }
             }
 
@@ -251,6 +267,11 @@ struct UserProfileView: View {
             }
         }
     }
+    
+    private func refreshUserProfile() async {
+        print("🔄 Refreshing user profile for \(userId)")
+        await loadUserProfile()
+    }
 
     private func toggleFollow() {
         isFollowActionLoading = true
@@ -259,8 +280,12 @@ struct UserProfileView: View {
             do {
                 if isFollowing {
                     try await APIService.shared.unfollowUser(userId: userId)
+                    // Persist unfollow to local storage
+                    await persistFollowStatus(false)
                 } else {
                     try await APIService.shared.followUser(userId: userId)
+                    // Persist follow to local storage
+                    await persistFollowStatus(true)
                 }
 
                 await MainActor.run {
@@ -269,12 +294,70 @@ struct UserProfileView: View {
                 }
             } catch {
                 print("Failed to toggle follow (API unavailable): \(error)")
+                
+                // In offline mode, persist locally and toggle UI state
+                let newFollowStatus = !isFollowing
+                await persistFollowStatus(newFollowStatus)
+                
                 await MainActor.run {
-                    // In offline mode, just toggle the UI state locally
-                    self.isFollowing.toggle()
+                    self.isFollowing = newFollowStatus
                     self.isFollowActionLoading = false
-                    print("Follow status changed locally (offline mode)")
+                    print("Follow status changed locally (offline mode): \(newFollowStatus)")
                 }
+            }
+        }
+    }
+    
+    private func persistFollowStatus(_ following: Bool) async {
+        await MainActor.run {
+            guard let currentUser = AuthenticationService.shared.currentAccount else { return }
+            
+            let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
+            
+            do {
+                let existingFollows = try viewContext.fetch(fetchRequest)
+                
+                if following {
+                    // Add follow relationship if not exists
+                    if existingFollows.isEmpty {
+                        let follow = UserList(context: viewContext)
+                        follow.id = UUID().uuidString
+                        follow.userId = userId
+                        follow.name = userName
+                        follow.createdAt = Date()
+                        print("💾 Created follow relationship for user: \(userName)")
+                    }
+                } else {
+                    // Remove follow relationship
+                    for follow in existingFollows {
+                        viewContext.delete(follow)
+                        print("💾 Removed follow relationship for user: \(userName)")
+                    }
+                }
+                
+                try viewContext.save()
+                print("💾 Follow status persisted locally: \(following)")
+                
+            } catch {
+                print("❌ Failed to persist follow status: \(error)")
+            }
+        }
+    }
+    
+    private func checkLocalFollowStatus() async -> Bool {
+        return await MainActor.run {
+            let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
+            
+            do {
+                let existingFollows = try viewContext.fetch(fetchRequest)
+                let isFollowing = !existingFollows.isEmpty
+                print("📱 Local follow status for \(userId): \(isFollowing)")
+                return isFollowing
+            } catch {
+                print("❌ Failed to check local follow status: \(error)")
+                return false
             }
         }
     }
@@ -282,11 +365,15 @@ struct UserProfileView: View {
     private func loadUserContent() async -> [UserContentItem] {
         var contentItems: [UserContentItem] = []
         
+        // Always try to load from backend first, but also maintain local cache
         do {
             // Fetch user pins from cloud API (limit 50)
             print("🌐 Fetching user pins from cloud for user: \(userId)")
             let userPins = try await APIService.shared.getUserPins(userId: userId, limit: 50)
             print("🌐 Received \(userPins.count) pins from API")
+            
+            // Sync cloud pins to local storage for persistence
+            await syncCloudPinsToLocal(userPins)
             
             for userPin in userPins {
                 // Convert UserPin to a Core Data Place for RListView
@@ -301,7 +388,7 @@ struct UserProfileView: View {
                 contentItems.append(contentItem)
             }
             
-            print("✅ Loaded \(userPins.count) pins from cloud")
+            print("✅ Loaded \(userPins.count) pins from cloud and synced to local")
             
         } catch {
             print("❌ Failed to load user pins from cloud: \(error)")
@@ -319,6 +406,59 @@ struct UserProfileView: View {
         
         print("📋 Loaded \(contentItems.count) total content items for user \(userId)")
         return contentItems
+    }
+    
+    private func syncCloudPinsToLocal(_ userPins: [UserPin]) async {
+        await MainActor.run {
+            print("🔄 Syncing \(userPins.count) cloud pins to local storage")
+            
+            for userPin in userPins {
+                // Check if this pin already exists locally
+                let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "cloudId == %@", userPin.id)
+                
+                do {
+                    let existingPlaces = try viewContext.fetch(fetchRequest)
+                    
+                    if existingPlaces.isEmpty {
+                        // Create new local place from cloud data
+                        let place = Place(context: viewContext)
+                        place.post = userPin.name
+                        place.url = userPin.description ?? ""
+                        place.dateAdded = userPin.createdAt
+                        place.isPrivate = !userPin.isPublic
+                        place.setValue(userPin.id, forKey: "cloudId")
+                        
+                        // Store location
+                        let location = CLLocation(latitude: userPin.latitude, longitude: userPin.longitude)
+                        if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
+                            place.setValue(locationData, forKey: "location")
+                        }
+                        
+                        print("📱 Created local place for cloud pin: \(userPin.name)")
+                    } else {
+                        // Update existing local place with cloud data
+                        let place = existingPlaces.first!
+                        place.post = userPin.name
+                        place.url = userPin.description ?? ""
+                        place.dateAdded = userPin.createdAt
+                        place.isPrivate = !userPin.isPublic
+                        
+                        print("📱 Updated local place for cloud pin: \(userPin.name)")
+                    }
+                } catch {
+                    print("❌ Failed to sync pin \(userPin.id): \(error)")
+                }
+            }
+            
+            // Save all changes
+            do {
+                try viewContext.save()
+                print("✅ Successfully synced cloud pins to local storage")
+            } catch {
+                print("❌ Failed to save synced pins: \(error)")
+            }
+        }
     }
     
     private func loadLocalUserContent(_ contentItems: inout [UserContentItem]) async {

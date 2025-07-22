@@ -63,13 +63,13 @@ struct ContentView: View {
         }
         .environment(\.toolbarManager, toolbarManager)
         .overlay(alignment: .bottom) {
-            // Custom dynamic toolbar (hide when SwipePhotoView is open)
-            if toolbarManager.showCustomToolbar && !isSwipePhotoViewOpen {
+            // Custom dynamic toolbar (show when enabled, including when SwipePhotoView is open with its buttons)
+            if toolbarManager.showCustomToolbar {
                 DynamicToolbar(
                     buttons: toolbarManager.customButtons,
                     position: .bottom,
                     backgroundColor: Color(.systemBackground),
-                    isVisible: toolbarManager.showCustomToolbar && !isSwipePhotoViewOpen,
+                    isVisible: toolbarManager.showCustomToolbar,
                     version: toolbarManager.version
                 )
             }

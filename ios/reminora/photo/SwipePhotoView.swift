@@ -232,7 +232,7 @@ struct SwipePhotoView: View {
                     
                     Spacer()
                     
-                    // Floating bottom section with thumbnails and action buttons (hide when map is shown)
+                    // Floating bottom section with thumbnails (hide when map is shown)
                     if !showingMap {
                         VStack(spacing: 12) {
                             // Thumbnail strip (iOS Photos style)
@@ -253,67 +253,6 @@ struct SwipePhotoView: View {
                                 }
                                 .frame(height: 60)
                             }
-                            
-                            // Floating action buttons (iOS Photos style)
-                            HStack {
-                                Spacer()
-                                
-                                HStack(spacing: 20) {
-                                    // Share button
-                                    Button(action: sharePhoto) {
-                                        ZStack {
-                                            Circle()
-                                                .fill(Color.black.opacity(0.7))
-                                                .frame(width: 44, height: 44)
-                                            
-                                            Image(systemName: "square.and.arrow.up")
-                                                .font(.title2)
-                                                .foregroundColor(.white)
-                                        }
-                                    }
-                                    
-                                    // Favorite button
-                                    Button(action: toggleFavorite) {
-                                        ZStack {
-                                            Circle()
-                                                .fill(Color.black.opacity(0.7))
-                                                .frame(width: 44, height: 44)
-                                            
-                                            Image(systemName: currentAsset.isFavorite ? "heart.fill" : "heart")
-                                                .font(.title2)
-                                                .foregroundColor(currentAsset.isFavorite ? .red : .white)
-                                        }
-                                    }
-                                    
-                                    // Quick List button
-                                    Button(action: toggleQuickList) {
-                                        ZStack {
-                                            Circle()
-                                                .fill(Color.black.opacity(0.7))
-                                                .frame(width: 44, height: 44)
-                                            
-                                            Image(systemName: isInQuickList ? "circle.fill" : "circle")
-                                                .font(.title2)
-                                                .foregroundColor(isInQuickList ? .orange : .white)
-                                        }
-                                    }
-                                    
-                                    // Reject button
-                                    Button(action: thumbsDown) {
-                                        ZStack {
-                                            Circle()
-                                                .fill(Color.black.opacity(0.7))
-                                                .frame(width: 44, height: 44)
-                                            
-                                            Image(systemName: currentPreference == .dislike ? "x.circle.fill" : "x.circle")
-                                                .font(.title2)
-                                                .foregroundColor(currentPreference == .dislike ? .orange : .white)
-                                        }
-                                    }
-                                }
-                                .padding(.horizontal, 16)
-                            }
-                            .padding(.bottom, 8)
                         }
                         .background(
                             LinearGradient(
@@ -368,10 +307,15 @@ struct SwipePhotoView: View {
             }
             print("Starting preference manager initialization...")
             initializePreferenceManager()
+            setupToolbar()
+        }
+        .onDisappear {
+            toolbarManager.hideCustomToolbar()
         }
         .onChange(of: currentIndex) { _, _ in
             updateCurrentPreference()
             updateQuickListStatus()
+            updateToolbar()
         }
         .sheet(isPresented: $showingAddPin) {
             NavigationView {
@@ -634,6 +578,79 @@ struct SwipePhotoView: View {
         }
     }
     
+    // MARK: - Toolbar Setup
+    
+    private func setupToolbar() {
+        let toolbarButtons = [
+            ToolbarButtonConfig(
+                id: "share",
+                title: "Share",
+                systemImage: "square.and.arrow.up",
+                action: sharePhoto,
+                color: .blue
+            ),
+            ToolbarButtonConfig(
+                id: "favorite",
+                title: "Favorite",
+                systemImage: currentAsset.isFavorite ? "heart.fill" : "heart",
+                action: toggleFavorite,
+                color: currentAsset.isFavorite ? .red : .primary
+            ),
+            ToolbarButtonConfig(
+                id: "reject",
+                title: "Reject",
+                systemImage: currentPreference == .dislike ? "x.circle.fill" : "x.circle",
+                action: thumbsDown,
+                color: currentPreference == .dislike ? .orange : .primary
+            ),
+            ToolbarButtonConfig(
+                id: "quick",
+                title: "Quick List",
+                systemImage: isInQuickList ? "circle.fill" : "circle",
+                action: toggleQuickList,
+                color: isInQuickList ? .orange : .primary
+            )
+        ]
+        
+        toolbarManager.setCustomToolbar(buttons: toolbarButtons, hideDefaultTabBar: true)
+    }
+    
+    private func updateToolbar() {
+        // Update toolbar when photo changes - explicitly replace buttons
+        print("📱 SwipePhotoView: Updating toolbar for photo \(currentIndex)")
+        let toolbarButtons = [
+            ToolbarButtonConfig(
+                id: "share",
+                title: "Share",
+                systemImage: "square.and.arrow.up",
+                action: sharePhoto,
+                color: .blue
+            ),
+            ToolbarButtonConfig(
+                id: "favorite",
+                title: "Favorite",
+                systemImage: currentAsset.isFavorite ? "heart.fill" : "heart",
+                action: toggleFavorite,
+                color: currentAsset.isFavorite ? .red : .primary
+            ),
+            ToolbarButtonConfig(
+                id: "reject",
+                title: "Reject",
+                systemImage: currentPreference == .dislike ? "x.circle.fill" : "x.circle",
+                action: thumbsDown,
+                color: currentPreference == .dislike ? .orange : .primary
+            ),
+            ToolbarButtonConfig(
+                id: "quick",
+                title: "Quick List",
+                systemImage: isInQuickList ? "circle.fill" : "circle",
+                action: toggleQuickList,
+                color: isInQuickList ? .orange : .primary
+            )
+        ]
+        
+        toolbarManager.updateCustomToolbar(buttons: toolbarButtons)
+    }
 
     // MARK: - Formatting Helpers
     

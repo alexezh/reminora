@@ -1,13 +1,13 @@
 
+invented word combining reminisce + aurora (dawn of memory)
+
+
 maybe use pink idea - one button for creating lists ? 
 
 click to favor should remove favorite.
-instagram style view. profile button, name, location, 
-comments below image
 image - swipe up - show map and details. add show details to menu
 image - scale to fit area between title and tumbnails
 use time on photo as pin time
-make all toolbar buttons the same color.
 
 
 Near places , share url
@@ -37,18 +37,12 @@ Share with droid ? Make album ? Difference with Facebook ?
 Book ? 
 
 
-nearbyphotos - remove add and places buttons. use StackListView when displaying photos. add close button to nearbu photos. change done button in nearby photo 
-
-Add find similar using model. 
-
 do not resort items unless call search here, done on top right of the map
 
 add multi-line edit. add cancel, done. add list of places nearby
 when selecting place, navigate with back button?
 
 
-
- invented word combining reminisce + aurora (dawn of memory)
  
 ==========
 

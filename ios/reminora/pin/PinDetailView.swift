@@ -110,86 +110,69 @@ struct PinDetailView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     
-                    // Title below navigation area
-                    VStack(alignment: .leading, spacing: 8) {
-                        if let post = place.post, !post.isEmpty {
-                            Text(post)
-                                .font(.largeTitle)
-                                .fontWeight(.bold)
-                                .foregroundColor(.primary)
-                                .multilineTextAlignment(.leading)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 80) // Reduced space for navigation buttons
-
-                    // Comments section
-                    SimpleCommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
-                        .padding(.top, 16)
-
-                    // Author info and Share button on same line
-                    HStack {
-                        if isFromOtherUser {
-                            // Show user profile button for other users' pins
-                            if let shareInfo = sharedByInfo {
+                    // Header with user icon and title below back button
+                    HStack(spacing: 12) {
+                        // User icon in circle - clickable if from other user
+                        Group {
+                            if isFromOtherUser {
                                 Button(action: {
                                     showingUserProfile = true
                                 }) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "person.circle")
-                                        Text("@\(shareInfo.userName)")
-                                    }
-                                    .font(.subheadline)
-                                    .foregroundColor(.blue)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(Color.blue.opacity(0.1))
-                                    .cornerRadius(20)
+                                    Image(systemName: "person.fill")
+                                        .font(.title2)
+                                        .foregroundColor(.white)
+                                        .frame(width: 44, height: 44)
+                                        .background(Circle().fill(Color.blue))
                                 }
                             } else {
-                                // Fallback for shared pins without clear ownership
-                                HStack(spacing: 4) {
-                                    Image(systemName: "shared.with.you")
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                    Text("Shared")
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                }
+                                Image(systemName: "person.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.white)
+                                    .frame(width: 44, height: 44)
+                                    .background(Circle().fill(Color.blue))
                             }
-                        } else {
-                            // Show private/public indicator for current user's pins
-                            HStack(spacing: 4) {
-                                Image(systemName: place.isPrivate ? "lock.fill" : "globe")
-                                    .font(.caption)
-                                    .foregroundColor(place.isPrivate ? .orange : .green)
+                        }
+                        
+                        // Two-line design next to icon
+                        VStack(alignment: .leading, spacing: 2) {
+                            // Top line - title (bigger font)
+                            if let post = place.post, !post.isEmpty {
+                                Text(post)
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.primary)
+                                    .lineLimit(2)
+                            } else {
+                                Text("Untitled")
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            // Bottom line - owner info
+                            if isFromOtherUser {
+                                // Show owner name
+                                if let shareInfo = sharedByInfo {
+                                    Text("by @\(shareInfo.userName)")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("Shared")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                            } else {
+                                // Show privacy status
                                 Text(place.isPrivate ? "Private" : "Public")
-                                    .font(.caption)
+                                    .font(.subheadline)
                                     .foregroundColor(place.isPrivate ? .orange : .green)
                             }
                         }
                         
                         Spacer()
-                        
-                        // Share button on the right
-                        Button(action: {
-                            sharePlace()
-                        }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "square.and.arrow.up")
-                                Text("Share")
-                            }
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(20)
-                        }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 20)
+                    .padding(.top, 80) // Below back button
 
                     // Addresses section
                     if !placeAddresses.isEmpty {
@@ -238,6 +221,20 @@ struct PinDetailView: View {
                             .padding(.top, 12)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    
+                    // Comments section below photo
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Comments:")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        
+                        SimpleCommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
+                    }
+                    .padding(.top, 20)
 
                     // Map at the bottom
                     Map(coordinateRegion: $region, annotationItems: [place] + nearbyPlaces) { item in
@@ -358,21 +355,21 @@ struct PinDetailView: View {
                 title: "Map",
                 systemImage: "map",
                 action: showNearbyPlaces,
-                color: .green
+                color: .blue
             ),
             ToolbarButtonConfig(
                 id: "photos",
                 title: "Photos",
                 systemImage: "photo.stack",
                 action: showNearbyPhotos,
-                color: .orange
+                color: .blue
             ),
             ToolbarButtonConfig(
                 id: "list",
                 title: "Quick",
                 systemImage: "plus.square",
                 action: addToQuickList,
-                color: .purple
+                color: .blue
             )
         ]
         

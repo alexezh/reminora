@@ -138,7 +138,7 @@ class APIService: ObservableObject {
     
     // MARK: - Photo Management
     
-    func uploadPhoto(
+    func uploadPin(
         imageData: Data,
         location: CLLocation?,
         caption: String?
@@ -179,7 +179,7 @@ class APIService: ObservableObject {
         return try await performRequest(request: request, responseType: TimelineResponse.self)
     }
     
-    func getPhotosByAccount(
+    func getPinsByAccount(
         accountId: String,
         limit: Int = 50,
         offset: Int = 0
@@ -194,7 +194,7 @@ class APIService: ObservableObject {
         return try await performRequest(request: request, responseType: [PinAPI].self)
     }
     
-    func deletePhoto(id: String) async throws {
+    func deletePin(id: String) async throws {
         let url = URL(string: "\(baseURL)/api/pins/\(id)")!
         let request = createRequest(url: url, method: "DELETE")
         

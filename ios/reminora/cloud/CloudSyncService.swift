@@ -118,7 +118,7 @@ class CloudSyncService: ObservableObject {
         print("🌐 CloudSyncService: Uploading pin to backend...")
         
         // Upload to cloud using photos API (pins are stored as photos in backend)
-        let cloudPhoto = try await apiService.uploadPhoto(
+        let cloudPhoto = try await apiService.uploadPin(
             imageData: imageData,
             location: location,
             caption: place.post

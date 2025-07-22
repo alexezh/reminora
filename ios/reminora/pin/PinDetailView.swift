@@ -40,6 +40,7 @@ struct PinDetailView: View {
     @State private var showingNearbyPlaces = false
     @State private var showingActionMenu = false
     @State private var showingUserProfile = false
+    @State private var showingEditAddresses = false
 
     init(place: Place, allPlaces: [Place], onBack: @escaping () -> Void) {
         self.place = place
@@ -99,6 +100,11 @@ struct PinDetailView: View {
         let result = pinSharingService.isSharedFromOtherUser(place, context: viewContext)
         //print("🔍 PinDetailView isFromOtherUser: \(result) for place: \(place.post ?? "Unknown")")
         return result
+    }
+    
+    // Determine if current user is the owner of this pin
+    private var isOwner: Bool {
+        return !isFromOtherUser
     }
 
     var body: some View {
@@ -278,6 +284,11 @@ struct PinDetailView: View {
                     
                     // Action button - iOS 16 style menu
                     Menu {
+                        if isOwner {
+                            Button("Edit Address") {
+                                showingEditAddresses = true
+                            }
+                        }
                         Button("Map") {
                             showNearbyPlaces()
                         }
@@ -330,6 +341,14 @@ struct PinDetailView: View {
                     userHandle: shareInfo.userName
                 )
             }
+        }
+        .sheet(isPresented: $showingEditAddresses) {
+            SelectLocationsView(
+                initialAddresses: placeAddresses,
+                onSave: { addresses in
+                    saveAddresses(addresses)
+                }
+            )
         }
         .onAppear {
             setupToolbar()
@@ -464,6 +483,21 @@ struct PinDetailView: View {
 
         } catch {
             print("Failed to add place to Quick list: \(error)")
+        }
+    }
+
+    private func saveAddresses(_ addresses: [PlaceAddress]) {
+        do {
+            let jsonData = try JSONEncoder().encode(addresses)
+            let jsonString = String(data: jsonData, encoding: .utf8)
+            
+            // Save to Core Data
+            place.locations = jsonString
+            try viewContext.save()
+            
+            print("✅ Successfully saved \(addresses.count) addresses to place")
+        } catch {
+            print("❌ Failed to save addresses: \(error)")
         }
     }
 

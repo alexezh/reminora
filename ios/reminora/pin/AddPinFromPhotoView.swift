@@ -24,6 +24,10 @@ struct AddPinFromPhotoView: View {
     @State private var isSaving = false
     @State private var isPrivate = false
     @State private var showingAuthentication = false
+    @State private var placeName: String? = nil
+    @State private var country: String? = nil
+    @State private var city: String? = nil
+    @State private var isLoadingLocation = false
     
     private let cloudSyncService = CloudSyncService.shared
     
@@ -85,17 +89,69 @@ struct AddPinFromPhotoView: View {
                             .font(.headline)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
-                        // Coordinates
-                        HStack {
-                            Image(systemName: "location.fill")
-                                .foregroundColor(.blue)
-                            Text(String(format: "%.4f, %.4f", location.coordinate.latitude, location.coordinate.longitude))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .monospaced()
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                            Spacer()
+                        // Location info with reverse geocoding
+                        VStack(alignment: .leading, spacing: 4) {
+                            if isLoadingLocation {
+                                HStack {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                    Text("Finding location...")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            } else if let placeName = placeName {
+                                HStack {
+                                    Image(systemName: "location.fill")
+                                        .foregroundColor(.blue)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(placeName)
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                            .foregroundColor(.primary)
+                                        if let city = city, let country = country {
+                                            Text("\(city), \(country)")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        } else if let country = country {
+                                            Text(country)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                }
+                            } else if let city = city, let country = country {
+                                HStack {
+                                    Image(systemName: "location.fill")
+                                        .foregroundColor(.blue)
+                                    Text("\(city), \(country)")
+                                        .font(.subheadline)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                }
+                            } else if let country = country {
+                                HStack {
+                                    Image(systemName: "location.fill")
+                                        .foregroundColor(.blue)
+                                    Text(country)
+                                        .font(.subheadline)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                }
+                            } else {
+                                // Fallback to coordinates
+                                HStack {
+                                    Image(systemName: "location.fill")
+                                        .foregroundColor(.blue)
+                                    Text(String(format: "%.4f, %.4f", location.coordinate.latitude, location.coordinate.longitude))
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .monospaced()
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
+                                    Spacer()
+                                }
+                            }
                         }
                         .frame(maxWidth: .infinity)
                         
@@ -154,6 +210,9 @@ struct AddPinFromPhotoView: View {
         }
         .onAppear {
             loadImage()
+            if let location = asset.location {
+                reverseGeocodeLocation(location)
+            }
         }
         .sheet(isPresented: $showingAuthentication) {
             AuthenticationView()
@@ -229,4 +288,40 @@ struct AddPinFromPhotoView: View {
             }
         }
     }
+    
+    private func reverseGeocodeLocation(_ location: CLLocation) {
+        isLoadingLocation = true
+        let geocoder = CLGeocoder()
+        
+        geocoder.reverseGeocodeLocation(location) { placemarks, error in
+            DispatchQueue.main.async {
+                self.isLoadingLocation = false
+                
+                if let error = error {
+                    print("❌ Reverse geocoding failed: \(error)")
+                    return
+                }
+                
+                guard let placemark = placemarks?.first else {
+                    print("ℹ️ No placemark found")
+                    return
+                }
+                
+                // Extract place information
+                self.placeName = placemark.name
+                self.city = placemark.locality ?? placemark.administrativeArea
+                self.country = placemark.country
+                
+                print("🗺️ Geocoded location:")
+                print("  Place: \(placemark.name ?? "None")")
+                print("  City: \(placemark.locality ?? "None")")
+                print("  Country: \(placemark.country ?? "None")")
+            }
+        }
+    }
+}
+
+struct MapPin: Identifiable {
+    let id = UUID()
+    let coordinate: CLLocationCoordinate2D
 }

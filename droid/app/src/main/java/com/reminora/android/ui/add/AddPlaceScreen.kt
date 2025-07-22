@@ -148,41 +148,113 @@ fun AddPlaceScreen(
         
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Location status
+        // Location status with reverse geocoding
         Card(
             modifier = Modifier.fillMaxWidth(),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    if (addState.hasLocationPermission) Icons.Default.LocationOn else Icons.Default.LocationOff,
-                    contentDescription = "Location",
-                    tint = if (addState.hasLocationPermission) 
-                        MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (addState.hasLocationPermission) "Location enabled" else "Location disabled",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Medium
+            Column(modifier = Modifier.padding(16.dp)) {
+                // Permission status row
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (addState.hasLocationPermission) Icons.Default.LocationOn else Icons.Default.LocationOff,
+                        contentDescription = "Location",
+                        tint = if (addState.hasLocationPermission) 
+                            MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                     )
-                    Text(
-                        text = if (addState.hasLocationPermission) 
-                            "Your current location will be saved" 
-                        else 
-                            "Enable location to save where you are",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (addState.hasLocationPermission) "Location enabled" else "Location disabled",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = if (addState.hasLocationPermission) 
+                                "Photo location will be extracted and displayed" 
+                            else 
+                                "Enable location to save where photos were taken",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (!addState.hasLocationPermission) {
+                        TextButton(onClick = { showLocationPermissionDialog = true }) {
+                            Text("Enable")
+                        }
+                    }
                 }
-                if (!addState.hasLocationPermission) {
-                    TextButton(onClick = { showLocationPermissionDialog = true }) {
-                        Text("Enable")
+                
+                // Location info display
+                if (addState.hasLocationPermission && addState.selectedImageUri != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Location details
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (addState.isLoadingLocation) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Finding location...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else if (addState.placeName != null) {
+                            Column {
+                                Text(
+                                    text = addState.placeName!!,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                if (addState.city != null && addState.country != null) {
+                                    Text(
+                                        text = "${addState.city}, ${addState.country}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else if (addState.country != null) {
+                                    Text(
+                                        text = addState.country!!,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else if (addState.city != null && addState.country != null) {
+                            Text(
+                                text = "${addState.city}, ${addState.country}",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else if (addState.country != null) {
+                            Text(
+                                text = addState.country!!,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else if (addState.coordinates != null) {
+                            Text(
+                                text = String.format("%.4f, %.4f", 
+                                    addState.coordinates!!.latitude, 
+                                    addState.coordinates!!.longitude),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                            )
+                        } else {
+                            Text(
+                                text = "No location data available",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                 }
             }

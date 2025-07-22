@@ -601,19 +601,6 @@ struct PhotoDetailView: View {
     }
 }
 
-
-
-
-
-struct MapPin: Identifiable {
-    let id = UUID()
-    let coordinate: CLLocationCoordinate2D
-}
-
-
-
-
-
 struct PhotoShareData: Identifiable {
     let id = UUID()
     let message: String

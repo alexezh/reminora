@@ -367,17 +367,12 @@ struct UserProfileView: View {
         
         // Always try to load from backend first, but also maintain local cache
         do {
-            // Fetch user pins from cloud API (limit 50)
-            print("🌐 Fetching user pins from cloud for user: \(userId)")
-            let photos = try await APIService.shared.getUserPins(userId: userId, limit: 50)
-            print("🌐 Received \(photos.count) pins from API")
-            
-            // Sync cloud pins to local storage for persistence
-            await syncCloudPhotosToLocal(photos)
+            // Use CloudSyncService to fetch and sync user pins
+            let photos = try await CloudSyncService.shared.syncUserPins(userId: userId, limit: 50)
             
             for photo in photos {
-                // Convert Photo to a Core Data Place for RListView
-                let place = await convertPhotoToPlace(photo, context: viewContext)
+                // Convert Photo to a Core Data Place for RListView using CloudSyncService
+                let place = CloudSyncService.shared.convertPhotoToPlace(photo, context: viewContext)
                 
                 let contentItem = UserContentItem(
                     id: photo.id,
@@ -387,8 +382,6 @@ struct UserProfileView: View {
                 )
                 contentItems.append(contentItem)
             }
-            
-            print("✅ Loaded \(photos.count) pins from cloud and synced to local")
             
         } catch {
             print("❌ Failed to load user pins from cloud: \(error)")
@@ -408,69 +401,6 @@ struct UserProfileView: View {
         return contentItems
     }
     
-    private func syncCloudPhotosToLocal(_ photos: [PinAPI]) async {
-        await MainActor.run {
-            print("🔄 Syncing \(photos.count) cloud photos to local storage")
-            
-            for photo in photos {
-                // Check if this photo already exists locally
-                let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
-                fetchRequest.predicate = NSPredicate(format: "cloudId == %@", photo.id)
-                
-                do {
-                    let existingPlaces = try viewContext.fetch(fetchRequest)
-                    
-                    if existingPlaces.isEmpty {
-                        // Create new local place from cloud data
-                        let place = Place(context: viewContext)
-                        place.post = photo.caption ?? ""
-                        place.url = photo.location_name ?? ""
-                        place.dateAdded = Date(timeIntervalSince1970: photo.created_at)
-                        place.isPrivate = false // Photos from API are shared
-                        place.setValue(photo.id, forKey: "cloudId")
-                        
-                        // Store location
-                        if let location = photo.location {
-                            if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
-                                place.setValue(locationData, forKey: "location")
-                            }
-                        }
-                        
-                        // Store image data
-                        if let imageData = Data(base64Encoded: photo.photo_data.image_data) {
-                            place.imageData = imageData
-                        }
-                        
-                        print("📱 Created local place for cloud photo: \(photo.caption ?? photo.id)")
-                    } else {
-                        // Update existing local place with cloud data
-                        let place = existingPlaces.first!
-                        place.post = photo.caption ?? ""
-                        place.url = photo.location_name ?? ""
-                        place.dateAdded = Date(timeIntervalSince1970: photo.created_at)
-                        place.isPrivate = false
-                        
-                        // Update image data
-                        if let imageData = Data(base64Encoded: photo.photo_data.image_data) {
-                            place.imageData = imageData
-                        }
-                        
-                        print("📱 Updated local place for cloud photo: \(photo.caption ?? photo.id)")
-                    }
-                } catch {
-                    print("❌ Failed to sync photo \(photo.id): \(error)")
-                }
-            }
-            
-            // Save all changes
-            do {
-                try viewContext.save()
-                print("✅ Successfully synced cloud photos to local storage")
-            } catch {
-                print("❌ Failed to save synced photos: \(error)")
-            }
-        }
-    }
     
     private func loadLocalUserContent(_ contentItems: inout [UserContentItem]) async {
         await MainActor.run {
@@ -483,11 +413,12 @@ struct UserProfileView: View {
             let isCurrentUser = userId == AuthenticationService.shared.currentAccount?.id
             
             if isCurrentUser {
-                // For current user, show ALL pins (local and shared)
-                pinFetchRequest.predicate = nil
+                // For current user, show pins where originalUserId is nil (user's own pins) OR originalUserId matches current user
+                let currentUserId = AuthenticationService.shared.currentAccount?.id ?? ""
+                pinFetchRequest.predicate = NSPredicate(format: "originalUserId == nil OR originalUserId == %@", currentUserId)
             } else {
-                // For other users, only show shared pins (pins with cloudId)
-                pinFetchRequest.predicate = NSPredicate(format: "cloudId != nil")
+                // For other users, show pins where originalUserId matches the target user
+                pinFetchRequest.predicate = NSPredicate(format: "originalUserId == %@", userId)
             }
             
             pinFetchRequest.sortDescriptors = [NSSortDescriptor(key: "dateAdded", ascending: false)]
@@ -543,79 +474,8 @@ struct UserProfileView: View {
         }
     }
     
-    @MainActor
-    private func convertPhotoToPlace(_ photo: PinAPI, context: NSManagedObjectContext) async -> Place {
-        // Create a virtual place from Photo for RListView display
-        let place = Place(context: context)
-        place.post = photo.caption ?? ""
-        place.url = photo.location_name ?? ""
-        place.dateAdded = Date(timeIntervalSince1970: photo.created_at)
-        place.isPrivate = false // Photos from API are shared
-        place.setValue(photo.id, forKey: "cloudId")
-        
-        // Store location
-        if let location = photo.location {
-            if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
-                place.setValue(locationData, forKey: "location")
-            }
-        }
-        
-        // Store image data directly from photo
-        if let imageData = Data(base64Encoded: photo.photo_data.image_data) {
-            place.imageData = imageData
-        } else {
-            // Create placeholder image for photos without images
-            place.imageData = createPinPlaceholderImageData()
-        }
-        
-        // Ensure this doesn't get saved to Core Data (it's virtual)
-        context.refresh(place, mergeChanges: false)
-        
-        return place
-    }
     
     
-    private func createPinPlaceholderImageData() -> Data? {
-        let size = CGSize(width: 200, height: 200)
-        let renderer = UIGraphicsImageRenderer(size: size)
-        
-        let image = renderer.image { context in
-            // Create a pin-themed placeholder
-            UIColor.systemGreen.withAlphaComponent(0.2).setFill()
-            context.fill(CGRect(origin: .zero, size: size))
-            
-            // Add pin icon
-            let iconSize: CGFloat = 80
-            let iconRect = CGRect(
-                x: (size.width - iconSize) / 2,
-                y: (size.height - iconSize) / 2,
-                width: iconSize,
-                height: iconSize
-            )
-            
-            UIColor.systemGreen.setFill()
-            let iconPath = UIBezierPath(ovalIn: iconRect)
-            iconPath.fill()
-            
-            // Add pin text
-            let text = "📍"
-            let font = UIFont.systemFont(ofSize: 40)
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: UIColor.white
-            ]
-            let textSize = text.size(withAttributes: attributes)
-            let textRect = CGRect(
-                x: (size.width - textSize.width) / 2,
-                y: (size.height - textSize.height) / 2,
-                width: textSize.width,
-                height: textSize.height
-            )
-            text.draw(in: textRect, withAttributes: attributes)
-        }
-        
-        return image.jpegData(compressionQuality: 0.8)
-    }
     
     // Create a virtual place for comment display in RListView
     private func createVirtualPlaceForComment(_ comment: Comment, in context: NSManagedObjectContext) -> Place {

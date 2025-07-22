@@ -1,6 +1,7 @@
 import Foundation
 import CoreData
 import CoreLocation
+import UIKit
 
 /**
  * Service to sync local Core Data with cloud backend
@@ -211,6 +212,12 @@ class CloudSyncService: ObservableObject {
         place.setValue(cloudPhoto.caption, forKey: "post")
         place.setValue(Date(), forKey: "cloudSyncedAt")
         place.setValue(false, forKey: "isPrivate")  // Cloud photos are public by default
+        place.setValue(cloudPhoto.location_name, forKey: "url")
+        
+        // Store original user information to preserve ownership
+        place.setValue(cloudPhoto.account_id, forKey: "originalUserId")
+        place.setValue(cloudPhoto.username, forKey: "originalUsername")
+        place.setValue(cloudPhoto.display_name, forKey: "originalDisplayName")
         
         // Convert image data
         if let imageData = Data(base64Encoded: cloudPhoto.photo_data.image_data) {
@@ -225,10 +232,6 @@ class CloudSyncService: ObservableObject {
             )
             place.setValue(locationData, forKey: "location")
         }
-        
-        // Add user info as metadata
-        let userInfo = "Shared by \(cloudPhoto.display_name) (@\(cloudPhoto.username))"
-        place.setValue(userInfo, forKey: "url") // Using URL field for user info
     }
     
     private func updatePlaceFromCloudPhoto(place: Place, cloudPhoto: PinAPI) {
@@ -238,6 +241,189 @@ class CloudSyncService: ObservableObject {
         }
         
         place.setValue(Date(), forKey: "cloudSyncedAt")
+    }
+    
+    // MARK: - User Profile Sync
+    
+    /**
+     * Sync pins for a specific user profile
+     */
+    func syncUserPins(userId: String, limit: Int = 50) async throws -> [PinAPI] {
+        print("🌐 CloudSyncService: Fetching user pins from cloud for user: \(userId)")
+        let photos = try await apiService.getUserPins(userId: userId, limit: limit)
+        print("🌐 CloudSyncService: Received \(photos.count) pins from API")
+        
+        // Sync to local storage for persistence
+        await syncUserPinsToLocal(photos, userId: userId)
+        
+        print("✅ CloudSyncService: Loaded \(photos.count) pins from cloud and synced to local")
+        return photos
+    }
+    
+    /**
+     * Sync user pins to local Core Data storage with proper ownership
+     */
+    private func syncUserPinsToLocal(_ photos: [PinAPI], userId: String) async {
+        await MainActor.run {
+            let context = persistenceController.container.viewContext
+            print("🔄 CloudSyncService: Syncing \(photos.count) cloud photos to local storage")
+            
+            for photo in photos {
+                // Check if this photo already exists locally
+                let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "cloudId == %@", photo.id)
+                
+                do {
+                    let existingPlaces = try context.fetch(fetchRequest)
+                    
+                    if existingPlaces.isEmpty {
+                        // Create new local place from cloud data
+                        let place = Place(context: context)
+                        place.post = photo.caption ?? ""
+                        place.url = photo.location_name ?? ""
+                        place.dateAdded = Date(timeIntervalSince1970: photo.created_at)
+                        place.isPrivate = false // Photos from API are shared
+                        place.setValue(photo.id, forKey: "cloudId")
+                        
+                        // Store original user information to preserve ownership
+                        place.setValue(photo.account_id, forKey: "originalUserId")
+                        place.setValue(photo.username, forKey: "originalUsername")
+                        place.setValue(photo.display_name, forKey: "originalDisplayName")
+                        
+                        // Store location
+                        if let location = photo.location {
+                            if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
+                                place.setValue(locationData, forKey: "location")
+                            }
+                        }
+                        
+                        // Store image data
+                        if let imageData = Data(base64Encoded: photo.photo_data.image_data) {
+                            place.imageData = imageData
+                        }
+                        
+                        print("📱 CloudSyncService: Created local place for cloud photo: \(photo.caption ?? photo.id)")
+                    } else {
+                        // Update existing local place with cloud data
+                        let place = existingPlaces.first!
+                        place.post = photo.caption ?? ""
+                        place.url = photo.location_name ?? ""
+                        place.dateAdded = Date(timeIntervalSince1970: photo.created_at)
+                        place.isPrivate = false
+                        
+                        // Update original user information to preserve ownership
+                        place.setValue(photo.account_id, forKey: "originalUserId")
+                        place.setValue(photo.username, forKey: "originalUsername")
+                        place.setValue(photo.display_name, forKey: "originalDisplayName")
+                        
+                        // Update image data
+                        if let imageData = Data(base64Encoded: photo.photo_data.image_data) {
+                            place.imageData = imageData
+                        }
+                        
+                        print("📱 CloudSyncService: Updated local place for cloud photo: \(photo.caption ?? photo.id)")
+                    }
+                } catch {
+                    print("❌ CloudSyncService: Failed to sync photo \(photo.id): \(error)")
+                }
+            }
+            
+            // Save all changes
+            do {
+                try context.save()
+                print("✅ CloudSyncService: Successfully synced cloud photos to local storage")
+            } catch {
+                print("❌ CloudSyncService: Failed to save synced photos: \(error)")
+            }
+        }
+    }
+    
+    /**
+     * Convert cloud photo to virtual Place object for display
+     */
+    func convertPhotoToPlace(_ photo: PinAPI, context: NSManagedObjectContext) -> Place {
+        // Create a virtual place from Photo for RListView display
+        let place = Place(context: context)
+        
+        // Use caption if available, otherwise use a default title
+        let title = photo.caption?.isEmpty == false ? photo.caption! : "Pin \(photo.id.prefix(8))"
+        place.post = title
+        place.url = photo.location_name ?? ""
+        place.dateAdded = Date(timeIntervalSince1970: photo.created_at)
+        place.isPrivate = false // Photos from API are shared
+        place.setValue(photo.id, forKey: "cloudId")
+        
+        // Store original user information to preserve ownership
+        place.setValue(photo.account_id, forKey: "originalUserId")
+        place.setValue(photo.username, forKey: "originalUsername")
+        place.setValue(photo.display_name, forKey: "originalDisplayName")
+        
+        print("📍 CloudSyncService: Converting pin \(photo.id): title='\(title)', owner='\(photo.username)', has_image_data=\(photo.photo_data.image_data.count > 0)")
+        
+        // Store location
+        if let location = photo.location {
+            if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
+                place.setValue(locationData, forKey: "location")
+            }
+        }
+        
+        // Store image data directly from photo
+        if let imageData = Data(base64Encoded: photo.photo_data.image_data) {
+            place.imageData = imageData
+        } else {
+            // Create placeholder image for photos without images
+            place.imageData = createPinPlaceholderImageData()
+        }
+        
+        // Ensure this doesn't get saved to Core Data (it's virtual)
+        context.refresh(place, mergeChanges: false)
+        
+        return place
+    }
+    
+    /**
+     * Create placeholder image for pins without actual images
+     */
+    private func createPinPlaceholderImageData() -> Data? {
+        let size = CGSize(width: 200, height: 200)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        
+        let image = renderer.image { context in
+            // Create a pin-themed placeholder
+            UIColor.systemGreen.withAlphaComponent(0.2).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            
+            // Add pin icon
+            let iconSize: CGFloat = 80
+            let iconRect = CGRect(
+                x: (size.width - iconSize) / 2,
+                y: (size.height - iconSize) / 2,
+                width: iconSize,
+                height: iconSize
+            )
+            
+            UIColor.systemGreen.setFill()
+            let iconPath = UIBezierPath(ovalIn: iconRect)
+            iconPath.fill()
+            
+            // Add pin text
+            let text = "📍"
+            let font = UIFont.systemFont(ofSize: 40)
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: UIColor.white
+            ]
+            let textSize = text.size(withAttributes: attributes)
+            let textRect = CGRect(
+                x: (size.width - textSize.width) / 2,
+                y: (size.height - textSize.height) / 2,
+                width: textSize.width,
+                height: textSize.height
+            )
+            text.draw(in: textRect, withAttributes: attributes)
+        }
+        
+        return image.jpegData(compressionQuality: 0.8)
     }
     
     // MARK: - Follow Management

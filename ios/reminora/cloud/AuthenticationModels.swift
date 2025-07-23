@@ -115,4 +115,5 @@ enum KeychainKey: String {
     case sessionToken = "reminora_session_token"
     case refreshToken = "reminora_refresh_token"
     case accountData = "reminora_account_data"
+    case providerData = "reminora_provider_data"
 }

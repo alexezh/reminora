@@ -45,10 +45,11 @@ struct reminoraApp: App {
     @State private var pendingURL: URL?
 
     init() {
-        // Configure Facebook FIRST - before any other initialization
-        FacebookConfigHelper.loadAndConfigureFacebook()
+        // Configure Google Sign-In (always needed for OAuth)
         configureGoogleSignIn()
-        configureFacebookSDK()
+        
+        // Facebook SDK will be initialized lazily only when needed
+        // This prevents automatic AppEvents from being sent when users are logged in with other providers
     }
 
     var body: some Scene {

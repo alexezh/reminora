@@ -11,6 +11,7 @@ struct PinMainView: View {
   @StateObject private var locationManager = LocationManager()
   @StateObject private var authService = AuthenticationService.shared
   @StateObject private var cloudSyncService = CloudSyncService.shared
+  @StateObject private var pinFilterService = PinFilterService.shared
 
   @FetchRequest(
     sortDescriptors: [NSSortDescriptor(keyPath: \Place.dateAdded, ascending: true)],
@@ -23,20 +24,22 @@ struct PinMainView: View {
   @State private var lastSyncTime: Date? = nil
   @State private var selectedPlace: Place?
   @State private var selectedUser: (String, String)?
+  @State private var selectedLocationPlace: Place?
   @State private var showingActionMenu = false
+  @State private var showingOpenInvite = false
 
   var filteredItems: [Place] {
+    let allItems = Array(items).sorted { a, b in
+      (a.dateAdded ?? Date.distantPast) > (b.dateAdded ?? Date.distantPast)
+    }
+    
     if !searchText.isEmpty {
-      // Text search in place names/posts
-      return items.filter { item in
-        (item.post?.localizedCaseInsensitiveContains(searchText) ?? false)
-          || (item.url?.localizedCaseInsensitiveContains(searchText) ?? false)
-      }
+      // Use PinFilterService for fuzzy search
+      let filtered = pinFilterService.filterPins(allItems, searchText: searchText)
+      return pinFilterService.sortByRelevance(filtered, searchText: searchText)
     } else {
       // Return items sorted by date added (most recent first)
-      return Array(items).sorted { a, b in
-        (a.dateAdded ?? Date.distantPast) > (b.dateAdded ?? Date.distantPast)
-      }
+      return allItems
     }
   }
 
@@ -45,7 +48,7 @@ struct PinMainView: View {
     GeometryReader { geometry in
       NavigationView {
         VStack(spacing: 0) {
-          // Fixed header with title and action button
+          // Fixed header with title and buttons
           HStack {
             Text("Pins")
               .font(.largeTitle)
@@ -53,25 +56,64 @@ struct PinMainView: View {
             
             Spacer()
             
-            Menu {
-              Button("Add Pin from Photo") {
-                // TODO: Navigate to photo library
-              }
-              Button("Add Pin from Location") {
-                // TODO: Navigate to location picker
-              }
-              Button("Search") {
-                if searchText.isEmpty {
-                  searchText = " " // Trigger search bar
+            // Search button
+            Button(action: {
+              withAnimation(.easeInOut(duration: 0.3)) {
+                isSearching.toggle()
+                if !isSearching {
+                  searchText = ""
                 }
+              }
+            }) {
+              Image(systemName: isSearching ? "xmark" : "magnifyingglass")
+                .font(.title2)
+                .foregroundColor(.blue)
+            }
+            .padding(.trailing, 8)
+            
+            // Action menu
+            Menu {
+              Button("Add Pin") {
+                // TODO: Navigate to add pin
+              }
+              Button("Add Open Invite") {
+                showingOpenInvite = true
               }
             } label: {
               Image(systemName: "plus")
                 .font(.title2)
+                .foregroundColor(.blue)
             }
           }
           .padding(.horizontal, 16)
           .padding(.bottom, 8)
+          
+          // Search bar (when active)
+          if isSearching {
+            HStack {
+              Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+                .padding(.leading, 8)
+
+              TextField("Search by location or title...", text: $searchText)
+                .textFieldStyle(PlainTextFieldStyle())
+                .padding(.vertical, 8)
+
+              if !searchText.isEmpty {
+                Button("Clear") {
+                  searchText = ""
+                }
+                .font(.caption)
+                .foregroundColor(.blue)
+                .padding(.trailing, 8)
+              }
+            }
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+            .transition(.opacity.combined(with: .move(edge: .top)))
+          }
           
           // Main card list
           ScrollView {
@@ -80,8 +122,14 @@ struct PinMainView: View {
                 PinCardView(
                   place: place,
                   cardHeight: geometry.size.height * 0.25, // 1/4 screen height
+                  onPhotoTap: {
+                    selectedPlace = place
+                  },
                   onTitleTap: {
                     selectedPlace = place
+                  },
+                  onMapTap: {
+                    selectedLocationPlace = place
                   },
                   onUserTap: { userId, userName in
                     selectedUser = (userId, userName)
@@ -94,35 +142,7 @@ struct PinMainView: View {
             .padding(.bottom, 100) // Space for bottom content
           }
           .refreshable {
-            await syncFollowingUsers()
-          }
-          
-          // Search bar overlay when expanded
-          if !searchText.isEmpty {
-            VStack {
-              HStack {
-                Image(systemName: "magnifyingglass")
-                  .foregroundColor(.secondary)
-                  .padding(.leading, 8)
-
-                TextField("Search places...", text: $searchText)
-                  .textFieldStyle(RoundedBorderTextFieldStyle())
-
-                Button("Clear") {
-                  searchText = ""
-                  isSearching = false
-                }
-                .foregroundColor(.blue)
-                .padding(.trailing, 8)
-              }
-              .padding(.horizontal, 16)
-              .padding(.top, 8)
-              .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-              .padding(.horizontal, 16)
-              
-              Spacer()
-            }
-            .zIndex(1)
+            await performBackgroundSync()
           }
           
           // Sync indicator
@@ -180,6 +200,19 @@ struct PinMainView: View {
           }
           .hidden()
         }
+        
+        if let selectedLocationPlace = selectedLocationPlace {
+          NavigationLink(
+            destination: NearbyLocationsPageView(
+              searchLocation: getLocationFromPlace(selectedLocationPlace)?.coordinate ?? CLLocationCoordinate2D(latitude: 0, longitude: 0),
+              locationName: selectedLocationPlace.post ?? "this location"
+            ),
+            isActive: .constant(true)
+          ) {
+            EmptyView()
+          }
+          .hidden()
+        }
       }
     )
     .onAppear {
@@ -189,6 +222,10 @@ struct PinMainView: View {
       // Clear navigation state when returning to this view
       selectedPlace = nil
       selectedUser = nil
+      selectedLocationPlace = nil
+    }
+    .sheet(isPresented: $showingOpenInvite) {
+      OpenInviteView()
     }
   }
 
@@ -201,7 +238,7 @@ struct PinMainView: View {
     
     if shouldSync {
       Task {
-        await syncFollowingUsers()
+        await performBackgroundSync()
       }
     }
   }
@@ -225,12 +262,20 @@ struct PinMainView: View {
     return true
   }
   
+  private func performBackgroundSync() async {
+    // Perform sync operations entirely in background to avoid UI blocking
+    await Task.detached {
+      await self.syncFollowingUsers()
+    }.value
+  }
+  
   private func syncFollowingUsers() async {
     guard authService.currentAccount != nil else {
       print("🔄 PinMainView: Cannot sync - not authenticated")
       return
     }
     
+    // Update UI state on main actor with minimal work
     await MainActor.run {
       isSyncingFollows = true
     }
@@ -238,24 +283,29 @@ struct PinMainView: View {
     print("🔄 PinMainView: Starting sync of following users")
     
     do {
-      // Get list of users being followed from local Core Data
+      // Get list of users being followed from local Core Data (background operation)
       let followedUsers = await getFollowedUsers()
       print("🔄 PinMainView: Found \(followedUsers.count) followed users")
       
-      // Sync pins for each followed user
-      for followedUser in followedUsers {
-        do {
-          print("🔄 PinMainView: Syncing pins for user: \(followedUser.name ?? "unknown") (ID: \(followedUser.userId ?? "unknown"))")
-          
-          if let userId = followedUser.userId {
-            let _ = try await cloudSyncService.syncUserPins(userId: userId, limit: 20)
-            print("✅ PinMainView: Successfully synced pins for user: \(followedUser.name ?? "unknown")")
+      // Sync pins for each followed user (background operation)
+      await withTaskGroup(of: Void.self) { group in
+        for followedUser in followedUsers {
+          group.addTask {
+            do {
+              print("🔄 PinMainView: Syncing pins for user: \(followedUser.name ?? "unknown") (ID: \(followedUser.userId ?? "unknown"))")
+              
+              if let userId = followedUser.userId {
+                let _ = try await self.cloudSyncService.syncUserPins(userId: userId, limit: 20)
+                print("✅ PinMainView: Successfully synced pins for user: \(followedUser.name ?? "unknown")")
+              }
+            } catch {
+              print("❌ PinMainView: Failed to sync user \(followedUser.name ?? "unknown"): \(error)")
+            }
           }
-        } catch {
-          print("❌ PinMainView: Failed to sync user \(followedUser.name ?? "unknown"): \(error)")
         }
       }
       
+      // Update UI state on completion
       await MainActor.run {
         isSyncingFollows = false
         lastSyncTime = Date()
@@ -272,220 +322,37 @@ struct PinMainView: View {
   }
   
   private func getFollowedUsers() async -> [UserList] {
-    return await MainActor.run {
-      let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
-      fetchRequest.predicate = NSPredicate(format: "userId != nil AND userId != ''")
-      fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
-      
-      do {
-        let users = try viewContext.fetch(fetchRequest)
-        print("📱 PinMainView: Found \(users.count) followed users in local database")
-        return users
-      } catch {
-        print("❌ PinMainView: Failed to fetch followed users: \(error)")
-        return []
+    // Perform Core Data operations on background queue to avoid UI blocking
+    return await withCheckedContinuation { continuation in
+      Task.detached {
+        let backgroundContext = PersistenceController.shared.container.newBackgroundContext()
+        backgroundContext.perform {
+          let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+          fetchRequest.predicate = NSPredicate(format: "userId != nil AND userId != ''")
+          fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
+          
+          do {
+            let users = try backgroundContext.fetch(fetchRequest)
+            print("📱 PinMainView: Found \(users.count) followed users in local database")
+            continuation.resume(returning: users)
+          } catch {
+            print("❌ PinMainView: Failed to fetch followed users: \(error)")
+            continuation.resume(returning: [])
+          }
+        }
       }
     }
   }
-
-}
-
-// MARK: - PinCardView Component
-
-struct PinCardView: View {
-  let place: Place
-  let cardHeight: CGFloat
-  let onTitleTap: () -> Void
-  let onUserTap: (String, String) -> Void
   
-  @State private var showingMap = false
-  
-  var body: some View {
-    HStack(spacing: 0) {
-      // Left side - Content
-      VStack(alignment: .leading, spacing: 8) {
-        // Title (tappable)
-        Button(action: onTitleTap) {
-          Text(place.post ?? "Untitled Pin")
-            .font(.headline)
-            .fontWeight(.semibold)
-            .foregroundColor(.primary)
-            .lineLimit(2)
-            .multilineTextAlignment(.leading)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .buttonStyle(PlainButtonStyle())
-        
-        // Location
-        if let locationName = getLocationName() {
-          HStack(spacing: 4) {
-            Image(systemName: "location.fill")
-              .font(.caption)
-              .foregroundColor(.blue)
-            Text(locationName)
-              .font(.subheadline)
-              .foregroundColor(.secondary)
-              .lineLimit(1)
-          }
-        }
-        
-        // User info (tappable)
-        Button(action: {
-          let userId = place.value(forKey: "originalUserId") as? String ?? ""
-          let userName = place.value(forKey: "originalDisplayName") as? String ?? "You"
-          if !userId.isEmpty {
-            onUserTap(userId, userName)
-          }
-        }) {
-          HStack(spacing: 8) {
-            Image(systemName: "person.circle.fill")
-              .font(.caption)
-              .foregroundColor(.blue)
-            
-            VStack(alignment: .leading, spacing: 2) {
-              if let originalDisplayName = place.value(forKey: "originalDisplayName") as? String {
-                Text(originalDisplayName)
-                  .font(.caption)
-                  .fontWeight(.medium)
-                  .foregroundColor(.primary)
-              } else {
-                Text("You")
-                  .font(.caption)
-                  .fontWeight(.medium)
-                  .foregroundColor(.primary)
-              }
-              
-              if let dateAdded = place.dateAdded {
-                Text(formatDate(dateAdded))
-                  .font(.caption2)
-                  .foregroundColor(.secondary)
-              }
-            }
-          }
-        }
-        .buttonStyle(PlainButtonStyle())
-        
-        Spacer()
-      }
-      .padding(.leading, 16)
-      .padding(.vertical, 12)
-      .frame(maxWidth: .infinity, alignment: .leading)
-      
-      // Right side - Image/Map with toggle
-      ZStack {
-        if showingMap {
-          // Map view
-          if let coordinate = getCoordinate() {
-            Map(coordinateRegion: .constant(MKCoordinateRegion(
-              center: coordinate,
-              span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-            )), annotationItems: [MapAnnotationItem(coordinate: coordinate)]) { annotation in
-              MapAnnotation(coordinate: annotation.coordinate) {
-                ZStack {
-                  Circle()
-                    .fill(Color.red)
-                    .frame(width: 16, height: 16)
-                  Circle()
-                    .stroke(Color.white, lineWidth: 2)
-                    .frame(width: 16, height: 16)
-                }
-              }
-            }
-            .allowsHitTesting(false)
-          } else {
-            // No location placeholder
-            Rectangle()
-              .fill(Color.gray.opacity(0.2))
-              .overlay(
-                VStack(spacing: 4) {
-                  Image(systemName: "location.slash")
-                    .font(.title2)
-                    .foregroundColor(.gray)
-                  Text("No Location")
-                    .font(.caption2)
-                    .foregroundColor(.gray)
-                }
-              )
-          }
-        } else {
-          // Image view - scale to fit properly
-          if let imageData = place.imageData,
-             let uiImage = UIImage(data: imageData) {
-            Image(uiImage: uiImage)
-              .resizable()
-              .aspectRatio(contentMode: .fill)
-              .frame(width: cardHeight * 1.2, height: cardHeight)
-              .clipped()
-          } else {
-            // Placeholder image
-            Rectangle()
-              .fill(Color.blue.opacity(0.2))
-              .frame(width: cardHeight * 1.2, height: cardHeight)
-              .overlay(
-                Image(systemName: "photo")
-                  .font(.title2)
-                  .foregroundColor(.blue)
-              )
-          }
-        }
-        
-        // Toggle button - positioned relative to card area
-        VStack {
-          HStack {
-            Spacer()
-            Button(action: {
-              withAnimation(.easeInOut(duration: 0.3)) {
-                showingMap.toggle()
-              }
-            }) {
-              Image(systemName: showingMap ? "photo" : "map")
-                .font(.title3)
-                .foregroundColor(.white)
-                .padding(8)
-                .background(Color.black.opacity(0.6), in: Circle())
-            }
-            .padding(.top, 8)
-            .padding(.trailing, 8)
-          }
-          Spacer()
-        }
-      }
-      .frame(width: cardHeight * 1.2, height: cardHeight)
-      .background(Color.gray.opacity(0.1))
-      .cornerRadius(12)
-    }
-    .frame(height: cardHeight)
-    .background(Color(.systemBackground))
-    .cornerRadius(16)
-    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-  }
-  
-  private func getLocationName() -> String? {
-    // Try to get location name from URL field or reverse geocoding
-    if let url = place.url, !url.isEmpty {
-      return url
-    }
-    
-    // Fallback to coordinates
-    if let coordinate = getCoordinate() {
-      return String(format: "%.3f, %.3f", coordinate.latitude, coordinate.longitude)
-    }
-    
-    return nil
-  }
-  
-  private func getCoordinate() -> CLLocationCoordinate2D? {
+  private func getLocationFromPlace(_ place: Place) -> CLLocation? {
     if let locationData = place.value(forKey: "location") as? Data,
        let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
-      return location.coordinate
+      return location
     }
     return nil
   }
-  
-  private func formatDate(_ date: Date) -> String {
-    let formatter = RelativeDateTimeFormatter()
-    formatter.unitsStyle = .abbreviated
-    return formatter.localizedString(for: date, relativeTo: Date())
-  }
+
 }
+
+
 

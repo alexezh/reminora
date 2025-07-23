@@ -16,10 +16,17 @@ class AuthenticationService: NSObject, ObservableObject {
     
     var currentSession: AuthSession?
     var currentAccount: AuthAccount?
+    var currentProvider: OAuthProvider?
     
     override init() {
         super.init()
         loadStoredAuth()
+    }
+    
+    // MARK: - Provider Management
+    
+    var isUsingFacebook: Bool {
+        return currentProvider == .facebook
     }
     
     // MARK: - Public Methods
@@ -218,6 +225,7 @@ class AuthenticationService: NSObject, ObservableObject {
                 DispatchQueue.main.async {
                     self.currentSession = session
                     self.currentAccount = account
+                    self.currentProvider = self.loadProvider()
                     
                     if session.isExpired {
                         Task {
@@ -296,6 +304,7 @@ class AuthenticationService: NSObject, ObservableObject {
             // Store auth data
             try storeSession(authResponse.session)
             try storeAccount(authResponse.account)
+            try storeProvider(provider)
             if let refreshToken = refreshToken {
                 try storeRefreshToken(refreshToken)
             }
@@ -303,6 +312,7 @@ class AuthenticationService: NSObject, ObservableObject {
             await MainActor.run {
                 self.currentSession = authResponse.session
                 self.currentAccount = authResponse.account
+                self.currentProvider = provider
                 self.isLoading = false
                 
                 if authResponse.account.needsHandle {
@@ -399,10 +409,22 @@ extension AuthenticationService {
         return String(data: data, encoding: .utf8)
     }
     
+    private func storeProvider(_ provider: OAuthProvider) throws {
+        let data = provider.rawValue.data(using: .utf8)!
+        try storeInKeychain(key: .providerData, data: data)
+    }
+    
+    private func loadProvider() -> OAuthProvider? {
+        guard let data = loadFromKeychain(key: .providerData),
+              let providerString = String(data: data, encoding: .utf8) else { return nil }
+        return OAuthProvider(rawValue: providerString)
+    }
+    
     private func clearStoredAuth() {
         deleteFromKeychain(key: .sessionToken)
         deleteFromKeychain(key: .refreshToken)
         deleteFromKeychain(key: .accountData)
+        deleteFromKeychain(key: .providerData)
     }
     
     private func storeInKeychain(key: KeychainKey, data: Data) throws {

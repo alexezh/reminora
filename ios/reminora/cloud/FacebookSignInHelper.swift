@@ -13,11 +13,49 @@ struct FacebookSignInResult {
 class FacebookSignInHelper: NSObject, ObservableObject {
     static let shared = FacebookSignInHelper()
     
+    private static var isFacebookSDKInitialized = false
+    
     private override init() {
         super.init()
     }
     
+    private func initializeFacebookSDKIfNeeded() {
+        guard !Self.isFacebookSDKInitialized else { return }
+        
+        // Load Facebook configuration
+        guard let path = Bundle.main.path(forResource: "Facebook-Info", ofType: "plist"),
+              let facebookPlist = NSDictionary(contentsOfFile: path),
+              let appID = facebookPlist["FacebookAppID"] as? String,
+              let clientToken = facebookPlist["FacebookClientToken"] as? String else {
+            print("❌ Facebook-Info.plist not found or missing required keys")
+            return
+        }
+        
+        // Check if Facebook is disabled
+        if appID == "DISABLED" || clientToken == "DISABLED" {
+            print("ℹ️ Facebook SDK is disabled in configuration")
+            return
+        }
+        
+        // Set Facebook settings
+        Settings.shared.appID = appID
+        Settings.shared.clientToken = clientToken
+        Settings.shared.displayName = facebookPlist["FacebookDisplayName"] as? String ?? "Reminora"
+        
+        // Initialize Facebook SDK ApplicationDelegate
+        ApplicationDelegate.shared.application(
+            UIApplication.shared,
+            didFinishLaunchingWithOptions: nil
+        )
+        
+        Self.isFacebookSDKInitialized = true
+        print("✅ Facebook SDK initialized lazily with App ID: \(appID)")
+    }
+    
     func signIn() async throws -> FacebookSignInResult {
+        // Initialize Facebook SDK lazily when actually needed
+        initializeFacebookSDKIfNeeded()
+        
         // Check if Facebook is configured
         guard let appID = Settings.shared.appID, 
               !appID.isEmpty, 

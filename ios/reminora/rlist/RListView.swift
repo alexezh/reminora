@@ -580,6 +580,7 @@ struct RListPinView: View {
                 // Pin image or placeholder
                 if let imageData = place.imageData,
                    let uiImage = UIImage(data: imageData) {
+                    print("🖼️ RListPinView: Displaying image for place '\(place.post ?? "nil")' - \(imageData.count) bytes")
                     Image(uiImage: uiImage)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -587,6 +588,7 @@ struct RListPinView: View {
                         .clipped()
                         .cornerRadius(8)
                 } else {
+                    print("❌ RListPinView: No image data for place '\(place.post ?? "nil")' - imageData: \(place.imageData?.count ?? 0) bytes")
                     Rectangle()
                         .fill(Color.blue.opacity(0.2))
                         .frame(width: 80, height: 80)

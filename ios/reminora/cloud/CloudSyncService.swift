@@ -342,12 +342,15 @@ class CloudSyncService: ObservableObject {
      * Convert cloud photo to virtual Place object for display
      */
     func convertPhotoToPlace(_ photo: PinAPI, context: NSManagedObjectContext) -> Place {
-        // Create a virtual place from Photo for RListView display
-        let place = Place(context: context)
+        // Create a detached place object for display (not saved to Core Data)
+        let entity = NSEntityDescription.entity(forEntityName: "Place", in: context)!
+        let place = Place(entity: entity, insertInto: nil) // insertInto: nil creates detached object
         
         // Use caption if available, otherwise use a default title
         let title = photo.caption?.isEmpty == false ? photo.caption! : "Pin \(photo.id.prefix(8))"
         place.post = title
+        print("📝 CloudSyncService: Pin \(photo.id) caption='\(photo.caption ?? "nil")' -> title='\(title)'")
+        print("📝 CloudSyncService: Place.post after assignment: '\(place.post ?? "nil")'")
         place.url = photo.location_name ?? ""
         place.dateAdded = Date(timeIntervalSince1970: photo.created_at)
         place.isPrivate = false // Photos from API are shared
@@ -368,15 +371,20 @@ class CloudSyncService: ObservableObject {
         }
         
         // Store image data directly from photo
+        print("🖼️ CloudSyncService: Base64 data length for pin \(photo.id): \(photo.photo_data.image_data.count) chars")
         if let imageData = Data(base64Encoded: photo.photo_data.image_data) {
             place.imageData = imageData
+            print("✅ CloudSyncService: Successfully decoded image data for pin \(photo.id) - \(imageData.count) bytes")
+            print("✅ CloudSyncService: Place.imageData after assignment: \(place.imageData?.count ?? 0) bytes")
         } else {
+            print("❌ CloudSyncService: Failed to decode Base64 image data for pin \(photo.id)")
             // Create placeholder image for photos without images
             place.imageData = createPinPlaceholderImageData()
+            print("🔧 CloudSyncService: Set placeholder image data: \(place.imageData?.count ?? 0) bytes")
         }
         
-        // Ensure this doesn't get saved to Core Data (it's virtual)
-        context.refresh(place, mergeChanges: false)
+        // Don't refresh the object as virtual - let it be used normally for display
+        // Note: This object won't be saved to Core Data since it's only used for display
         
         return place
     }

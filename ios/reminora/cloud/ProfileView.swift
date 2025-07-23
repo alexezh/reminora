@@ -71,18 +71,6 @@ struct ProfileView: View {
                             }
                         }
                         .buttonStyle(PlainButtonStyle())
-                        
-                        Button(action: { showingComments = true }) {
-                            VStack {
-                                Text("0")
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                Text("Comments")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
                     }
                     .padding()
                     
@@ -213,15 +201,6 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showingFollowing) {
             FollowingView()
-        }
-        .sheet(isPresented: $showingComments) {
-            if case .authenticated(let account, _) = authService.authState {
-                UserCommentsView(
-                    userId: account.id,
-                    userName: account.display_name,
-                    userHandle: account.handle ?? account.username
-                )
-            }
         }
     }
     

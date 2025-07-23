@@ -2,35 +2,6 @@ import CoreData
 import MapKit
 import SwiftUI
 
-func convertRegionToRect(from region: MKCoordinateRegion) -> MKMapRect {
-  let center = MKMapPoint(region.center)
-
-  let span = region.span
-  let deltaLat = span.latitudeDelta
-  let deltaLon = span.longitudeDelta
-
-  let topLeftCoord = CLLocationCoordinate2D(
-    latitude: region.center.latitude + (deltaLat / 2),
-    longitude: region.center.longitude - (deltaLon / 2)
-  )
-
-  let bottomRightCoord = CLLocationCoordinate2D(
-    latitude: region.center.latitude - (deltaLat / 2),
-    longitude: region.center.longitude + (deltaLon / 2)
-  )
-
-  let topLeftPoint = MKMapPoint(topLeftCoord)
-  let bottomRightPoint = MKMapPoint(bottomRightCoord)
-
-  let origin = MKMapPoint(
-    x: min(topLeftPoint.x, bottomRightPoint.x),
-    y: min(topLeftPoint.y, bottomRightPoint.y))
-  let size = MKMapSize(
-    width: abs(topLeftPoint.x - bottomRightPoint.x),
-    height: abs(topLeftPoint.y - bottomRightPoint.y))
-
-  return MKMapRect(origin: origin, size: size)
-}
 
 /**
 
@@ -50,10 +21,9 @@ struct PinMainView: View {
   @State private var isSearching: Bool = false
   @State private var isSyncingFollows = false
   @State private var lastSyncTime: Date? = nil
-  @State private var region = MKCoordinateRegion(
-    center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
-    span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
-  )
+  @State private var selectedPlace: Place?
+  @State private var selectedUser: (String, String)?
+  @State private var showingActionMenu = false
 
   var filteredItems: [Place] {
     if !searchText.isEmpty {
@@ -70,144 +40,158 @@ struct PinMainView: View {
     }
   }
 
-  // Helper to calculate distance between two coordinates (in meters)
-  private func distance(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D)
-    -> CLLocationDistance
-  {
-    let loc1 = CLLocation(latitude: from.latitude, longitude: from.longitude)
-    let loc2 = CLLocation(latitude: to.latitude, longitude: to.longitude)
-    return loc1.distance(from: loc2)
-  }
 
   var body: some View {
-    ZStack {
-      // Search bar overlay when expanded
-      if !searchText.isEmpty {
-        VStack {
+    GeometryReader { geometry in
+      NavigationView {
+        VStack(spacing: 0) {
+          // Fixed header with title and action button
           HStack {
-            Image(systemName: "magnifyingglass")
-              .foregroundColor(.secondary)
-              .padding(.leading, 8)
-
-            TextField("Search places...", text: $searchText)
-              .textFieldStyle(RoundedBorderTextFieldStyle())
-              .onSubmit {
-                performGeoSearch()
+            Text("Pins")
+              .font(.largeTitle)
+              .fontWeight(.bold)
+            
+            Spacer()
+            
+            Menu {
+              Button("Add Pin from Photo") {
+                // TODO: Navigate to photo library
               }
-
-            Button("Clear") {
-              searchText = ""
-              isSearching = false
+              Button("Add Pin from Location") {
+                // TODO: Navigate to location picker
+              }
+              Button("Search") {
+                if searchText.isEmpty {
+                  searchText = " " // Trigger search bar
+                }
+              }
+            } label: {
+              Image(systemName: "plus")
+                .font(.title2)
             }
-            .foregroundColor(.blue)
-            .padding(.trailing, 8)
           }
           .padding(.horizontal, 16)
-          .padding(.top, 60)
-          .background(Color(.systemBackground))
-          .zIndex(1)
-
-          Spacer()
-        }
-      }
-
-      // Main content using MomentBrowserView
-      ZStack {
-        PinBrowserView(
-          places: filteredItems,
-          title: "",
-          showToolbar: true
-        )
-        
-        // Sync indicator
-        if isSyncingFollows {
-          VStack {
-            HStack {
-              Spacer()
-              HStack(spacing: 8) {
-                ProgressView()
-                  .scaleEffect(0.8)
-                Text("Syncing follows...")
-                  .font(.caption)
-                  .foregroundColor(.secondary)
+          .padding(.bottom, 8)
+          
+          // Main card list
+          ScrollView {
+            LazyVStack(spacing: 16) {
+              ForEach(filteredItems, id: \.objectID) { place in
+                PinCardView(
+                  place: place,
+                  cardHeight: geometry.size.height * 0.25, // 1/4 screen height
+                  onTitleTap: {
+                    selectedPlace = place
+                  },
+                  onUserTap: { userId, userName in
+                    selectedUser = (userId, userName)
+                  }
+                )
+                .padding(.horizontal, 16)
               }
-              .padding(.horizontal, 12)
-              .padding(.vertical, 8)
-              .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
-              .padding(.trailing, 16)
             }
-            .padding(.top, 60) // Below status bar
-            Spacer()
+            .padding(.top, 16)
+            .padding(.bottom, 100) // Space for bottom content
+          }
+          .refreshable {
+            await syncFollowingUsers()
+          }
+          
+          // Search bar overlay when expanded
+          if !searchText.isEmpty {
+            VStack {
+              HStack {
+                Image(systemName: "magnifyingglass")
+                  .foregroundColor(.secondary)
+                  .padding(.leading, 8)
+
+                TextField("Search places...", text: $searchText)
+                  .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                Button("Clear") {
+                  searchText = ""
+                  isSearching = false
+                }
+                .foregroundColor(.blue)
+                .padding(.trailing, 8)
+              }
+              .padding(.horizontal, 16)
+              .padding(.top, 8)
+              .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+              .padding(.horizontal, 16)
+              
+              Spacer()
+            }
+            .zIndex(1)
+          }
+          
+          // Sync indicator
+          if isSyncingFollows {
+            VStack {
+              HStack {
+                Spacer()
+                HStack(spacing: 8) {
+                  ProgressView()
+                    .scaleEffect(0.8)
+                  Text("Syncing follows...")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+                .padding(.trailing, 16)
+              }
+              Spacer()
+            }
           }
         }
       }
     }
-    .onReceive(locationManager.$lastLocation) { location in
-      guard let location = location else { return }
-      DispatchQueue.main.async {
-        print("updating location")
-        withAnimation(.easeInOut(duration: 1.0)) {
-          region = MKCoordinateRegion(
-            center: location.coordinate,
-            span: region.span
-          )
+    .background(
+      Group {
+        // Hidden NavigationLinks for programmatic navigation
+        if let selectedPlace = selectedPlace {
+          NavigationLink(
+            destination: PinDetailView(
+              place: selectedPlace,
+              allPlaces: Array(items),
+              onBack: {
+                // Navigation will handle going back
+              }
+            ),
+            isActive: .constant(true)
+          ) {
+            EmptyView()
+          }
+          .hidden()
+        }
+        
+        if let selectedUser = selectedUser {
+          NavigationLink(
+            destination: UserProfileView(
+              userId: selectedUser.0,
+              userName: selectedUser.1,
+              userHandle: nil
+            ),
+            isActive: .constant(true)
+          ) {
+            EmptyView()
+          }
+          .hidden()
         }
       }
-    }
+    )
     .onAppear {
       syncFollowingUsersIfNeeded()
     }
-    .refreshable {
-      await syncFollowingUsers()
+    .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+      // Clear navigation state when returning to this view
+      selectedPlace = nil
+      selectedUser = nil
     }
   }
 
-  // Helper to get coordinate from Place
-  private func coordinate(item: Place) -> CLLocationCoordinate2D {
-    if let locationData = item.value(forKey: "location") as? Data,
-      let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData)
-        as? CLLocation
-    {
-      return location.coordinate
-    }
-    // Default to San Francisco if no location
-    return CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
-  }
-
-  private func performGeoSearch() {
-    guard !searchText.isEmpty else { return }
-
-    let request = MKLocalSearch.Request()
-    request.naturalLanguageQuery = searchText
-    request.region = region
-
-    let search = MKLocalSearch(request: request)
-    search.start { response, error in
-      DispatchQueue.main.async {
-        if let error = error {
-          print("Search error: \(error)")
-          return
-        }
-
-        if let response = response, let firstItem = response.mapItems.first {
-          let coordinate = firstItem.placemark.coordinate
-          let newRegion = MKCoordinateRegion(
-            center: coordinate,
-            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-          )
-
-          // Set search state
-          isSearching = true
-
-          withAnimation(.easeInOut(duration: 1.0)) {
-            region = newRegion
-          }
-
-          print("Geo search completed. Moved to: \(coordinate)")
-        }
-      }
-    }
-  }
   
   // MARK: - Following Users Sync
   
@@ -305,3 +289,203 @@ struct PinMainView: View {
   }
 
 }
+
+// MARK: - PinCardView Component
+
+struct PinCardView: View {
+  let place: Place
+  let cardHeight: CGFloat
+  let onTitleTap: () -> Void
+  let onUserTap: (String, String) -> Void
+  
+  @State private var showingMap = false
+  
+  var body: some View {
+    HStack(spacing: 0) {
+      // Left side - Content
+      VStack(alignment: .leading, spacing: 8) {
+        // Title (tappable)
+        Button(action: onTitleTap) {
+          Text(place.post ?? "Untitled Pin")
+            .font(.headline)
+            .fontWeight(.semibold)
+            .foregroundColor(.primary)
+            .lineLimit(2)
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(PlainButtonStyle())
+        
+        // Location
+        if let locationName = getLocationName() {
+          HStack(spacing: 4) {
+            Image(systemName: "location.fill")
+              .font(.caption)
+              .foregroundColor(.blue)
+            Text(locationName)
+              .font(.subheadline)
+              .foregroundColor(.secondary)
+              .lineLimit(1)
+          }
+        }
+        
+        // User info (tappable)
+        Button(action: {
+          let userId = place.value(forKey: "originalUserId") as? String ?? ""
+          let userName = place.value(forKey: "originalDisplayName") as? String ?? "You"
+          if !userId.isEmpty {
+            onUserTap(userId, userName)
+          }
+        }) {
+          HStack(spacing: 8) {
+            Image(systemName: "person.circle.fill")
+              .font(.caption)
+              .foregroundColor(.blue)
+            
+            VStack(alignment: .leading, spacing: 2) {
+              if let originalDisplayName = place.value(forKey: "originalDisplayName") as? String {
+                Text(originalDisplayName)
+                  .font(.caption)
+                  .fontWeight(.medium)
+                  .foregroundColor(.primary)
+              } else {
+                Text("You")
+                  .font(.caption)
+                  .fontWeight(.medium)
+                  .foregroundColor(.primary)
+              }
+              
+              if let dateAdded = place.dateAdded {
+                Text(formatDate(dateAdded))
+                  .font(.caption2)
+                  .foregroundColor(.secondary)
+              }
+            }
+          }
+        }
+        .buttonStyle(PlainButtonStyle())
+        
+        Spacer()
+      }
+      .padding(.leading, 16)
+      .padding(.vertical, 12)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      
+      // Right side - Image/Map with toggle
+      ZStack {
+        if showingMap {
+          // Map view
+          if let coordinate = getCoordinate() {
+            Map(coordinateRegion: .constant(MKCoordinateRegion(
+              center: coordinate,
+              span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+            )), annotationItems: [MapAnnotationItem(coordinate: coordinate)]) { annotation in
+              MapAnnotation(coordinate: annotation.coordinate) {
+                ZStack {
+                  Circle()
+                    .fill(Color.red)
+                    .frame(width: 16, height: 16)
+                  Circle()
+                    .stroke(Color.white, lineWidth: 2)
+                    .frame(width: 16, height: 16)
+                }
+              }
+            }
+            .allowsHitTesting(false)
+          } else {
+            // No location placeholder
+            Rectangle()
+              .fill(Color.gray.opacity(0.2))
+              .overlay(
+                VStack(spacing: 4) {
+                  Image(systemName: "location.slash")
+                    .font(.title2)
+                    .foregroundColor(.gray)
+                  Text("No Location")
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+                }
+              )
+          }
+        } else {
+          // Image view - scale to fit properly
+          if let imageData = place.imageData,
+             let uiImage = UIImage(data: imageData) {
+            Image(uiImage: uiImage)
+              .resizable()
+              .aspectRatio(contentMode: .fill)
+              .frame(width: cardHeight * 1.2, height: cardHeight)
+              .clipped()
+          } else {
+            // Placeholder image
+            Rectangle()
+              .fill(Color.blue.opacity(0.2))
+              .frame(width: cardHeight * 1.2, height: cardHeight)
+              .overlay(
+                Image(systemName: "photo")
+                  .font(.title2)
+                  .foregroundColor(.blue)
+              )
+          }
+        }
+        
+        // Toggle button - positioned relative to card area
+        VStack {
+          HStack {
+            Spacer()
+            Button(action: {
+              withAnimation(.easeInOut(duration: 0.3)) {
+                showingMap.toggle()
+              }
+            }) {
+              Image(systemName: showingMap ? "photo" : "map")
+                .font(.title3)
+                .foregroundColor(.white)
+                .padding(8)
+                .background(Color.black.opacity(0.6), in: Circle())
+            }
+            .padding(.top, 8)
+            .padding(.trailing, 8)
+          }
+          Spacer()
+        }
+      }
+      .frame(width: cardHeight * 1.2, height: cardHeight)
+      .background(Color.gray.opacity(0.1))
+      .cornerRadius(12)
+    }
+    .frame(height: cardHeight)
+    .background(Color(.systemBackground))
+    .cornerRadius(16)
+    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+  }
+  
+  private func getLocationName() -> String? {
+    // Try to get location name from URL field or reverse geocoding
+    if let url = place.url, !url.isEmpty {
+      return url
+    }
+    
+    // Fallback to coordinates
+    if let coordinate = getCoordinate() {
+      return String(format: "%.3f, %.3f", coordinate.latitude, coordinate.longitude)
+    }
+    
+    return nil
+  }
+  
+  private func getCoordinate() -> CLLocationCoordinate2D? {
+    if let locationData = place.value(forKey: "location") as? Data,
+       let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
+      return location.coordinate
+    }
+    return nil
+  }
+  
+  private func formatDate(_ date: Date) -> String {
+    let formatter = RelativeDateTimeFormatter()
+    formatter.unitsStyle = .abbreviated
+    return formatter.localizedString(for: date, relativeTo: Date())
+  }
+}
+

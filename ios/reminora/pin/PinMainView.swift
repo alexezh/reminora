@@ -38,6 +38,8 @@ func convertRegionToRect(from region: MKCoordinateRegion) -> MKMapRect {
 struct PinMainView: View {
   @Environment(\.managedObjectContext) private var viewContext
   @StateObject private var locationManager = LocationManager()
+  @StateObject private var authService = AuthenticationService.shared
+  @StateObject private var cloudSyncService = CloudSyncService.shared
 
   @FetchRequest(
     sortDescriptors: [NSSortDescriptor(keyPath: \Place.dateAdded, ascending: true)],
@@ -46,6 +48,8 @@ struct PinMainView: View {
 
   @State private var searchText: String = ""
   @State private var isSearching: Bool = false
+  @State private var isSyncingFollows = false
+  @State private var lastSyncTime: Date? = nil
   @State private var region = MKCoordinateRegion(
     center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
     span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
@@ -108,11 +112,35 @@ struct PinMainView: View {
       }
 
       // Main content using MomentBrowserView
-      PinBrowserView(
-        places: filteredItems,
-        title: "",
-        showToolbar: true
-      )
+      ZStack {
+        PinBrowserView(
+          places: filteredItems,
+          title: "",
+          showToolbar: true
+        )
+        
+        // Sync indicator
+        if isSyncingFollows {
+          VStack {
+            HStack {
+              Spacer()
+              HStack(spacing: 8) {
+                ProgressView()
+                  .scaleEffect(0.8)
+                Text("Syncing follows...")
+                  .font(.caption)
+                  .foregroundColor(.secondary)
+              }
+              .padding(.horizontal, 12)
+              .padding(.vertical, 8)
+              .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+              .padding(.trailing, 16)
+            }
+            .padding(.top, 60) // Below status bar
+            Spacer()
+          }
+        }
+      }
     }
     .onReceive(locationManager.$lastLocation) { location in
       guard let location = location else { return }
@@ -125,6 +153,12 @@ struct PinMainView: View {
           )
         }
       }
+    }
+    .onAppear {
+      syncFollowingUsersIfNeeded()
+    }
+    .refreshable {
+      await syncFollowingUsers()
     }
   }
 
@@ -171,6 +205,101 @@ struct PinMainView: View {
 
           print("Geo search completed. Moved to: \(coordinate)")
         }
+      }
+    }
+  }
+  
+  // MARK: - Following Users Sync
+  
+  private func syncFollowingUsersIfNeeded() {
+    // Check if we should sync based on time since last sync
+    let shouldSync = shouldPerformSync()
+    
+    if shouldSync {
+      Task {
+        await syncFollowingUsers()
+      }
+    }
+  }
+  
+  private func shouldPerformSync() -> Bool {
+    // Only sync if authenticated
+    guard authService.currentAccount != nil else {
+      print("🔄 PinMainView: Skipping sync - not authenticated")
+      return false
+    }
+    
+    // Sync if no previous sync or if last sync was more than 5 minutes ago
+    if let lastSync = lastSyncTime {
+      let fiveMinutesAgo = Date().addingTimeInterval(-300) // 5 minutes
+      let shouldSync = lastSync < fiveMinutesAgo
+      print("🔄 PinMainView: Last sync: \(lastSync), should sync: \(shouldSync)")
+      return shouldSync
+    }
+    
+    print("🔄 PinMainView: No previous sync, initiating first sync")
+    return true
+  }
+  
+  private func syncFollowingUsers() async {
+    guard authService.currentAccount != nil else {
+      print("🔄 PinMainView: Cannot sync - not authenticated")
+      return
+    }
+    
+    await MainActor.run {
+      isSyncingFollows = true
+    }
+    
+    print("🔄 PinMainView: Starting sync of following users")
+    
+    do {
+      // Get list of users being followed from local Core Data
+      let followedUsers = await getFollowedUsers()
+      print("🔄 PinMainView: Found \(followedUsers.count) followed users")
+      
+      // Sync pins for each followed user
+      for followedUser in followedUsers {
+        do {
+          print("🔄 PinMainView: Syncing pins for user: \(followedUser.name ?? "unknown") (ID: \(followedUser.userId ?? "unknown"))")
+          
+          if let userId = followedUser.userId {
+            let _ = try await cloudSyncService.syncUserPins(userId: userId, limit: 20)
+            print("✅ PinMainView: Successfully synced pins for user: \(followedUser.name ?? "unknown")")
+          }
+        } catch {
+          print("❌ PinMainView: Failed to sync user \(followedUser.name ?? "unknown"): \(error)")
+        }
+      }
+      
+      await MainActor.run {
+        isSyncingFollows = false
+        lastSyncTime = Date()
+      }
+      
+      print("✅ PinMainView: Completed sync of following users")
+      
+    } catch {
+      print("❌ PinMainView: Failed to sync following users: \(error)")
+      await MainActor.run {
+        isSyncingFollows = false
+      }
+    }
+  }
+  
+  private func getFollowedUsers() async -> [UserList] {
+    return await MainActor.run {
+      let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+      fetchRequest.predicate = NSPredicate(format: "userId != nil AND userId != ''")
+      fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
+      
+      do {
+        let users = try viewContext.fetch(fetchRequest)
+        print("📱 PinMainView: Found \(users.count) followed users in local database")
+        return users
+      } catch {
+        print("❌ PinMainView: Failed to fetch followed users: \(error)")
+        return []
       }
     }
   }

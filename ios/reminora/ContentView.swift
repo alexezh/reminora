@@ -32,7 +32,7 @@ struct ContentView: View {
             .tag(0)
 
             // Home/Map Tab
-            ZStack {
+            NavigationView {
                 PinMainView()
             }
             .tabItem {

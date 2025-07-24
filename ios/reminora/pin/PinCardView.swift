@@ -157,25 +157,20 @@ struct PinCardView: View {
         }
         
         // Toggle button - positioned relative to card area
-        VStack {
-          HStack {
-            Spacer()
-            Button(action: {
-              withAnimation(.easeInOut(duration: 0.3)) {
-                showingMap.toggle()
-              }
-            }) {
-              Image(systemName: showingMap ? "photo" : "map")
-                .font(.title3)
-                .foregroundColor(.white)
-                .padding(8)
-                .background(Color.black.opacity(0.6), in: Circle())
-            }
-            .padding(.top, 8)
-            .padding(.trailing, 8)
+        Button(action: {
+          withAnimation(.easeInOut(duration: 0.3)) {
+            showingMap.toggle()
           }
-          Spacer()
+        }) {
+          Image(systemName: showingMap ? "photo" : "map")
+            .font(.title3)
+            .foregroundColor(.white)
+            .padding(8)
+            .background(Color.black.opacity(0.6), in: Circle())
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        .padding(.top, 8)
+        .padding(.trailing, 8)
       }
       .frame(width: cardHeight * 1.2, height: cardHeight)
       .background(Color.gray.opacity(0.1))

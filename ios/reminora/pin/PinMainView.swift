@@ -25,6 +25,9 @@ struct PinMainView: View {
   @State private var selectedPlace: Place?
   @State private var selectedUser: (String, String)?
   @State private var selectedLocationPlace: Place?
+  @State private var showingPinDetail = false
+  @State private var showingUserProfile = false
+  @State private var showingNearbyLocations = false
   @State private var showingActionMenu = false
   @State private var showingOpenInvite = false
 
@@ -46,7 +49,8 @@ struct PinMainView: View {
 
   var body: some View {
     GeometryReader { geometry in
-      NavigationView {
+      ZStack {
+        NavigationView {
         VStack(spacing: 0) {
           // Fixed header with title and buttons
           HStack {
@@ -124,15 +128,19 @@ struct PinMainView: View {
                   cardHeight: geometry.size.height * 0.25, // 1/4 screen height
                   onPhotoTap: {
                     selectedPlace = place
+                    showingPinDetail = true
                   },
                   onTitleTap: {
                     selectedPlace = place
+                    showingPinDetail = true
                   },
                   onMapTap: {
                     selectedLocationPlace = place
+                    showingNearbyLocations = true
                   },
                   onUserTap: { userId, userName in
                     selectedUser = (userId, userName)
+                    showingUserProfile = true
                   }
                 )
                 .padding(.horizontal, 16)
@@ -166,10 +174,8 @@ struct PinMainView: View {
             }
           }
         }
-      }
-    }
-    .background(
-      Group {
+        }
+        
         // Hidden NavigationLinks for programmatic navigation
         if let selectedPlace = selectedPlace {
           NavigationLink(
@@ -177,10 +183,11 @@ struct PinMainView: View {
               place: selectedPlace,
               allPlaces: Array(items),
               onBack: {
-                // Navigation will handle going back
+                showingPinDetail = false
+                self.selectedPlace = nil
               }
             ),
-            isActive: .constant(true)
+            isActive: $showingPinDetail
           ) {
             EmptyView()
           }
@@ -194,7 +201,7 @@ struct PinMainView: View {
               userName: selectedUser.1,
               userHandle: nil
             ),
-            isActive: .constant(true)
+            isActive: $showingUserProfile
           ) {
             EmptyView()
           }
@@ -207,22 +214,20 @@ struct PinMainView: View {
               searchLocation: getLocationFromPlace(selectedLocationPlace)?.coordinate ?? CLLocationCoordinate2D(latitude: 0, longitude: 0),
               locationName: selectedLocationPlace.post ?? "this location"
             ),
-            isActive: .constant(true)
+            isActive: $showingNearbyLocations
           ) {
             EmptyView()
           }
           .hidden()
         }
       }
-    )
+    }
     .onAppear {
       syncFollowingUsersIfNeeded()
     }
     .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-      // Clear navigation state when returning to this view
-      selectedPlace = nil
-      selectedUser = nil
-      selectedLocationPlace = nil
+      // App returned from background - sync if needed
+      syncFollowingUsersIfNeeded()
     }
     .sheet(isPresented: $showingOpenInvite) {
       OpenInviteView()

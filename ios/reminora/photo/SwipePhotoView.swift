@@ -217,15 +217,12 @@ struct SwipePhotoView: View {
                                     showingAddPin = true
                                 })
                             } label: {
-                                Image(systemName: "ellipsis")
+                                Image(systemName: "ellipsis.circle")
                                     .font(.title2)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.white)
-                                    .rotationEffect(.degrees(90))
-                                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                    .foregroundColor(.primary)
+                                    .padding(8)
+                                    .background(.ultraThinMaterial, in: Circle())
                             }
-                            .menuStyle(.borderlessButton)
-                            .menuIndicator(.hidden)
                         }
                         .padding(.horizontal, 16)
                         .padding(.top, 20)

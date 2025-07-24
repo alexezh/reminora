@@ -28,6 +28,8 @@ struct AddPinFromPhotoView: View {
     @State private var country: String? = nil
     @State private var city: String? = nil
     @State private var isLoadingLocation = false
+    @State private var selectedLocations: [LocationInfo] = []
+    @State private var showingLocationSelector = false
     
     private let cloudSyncService = CloudSyncService.shared
     
@@ -64,6 +66,42 @@ struct AddPinFromPhotoView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .frame(maxWidth: .infinity)
+                
+                // Selected locations display
+                if !selectedLocations.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Additional Locations")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        LazyVStack(spacing: 8) {
+                            ForEach(selectedLocations, id: \.id) { location in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(location.name)
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                        if let address = location.address {
+                                            Text(address)
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                    Button("Remove") {
+                                        selectedLocations.removeAll { $0.id == location.id }
+                                    }
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                                }
+                                .padding(12)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
                 
                 // Privacy setting
                 VStack(alignment: .leading, spacing: 8) {
@@ -155,16 +193,21 @@ struct AddPinFromPhotoView: View {
                         }
                         .frame(maxWidth: .infinity)
                         
-                        // Mini map
-                        Map(coordinateRegion: .constant(MKCoordinateRegion(
-                            center: location.coordinate,
-                            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-                        )), annotationItems: [MapPin(coordinate: location.coordinate)]) { pin in
-                            MapMarker(coordinate: pin.coordinate, tint: .red)
+                        // Mini map (clickable)
+                        Button(action: {
+                            showingLocationSelector = true
+                        }) {
+                            Map(coordinateRegion: .constant(MKCoordinateRegion(
+                                center: location.coordinate,
+                                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                            )), annotationItems: [MapPin(coordinate: location.coordinate)]) { pin in
+                                MapMarker(coordinate: pin.coordinate, tint: .red)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: 150)
+                            .cornerRadius(8)
+                            .disabled(true) // Disable map interaction, use button instead
                         }
-                        .frame(maxWidth: .infinity, maxHeight: 150)
-                        .cornerRadius(8)
-                        .disabled(true) // Make map non-interactive
+                        .buttonStyle(PlainButtonStyle())
                     }
                     .frame(maxWidth: .infinity)
                 } else {
@@ -217,6 +260,18 @@ struct AddPinFromPhotoView: View {
         .sheet(isPresented: $showingAuthentication) {
             AuthenticationView()
         }
+        .sheet(isPresented: $showingLocationSelector) {
+            if let location = asset.location {
+                NavigationView {
+                    NearbyLocationsPageView(
+                        searchLocation: location.coordinate,
+                        locationName: placeName ?? "this location",
+                        isSelectMode: true,
+                        selectedLocations: $selectedLocations
+                    )
+                }
+            }
+        }
     }
     
     private func checkAuthenticationForSharing() {
@@ -265,13 +320,21 @@ struct AddPinFromPhotoView: View {
                 do {
                     print("📍 AddPinFromPhoto: Saving pin with CloudSyncService")
                     
-                    _ = try await cloudSyncService.savePinAndSyncToCloud(
+                    let place = try await cloudSyncService.savePinAndSyncToCloud(
                         imageData: imageData,
                         location: asset.location,
                         caption: caption,
                         isPrivate: isPrivate,
                         context: viewContext
                     )
+                    
+                    // Save selected locations as JSON
+                    if !selectedLocations.isEmpty {
+                        let locationsData = try JSONEncoder().encode(selectedLocations)
+                        let locationsJSON = String(data: locationsData, encoding: .utf8)
+                        place.locations = locationsJSON
+                        try viewContext.save()
+                    }
                     
                     await MainActor.run {
                         isSaving = false

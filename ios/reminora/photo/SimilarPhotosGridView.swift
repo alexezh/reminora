@@ -51,16 +51,13 @@ struct SimilarPhotosGridView: View {
                     ScrollView {
                         LazyVGrid(columns: columns, spacing: 12) {
                             ForEach(Array(similarPhotos.enumerated()), id: \.offset) { index, similarity in
-                                if let asset = similarity.photoAsset {
-                                    SimilarPhotoGridCell(
-                                        asset: asset,
-                                        similarity: similarity.similarity,
-                                        rank: index + 1
-                                    ) {
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            selectedPhoto = asset
-                                            showingSwipeView = true
-                                        }
+                                SimilarPhotoGridCell(
+                                    similarity: similarity,
+                                    rank: index + 1
+                                ) { asset in
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedPhoto = asset
+                                        showingSwipeView = true
                                     }
                                 }
                             }
@@ -142,24 +139,31 @@ struct SimilarPhotosGridView: View {
             )
             
             await MainActor.run {
-                // Sort by similarity score (highest first)
-                similarPhotos = results.sorted { $0.similarity > $1.similarity }
+                // Sort by similarity score (highest first) and filter out invalid embeddings
+                similarPhotos = results
+                    .filter { $0.embedding.localIdentifier != nil } // Only keep valid embeddings
+                    .sorted { $0.similarity > $1.similarity }
                 isLoading = false
+                print("✅ Found \(similarPhotos.count) similar photos")
             }
         }
     }
 }
 
 struct SimilarPhotoGridCell: View {
-    let asset: PHAsset
-    let similarity: Float
+    let similarity: PhotoSimilarity
     let rank: Int
-    let onTap: () -> Void
+    let onTap: (PHAsset) -> Void
     
     @State private var image: UIImage?
+    @State private var asset: PHAsset?
     
     var body: some View {
-        Button(action: onTap) {
+        Button(action: {
+            if let asset = asset {
+                onTap(asset)
+            }
+        }) {
             ZStack {
                 // Photo
                 if let image = image {
@@ -205,7 +209,7 @@ struct SimilarPhotoGridCell: View {
                             RoundedRectangle(cornerRadius: 12)
                                 .fill(Color.black.opacity(0.8))
                                 .frame(height: 24)
-                            Text("\(Int(similarity * 100))%")
+                            Text("\(Int(similarity.similarity * 100))%")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .foregroundColor(.white)
@@ -218,25 +222,42 @@ struct SimilarPhotoGridCell: View {
         }
         .buttonStyle(PlainButtonStyle())
         .onAppear {
-            loadImage()
+            loadAssetAndImage()
         }
     }
     
-    private func loadImage() {
-        let manager = PHImageManager.default()
-        let options = PHImageRequestOptions()
-        options.deliveryMode = .fastFormat
-        options.isSynchronous = false
-        options.resizeMode = .exact
-        let size = CGSize(width: 300, height: 300)
+    private func loadAssetAndImage() {
+        // First get the PHAsset safely
+        guard let localIdentifier = similarity.embedding.localIdentifier else {
+            print("❌ No local identifier for embedding")
+            return
+        }
         
-        manager.requestImage(
-            for: asset,
-            targetSize: size,
-            contentMode: .aspectFill,
-            options: options
-        ) { img, _ in
-            if let img = img {
+        // Fetch PHAsset on main queue to avoid threading issues
+        DispatchQueue.main.async {
+            let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: nil)
+            guard let fetchedAsset = fetchResult.firstObject else {
+                print("❌ Could not fetch PHAsset for identifier: \(localIdentifier)")
+                return
+            }
+            
+            self.asset = fetchedAsset
+            
+            // Now load image
+            let manager = PHImageManager.default()
+            let options = PHImageRequestOptions()
+            options.deliveryMode = .fastFormat
+            options.isSynchronous = false
+            options.resizeMode = .exact
+            options.isNetworkAccessAllowed = false // Avoid network requests
+            let size = CGSize(width: 300, height: 300)
+            
+            manager.requestImage(
+                for: fetchedAsset,
+                targetSize: size,
+                contentMode: .aspectFill,
+                options: options
+            ) { img, _ in
                 DispatchQueue.main.async {
                     self.image = img
                 }

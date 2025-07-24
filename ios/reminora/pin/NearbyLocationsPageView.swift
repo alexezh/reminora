@@ -8,6 +8,15 @@ struct NearbyLocationsPageView: View {
     
     let searchLocation: CLLocationCoordinate2D
     let locationName: String
+    let isSelectMode: Bool
+    @Binding var selectedLocations: [LocationInfo]
+    
+    init(searchLocation: CLLocationCoordinate2D, locationName: String, isSelectMode: Bool = false, selectedLocations: Binding<[LocationInfo]> = .constant([])) {
+        self.searchLocation = searchLocation
+        self.locationName = locationName
+        self.isSelectMode = isSelectMode
+        self._selectedLocations = selectedLocations
+    }
     
     @State private var nearbyPlaces: [NearbyLocation] = []
     @State private var isLoading = true
@@ -17,6 +26,7 @@ struct NearbyLocationsPageView: View {
     @State private var showingListPicker = false
     @State private var showingAddPin = false
     @State private var selectedPlace: NearbyLocation?
+    @State private var selectedPlaceIds: Set<String> = []
     
     private let categories = ["All", "Restaurant", "Cafe", "Shopping", "Gas Station", "Bank", "Hospital", "Hotel", "Tourist Attraction"]
     
@@ -35,19 +45,45 @@ struct NearbyLocationsPageView: View {
             VStack(spacing: 0) {
                 // Header with location info
                 HStack {
-                    VStack(alignment: .leading) {
-                        Text("Near \(locationName)")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        Text("\(nearbyPlaces.count) places found")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    Button("Close") {
+                    // Back button (left)
+                    Button("Back") {
                         presentationMode.wrappedValue.dismiss()
                     }
                     .foregroundColor(.blue)
+                    
+                    Spacer()
+                    
+                    VStack(alignment: .center) {
+                        Text(isSelectMode ? "Select Locations" : "Near \(locationName)")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        if !isSelectMode {
+                            Text("\(nearbyPlaces.count) places found")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("\(selectedPlaceIds.count) selected")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Save button (right) - only in select mode
+                    if isSelectMode {
+                        Button("Save") {
+                            saveSelectedLocations()
+                        }
+                        .foregroundColor(.blue)
+                        .disabled(selectedPlaceIds.isEmpty)
+                    } else {
+                        // Placeholder to keep centering
+                        Button("Close") {
+                            presentationMode.wrappedValue.dismiss()
+                        }
+                        .foregroundColor(.blue)
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -105,18 +141,28 @@ struct NearbyLocationsPageView: View {
                     ScrollView {
                         LazyVStack(spacing: 12) {
                             ForEach(filteredPlaces, id: \.id) { place in
-                                NearbyLocationCard(
-                                    place: place,
-                                    onMapTap: {
-                                        openInNativeMap(place)
-                                    },
-                                    onShareTap: {
-                                        sharePlace(place)
-                                    },
-                                    onSaveTap: {
-                                        pinPlace(place)
-                                    }
-                                )
+                                if isSelectMode {
+                                    SelectableLocationCard(
+                                        place: place,
+                                        isSelected: selectedPlaceIds.contains(place.id),
+                                        onToggleSelection: {
+                                            togglePlaceSelection(place)
+                                        }
+                                    )
+                                } else {
+                                    NearbyLocationCard(
+                                        place: place,
+                                        onMapTap: {
+                                            openInNativeMap(place)
+                                        },
+                                        onShareTap: {
+                                            sharePlace(place)
+                                        },
+                                        onSaveTap: {
+                                            pinPlace(place)
+                                        }
+                                    )
+                                }
                             }
                         }
                         .padding(.horizontal, 16)
@@ -146,7 +192,7 @@ struct NearbyLocationsPageView: View {
             await loadNearbyPlaces()
         }
         .onAppear {
-            print("🗺️ NearbyLocations - onAppear called with searchLocation: \(searchLocation), locationName: \(locationName)")
+            print("🗺️ NearbyLocations - onAppear called with searchLocation: \(searchLocation), locationName: \(locationName), isSelectMode: \(isSelectMode)")
         }
     }
     
@@ -269,6 +315,21 @@ struct NearbyLocationsPageView: View {
         mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
     }
     
+    private func togglePlaceSelection(_ place: NearbyLocation) {
+        if selectedPlaceIds.contains(place.id) {
+            selectedPlaceIds.remove(place.id)
+        } else {
+            selectedPlaceIds.insert(place.id)
+        }
+    }
+    
+    private func saveSelectedLocations() {
+        let selected = filteredPlaces.filter { selectedPlaceIds.contains($0.id) }
+        let locationInfos = selected.map { LocationInfo(from: $0) }
+        selectedLocations.append(contentsOf: locationInfos)
+        presentationMode.wrappedValue.dismiss()
+    }
+    
     private func addLocationToSharedList(_ location: NearbyLocation) {
         let context = viewContext
         
@@ -338,6 +399,59 @@ struct NearbyLocationsPageView: View {
         } catch {
             print("❌ Failed to add location to shared list: \(error)")
         }
+    }
+}
+
+struct SelectableLocationCard: View {
+    let place: NearbyLocation
+    let isSelected: Bool
+    let onToggleSelection: () -> Void
+    
+    var body: some View {
+        Button(action: onToggleSelection) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(place.name)
+                                .font(.headline)
+                                .lineLimit(2)
+                                .foregroundColor(.primary)
+                            
+                            Text(place.address)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                            
+                            HStack {
+                                Image(systemName: "location")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                                Text("\(String(format: "%.1f", place.distance / 1000)) km")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Selection indicator
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title2)
+                        .foregroundColor(isSelected ? .blue : .gray)
+                }
+            }
+            .padding(16)
+            .background(isSelected ? Color.blue.opacity(0.1) : Color(.systemBackground))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+            )
+            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -456,44 +570,9 @@ struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
-struct NearbyLocation: Identifiable, Hashable {
-    let id: String
-    let name: String
-    let address: String
-    let coordinate: CLLocationCoordinate2D
-    let distance: Double
-    let category: String
-    let phoneNumber: String?
-    let url: URL?
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-        hasher.combine(name)
-        hasher.combine(address)
-    }
-}
-
 struct MapAnnotationItem: Identifiable {
     let id = UUID()
     let coordinate: CLLocationCoordinate2D
-}
-
-extension NearbyLocation {
-    static func == (lhs: NearbyLocation, rhs: NearbyLocation) -> Bool {
-        lhs.id == rhs.id && lhs.name == rhs.name && lhs.address == rhs.address
-    }
-}
-
-// Make CLLocationCoordinate2D hashable for our use case
-extension CLLocationCoordinate2D: Hashable {
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(latitude)
-        hasher.combine(longitude)
-    }
-    
-    public static func == (lhs: CLLocationCoordinate2D, rhs: CLLocationCoordinate2D) -> Bool {
-        lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude
-    }
 }
 
 struct AddPinFromLocationView: View {

@@ -84,9 +84,11 @@ struct PinMainView: View {
                 showingOpenInvite = true
               }
             } label: {
-              Image(systemName: "plus")
-                .font(.title2)
-                .foregroundColor(.blue)
+                Image(systemName: "ellipsis.circle")
+                    .font(.title2)
+                    .foregroundColor(.primary)
+                    .padding(8)
+                    .background(.ultraThinMaterial, in: Circle())
             }
           }
           .padding(.horizontal, 16)

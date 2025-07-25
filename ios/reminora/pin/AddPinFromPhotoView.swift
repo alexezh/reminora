@@ -310,7 +310,8 @@ struct AddPinFromPhotoView: View {
                         location: asset.location,
                         caption: caption,
                         isPrivate: isPrivate,
-                        context: viewContext
+                        context: viewContext,
+                        pinDate: asset.creationDate
                     )
                     
                     // Save current locations as JSON (selected locations or default photo location)

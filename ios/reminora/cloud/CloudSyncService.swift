@@ -59,14 +59,15 @@ class CloudSyncService: ObservableObject {
         location: CLLocation?,
         caption: String,
         isPrivate: Bool = false,
-        context: NSManagedObjectContext
+        context: NSManagedObjectContext,
+        pinDate: Date? = nil
     ) async throws -> Place {
         
         // First, save to local database
         let place = try await MainActor.run {
             let newPlace = Place(context: context)
             newPlace.imageData = imageData
-            newPlace.dateAdded = Date()
+            newPlace.dateAdded = pinDate ?? Date()
             newPlace.post = caption.isEmpty ? "Added from Photos" : caption
             newPlace.isPrivate = isPrivate
             

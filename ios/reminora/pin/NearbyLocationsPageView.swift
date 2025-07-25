@@ -107,26 +107,46 @@ struct NearbyLocationsPageView: View {
                 }
                 .frame(height: 200)
                 
-                // Category filter
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(categories, id: \.self) { category in
-                            Button(action: {
-                                selectedCategory = category
-                            }) {
-                                Text(category)
-                                    .font(.caption)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(selectedCategory == category ? Color.blue : Color.gray.opacity(0.2))
-                                    .foregroundColor(selectedCategory == category ? .white : .primary)
-                                    .cornerRadius(16)
+                // Category filter dropdown
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("Category:")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Spacer()
+                        
+                        Menu {
+                            ForEach(categories, id: \.self) { category in
+                                Button(action: {
+                                    selectedCategory = category
+                                }) {
+                                    HStack {
+                                        Text(category)
+                                        if selectedCategory == category {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
                             }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(selectedCategory)
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
                         }
                     }
                     .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
-                .padding(.vertical, 8)
                 .background(Color(UIColor.systemBackground))
                 
                 // Places list

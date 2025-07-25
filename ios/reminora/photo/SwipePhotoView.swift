@@ -605,7 +605,7 @@ struct SwipePhotoView: View {
             ToolbarButtonConfig(
                 id: "quick",
                 title: "Quick List",
-                systemImage: isInQuickList ? "circle.fill" : "circle",
+                systemImage: isInQuickList ? "plus.square.fill" : "plus.square",
                 action: toggleQuickList,
                 color: isInQuickList ? .orange : .primary
             )
@@ -642,7 +642,7 @@ struct SwipePhotoView: View {
             ToolbarButtonConfig(
                 id: "quick",
                 title: "Quick List",
-                systemImage: isInQuickList ? "circle.fill" : "circle",
+                systemImage: isInQuickList ? "plus.square.fill" : "plus.square",
                 action: toggleQuickList,
                 color: isInQuickList ? .orange : .primary
             )

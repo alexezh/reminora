@@ -37,6 +37,15 @@ struct LocationInfo: Codable, Identifiable {
     let longitude: Double
     let category: String?
     
+    init(id: String, name: String, address: String? = nil, latitude: Double, longitude: Double, category: String? = nil) {
+        self.id = id
+        self.name = name
+        self.address = address
+        self.latitude = latitude
+        self.longitude = longitude
+        self.category = category
+    }
+    
     init(from nearbyLocation: NearbyLocation) {
         self.id = nearbyLocation.id
         self.name = nearbyLocation.name

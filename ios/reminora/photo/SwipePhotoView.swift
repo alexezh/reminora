@@ -208,6 +208,25 @@ struct SwipePhotoView: View {
                             
                             Spacer()
                             
+                            // Location and date info (centered)
+                            VStack(spacing: 2) {
+                                if let location = currentAsset.location {
+                                    Text(formatLocation(location))
+                                        .font(.caption)
+                                        .foregroundColor(.white.opacity(0.9))
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                }
+                                
+                                if let date = currentAsset.creationDate {
+                                    Text(formatDate(date))
+                                        .font(.caption)
+                                        .foregroundColor(.white.opacity(0.9))
+                                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                                }
+                            }
+                            
+                            Spacer()
+                            
                             // Menu button (vertical dots) - iOS 16 style popup
                             Menu {
                                 Button("Find Similar") {
@@ -226,24 +245,6 @@ struct SwipePhotoView: View {
                         }
                         .padding(.horizontal, 16)
                         .padding(.top, 20)
-                        
-                        // Location and date info
-                        VStack(spacing: 2) {
-                            if let location = currentAsset.location {
-                                Text(formatLocation(location))
-                                    .font(.caption)
-                                    .foregroundColor(.white.opacity(0.9))
-                                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                            }
-                            
-                            if let date = currentAsset.creationDate {
-                                Text(formatDate(date))
-                                    .font(.caption)
-                                    .foregroundColor(.white.opacity(0.9))
-                                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
-                            }
-                        }
-                        .padding(.horizontal, 16)
                         .padding(.bottom, 8)
                     }
                     .background(

@@ -180,24 +180,6 @@ struct PinDetailView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 80) // Below back button
 
-                    // Addresses section
-                    if !placeAddresses.isEmpty {
-                        VStack(spacing: 12) {
-                            HStack {
-                                Text("Locations")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                Spacer()
-                            }
-                            
-                            ForEach(placeAddresses) { address in
-                                AddressCardView(address: address)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 20)
-                    }
-
                     // Photo
                     if let imageData = place.imageData, let image = UIImage(data: imageData) {
                         Image(uiImage: image)
@@ -241,6 +223,24 @@ struct PinDetailView: View {
                         SimpleCommentsView(targetPhotoId: place.objectID.uriRepresentation().absoluteString)
                     }
                     .padding(.top, 20)
+
+                    // Addresses section
+                    if !placeAddresses.isEmpty {
+                        VStack(spacing: 12) {
+                            HStack {
+                                Text("Locations")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                            }
+                            
+                            ForEach(placeAddresses) { address in
+                                AddressCardView(address: address)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 20)
+                    }
 
                     // Map at the bottom
                     Map(coordinateRegion: $region, annotationItems: [place] + nearbyPlaces) { item in

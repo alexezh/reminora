@@ -41,8 +41,7 @@ struct NearbyLocationsPageView: View {
     }
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
                 // Header with location info
                 HStack {
                     // Back button (left)
@@ -170,8 +169,6 @@ struct NearbyLocationsPageView: View {
                     }
                 }
             }
-            .navigationBarHidden(true)
-        }
         .sheet(isPresented: $showingShareSheet) {
             ShareSheet(text: shareText)
         }

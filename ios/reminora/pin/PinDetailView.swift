@@ -14,6 +14,15 @@ struct PlaceAddress: Codable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case coordinates, country, city, phone, website, fullAddress
     }
+    
+    init(coordinates: PlaceCoordinates, country: String? = nil, city: String? = nil, phone: String? = nil, website: String? = nil, fullAddress: String? = nil) {
+        self.coordinates = coordinates
+        self.country = country
+        self.city = city
+        self.phone = phone
+        self.website = website
+        self.fullAddress = fullAddress
+    }
 }
 
 struct PlaceCoordinates: Codable {
@@ -79,14 +88,41 @@ struct PinDetailView: View {
         guard let locationsJSON = place.locations,
               !locationsJSON.isEmpty,
               let data = locationsJSON.data(using: .utf8) else {
+            print("🔍 No locations JSON found for place: \(place.post ?? "Unknown")")
             return []
         }
         
+        print("🔍 Found locations JSON: \(locationsJSON.prefix(100))...")  // Show first 100 chars
+        
         do {
-            return try JSONDecoder().decode([PlaceAddress].self, from: data)
+            // First try to decode as LocationInfo array (new format)
+            let locationInfos = try JSONDecoder().decode([LocationInfo].self, from: data)
+            print("✅ Successfully decoded \(locationInfos.count) LocationInfo items")
+            return locationInfos.map { locationInfo in
+                // Convert LocationInfo to PlaceAddress
+                let coordinates = PlaceCoordinates(
+                    latitude: locationInfo.latitude,
+                    longitude: locationInfo.longitude
+                )
+                
+                // Create a new PlaceAddress with the available data
+                return PlaceAddress(
+                    coordinates: coordinates,
+                    country: nil,
+                    city: nil,
+                    phone: nil,
+                    website: nil,
+                    fullAddress: locationInfo.name
+                )
+            }
         } catch {
-            print("Failed to decode place addresses: \(error)")
-            return []
+            // Fallback: try to decode as PlaceAddress array (old format)
+            do {
+                return try JSONDecoder().decode([PlaceAddress].self, from: data)
+            } catch {
+                print("Failed to decode locations as both LocationInfo and PlaceAddress: \(error)")
+                return []
+            }
         }
     }
     

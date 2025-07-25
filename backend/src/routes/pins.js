@@ -20,13 +20,15 @@ export function pinRoutes(router) {
             console.log('📋 Photos: Request body keys:', Object.keys(body));
             console.log('📋 Photos: latitude:', body.latitude, 'longitude:', body.longitude);
             console.log('📋 Photos: location_name:', body.location_name, 'caption:', body.caption);
+            console.log('📋 Photos: locations:', body.locations ? 'provided' : 'not provided');
             
             const { 
                 photo_data, 
                 latitude, 
                 longitude, 
                 location_name, 
-                caption 
+                caption,
+                locations
             } = body;
             
             if (!photo_data) {
@@ -51,8 +53,8 @@ export function pinRoutes(router) {
 
             // Insert photo with null handling
             await env.DB.prepare(`
-                INSERT INTO photos (id, account_id, photo_data, latitude, longitude, location_name, caption, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO photos (id, account_id, photo_data, latitude, longitude, location_name, caption, locations, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).bind(
                 photoId, 
                 accountId, 
@@ -61,6 +63,7 @@ export function pinRoutes(router) {
                 longitude || null, 
                 location_name || null, 
                 caption || null, 
+                locations || null,
                 now, 
                 now
             ).run();

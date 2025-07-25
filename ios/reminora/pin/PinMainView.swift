@@ -214,7 +214,7 @@ struct PinMainView: View {
         
         if let selectedLocationPlace = selectedLocationPlace {
           NavigationLink(
-            destination: NearbyLocationsPageView(
+            destination: NearbyLocationsView(
               searchLocation: getLocationFromPlace(selectedLocationPlace)?.coordinate ?? CLLocationCoordinate2D(latitude: 0, longitude: 0),
               locationName: selectedLocationPlace.post ?? "this location"
             ),

@@ -249,7 +249,7 @@ struct AddPinFromPhotoView: View {
         }
         .sheet(isPresented: $showingLocationSelector) {
             NavigationView {
-                NearbyLocationsPageView(
+                NearbyLocationsView(
                     searchLocation: asset.location?.coordinate ?? CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194), // Default to San Francisco if no GPS
                     locationName: placeName ?? (asset.location != nil ? "this location" : "nearby locations"),
                     isSelectMode: true,

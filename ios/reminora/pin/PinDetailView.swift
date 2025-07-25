@@ -391,7 +391,7 @@ struct PinDetailView: View {
             }
         }
         .sheet(isPresented: $showingNearbyPlaces) {
-            NearbyLocationsPageView(
+            NearbyLocationsView(
                 searchLocation: Self.coordinate(item: place),
                 locationName: place.post ?? "this location"
             )

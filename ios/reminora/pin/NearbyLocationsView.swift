@@ -2,7 +2,7 @@ import SwiftUI
 import MapKit
 import CoreData
 
-struct NearbyLocationsPageView: View {
+struct NearbyLocationsView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.presentationMode) var presentationMode
     

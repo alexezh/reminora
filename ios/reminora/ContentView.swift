@@ -31,14 +31,23 @@ struct ContentView: View {
             }
             .tag(0)
 
-            // Home/Map Tab
+            // Map Tab
+            NavigationView {
+                MapView()
+            }
+            .tabItem {
+                Image(systemName: "map")
+            }
+            .tag(1)
+
+            // Pins Tab
             NavigationView {
                 PinMainView()
             }
             .tabItem {
                 Image(systemName: "mappin.and.ellipse")
             }
-            .tag(1)
+            .tag(2)
 
             AllRListsView(
                 context: viewContext,
@@ -47,14 +56,14 @@ struct ContentView: View {
             .tabItem {
                 Image(systemName: "list.bullet.circle")
             }
-            .tag(2)
+            .tag(3)
             // Profile Tab
             ProfileView()
                 .tabItem {
                     Image(systemName: "person.circle")
                     Text("Profile")
                 }
-                .tag(3)
+                .tag(4)
         }
         .accentColor(.blue)
         .toolbar(toolbarManager.hideDefaultTabBar || isSwipePhotoViewOpen ? .hidden : .visible, for: .tabBar)
@@ -87,7 +96,7 @@ struct ContentView: View {
                 print("🔗 ContentView navigating to shared place: \(place.post ?? "Unknown")")
 
                 // Switch to Pin tab and show the shared place
-                selectedTab = 1
+                selectedTab = 2
                 sharedPlace = place
                 showingSharedPlace = true
 

@@ -150,7 +150,7 @@ struct FilteredMapItems: View {
             )
         }
         .sheet(isPresented: $showNearbyPlacesPage) {
-            NearbyLocationsPageView(
+            NearbyLocationsView(
                 searchLocation: coordinate,
                 locationName: "this location"
             )

@@ -92,14 +92,37 @@ struct PinDetailView: View {
     
     // Get the owner information from the ListItem that contains this place
     private var sharedByInfo: (userId: String, userName: String)? {
-        return pinSharingService.getSharedUserInfo(from: place, context: viewContext)
+        // First try to get info from sharing service (for pins from shared lists)
+        if let sharingInfo = pinSharingService.getSharedUserInfo(from: place, context: viewContext) {
+            return sharingInfo
+        }
+        
+        // Fallback to original user info from cloud sync (for pins from timeline/user profiles)
+        if let originalUserId = place.originalUserId,
+           let originalUsername = place.originalUsername,
+           !originalUserId.isEmpty,
+           !originalUsername.isEmpty {
+            return (userId: originalUserId, userName: originalUsername)
+        }
+        
+        return nil
     }
     
     // Determine if this pin belongs to another user
     private var isFromOtherUser: Bool {
-        let result = pinSharingService.isSharedFromOtherUser(place, context: viewContext)
-        //print("🔍 PinDetailView isFromOtherUser: \(result) for place: \(place.post ?? "Unknown")")
-        return result
+        // First check sharing service
+        if pinSharingService.isSharedFromOtherUser(place, context: viewContext) {
+            return true
+        }
+        
+        // Also check if this pin has original user info indicating it's from another user
+        if let originalUserId = place.originalUserId,
+           !originalUserId.isEmpty {
+            let currentUserId = authService.currentAccount?.id ?? ""
+            return originalUserId != currentUserId
+        }
+        
+        return false
     }
     
     // Determine if current user is the owner of this pin
@@ -157,11 +180,15 @@ struct PinDetailView: View {
                             
                             // Bottom line - owner info
                             if isFromOtherUser {
-                                // Show owner name
+                                // Show owner name - clickable
                                 if let shareInfo = sharedByInfo {
-                                    Text("by @\(shareInfo.userName)")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
+                                    Button(action: {
+                                        showingUserProfile = true
+                                    }) {
+                                        Text("by @\(shareInfo.userName)")
+                                            .font(.subheadline)
+                                            .foregroundColor(.blue)
+                                    }
                                 } else {
                                     Text("Shared")
                                         .font(.subheadline)
@@ -337,7 +364,7 @@ struct PinDetailView: View {
             if let shareInfo = sharedByInfo {
                 UserProfileView(
                     userId: shareInfo.userId,
-                    userName: shareInfo.userName,
+                    userName: place.originalDisplayName ?? shareInfo.userName,
                     userHandle: shareInfo.userName
                 )
             }

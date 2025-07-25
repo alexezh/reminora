@@ -1,7 +1,6 @@
 
 invented word combining reminisce + aurora (dawn of memory)
 
-
 maybe use pink idea - one button for creating lists ? 
 
 click to favor should remove favorite.
@@ -9,9 +8,6 @@ image - swipe up - show map and details. add show details to menu
 image - scale to fit area between title and tumbnails
 use time on photo as pin time
 
-
-PinDetailsView. add country, city below 
-Near places , share brings empty sms without text. pin brings empty screen. 
 
 Alllist remove title
 Nearby photos - remove space 

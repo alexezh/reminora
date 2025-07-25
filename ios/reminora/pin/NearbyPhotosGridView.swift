@@ -215,7 +215,7 @@ struct NearbyPhotosGridView: View {
         do {
             let allPlaces = try viewContext.fetch(request)
             nearbyPlaces = allPlaces.compactMap { place -> Place? in
-                guard let location = place.location,
+                guard let location = place.coordinates,
                       let data = location as? Data,
                       let clLocation = try? NSKeyedUnarchiver.unarchivedObject(ofClass: CLLocation.self, from: data) else {
                     return nil
@@ -226,8 +226,8 @@ struct NearbyPhotosGridView: View {
                 
                 return distance <= selectedRange.distanceInMeters ? place : nil
             }.sorted { place1, place2 in
-                guard let loc1Data = place1.location as? Data,
-                      let loc2Data = place2.location as? Data,
+                guard let loc1Data = place1.coordinates as? Data,
+                      let loc2Data = place2.coordinates as? Data,
                       let clLoc1 = try? NSKeyedUnarchiver.unarchivedObject(ofClass: CLLocation.self, from: loc1Data),
                       let clLoc2 = try? NSKeyedUnarchiver.unarchivedObject(ofClass: CLLocation.self, from: loc2Data) else {
                     return false
@@ -311,7 +311,7 @@ struct NearbyPhotosGridView: View {
                 
                 if let location = asset.location {
                     let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
-                    newPlace.location = locationData
+                    newPlace.coordinates = locationData
                 }
                 
                 newPlace.post = "Added from photo library"
@@ -610,7 +610,7 @@ struct PhotoZoomView: View {
                 
                 if let location = asset.location {
                     let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
-                    newPlace.location = locationData
+                    newPlace.coordinates = locationData
                 }
                 
                 // Add metadata about sharing
@@ -813,7 +813,7 @@ struct NearbyPlaceRow: View {
     
     private var distance: String {
         guard let centerLocation = centerLocation,
-              let locationData = place.location as? Data,
+              let locationData = place.coordinates as? Data,
               let clLocation = try? NSKeyedUnarchiver.unarchivedObject(ofClass: CLLocation.self, from: locationData) else {
             return ""
         }

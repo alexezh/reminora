@@ -7,6 +7,7 @@
 
 
 import CoreData
+import Foundation
 import MapKit
 import SwiftUI
 
@@ -183,6 +184,21 @@ struct PinCardView: View {
   }
   
   private func getLocationName() -> String? {
+    // First, try to get the first location from the locations JSON
+    if let locationsJSON = place.locations,
+       !locationsJSON.isEmpty,
+       let data = locationsJSON.data(using: .utf8) {
+      do {
+        let locations = try JSONDecoder().decode([LocationInfo].self, from: data)
+        if let firstLocation = locations.first {
+          return firstLocation.name
+        }
+      } catch {
+        // If JSON parsing fails, continue to fallback options
+        print("Failed to decode locations JSON: \(error)")
+      }
+    }
+    
     // Try to get location name from URL field or reverse geocoding
     if let url = place.url, !url.isEmpty {
       return url

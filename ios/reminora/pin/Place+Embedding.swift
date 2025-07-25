@@ -105,7 +105,7 @@ extension Place {
     ) async -> Place {
         let place = Place(context: context)
         place.imageData = imageData
-        place.location = location?.encodedData
+        place.coordinates = location?.encodedData
         place.post = post
         place.url = url
         place.dateAdded = dateAdded ?? Date()

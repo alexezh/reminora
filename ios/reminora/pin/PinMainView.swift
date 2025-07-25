@@ -92,6 +92,7 @@ struct PinMainView: View {
             }
           }
           .padding(.horizontal, 16)
+          .padding(.top, 8) // Top safe area padding
           .padding(.bottom, 8)
           
           // Search bar (when active)
@@ -149,7 +150,7 @@ struct PinMainView: View {
               }
             }
             .padding(.top, 16)
-            .padding(.bottom, 100) // Space for bottom content
+            .padding(.bottom, 120) // Extra space for custom toolbar + safe area
           }
           .refreshable {
             await performBackgroundSync()
@@ -176,6 +177,7 @@ struct PinMainView: View {
             }
           }
         }
+        .navigationBarHidden(true)
         }
         
         // Hidden NavigationLinks for programmatic navigation

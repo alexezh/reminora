@@ -124,11 +124,11 @@ struct PinMainView: View {
           
           // Main card list
           ScrollView {
-            LazyVStack(spacing: 16) {
+            LazyVStack(spacing: 12) {
               ForEach(filteredItems, id: \.objectID) { place in
                 PinCardView(
                   place: place,
-                  cardHeight: geometry.size.height * 0.25, // 1/4 screen height
+                  cardHeight: geometry.size.height * 0.27, // Slightly larger to accommodate shadow
                   onPhotoTap: {
                     selectedPlace = place
                     showingPinDetail = true
@@ -147,6 +147,7 @@ struct PinMainView: View {
                   }
                 )
                 .padding(.horizontal, 16)
+                .padding(.vertical, 4)
               }
             }
             .padding(.top, 16)

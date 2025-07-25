@@ -93,7 +93,7 @@ struct NearbyLocationsView: View {
                 Map(coordinateRegion: .constant(MKCoordinateRegion(
                     center: searchLocation,
                     span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
-                )), annotationItems: [MapAnnotationItem(coordinate: searchLocation)]) { annotation in
+                )), annotationItems: [NearbyMapAnnotationItem(coordinate: searchLocation)]) { annotation in
                     MapAnnotation(coordinate: annotation.coordinate) {
                         ZStack {
                             Circle()
@@ -587,7 +587,7 @@ struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
-struct MapAnnotationItem: Identifiable {
+struct NearbyMapAnnotationItem: Identifiable {
     let id = UUID()
     let coordinate: CLLocationCoordinate2D
 }
@@ -634,7 +634,7 @@ struct AddPinFromLocationView: View {
                     Map(coordinateRegion: .constant(MKCoordinateRegion(
                         center: location.coordinate,
                         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-                    )), annotationItems: [MapAnnotationItem(coordinate: location.coordinate)]) { pin in
+                    )), annotationItems: [NearbyMapAnnotationItem(coordinate: location.coordinate)]) { pin in
                         MapAnnotation(coordinate: pin.coordinate) {
                             ZStack {
                                 Circle()

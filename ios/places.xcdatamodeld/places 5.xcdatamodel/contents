@@ -131,6 +131,21 @@
             <fetchIndexElement property="isRejected" type="Binary" order="ascending"/>
         </fetchIndex>
     </entity>
+    <entity name="SearchPreference" representedClassName="SearchPreference" syncable="YES" codeGenerationType="class">
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="query" attributeType="String"/>
+        <attribute name="searchCount" attributeType="Integer 32" defaultValue="1" usesScalarValueType="YES"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <fetchIndex name="byQueryIndex">
+            <fetchIndexElement property="query" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byUpdatedAtIndex">
+            <fetchIndexElement property="updatedAt" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="bySearchCountIndex">
+            <fetchIndexElement property="searchCount" type="Binary" order="descending"/>
+        </fetchIndex>
+    </entity>
     <entity name="UserList" representedClassName="UserList" syncable="YES" codeGenerationType="class">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" attributeType="String"/>

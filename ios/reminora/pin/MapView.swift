@@ -14,6 +14,8 @@ struct MapView: View {
     @State private var showingSearch = false
     @State private var selectedCategory = "All"
     @State private var showRejected = false
+    @State private var searchSuggestions: [String] = []
+    @State private var showingSuggestions = false
     @StateObject private var locationManager = LocationManager()
     
     private let searchTerms = [
@@ -149,14 +151,23 @@ struct MapView: View {
                             .textFieldStyle(PlainTextFieldStyle())
                             .padding(.vertical, 8)
                             .onChange(of: searchText) { _, newValue in
-                                if !newValue.isEmpty && nearbyPlaces.isEmpty {
-                                    searchLocations(query: newValue)
+                                if !newValue.isEmpty {
+                                    updateSearchSuggestions(for: newValue)
+                                    showingSuggestions = true
+                                } else {
+                                    showingSuggestions = false
+                                }
+                            }
+                            .onSubmit {
+                                if !searchText.isEmpty {
+                                    performSearch(query: searchText)
                                 }
                             }
                         
                         if !searchText.isEmpty {
                             Button("Clear") {
                                 searchText = ""
+                                showingSuggestions = false
                             }
                             .font(.caption)
                             .foregroundColor(.blue)
@@ -166,6 +177,42 @@ struct MapView: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(8)
                     .padding(.horizontal, 16)
+                    
+                    // Search suggestions
+                    if showingSuggestions && !searchSuggestions.isEmpty {
+                        VStack(spacing: 0) {
+                            ForEach(searchSuggestions, id: \.self) { suggestion in
+                                Button(action: {
+                                    searchText = suggestion
+                                    performSearch(query: suggestion)
+                                    showingSuggestions = false
+                                }) {
+                                    HStack {
+                                        Image(systemName: "clock")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Text(suggestion)
+                                            .font(.subheadline)
+                                            .foregroundColor(.primary)
+                                        Spacer()
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                
+                                if suggestion != searchSuggestions.last {
+                                    Divider()
+                                        .padding(.leading, 28)
+                                }
+                            }
+                        }
+                        .background(Color(.systemBackground))
+                        .cornerRadius(8)
+                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                    }
                     
                     // Category filter dropdown
                     VStack(spacing: 0) {
@@ -416,6 +463,63 @@ struct MapView: View {
         } catch {
             print("Error toggling reject: \(error)")
         }
+    }
+    
+    // MARK: - Search History Management
+    
+    private func updateSearchSuggestions(for query: String) {
+        let fetchRequest: NSFetchRequest<SearchPreference> = SearchPreference.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "query CONTAINS[c] %@", query)
+        fetchRequest.sortDescriptors = [
+            NSSortDescriptor(key: "searchCount", ascending: false),
+            NSSortDescriptor(key: "updatedAt", ascending: false)
+        ]
+        fetchRequest.fetchLimit = 10
+        
+        do {
+            let results = try viewContext.fetch(fetchRequest)
+            searchSuggestions = results.map { $0.query ?? "" }.filter { !$0.isEmpty }
+        } catch {
+            print("Error fetching search suggestions: \(error)")
+            searchSuggestions = []
+        }
+    }
+    
+    private func saveSearchQuery(_ query: String) {
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else { return }
+        
+        let fetchRequest: NSFetchRequest<SearchPreference> = SearchPreference.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "query == %@", trimmedQuery)
+        
+        do {
+            let results = try viewContext.fetch(fetchRequest)
+            let searchPreference: SearchPreference
+            
+            if let existing = results.first {
+                // Update existing search
+                searchPreference = existing
+                searchPreference.searchCount += 1
+                searchPreference.updatedAt = Date()
+            } else {
+                // Create new search preference
+                searchPreference = SearchPreference(context: viewContext)
+                searchPreference.query = trimmedQuery
+                searchPreference.searchCount = 1
+                searchPreference.createdAt = Date()
+                searchPreference.updatedAt = Date()
+            }
+            
+            try viewContext.save()
+        } catch {
+            print("Error saving search query: \(error)")
+        }
+    }
+    
+    private func performSearch(query: String) {
+        saveSearchQuery(query)
+        searchLocations(query: query)
+        showingSuggestions = false
     }
     
     // MARK: - Search and Loading
@@ -709,3 +813,4 @@ struct MapAnnotationItem: Identifiable {
     let id = UUID()
     let coordinate: CLLocationCoordinate2D
 }
+

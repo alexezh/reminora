@@ -614,7 +614,7 @@ struct RListPinView: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     
-                    if let locationData = place.value(forKey: "location") as? Data,
+                    if let locationData = place.value(forKey: "coordinates") as? Data,
                        let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
                         HStack {
                             Image(systemName: "location.fill")

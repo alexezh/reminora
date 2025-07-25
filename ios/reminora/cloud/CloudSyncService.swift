@@ -72,7 +72,7 @@ class CloudSyncService: ObservableObject {
             
             if let location = location {
                 let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
-                newPlace.location = locationData
+                newPlace.coordinates = locationData
             }
             
             do {
@@ -110,7 +110,7 @@ class CloudSyncService: ObservableObject {
         
         // Extract location from place
         var location: CLLocation?
-        if let locationData = place.value(forKey: "location") as? Data,
+        if let locationData = place.value(forKey: "coordinates") as? Data,
            let storedLocation = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
             location = storedLocation
         }
@@ -121,7 +121,8 @@ class CloudSyncService: ObservableObject {
         let cloudPhoto = try await apiService.uploadPin(
             imageData: imageData,
             location: location,
-            caption: place.post
+            caption: place.post,
+            locations: place.locations
         )
         
         // Update local record with cloud ID
@@ -230,7 +231,12 @@ class CloudSyncService: ObservableObject {
                 withRootObject: location,
                 requiringSecureCoding: false
             )
-            place.setValue(locationData, forKey: "location")
+            place.setValue(locationData, forKey: "coordinates")
+        }
+        
+        // Set locations data
+        if let locations = cloudPhoto.locations {
+            place.setValue(locations, forKey: "locations")
         }
     }
     
@@ -238,6 +244,11 @@ class CloudSyncService: ObservableObject {
         // Update caption if it changed
         if place.post != cloudPhoto.caption {
             place.setValue(cloudPhoto.caption, forKey: "post")
+        }
+        
+        // Update locations if it changed
+        if place.locations != cloudPhoto.locations {
+            place.setValue(cloudPhoto.locations, forKey: "locations")
         }
         
         place.setValue(Date(), forKey: "cloudSyncedAt")
@@ -293,7 +304,7 @@ class CloudSyncService: ObservableObject {
                         // Store location
                         if let location = photo.location {
                             if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
-                                place.setValue(locationData, forKey: "location")
+                                place.setValue(locationData, forKey: "coordinates")
                             }
                         }
                         
@@ -366,7 +377,7 @@ class CloudSyncService: ObservableObject {
         // Store location
         if let location = photo.location {
             if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
-                place.setValue(locationData, forKey: "location")
+                place.setValue(locationData, forKey: "coordinates")
             }
         }
         

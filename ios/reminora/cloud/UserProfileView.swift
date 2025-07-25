@@ -491,7 +491,7 @@ struct UserProfileView: View {
             withRootObject: CLLocation(latitude: 0, longitude: 0),
             requiringSecureCoding: false
         ) {
-            virtualPlace.setValue(locationData, forKey: "location")
+            virtualPlace.setValue(locationData, forKey: "coordinates")
         }
         
         // Create placeholder image data for comments

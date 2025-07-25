@@ -352,7 +352,7 @@ struct PinMainView: View {
   }
   
   private func getLocationFromPlace(_ place: Place) -> CLLocation? {
-    if let locationData = place.value(forKey: "location") as? Data,
+    if let locationData = place.value(forKey: "coordinates") as? Data,
        let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
       return location
     }

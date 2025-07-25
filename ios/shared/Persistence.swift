@@ -112,7 +112,7 @@ class PersistenceController {
             if let url = url, let coordinate = self.extractLocation(from: url) {
                 let locationData = try? NSKeyedArchiver.archivedData(
                     withRootObject: coordinate, requiringSecureCoding: false)
-                sharedImage.setValue(locationData, forKey: "location")
+                sharedImage.setValue(locationData, forKey: "coordinates")
             }
             sharedImage.setValue(isPrivate, forKey: "isPrivate")
             // Store reference to last inserted Place for use in didSelectPost
@@ -149,7 +149,7 @@ class PersistenceController {
             if let location = location {
                 let locationData = try? NSKeyedArchiver.archivedData(
                     withRootObject: location, requiringSecureCoding: false)
-                sharedImage.setValue(locationData, forKey: "location")
+                sharedImage.setValue(locationData, forKey: "coordinates")
             }
             sharedImage.setValue(isPrivate, forKey: "isPrivate")
             

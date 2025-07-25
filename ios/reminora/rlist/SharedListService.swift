@@ -210,7 +210,7 @@ class SharedListService: ObservableObject {
         
         // Get location coordinates from Core Data
         var coordinate = CLLocationCoordinate2D(latitude: 0, longitude: 0)
-        if let locationData = place.value(forKey: "location") as? Data,
+        if let locationData = place.value(forKey: "coordinates") as? Data,
            let clLocation = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
             coordinate = clLocation.coordinate
         }

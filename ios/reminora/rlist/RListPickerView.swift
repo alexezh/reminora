@@ -144,7 +144,7 @@ struct RListPickerView: View {
         // Store location
         let location = CLLocation(latitude: place.coordinate.latitude, longitude: place.coordinate.longitude)
         if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
-            newPlace.setValue(locationData, forKey: "location")
+            newPlace.setValue(locationData, forKey: "coordinates")
         }
         
         // Create list item
@@ -200,7 +200,7 @@ struct RListPickerView: View {
         // Store location
         let location = CLLocation(latitude: place.coordinate.latitude, longitude: place.coordinate.longitude)
         if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
-            newPlace.setValue(locationData, forKey: "location")
+            newPlace.setValue(locationData, forKey: "coordinates")
         }
         
         // Create list item

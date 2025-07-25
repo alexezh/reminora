@@ -289,7 +289,7 @@ class PinSharingService: ObservableObject {
     
     private func createPinShareRequest(from place: Place) -> [String: Any]? {
         // Extract location
-        guard let locationData = place.value(forKey: "location") as? Data,
+        guard let locationData = place.value(forKey: "coordinates") as? Data,
               let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation else {
             return nil
         }

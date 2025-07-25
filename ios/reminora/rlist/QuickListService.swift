@@ -303,7 +303,7 @@ class QuickListService: ObservableObject {
         // Store location if available
         if let location = asset.location {
             if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
-                place.setValue(locationData, forKey: "location")
+                place.setValue(locationData, forKey: "coordinates")
             }
         }
         

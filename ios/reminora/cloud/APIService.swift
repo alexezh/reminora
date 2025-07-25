@@ -141,7 +141,8 @@ class APIService: ObservableObject {
     func uploadPin(
         imageData: Data,
         location: CLLocation?,
-        caption: String?
+        caption: String?,
+        locations: String? = nil
     ) async throws -> PinAPI {
         let url = URL(string: "\(baseURL)/api/pins")!
         
@@ -159,7 +160,8 @@ class APIService: ObservableObject {
             latitude: location?.coordinate.latitude,
             longitude: location?.coordinate.longitude,
             location_name: nil, // Could be filled with reverse geocoding
-            caption: caption
+            caption: caption,
+            locations: locations
         )
         
         let data = try JSONEncoder().encode(body)

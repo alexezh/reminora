@@ -360,7 +360,7 @@ struct NearbyLocationsPageView: View {
             // Store location coordinates
             let clLocation = CLLocation(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
             if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: clLocation, requiringSecureCoding: false) {
-                locationPlace.setValue(locationData, forKey: "location")
+                locationPlace.setValue(locationData, forKey: "coordinates")
             }
             
             // Store additional location info in the description field
@@ -674,7 +674,7 @@ struct AddPinFromLocationView: View {
         // Store location
         let clLocation = CLLocation(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
         if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: clLocation, requiringSecureCoding: false) {
-            newPlace.setValue(locationData, forKey: "location")
+            newPlace.setValue(locationData, forKey: "coordinates")
         }
         
         do {

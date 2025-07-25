@@ -226,7 +226,7 @@ struct reminoraApp: App {
         // Store location
         let location = CLLocation(latitude: lat, longitude: lon)
         if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
-            newPlace.setValue(locationData, forKey: "location")
+            newPlace.setValue(locationData, forKey: "coordinates")
         }
         
         // Find or create the shared list

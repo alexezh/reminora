@@ -649,7 +649,7 @@ struct PhotoZoomView: View {
     }
     
     private func coordinate(for place: Place) -> CLLocationCoordinate2D {
-        if let locationData = place.value(forKey: "location") as? Data,
+        if let locationData = place.value(forKey: "coordinates") as? Data,
            let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
             return location.coordinate
         }

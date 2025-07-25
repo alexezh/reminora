@@ -354,7 +354,7 @@ struct ProfileView: View {
             // Set location
             let location = CLLocation(latitude: lat, longitude: lon)
             let locationData = try NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
-            place.setValue(locationData, forKey: "location")
+            place.setValue(locationData, forKey: "coordinates")
             
             // Add owner info to URL field
             if let ownerId = ownerId, let ownerHandle = ownerHandle {
@@ -516,7 +516,7 @@ struct ProfileView: View {
         // Try to find a place with matching coordinates and name
         await MainActor.run {
             guard let placeName = place.post,
-                  let locationData = place.value(forKey: "location") as? Data,
+                  let locationData = place.value(forKey: "coordinates") as? Data,
                   let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation else {
                 print("❌ Cannot extract location data for fallback search")
                 return
@@ -530,7 +530,7 @@ struct ProfileView: View {
                 
                 // Find a place with similar location (within 100 meters)
                 for similarPlace in similarPlaces {
-                    if let similarLocationData = similarPlace.value(forKey: "location") as? Data,
+                    if let similarLocationData = similarPlace.value(forKey: "coordinates") as? Data,
                        let similarLocation = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(similarLocationData) as? CLLocation {
                         
                         let distance = location.distance(from: similarLocation)

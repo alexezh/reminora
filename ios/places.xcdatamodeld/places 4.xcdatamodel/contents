@@ -91,7 +91,7 @@
         <attribute name="dateAdded" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="imageData" optional="YES" attributeType="Binary"/>
         <attribute name="isPrivate" optional="YES" attributeType="Boolean" defaultValue="NO" usesScalarValueType="YES"/>
-        <attribute name="location" optional="YES" attributeType="Binary"/>
+        <attribute name="coordinates" optional="YES" attributeType="Binary"/>
         <attribute name="locations" optional="YES" attributeType="String"/>
         <attribute name="originalDisplayName" optional="YES" attributeType="String"/>
         <attribute name="originalUserId" optional="YES" attributeType="String"/>

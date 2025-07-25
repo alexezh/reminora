@@ -523,7 +523,7 @@ struct PinDetailView: View {
 
     // Helper methods
     static func coordinate(item: Place) -> CLLocationCoordinate2D {
-        if let locationData = item.value(forKey: "location") as? Data,
+        if let locationData = item.value(forKey: "coordinates") as? Data,
             let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData)
                 as? CLLocation
         {

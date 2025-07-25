@@ -89,6 +89,7 @@ struct PinAPI: Codable, Identifiable {
     let username: String
     let display_name: String
     let timeline_created_at: TimeInterval?
+    let locations: String? // JSON string of LocationInfo array
     
     // Computed property for CLLocation
     var location: CLLocation? {
@@ -109,6 +110,7 @@ struct CreatePinRequest: Codable {
     let longitude: Double?
     let location_name: String?
     let caption: String?
+    let locations: String? // JSON string of LocationInfo array
 }
 
 struct TimelineResponse: Codable {

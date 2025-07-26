@@ -49,91 +49,97 @@ struct UserProfileView: View {
                         ProgressView("Loading profile...")
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        // Profile Header
-                        VStack(spacing: 16) {
-                            // Avatar
+                        // Profile Header - Compact layout with avatar on left
+                        HStack(spacing: 16) {
+                            // Avatar on the left
                             AsyncImage(url: URL(string: userProfile?.avatar_url ?? "")) { image in
                                 image
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
                             } placeholder: {
                                 Image(systemName: "person.circle.fill")
-                                    .font(.system(size: 80))
+                                    .font(.system(size: 60))
                                     .foregroundColor(.gray)
                             }
-                            .frame(width: 100, height: 100)
+                            .frame(width: 80, height: 80)
                             .clipShape(Circle())
+                            
+                            // Name, handle, and follow button on the right
+                            VStack(alignment: .leading, spacing: 8) {
+                                // Name and Handle
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(userProfile?.display_name ?? userName)
+                                        .font(.title2)
+                                        .fontWeight(.bold)
 
-                            // Name and Handle
-                            VStack(spacing: 4) {
-                                Text(userProfile?.display_name ?? userName)
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-
-                                if let handle = userProfile?.handle ?? userHandle {
-                                    Text("@\(handle)")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-
-                            // Follow/Unfollow Button (only for other users)
-                            if userId != AuthenticationService.shared.currentAccount?.id {
-                                Button(action: toggleFollow) {
-                                    HStack {
-                                        if isFollowActionLoading {
-                                            ProgressView()
-                                                .progressViewStyle(
-                                                    CircularProgressViewStyle(tint: .white)
-                                                )
-                                                .scaleEffect(0.8)
-                                        } else {
-                                            Image(
-                                                systemName: isFollowing
-                                                    ? "person.badge.minus" : "person.badge.plus")
-                                            Text(isFollowing ? "Unfollow" : "Follow")
-                                        }
+                                    if let handle = userProfile?.handle ?? userHandle {
+                                        Text("@\(handle)")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
                                     }
-                                    .frame(width: 120, height: 36)
-                                    .background(isFollowing ? Color.gray : Color.blue)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(18)
                                 }
-                                .disabled(isFollowActionLoading)
+
+                                // Follow/Unfollow Button (only for other users)
+                                if userId != AuthenticationService.shared.currentAccount?.id {
+                                    Button(action: toggleFollow) {
+                                        HStack {
+                                            if isFollowActionLoading {
+                                                ProgressView()
+                                                    .progressViewStyle(
+                                                        CircularProgressViewStyle(tint: .white)
+                                                    )
+                                                    .scaleEffect(0.8)
+                                            } else {
+                                                Image(
+                                                    systemName: isFollowing
+                                                        ? "person.badge.minus" : "person.badge.plus")
+                                                Text(isFollowing ? "Unfollow" : "Follow")
+                                            }
+                                        }
+                                        .frame(width: 120, height: 36)
+                                        .background(isFollowing ? Color.gray : Color.blue)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(18)
+                                    }
+                                    .disabled(isFollowActionLoading)
+                                }
                             }
+                            
+                            Spacer()
                         }
                         .padding()
 
-                        // Content Section - Using RListView for pins and comments
+                        // Content Section - Using PinCardView for shared pins
                         if !contentItems.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("User Content (\(contentItems.count) items)")
+                                Text("Shared Pins (\(contentItems.count) items)")
                                     .font(.headline)
                                     .padding(.horizontal, 16)
                                 
-                                RListView(
-                                    dataSource: .mixed(contentItems),
-                                    onPhotoTap: { asset in
-                                        // Handle photo tap if needed
-                                    },
-                                    onPinTap: { place in
-                                        selectedPin = place
-                                    },
-                                    onPhotoStackTap: { assets in
-                                        // Handle photo stack tap if needed
-                                    },
-                                    onLocationTap: { location in
-                                        // Handle location tap if needed
+                                LazyVStack(spacing: 16) {
+                                    ForEach(contentItems, id: \.id) { contentItem in
+                                        if case .pin(let place) = contentItem.itemType {
+                                            PinCardView(
+                                                place: place,
+                                                cardHeight: 200,
+                                                onPhotoTap: {
+                                                    selectedPin = place
+                                                },
+                                                onTitleTap: {
+                                                    selectedPin = place
+                                                },
+                                                onMapTap: {
+                                                    selectedPin = place
+                                                },
+                                                onUserTap: { userId, userName in
+                                                    // Handle user tap if needed
+                                                }
+                                            )
+                                            .padding(.horizontal, 16)
+                                        }
                                     }
-                                )
-                                .frame(minHeight: 400)
-                            }
-                        } else if !isLoading {
-                            VStack(spacing: 16) {
-                                Text("Debug: contentItems is empty")
-                                    .font(.caption)
-                                    .foregroundColor(.red)
-                                    .padding()
+                                }
+                                .padding(.vertical, 8)
                             }
                         }
 
@@ -159,15 +165,8 @@ struct UserProfileView: View {
                     }
                 }
             }
-            .navigationTitle(userProfile?.display_name ?? userName)
+            .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
         }
         .task {
             await loadUserProfile()

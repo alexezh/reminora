@@ -7,6 +7,7 @@ click to favor should remove favorite.
 image - swipe up - show map and details. add show details to menu
 image - scale to fit area between title and tumbnails
 use time on photo as pin time
+bucket photos by similarity. display all photos. 
 
 pull down - refresh all followings
 add - quick button to pincard.

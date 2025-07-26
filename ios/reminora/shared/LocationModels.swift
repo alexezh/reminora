@@ -36,14 +36,16 @@ struct LocationInfo: Codable, Identifiable {
     let latitude: Double
     let longitude: Double
     let category: String?
+    let phoneNumber: String?
     
-    init(id: String, name: String, address: String? = nil, latitude: Double, longitude: Double, category: String? = nil) {
+    init(id: String, name: String, address: String? = nil, latitude: Double, longitude: Double, category: String? = nil, phoneNumber: String? = nil) {
         self.id = id
         self.name = name
         self.address = address
         self.latitude = latitude
         self.longitude = longitude
         self.category = category
+        self.phoneNumber = phoneNumber
     }
     
     init(from nearbyLocation: NearbyLocation) {
@@ -53,6 +55,7 @@ struct LocationInfo: Codable, Identifiable {
         self.latitude = nearbyLocation.coordinate.latitude
         self.longitude = nearbyLocation.coordinate.longitude
         self.category = nearbyLocation.category
+        self.phoneNumber = nearbyLocation.phoneNumber
     }
 }
 

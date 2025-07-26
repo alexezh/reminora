@@ -2,6 +2,7 @@ import SwiftUI
 import MapKit
 import CoreData
 import UIKit
+import Foundation
 
 struct MapView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -16,6 +17,9 @@ struct MapView: View {
     @State private var showRejected = false
     @State private var searchSuggestions: [String] = []
     @State private var showingSuggestions = false
+    @State private var mapRegion = MKCoordinateRegion()
+    @State private var selectedMapLocation: NearbyLocation?
+    @State private var showingAddPinDialog = false
     @StateObject private var locationManager = LocationManager()
     
     private let searchTerms = [
@@ -40,25 +44,38 @@ struct MapView: View {
     
     var filteredPlaces: [NearbyLocation] {
         var filtered = nearbyPlaces
+        print("🔍 filteredPlaces: nearbyPlaces count = \(nearbyPlaces.count)")
         
-        // Filter by category
-        if selectedCategory != "All" {
+        // Filter by category (skip category filtering for search results)
+        if selectedCategory != "All" && !filtered.allSatisfy({ $0.category == "search" }) {
             filtered = filtered.filter { $0.category.contains(selectedCategory.lowercased()) }
+            print("🔍 After category filter (\(selectedCategory)): \(filtered.count) places")
         }
         
-        // Filter by search text
-        if !searchText.isEmpty {
+        // Filter by search text (only when search text is provided and we're not showing search results)
+        if !searchText.isEmpty && !filtered.allSatisfy({ $0.category == "search" }) {
             filtered = filtered.filter { place in
                 place.name.localizedCaseInsensitiveContains(searchText) ||
                 place.address.localizedCaseInsensitiveContains(searchText) ||
                 place.category.localizedCaseInsensitiveContains(searchText)
             }
+            print("🔍 After search text filter (\(searchText)): \(filtered.count) places")
+        }
+        
+        // Debug: Print categories of first few places
+        if !filtered.isEmpty {
+            let sampleCategories = filtered.prefix(3).map { "\($0.name): \($0.category)" }
+            print("🔍 Sample categories: \(sampleCategories)")
         }
         
         // Filter out rejected locations unless showRejected is true
         if !showRejected {
+            let beforeRejectFilter = filtered.count
             filtered = filtered.filter { !isLocationRejected($0) }
+            print("🔍 After reject filter: \(filtered.count) places (removed \(beforeRejectFilter - filtered.count))")
         }
+        
+        print("🔍 Final filtered places count: \(filtered.count)")
         
         // Sort with favorites first
         return filtered.sorted { a, b in
@@ -75,7 +92,7 @@ struct MapView: View {
         VStack(spacing: 0) {
             // Header with title and search button
             HStack {
-                Text("Explore Locations")
+                Text("Map")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                 
@@ -103,11 +120,8 @@ struct MapView: View {
             // Map view - 1/4 of screen
             GeometryReader { geometry in
                 if let userLocation = userLocation {
-                    Map(coordinateRegion: .constant(MKCoordinateRegion(
-                        center: userLocation,
-                        span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
-                    )), annotationItems: filteredPlaces.prefix(20).map { location in
-                        MapAnnotationItem(coordinate: location.coordinate)
+                    Map(coordinateRegion: $mapRegion, annotationItems: filteredPlaces.prefix(20).map { location in
+                        MapAnnotationItem(coordinate: location.coordinate, location: location)
                     }) { annotation in
                         MapAnnotation(coordinate: annotation.coordinate) {
                             ZStack {
@@ -118,9 +132,20 @@ struct MapView: View {
                                     .stroke(Color.white, lineWidth: 2)
                                     .frame(width: 16, height: 16)
                             }
+                            .onTapGesture {
+                                selectedMapLocation = annotation.location
+                                showingAddPinDialog = true
+                            }
                         }
                     }
-                    .allowsHitTesting(false)
+                    .onAppear {
+                        if mapRegion.center.latitude == 0 && mapRegion.center.longitude == 0 {
+                            mapRegion = MKCoordinateRegion(
+                                center: userLocation,
+                                span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+                            )
+                        }
+                    }
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.2))
@@ -341,7 +366,8 @@ struct MapView: View {
                                 onShareTap: { sharePlace(place) },
                                 onPinTap: { pinPlace(place) },
                                 onFavTap: { toggleFavorite(place) },
-                                onRejectTap: { toggleReject(place) }
+                                onRejectTap: { toggleReject(place) },
+                                onLocationTap: { showLocationOnMap(place) }
                             )
                         }
                     }
@@ -352,16 +378,37 @@ struct MapView: View {
         }
         .onAppear {
             // Request location permission and get user location
+            print("📍 MapView appeared")
+            print("📍 Location authorization status: \(CLLocationManager.locationServicesEnabled() ? "enabled" : "disabled")")
+            print("📍 Location authorization: \(locationManager.manager.authorizationStatus)")
             if let location = locationManager.lastLocation {
                 userLocation = location.coordinate
+                print("📍 User location available: \(location.coordinate.latitude), \(location.coordinate.longitude)")
                 loadNearbyPlaces()
+            } else {
+                print("⚠️ No user location available")
             }
         }
         .onChange(of: locationManager.lastLocation) { _, newLocation in
             if let location = newLocation {
                 userLocation = location.coordinate
+                // Initialize map region to current location
+                if mapRegion.center.latitude == 0 && mapRegion.center.longitude == 0 {
+                    mapRegion = MKCoordinateRegion(
+                        center: location.coordinate,
+                        span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+                    )
+                }
                 if nearbyPlaces.isEmpty {
                     loadNearbyPlaces()
+                }
+            }
+        }
+        .sheet(isPresented: $showingAddPinDialog) {
+            if let selectedLocation = selectedMapLocation {
+                AddPinFromLocationView(location: selectedLocation) {
+                    showingAddPinDialog = false
+                    selectedMapLocation = nil
                 }
             }
         }
@@ -587,8 +634,12 @@ struct MapView: View {
     }
     
     private func searchLocations(query: String) {
-        guard let userLocation = userLocation else { return }
+        guard let userLocation = userLocation else { 
+            print("❌ No user location available for search")
+            return 
+        }
         
+        print("🔍 Searching for: '\(query)' near \(userLocation.latitude), \(userLocation.longitude)")
         isLoading = true
         
         Task {
@@ -600,16 +651,27 @@ struct MapView: View {
                 longitudinalMeters: 50000
             )
             
+            // Add specific search for restaurants in Redmond
+            if query.lowercased().contains("restaurant") && query.lowercased().contains("redmond") {
+                request.naturalLanguageQuery = "restaurant Redmond WA"
+                print("🍽️ Enhanced search for restaurants in Redmond")
+            }
+            
             do {
                 let search = MKLocalSearch(request: request)
                 let response = try await search.start()
                 
+                print("📍 Found \(response.mapItems.count) map items")
+                
                 let places = response.mapItems.compactMap { item -> NearbyLocation? in
-                    guard let location = item.placemark.location else { return nil }
+                    guard let location = item.placemark.location else { 
+                        print("❌ Item has no location: \(item.placemark.name ?? "Unknown")")
+                        return nil 
+                    }
                     
                     let distance = location.distance(from: CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude))
                     
-                    return NearbyLocation(
+                    let place = NearbyLocation(
                         id: item.placemark.name ?? UUID().uuidString,
                         name: item.placemark.name ?? "Unknown",
                         address: formatAddress(from: item.placemark),
@@ -619,22 +681,97 @@ struct MapView: View {
                         phoneNumber: item.phoneNumber,
                         url: item.url
                     )
+                    
+                    print("✅ Added: \(place.name) at \(place.distance/1000)km")
+                    return place
                 }
+                
+                print("🎯 Final results: \(places.count) places")
                 
                 await MainActor.run {
                     self.nearbyPlaces = places.sorted { $0.distance < $1.distance }
                     self.isLoading = false
+                    
+                    if places.isEmpty {
+                        print("⚠️ No results found for '\(query)' - trying broader search")
+                        // Try a broader search without location restriction
+                        Task {
+                            await self.performBroaderSearch(query: query)
+                        }
+                    }
                 }
             } catch {
                 await MainActor.run {
                     self.isLoading = false
                 }
-                print("Search failed: \(error)")
+                print("❌ Search failed for '\(query)': \(error)")
+                print("Error details: \(error.localizedDescription)")
             }
         }
     }
     
+    private func performBroaderSearch(query: String) async {
+        print("🌍 Performing broader search for: '\(query)'")
+        
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = query
+        // Don't set a region - search globally
+        
+        do {
+            let search = MKLocalSearch(request: request)
+            let response = try await search.start()
+            
+            print("📍 Broader search found \(response.mapItems.count) map items")
+            
+            let places = response.mapItems.compactMap { item -> NearbyLocation? in
+                guard let location = item.placemark.location else { return nil }
+                
+                // Calculate distance from user location if available
+                let distance: Double
+                if let userLocation = userLocation {
+                    distance = location.distance(from: CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude))
+                } else {
+                    distance = 0 // No user location available
+                }
+                
+                let place = NearbyLocation(
+                    id: item.placemark.name ?? UUID().uuidString,
+                    name: item.placemark.name ?? "Unknown",
+                    address: formatAddress(from: item.placemark),
+                    coordinate: item.placemark.coordinate,
+                    distance: distance,
+                    category: "search",
+                    phoneNumber: item.phoneNumber,
+                    url: item.url
+                )
+                
+                print("✅ Broader search added: \(place.name) at \(place.distance/1000)km")
+                return place
+            }
+            
+            await MainActor.run {
+                if !places.isEmpty {
+                    self.nearbyPlaces = places.sorted { $0.distance < $1.distance }
+                    print("🎯 Broader search results: \(places.count) places")
+                } else {
+                    print("❌ Even broader search found no results for '\(query)'")
+                }
+            }
+        } catch {
+            print("❌ Broader search failed for '\(query)': \(error)")
+        }
+    }
+    
     // MARK: - Actions
+    
+    private func showLocationOnMap(_ location: NearbyLocation) {
+        withAnimation(.easeInOut(duration: 0.5)) {
+            mapRegion = MKCoordinateRegion(
+                center: location.coordinate,
+                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+            )
+        }
+    }
     
     private func sharePlace(_ place: NearbyLocation) {
         // Create platform map URL
@@ -720,10 +857,11 @@ struct MapLocationCard: View {
     let onPinTap: () -> Void
     let onFavTap: () -> Void
     let onRejectTap: () -> Void
+    let onLocationTap: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Main content
+            // Main content - Tappable to show on map
             VStack(alignment: .leading, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(place.name)
@@ -753,6 +891,10 @@ struct MapLocationCard: View {
                         }
                     }
                 }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onLocationTap()
             }
             
             // Action buttons
@@ -790,7 +932,7 @@ struct MapLocationCard: View {
                 Button(action: onRejectTap) {
                     HStack(spacing: 4) {
                         Image(systemName: isRejected ? "x.circle.fill" : "x.circle")
-                        Text("Reject")
+                        Text("Dismiss")
                     }
                     .font(.caption)
                     .foregroundColor(isRejected ? .red : .blue)
@@ -812,5 +954,11 @@ struct MapLocationCard: View {
 struct MapAnnotationItem: Identifiable {
     let id = UUID()
     let coordinate: CLLocationCoordinate2D
+    let location: NearbyLocation?
+    
+    init(coordinate: CLLocationCoordinate2D, location: NearbyLocation? = nil) {
+        self.coordinate = coordinate
+        self.location = location
+    }
 }
 

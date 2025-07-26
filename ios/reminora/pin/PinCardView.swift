@@ -22,6 +22,15 @@ struct PinCardView: View {
   
   @State private var selectedCard: CardType = .text
   
+  private var availableCards: [CardType] {
+    var cards: [CardType] = [.text]
+    if place.imageData != nil {
+      cards.append(.image)
+    }
+    cards.append(.map)
+    return cards
+  }
+  
   enum CardType {
     case text, image, map
   }
@@ -54,28 +63,30 @@ struct PinCardView: View {
             }
           }
         
-        // Image Card (Center position)
-        imageCard
-          .frame(width: cardWidth, height: cardHeight)
-          .background(Color(.systemBackground))
-          .cornerRadius(16)
-          .overlay(
-            RoundedRectangle(cornerRadius: 16)
-              .stroke(Color(.systemGray4), lineWidth: 0.5)
-          )
-          .shadow(color: .black.opacity(selectedCard == .image ? 0.2 : 0.1), radius: selectedCard == .image ? 8 : 4, x: 0, y: selectedCard == .image ? 4 : 2)
-          .scaleEffect(selectedCard == .image ? 1.0 : 0.9)
-          .opacity(selectedCard == .image ? 1.0 : 0.7)
-          .zIndex(selectedCard == .image ? 3 : 2)
-          .offset(x: visibleEdgeWidth)
-          .animation(.spring(response: 0.6, dampingFraction: 0.8), value: selectedCard)
-          .onTapGesture {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-              selectedCard = .image
+        // Image Card (Center position) - Only show if image exists
+        if place.imageData != nil {
+          imageCard
+            .frame(width: cardWidth, height: cardHeight)
+            .background(Color(.systemBackground))
+            .cornerRadius(16)
+            .overlay(
+              RoundedRectangle(cornerRadius: 16)
+                .stroke(Color(.systemGray4), lineWidth: 0.5)
+            )
+            .shadow(color: .black.opacity(selectedCard == .image ? 0.2 : 0.1), radius: selectedCard == .image ? 8 : 4, x: 0, y: selectedCard == .image ? 4 : 2)
+            .scaleEffect(selectedCard == .image ? 1.0 : 0.9)
+            .opacity(selectedCard == .image ? 1.0 : 0.7)
+            .zIndex(selectedCard == .image ? 3 : 2)
+            .offset(x: place.imageData != nil ? visibleEdgeWidth : 0)
+            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: selectedCard)
+            .onTapGesture {
+              withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                selectedCard = .image
+              }
             }
-          }
+        }
         
-        // Map Card (Right position)
+        // Map Card (Position based on image availability)
         mapCard
           .frame(width: cardWidth, height: cardHeight)
           .background(Color(.systemBackground))
@@ -88,7 +99,7 @@ struct PinCardView: View {
           .scaleEffect(selectedCard == .map ? 1.0 : 0.9)
           .opacity(selectedCard == .map ? 1.0 : 0.7)
           .zIndex(selectedCard == .map ? 3 : 1)
-          .offset(x: visibleEdgeWidth * 2)
+          .offset(x: place.imageData != nil ? visibleEdgeWidth * 2 : visibleEdgeWidth)
           .animation(.spring(response: 0.6, dampingFraction: 0.8), value: selectedCard)
           .onTapGesture {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
@@ -128,6 +139,24 @@ struct PinCardView: View {
               .font(.body)
               .foregroundColor(.secondary)
               .lineLimit(1)
+          }
+        }
+        
+        // Phone number
+        if let phoneNumber = getPhoneNumber() {
+          HStack(spacing: 6) {
+            Image(systemName: "phone.fill")
+              .font(.subheadline)
+              .foregroundColor(.blue)
+            Text(phoneNumber)
+              .font(.body)
+              .foregroundColor(.secondary)
+              .lineLimit(1)
+          }
+          .onTapGesture {
+            if let url = URL(string: "tel:\(phoneNumber)") {
+              UIApplication.shared.open(url)
+            }
           }
         }
         
@@ -172,7 +201,7 @@ struct PinCardView: View {
         
         // Card indicators
         HStack(spacing: 8) {
-          ForEach([CardType.text, .image, .map], id: \.self) { cardType in
+          ForEach(availableCards, id: \.self) { cardType in
             Circle()
               .fill(selectedCard == cardType ? Color.blue : Color.gray.opacity(0.3))
               .frame(width: 8, height: 8)
@@ -440,6 +469,26 @@ struct PinCardView: View {
     // Fallback to coordinates
     if let coordinate = getCoordinate() {
       return String(format: "%.3f, %.3f", coordinate.latitude, coordinate.longitude)
+    }
+    
+    return nil
+  }
+  
+  private func getPhoneNumber() -> String? {
+    // Try to get phone number from the locations JSON
+    if let locationsJSON = place.locations,
+       !locationsJSON.isEmpty,
+       let data = locationsJSON.data(using: .utf8) {
+      do {
+        let locations = try JSONDecoder().decode([LocationInfo].self, from: data)
+        if let firstLocation = locations.first,
+           let phoneNumber = firstLocation.phoneNumber,
+           !phoneNumber.isEmpty {
+          return phoneNumber
+        }
+      } catch {
+        print("Failed to decode locations JSON: \(error)")
+      }
     }
     
     return nil

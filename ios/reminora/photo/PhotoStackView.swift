@@ -18,9 +18,113 @@ struct PhotoStackView: View {
     @State private var isCoreDataReady = false
     @State private var hasTriedInitialLoad = false
     @State private var showingQuickList = false
+    @State private var showingSearch = false
+    @State private var searchText = ""
+    @State private var startDate: Date?
+    @State private var endDate: Date?
+    @State private var allPhotoAssets: [PHAsset] = [] // Store all photos before filtering
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
+    }
+    
+    private var searchDialogView: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                // Search text field
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Search Photos")
+                        .font(.headline)
+                    TextField("Enter search terms...", text: $searchText)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                }
+                
+                // Date range picker
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Date Range")
+                        .font(.headline)
+                    
+                    DatePicker("Start Date", selection: Binding(
+                        get: { startDate ?? Date.distantPast },
+                        set: { startDate = $0 }
+                    ), displayedComponents: .date)
+                    .onChange(of: startDate) { _, _ in
+                        if startDate == Date.distantPast {
+                            startDate = nil
+                        }
+                    }
+                    
+                    DatePicker("End Date", selection: Binding(
+                        get: { endDate ?? Date() },
+                        set: { endDate = $0 }
+                    ), displayedComponents: .date)
+                    .onChange(of: endDate) { _, _ in
+                        if endDate == Date() {
+                            endDate = nil
+                        }
+                    }
+                    
+                    Button("Clear Dates") {
+                        startDate = nil
+                        endDate = nil
+                    }
+                    .foregroundColor(.blue)
+                }
+                
+                // Filter buttons (moved from main view)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Filters")
+                        .font(.headline)
+                    
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                        ForEach([PhotoFilterType.notDisliked, .favorites, .dislikes, .all], id: \.self) { filter in
+                            Button(action: {
+                                currentFilter = filter
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: filter.iconName)
+                                    Text(filter.displayName)
+                                }
+                                .font(.caption)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .frame(maxWidth: .infinity)
+                                .background(
+                                    currentFilter == filter
+                                        ? Color.blue
+                                        : Color.gray.opacity(0.2)
+                                )
+                                .foregroundColor(
+                                    currentFilter == filter
+                                        ? .white
+                                        : .primary
+                                )
+                                .cornerRadius(8)
+                            }
+                        }
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Search Photos")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") {
+                        showingSearch = false
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Apply") {
+                        applySearchFilter()
+                        showingSearch = false
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+        }
     }
     
     private var quickListView: some View {
@@ -67,6 +171,20 @@ struct PhotoStackView: View {
     
     var body: some View {
         VStack {
+            // Search button at top
+            HStack {
+                Spacer()
+                Button(action: {
+                    showingSearch = true
+                }) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.title2)
+                        .foregroundColor(.blue)
+                }
+                .padding(.trailing, 16)
+                .padding(.top, 8)
+            }
+            
             if !isCoreDataReady {
                     // Show loading UI while Core Data is initializing
                     VStack(spacing: 20) {
@@ -78,38 +196,6 @@ struct PhotoStackView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if authorizationStatus == .authorized || authorizationStatus == .limited {
-                    // Filter buttons
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach([PhotoFilterType.notDisliked, .favorites, .dislikes, .all], id: \.self) { filter in
-                                Button(action: {
-                                    currentFilter = filter
-                                    applyFilter()
-                                }) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: filter.iconName)
-                                        Text(filter.displayName)
-                                    }
-                                    .font(.caption)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        currentFilter == filter
-                                            ? Color.blue
-                                            : Color.gray.opacity(0.2)
-                                    )
-                                    .foregroundColor(
-                                        currentFilter == filter
-                                            ? .white
-                                            : .primary
-                                    )
-                                    .cornerRadius(16)
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                    .padding(.bottom, 8)
                     
                     if filteredPhotoStacks.isEmpty && isCoreDataReady {
                         // Show empty state with retry option
@@ -232,6 +318,9 @@ struct PhotoStackView: View {
         .sheet(isPresented: $showingQuickList) {
             quickListView
         }
+        .sheet(isPresented: $showingSearch) {
+            searchDialogView
+        }
     }
     
     private func requestPhotoAccess() {
@@ -271,7 +360,7 @@ struct PhotoStackView: View {
         print("Loading photo assets...")
         let fetchOptions = PHFetchOptions()
         fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-        fetchOptions.fetchLimit = 1000 // Load recent photos
+        // Remove fetchLimit to load all photos
         
         let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
         
@@ -283,9 +372,42 @@ struct PhotoStackView: View {
         print("Loaded \(assets.count) photo assets")
         
         DispatchQueue.main.async {
+            allPhotoAssets = assets
             photoAssets = assets
             applyFilter()
         }
+    }
+    
+    private func applySearchFilter() {
+        var filteredAssets = allPhotoAssets
+        
+        // Apply date range filter
+        if let startDate = startDate, let endDate = endDate {
+            filteredAssets = filteredAssets.filter { asset in
+                guard let creationDate = asset.creationDate else { return false }
+                return creationDate >= startDate && creationDate <= endDate
+            }
+        } else if let startDate = startDate {
+            filteredAssets = filteredAssets.filter { asset in
+                guard let creationDate = asset.creationDate else { return false }
+                return creationDate >= startDate
+            }
+        } else if let endDate = endDate {
+            filteredAssets = filteredAssets.filter { asset in
+                guard let creationDate = asset.creationDate else { return false }
+                return creationDate <= endDate
+            }
+        }
+        
+        // Apply search text filter (placeholder - would need metadata indexing for real search)
+        if !searchText.isEmpty {
+            // For now, just filter by date if search text is provided
+            // In a real app, you'd search through photo metadata, location data, etc.
+            print("Search text: '\(searchText)' - would implement metadata search here")
+        }
+        
+        photoAssets = filteredAssets
+        applyFilter()
     }
     
     private func applyFilter() {

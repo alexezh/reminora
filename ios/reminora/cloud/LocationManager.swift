@@ -5,7 +5,7 @@ import SwiftUI
 
 // LocationManager to get current user location
 class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
-  private let manager = CLLocationManager()
+  let manager = CLLocationManager()
   @Published var lastLocation: CLLocation?
   //private var cancellables = Set<AnyCancellable>()
 

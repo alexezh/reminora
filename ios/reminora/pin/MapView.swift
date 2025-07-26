@@ -20,6 +20,7 @@ struct MapView: View {
     @State private var mapRegion = MKCoordinateRegion()
     @State private var selectedMapLocation: NearbyLocation?
     @State private var showingAddPinDialog = false
+    @State private var navigatingToLocation: NearbyLocation?
     @StateObject private var locationManager = LocationManager()
     
     private let searchTerms = [
@@ -239,67 +240,12 @@ struct MapView: View {
                         .padding(.top, 4)
                     }
                     
-                    // Category filter dropdown
-                    VStack(spacing: 0) {
-                        HStack {
-                            Text("Category:")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            
-                            Spacer()
-                            
-                            Menu {
-                                ForEach(categories, id: \.self) { category in
-                                    Button(action: {
-                                        selectedCategory = category
-                                    }) {
-                                        HStack {
-                                            Text(category)
-                                            if selectedCategory == category {
-                                                Image(systemName: "checkmark")
-                                            }
-                                        }
-                                    }
-                                }
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Text(selectedCategory)
-                                        .font(.subheadline)
-                                        .foregroundColor(.primary)
-                                    Image(systemName: "chevron.down")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        
-                        // Show rejected checkbox
-                        HStack {
-                            Button(action: {
-                                showRejected.toggle()
-                            }) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: showRejected ? "checkmark.square.fill" : "square")
-                                        .font(.title3)
-                                        .foregroundColor(showRejected ? .blue : .gray)
-                                    Text("Show rejected locations")
-                                        .font(.subheadline)
-                                        .foregroundColor(.primary)
-                                }
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            
-                            Spacer()
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                    }
-                    .padding(.vertical, 8)
+                    // Filter controls
+                    MapFilterView(
+                        selectedCategory: $selectedCategory,
+                        showRejected: $showRejected,
+                        categories: categories
+                    )
                 }
                 .background(Color(UIColor.systemBackground))
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -367,7 +313,8 @@ struct MapView: View {
                                 onPinTap: { pinPlace(place) },
                                 onFavTap: { toggleFavorite(place) },
                                 onRejectTap: { toggleReject(place) },
-                                onLocationTap: { showLocationOnMap(place) }
+                                onLocationTap: { showLocationOnMap(place) },
+                                onNavigateTap: { navigateToLocation(place) }
                             )
                         }
                     }
@@ -773,6 +720,14 @@ struct MapView: View {
         }
     }
     
+    private func navigateToLocation(_ location: NearbyLocation) {
+        // Open navigation in external maps app
+        let coordinate = location.coordinate
+        let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
+        mapItem.name = location.name
+        mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
+    }
+    
     private func sharePlace(_ place: NearbyLocation) {
         // Create platform map URL
         let encodedName = place.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
@@ -858,6 +813,7 @@ struct MapLocationCard: View {
     let onFavTap: () -> Void
     let onRejectTap: () -> Void
     let onLocationTap: () -> Void
+    let onNavigateTap: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -899,10 +855,10 @@ struct MapLocationCard: View {
             
             // Action buttons
             HStack(spacing: 0) {
-                Button(action: onShareTap) {
+                Button(action: onNavigateTap) {
                     HStack(spacing: 4) {
-                        Image(systemName: "square.and.arrow.up")
-                        Text("Share")
+                        Image(systemName: "location.fill")
+                        Text("Navigate")
                     }
                     .font(.caption)
                     .foregroundColor(.blue)

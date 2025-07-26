@@ -9,16 +9,14 @@ image - scale to fit area between title and tumbnails
 use time on photo as pin time
 bucket photos by similarity. display all photos. 
 
+Future place
+
 pull down - refresh all followings
 add - quick button to pincard.
 
 Alllist remove title
-Nearby photos - remove space 
-Long click on pin to open
 
-Filter view for map
 Distance in pin wrong
-Future place
 Make PinDetailView take whole screen. Right now there is space on top
 
 Smart search , remember and discard 

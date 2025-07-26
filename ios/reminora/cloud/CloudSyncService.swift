@@ -59,6 +59,7 @@ class CloudSyncService: ObservableObject {
         location: CLLocation?,
         caption: String,
         isPrivate: Bool = false,
+        locations: [LocationInfo]? = nil,
         context: NSManagedObjectContext,
         pinDate: Date? = nil
     ) async throws -> Place {
@@ -74,6 +75,19 @@ class CloudSyncService: ObservableObject {
             if let location = location {
                 let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
                 newPlace.coordinates = locationData
+            }
+            
+            // Serialize locations to JSON if provided
+            if let locations = locations, !locations.isEmpty {
+                do {
+                    let locationsData = try JSONEncoder().encode(locations)
+                    let locationsJSON = String(data: locationsData, encoding: .utf8)
+                    newPlace.locations = locationsJSON
+                    print("📍 CloudSyncService: Saved \(locations.count) location(s) as JSON")
+                } catch {
+                    print("❌ CloudSyncService: Failed to serialize locations: \(error)")
+                    // Continue without throwing - locations are optional
+                }
             }
             
             do {

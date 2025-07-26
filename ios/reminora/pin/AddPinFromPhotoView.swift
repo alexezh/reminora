@@ -310,17 +310,10 @@ struct AddPinFromPhotoView: View {
                         location: asset.location,
                         caption: caption,
                         isPrivate: isPrivate,
+                        locations: currentLocations.isEmpty ? nil : currentLocations,
                         context: viewContext,
                         pinDate: asset.creationDate
                     )
-                    
-                    // Save current locations as JSON (selected locations or default photo location)
-                    if !currentLocations.isEmpty {
-                        let locationsData = try JSONEncoder().encode(currentLocations)
-                        let locationsJSON = String(data: locationsData, encoding: .utf8)
-                        place.locations = locationsJSON
-                        try viewContext.save()
-                    }
                     
                     await MainActor.run {
                         isSaving = false

@@ -22,7 +22,6 @@ Make PinDetailView take whole screen. Right now there is space on top
 Smart search , remember and discard 
 Remember searches forever , combine most interesting 
 Scroll map for pin to be visible
-Photo list limited 
 
 Make swipe view show full list
 Make photos separate app ? 

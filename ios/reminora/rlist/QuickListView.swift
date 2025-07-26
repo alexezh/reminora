@@ -56,7 +56,6 @@ struct QuickListView: View {
                     )
                 }
             }
-            .navigationTitle("Quick List")
             .navigationBarTitleDisplayMode(.inline)
         }
         .task {

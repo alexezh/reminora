@@ -10,12 +10,14 @@ Map-based features, location pins, place management, and map interactions.
 - **PinDetailView.swift** - Full-screen detailed view of a specific place with traditional navigation
 - **PinListView.swift** - Scrollable list of places in sliding panel
 - **PinBrowserView.swift** - Browse and search places interface
+- **MapView.swift** - Interactive location discovery with map, search, and location cards
 
 ### Location Features
 - **NearbyPhotosGridView.swift** - Grid of photos near a location
 - **NearbyPhotosWrapperView.swift** - Wrapper for nearby photos functionality
 - **NearbyLocationsPageView.swift** - Explore nearby locations and places
 - **FilteredMapItems.swift** - Filter and sort map items by criteria
+- **AddPinFromLocationView.swift** - Create pins from discovered locations with location data
 
 ### Comments & Social
 - **CommentsView.swift** - Full comments interface for places
@@ -43,6 +45,16 @@ Map-based features, location pins, place management, and map interactions.
 - Pin collections and organization
 - Address information display
 - Map annotations and clustering
+
+### MapView Features
+- Interactive location discovery with 1/4 screen map view
+- Real-time location search with suggestions
+- Location cards with action buttons: Share, Add Pin, Favorite, Dismiss
+- Location preference management (favorites and dismissed locations)
+- Distance-based location sorting
+- Map region memory (saves last viewed area)
+- Integration with AddPinFromLocationView for pin creation
+- Location sharing via platform maps and social sharing
 
 ## Design Pattern
 - **Layout**: Fixed header + scrollable card list

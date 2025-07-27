@@ -165,6 +165,32 @@ struct PinDetailView: View {
     private var isOwner: Bool {
         return !isFromOtherUser
     }
+    
+    // Check if this place is in the Quick collection
+    private var isInQuickCollection: Bool {
+        guard let currentUser = authService.currentAccount else { return false }
+        
+        let placeId = place.objectID.uriRepresentation().absoluteString
+        
+        // Find Quick list for current user
+        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", "Quick", currentUser.id)
+        
+        do {
+            let quickLists = try viewContext.fetch(fetchRequest)
+            guard let quickList = quickLists.first else { return false }
+            
+            // Check if place is in this Quick list
+            let itemFetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            itemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", quickList.id ?? "", placeId)
+            
+            let items = try viewContext.fetch(itemFetchRequest)
+            return !items.isEmpty
+        } catch {
+            print("Failed to check Quick collection: \(error)")
+            return false
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -358,8 +384,8 @@ struct PinDetailView: View {
                         Button("Photos") {
                             showNearbyPhotos()
                         }
-                        Button("Quick") {
-                            addToQuickList()
+                        Button(isInQuickCollection ? "Remove from Quick" : "Add to Quick") {
+                            toggleQuickList()
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -449,9 +475,9 @@ struct PinDetailView: View {
             ToolbarButtonConfig(
                 id: "list",
                 title: "Quick",
-                systemImage: "plus.square",
-                action: addToQuickList,
-                color: .blue
+                systemImage: isInQuickCollection ? "checkmark.square.fill" : "plus.square",
+                action: toggleQuickList,
+                color: isInQuickCollection ? .green : .blue
             )
         ]
         
@@ -506,18 +532,19 @@ struct PinDetailView: View {
         showingNearbyPhotos = true
     }
 
-    private func addToQuickList() {
+    private func toggleQuickList() {
         guard let currentUser = authService.currentAccount else { return }
-
+        
+        let placeId = place.objectID.uriRepresentation().absoluteString
+        
         // Find or create Quick list
         let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
-        fetchRequest.predicate = NSPredicate(
-            format: "name == %@ AND userId == %@", "Quick", currentUser.id)
-
+        fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", "Quick", currentUser.id)
+        
         do {
             let quickLists = try viewContext.fetch(fetchRequest)
             let quickList: UserList
-
+            
             if let existingList = quickLists.first {
                 quickList = existingList
             } else {
@@ -528,24 +555,40 @@ struct PinDetailView: View {
                 quickList.createdAt = Date()
                 quickList.userId = currentUser.id
             }
-
-            // Add item to Quick list
-            let listItem = ListItem(context: viewContext)
-            listItem.id = UUID().uuidString
-            listItem.placeId = place.objectID.uriRepresentation().absoluteString
-            listItem.addedAt = Date()
-            listItem.listId = quickList.id ?? ""
-
+            
+            // Check if item already exists in Quick list
+            let itemFetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            itemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", quickList.id ?? "", placeId)
+            
+            let existingItems = try viewContext.fetch(itemFetchRequest)
+            
+            if !existingItems.isEmpty {
+                // Remove from Quick list
+                for item in existingItems {
+                    viewContext.delete(item)
+                }
+                print("Removed place from Quick list: \(place.post ?? "Unknown")")
+            } else {
+                // Add to Quick list
+                let listItem = ListItem(context: viewContext)
+                listItem.id = UUID().uuidString
+                listItem.placeId = placeId
+                listItem.addedAt = Date()
+                listItem.listId = quickList.id ?? ""
+                print("Added place to Quick list: \(place.post ?? "Unknown")")
+            }
+            
             try viewContext.save()
-
+            
             // Show success feedback
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
             impactFeedback.impactOccurred()
-
-            print("Added place to Quick list: \(place.post ?? "Unknown")")
-
+            
+            // Refresh toolbar to update button state
+            setupToolbar()
+            
         } catch {
-            print("Failed to add place to Quick list: \(error)")
+            print("Failed to toggle place in Quick list: \(error)")
         }
     }
 

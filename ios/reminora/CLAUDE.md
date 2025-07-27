@@ -13,7 +13,7 @@ Main iOS application directory containing the Reminora app source code.
 ## Subdirectories
 - **cloud/** - Authentication, cloud sync, and API services
 - **photo/** - Photo library, viewing, and photo-related features
-- **pin/** - Map pins, location-based features, and place management
+- **pin/** - Map pins, location-based features, place management, and location discovery
 - **rlist/** - List management and sharing features
 - **Preview Content/** - SwiftUI preview assets
 

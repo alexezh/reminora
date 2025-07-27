@@ -380,14 +380,17 @@ struct MapView: View {
                                 isRejected: isLocationRejected(place),
                                 isSelected: selectedCardLocation?.id == place.id,
                                 onShareTap: { sharePlace(place) },
-                                onPinTap: { pinPlace(place) },
+                                onPinTap: { 
+                                    selectedMapLocation = place
+                                    showingAddPinDialog = true
+                                },
                                 onFavTap: { toggleFavorite(place) },
                                 onRejectTap: { toggleReject(place) },
                                 onLocationTap: { 
                                     selectedCardLocation = place
                                     showLocationOnMap(place) 
                                 },
-                                onNavigateTap: { navigateToLocation(place) }
+                                onNavigateTap: { sharePlace(place) }
                             )
                         }
                     }
@@ -859,8 +862,8 @@ struct MapLocationCard: View {
             HStack(spacing: 0) {
                 Button(action: onNavigateTap) {
                     HStack(spacing: 4) {
-                        Image(systemName: "location.fill")
-                        Text("Navigate")
+                        Image(systemName: "square.and.arrow.up")
+                        Text("Share")
                     }
                     .font(.caption)
                     .foregroundColor(.blue)
@@ -869,8 +872,8 @@ struct MapLocationCard: View {
                 
                 Button(action: onPinTap) {
                     HStack(spacing: 4) {
-                        Image(systemName: "mappin.and.ellipse")
-                        Text("Pin")
+                        Image(systemName: "plus.circle")
+                        Text("Add Pin")
                     }
                     .font(.caption)
                     .foregroundColor(.blue)

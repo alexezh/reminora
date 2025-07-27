@@ -99,7 +99,7 @@ The app uses Core Data (iOS) with main entities:
 3. **Add Pin**: Photo selection with reverse geocoding and privacy controls
 4. **Pin Details**: Full-screen pin view with address management and comments
 5. **User Profiles**: User discovery, following, and shared pin viewing
-6. **Location Discovery**: Nearby places exploration and multi-select address picker
+6. **Location Discovery**: Interactive MapView with location search, sharing, and pin creation from discovered places
 
 ### Technical Details
 

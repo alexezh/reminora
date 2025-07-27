@@ -22,7 +22,7 @@ class LocationPreferenceService: ObservableObject {
     /**
      * Check if a location is favorited
      */
-    func isLocationFavorited(_ location: NearbyLocation, context: NSManagedObjectContext) -> Bool {
+    func isLocationFavorited(_ location: LocationInfo, context: NSManagedObjectContext) -> Bool {
         let fetchRequest: NSFetchRequest<LocationPreference> = LocationPreference.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "locationId == %@ AND isFavorited == true", location.id)
         
@@ -38,7 +38,7 @@ class LocationPreferenceService: ObservableObject {
     /**
      * Toggle favorite status for a location
      */
-    func toggleFavorite(_ location: NearbyLocation, context: NSManagedObjectContext) -> Bool {
+    func toggleFavorite(_ location: LocationInfo, context: NSManagedObjectContext) -> Bool {
         let fetchRequest: NSFetchRequest<LocationPreference> = LocationPreference.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "locationId == %@", location.id)
         
@@ -76,7 +76,7 @@ class LocationPreferenceService: ObservableObject {
     /**
      * Check if a location is dismissed/rejected
      */
-    func isLocationRejected(_ location: NearbyLocation, context: NSManagedObjectContext) -> Bool {
+    func isLocationRejected(_ location: LocationInfo, context: NSManagedObjectContext) -> Bool {
         let fetchRequest: NSFetchRequest<LocationPreference> = LocationPreference.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "locationId == %@ AND isRejected == true", location.id)
         
@@ -92,7 +92,7 @@ class LocationPreferenceService: ObservableObject {
     /**
      * Toggle reject/dismiss status for a location
      */
-    func toggleReject(_ location: NearbyLocation, context: NSManagedObjectContext) -> Bool {
+    func toggleReject(_ location: LocationInfo, context: NSManagedObjectContext) -> Bool {
         let fetchRequest: NSFetchRequest<LocationPreference> = LocationPreference.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "locationId == %@", location.id)
         
@@ -128,7 +128,7 @@ class LocationPreferenceService: ObservableObject {
     /**
      * Dismiss a location (same as reject but with different naming for UX)
      */
-    func dismissLocation(_ location: NearbyLocation, context: NSManagedObjectContext) -> Bool {
+    func dismissLocation(_ location: LocationInfo, context: NSManagedObjectContext) -> Bool {
         let result = markLocationAsRejected(location, context: context)
         print("👋 LocationPreferenceService: Dismissed location \(location.name)")
         return result
@@ -137,7 +137,7 @@ class LocationPreferenceService: ObservableObject {
     /**
      * Mark a location as rejected without toggling
      */
-    func markLocationAsRejected(_ location: NearbyLocation, context: NSManagedObjectContext) -> Bool {
+    func markLocationAsRejected(_ location: LocationInfo, context: NSManagedObjectContext) -> Bool {
         let fetchRequest: NSFetchRequest<LocationPreference> = LocationPreference.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "locationId == %@", location.id)
         
@@ -206,7 +206,7 @@ class LocationPreferenceService: ObservableObject {
     /**
      * Clear all preferences for a location
      */
-    func clearPreferences(for location: NearbyLocation, context: NSManagedObjectContext) -> Bool {
+    func clearPreferences(for location: LocationInfo, context: NSManagedObjectContext) -> Bool {
         let fetchRequest: NSFetchRequest<LocationPreference> = LocationPreference.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "locationId == %@", location.id)
         
@@ -231,13 +231,13 @@ class LocationPreferenceService: ObservableObject {
     /**
      * Create a new LocationPreference entity for a location
      */
-    private func createLocationPreference(for location: NearbyLocation, context: NSManagedObjectContext) -> LocationPreference {
+    private func createLocationPreference(for location: LocationInfo, context: NSManagedObjectContext) -> LocationPreference {
         let preference = LocationPreference(context: context)
         preference.locationId = location.id
         preference.locationName = location.name
         preference.locationAddress = location.address
-        preference.latitude = location.coordinate.latitude
-        preference.longitude = location.coordinate.longitude
+        preference.latitude = location.latitude
+        preference.longitude = location.longitude
         preference.createdAt = Date()
         preference.updatedAt = Date()
         return preference

@@ -9,7 +9,7 @@ struct MapView: View {
     @Environment(\.presentationMode) var presentationMode
     
     @State private var searchText = ""
-    @State private var nearbyPlaces: [NearbyLocation] = []
+    @State private var nearbyPlaces: [LocationInfo] = []
     @State private var isLoading = false
     @State private var userLocation: CLLocationCoordinate2D?
     @State private var showingSearch = false
@@ -18,17 +18,22 @@ struct MapView: View {
     @State private var searchSuggestions: [String] = []
     @State private var showingSuggestions = false
     @State private var mapRegion = MKCoordinateRegion()
-    @State private var selectedMapLocation: NearbyLocation?
-    @State private var selectedCardLocation: NearbyLocation?
+    @State private var selectedMapLocation: LocationInfo?
+    @State private var selectedCardLocation: LocationInfo?
     @State private var showingAddPinDialog = false
-    @State private var navigatingToLocation: NearbyLocation?
+    @State private var navigatingToLocation: LocationInfo?
+    @State private var showingSaveDialog = false
+    @State private var saveDialogCity = ""
+    @State private var saveDialogSearchString = ""
     @StateObject private var locationManager = LocationManager()
     
     private let locationPreferenceService = LocationPreferenceService.shared
     
-    // MARK: - Location Memory
+    // MARK: - Location Memory & Search Cache
     
     private var lastMapRegionKey: String { "MapView.lastMapRegion" }
+    private var lastSearchResultsKey: String { "MapView.lastSearchResults" }
+    private var lastSearchStringKey: String { "MapView.lastSearchString" }
     
     private func saveMapRegion() {
         let regionData = [
@@ -56,6 +61,43 @@ struct MapView: View {
         print("📍 MapView: Restored last map region: \(latitude), \(longitude)")
     }
     
+    private func saveSearchCache() {
+        // Save search results as JSON
+        do {
+            let data = try JSONEncoder().encode(nearbyPlaces)
+            UserDefaults.standard.set(data, forKey: lastSearchResultsKey)
+            print("📍 MapView: Saved \(nearbyPlaces.count) search results to cache")
+        } catch {
+            print("📍 MapView: Failed to save search results: \(error)")
+        }
+        
+        // Save search string
+        UserDefaults.standard.set(searchText, forKey: lastSearchStringKey)
+        print("📍 MapView: Saved search string: '\(searchText)'")
+    }
+    
+    private func loadSearchCache() {
+        // Load search string
+        if let savedSearchText = UserDefaults.standard.string(forKey: lastSearchStringKey) {
+            searchText = savedSearchText
+            print("📍 MapView: Restored search string: '\(savedSearchText)'")
+        }
+        
+        // Load search results
+        guard let data = UserDefaults.standard.data(forKey: lastSearchResultsKey) else {
+            print("📍 MapView: No cached search results found")
+            return
+        }
+        
+        do {
+            let cachedResults = try JSONDecoder().decode([LocationInfo].self, from: data)
+            nearbyPlaces = cachedResults
+            print("📍 MapView: Restored \(cachedResults.count) search results from cache")
+        } catch {
+            print("📍 MapView: Failed to load cached search results: \(error)")
+        }
+    }
+    
     private let searchTerms = [
         "restaurant food dining",
         "cafe coffee shop", 
@@ -76,7 +118,7 @@ struct MapView: View {
     
     private let categories = ["All", "Restaurant", "Cafe", "Shopping", "Gas Station", "Bank", "Hospital", "Hotel", "Tourist Attraction"]
     
-    var filteredPlaces: [NearbyLocation] {
+    var filteredPlaces: [LocationInfo] {
         var filtered = nearbyPlaces
         print("🔍 filteredPlaces: nearbyPlaces count = \(nearbyPlaces.count)")
         
@@ -124,7 +166,7 @@ struct MapView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header with title and search button
+            // Header with title and save button
             HStack {
                 Text("Map")
                     .font(.largeTitle)
@@ -132,24 +174,57 @@ struct MapView: View {
                 
                 Spacer()
                 
-                // Search button
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        showingSearch.toggle()
-                        if !showingSearch {
-                            searchText = ""
-                        }
-                    }
-                }) {
-                    Image(systemName: showingSearch ? "xmark" : "magnifyingglass")
-                        .font(.title2)
-                        .foregroundColor(.blue)
+                // Save button
+                Button("Save") {
+                    showSaveDialog()
                 }
+                .font(.headline)
+                .foregroundColor(.blue)
+                .disabled(nearbyPlaces.isEmpty)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 8)
             .background(Color(UIColor.systemBackground))
+            
+            // Always visible search bar
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                    .padding(.leading, 8)
+                
+                TextField("Search locations...", text: $searchText)
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .padding(.vertical, 8)
+                    .onChange(of: searchText) { _, newValue in
+                        if !newValue.isEmpty {
+                            updateSearchSuggestions(for: newValue)
+                            showingSuggestions = true
+                        } else {
+                            showingSuggestions = false
+                        }
+                    }
+                    .onSubmit {
+                        if !searchText.isEmpty {
+                            performSearch(query: searchText)
+                        }
+                    }
+                
+                if !searchText.isEmpty {
+                    Button(action: {
+                        searchText = ""
+                        showingSuggestions = false
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.trailing, 8)
+                }
+            }
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
             
             // Map view - 1/4 of screen
             GeometryReader { geometry in
@@ -233,92 +308,48 @@ struct MapView: View {
             }
             .frame(height: UIScreen.main.bounds.height * 0.25)
             
-            // Search section (when active)
-            if showingSearch {
-                VStack(spacing: 8) {
-                    // Search bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.secondary)
-                            .padding(.leading, 8)
-                        
-                        TextField("Search locations...", text: $searchText)
-                            .textFieldStyle(PlainTextFieldStyle())
+            // Search suggestions
+            if showingSuggestions && !searchSuggestions.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(searchSuggestions, id: \.self) { suggestion in
+                        Button(action: {
+                            searchText = suggestion
+                            performSearch(query: suggestion)
+                            showingSuggestions = false
+                        }) {
+                            HStack {
+                                Image(systemName: "clock")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text(suggestion)
+                                    .font(.subheadline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .onChange(of: searchText) { _, newValue in
-                                if !newValue.isEmpty {
-                                    updateSearchSuggestions(for: newValue)
-                                    showingSuggestions = true
-                                } else {
-                                    showingSuggestions = false
-                                }
-                            }
-                            .onSubmit {
-                                if !searchText.isEmpty {
-                                    performSearch(query: searchText)
-                                }
-                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
                         
-                        if !searchText.isEmpty {
-                            Button("Clear") {
-                                searchText = ""
-                                showingSuggestions = false
-                            }
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                            .padding(.trailing, 8)
+                        if suggestion != searchSuggestions.last {
+                            Divider()
+                                .padding(.leading, 28)
                         }
                     }
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
-                    .padding(.horizontal, 16)
-                    
-                    // Search suggestions
-                    if showingSuggestions && !searchSuggestions.isEmpty {
-                        VStack(spacing: 0) {
-                            ForEach(searchSuggestions, id: \.self) { suggestion in
-                                Button(action: {
-                                    searchText = suggestion
-                                    performSearch(query: suggestion)
-                                    showingSuggestions = false
-                                }) {
-                                    HStack {
-                                        Image(systemName: "clock")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        Text(suggestion)
-                                            .font(.subheadline)
-                                            .foregroundColor(.primary)
-                                        Spacer()
-                                    }
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                }
-                                .buttonStyle(PlainButtonStyle())
-                                
-                                if suggestion != searchSuggestions.last {
-                                    Divider()
-                                        .padding(.leading, 28)
-                                }
-                            }
-                        }
-                        .background(Color(.systemBackground))
-                        .cornerRadius(8)
-                        .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 4)
-                    }
-                    
-                    // Filter controls
-                    MapFilterView(
-                        selectedCategory: $selectedCategory,
-                        showRejected: $showRejected,
-                        categories: categories
-                    )
                 }
-                .background(Color(UIColor.systemBackground))
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .background(Color(.systemBackground))
+                .cornerRadius(8)
+                .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
             }
+            
+            // Filter controls
+            MapFilterView(
+                selectedCategory: $selectedCategory,
+                showRejected: $showRejected,
+                categories: categories
+            )
             
             // Results count
             if !nearbyPlaces.isEmpty {
@@ -400,14 +431,21 @@ struct MapView: View {
             }
         }
         .onAppear {
-            // Load last saved map region first\n            loadLastMapRegion()\n            \n            // Request location permission and get user location
+            // Load last saved map region and search cache
+            loadLastMapRegion()
+            loadSearchCache()
+            
+            // Request location permission and get user location
             print("📍 MapView appeared")
             print("📍 Location authorization status: \(CLLocationManager.locationServicesEnabled() ? "enabled" : "disabled")")
             print("📍 Location authorization: \(locationManager.manager.authorizationStatus)")
             if let location = locationManager.lastLocation {
                 userLocation = location.coordinate
                 print("📍 User location available: \(location.coordinate.latitude), \(location.coordinate.longitude)")
-                loadNearbyPlaces()
+                // Only load new places if no cached results
+                if nearbyPlaces.isEmpty {
+                    loadNearbyPlaces()
+                }
             } else {
                 print("⚠️ No user location available")
             }
@@ -437,23 +475,38 @@ struct MapView: View {
                 }
             }
         }
+        .sheet(isPresented: $showingSaveDialog) {
+            NavigationView {
+                SaveSearchDialog(
+                    city: $saveDialogCity,
+                    searchString: $saveDialogSearchString,
+                    onSave: { city, searchString in
+                        saveSearchAsPlaces(city: city, searchString: searchString)
+                        showingSaveDialog = false
+                    },
+                    onCancel: {
+                        showingSaveDialog = false
+                    }
+                )
+            }
+        }
     }
     
     // MARK: - Location Management
     
-    private func isLocationFavorited(_ location: NearbyLocation) -> Bool {
+    private func isLocationFavorited(_ location: LocationInfo) -> Bool {
         return locationPreferenceService.isLocationFavorited(location, context: viewContext)
     }
     
-    private func isLocationRejected(_ location: NearbyLocation) -> Bool {
+    private func isLocationRejected(_ location: LocationInfo) -> Bool {
         return locationPreferenceService.isLocationRejected(location, context: viewContext)
     }
     
-    private func toggleFavorite(_ location: NearbyLocation) {
+    private func toggleFavorite(_ location: LocationInfo) {
         _ = locationPreferenceService.toggleFavorite(location, context: viewContext)
     }
     
-    private func toggleReject(_ location: NearbyLocation) {
+    private func toggleReject(_ location: LocationInfo) {
         let wasRejected = locationPreferenceService.isLocationRejected(location, context: viewContext)
         _ = locationPreferenceService.toggleReject(location, context: viewContext)
         
@@ -522,6 +575,26 @@ struct MapView: View {
         showingSuggestions = false
     }
     
+    // MARK: - Save Dialog
+    
+    private func showSaveDialog() {
+        // Get city from first location if available
+        if let firstLocation = nearbyPlaces.first {
+            // Try to extract city from address
+            let addressComponents = firstLocation.address.components(separatedBy: ", ")
+            if addressComponents.count >= 2 {
+                saveDialogCity = addressComponents[addressComponents.count - 2] // Second to last component is usually city
+            } else {
+                saveDialogCity = firstLocation.name
+            }
+        } else {
+            saveDialogCity = ""
+        }
+        
+        saveDialogSearchString = searchText
+        showingSaveDialog = true
+    }
+    
     // MARK: - Search and Loading
     
     private func loadNearbyPlaces() async {
@@ -531,7 +604,7 @@ struct MapView: View {
             isLoading = true
         }
         
-        var allPlaces: [NearbyLocation] = []
+        var allPlaces: [LocationInfo] = []
         
         for searchTerm in searchTerms {
             let request = MKLocalSearch.Request()
@@ -546,19 +619,20 @@ struct MapView: View {
                 let search = MKLocalSearch(request: request)
                 let response = try await search.start()
                 
-                let places = response.mapItems.prefix(10).compactMap { item -> NearbyLocation? in
+                let places = response.mapItems.prefix(10).compactMap { item -> LocationInfo? in
                     guard let location = item.placemark.location else { return nil }
                     
                     let distance = location.distance(from: CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude))
                     
-                    return NearbyLocation(
+                    return LocationInfo(
                         id: item.placemark.name ?? UUID().uuidString,
                         name: item.placemark.name ?? "Unknown",
                         address: formatAddress(from: item.placemark),
-                        coordinate: item.placemark.coordinate,
-                        distance: distance,
+                        latitude: item.placemark.coordinate.latitude,
+                        longitude: item.placemark.coordinate.longitude,
                         category: searchTerm,
                         phoneNumber: item.phoneNumber,
+                        distance: distance,
                         url: item.url
                     )
                 }
@@ -575,6 +649,8 @@ struct MapView: View {
         await MainActor.run {
             self.nearbyPlaces = uniquePlaces
             self.isLoading = false
+            // Save search results to cache
+            self.saveSearchCache()
         }
     }
     
@@ -616,7 +692,7 @@ struct MapView: View {
                 
                 print("📍 Found \(response.mapItems.count) map items")
                 
-                let places = response.mapItems.compactMap { item -> NearbyLocation? in
+                let places = response.mapItems.compactMap { item -> LocationInfo? in
                     guard let location = item.placemark.location else { 
                         print("❌ Item has no location: \(item.placemark.name ?? "Unknown")")
                         return nil 
@@ -624,14 +700,15 @@ struct MapView: View {
                     
                     let distance = location.distance(from: CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude))
                     
-                    let place = NearbyLocation(
+                    let place = LocationInfo(
                         id: item.placemark.name ?? UUID().uuidString,
                         name: item.placemark.name ?? "Unknown",
                         address: formatAddress(from: item.placemark),
-                        coordinate: item.placemark.coordinate,
-                        distance: distance,
+                        latitude: item.placemark.coordinate.latitude,
+                        longitude: item.placemark.coordinate.longitude,
                         category: "search",
                         phoneNumber: item.phoneNumber,
+                        distance: distance,
                         url: item.url
                     )
                     
@@ -644,6 +721,8 @@ struct MapView: View {
                 await MainActor.run {
                     self.nearbyPlaces = places.sorted { $0.distance < $1.distance }
                     self.isLoading = false
+                    // Save search results and query to cache
+                    self.saveSearchCache()
                     
                     // Automatically navigate to first search result
                     if !places.isEmpty {
@@ -681,7 +760,7 @@ struct MapView: View {
             
             print("📍 Broader search found \(response.mapItems.count) map items")
             
-            let places = response.mapItems.compactMap { item -> NearbyLocation? in
+            let places = response.mapItems.compactMap { item -> LocationInfo? in
                 guard let location = item.placemark.location else { return nil }
                 
                 // Calculate distance from user location if available
@@ -692,14 +771,15 @@ struct MapView: View {
                     distance = 0 // No user location available
                 }
                 
-                let place = NearbyLocation(
+                let place = LocationInfo(
                     id: item.placemark.name ?? UUID().uuidString,
                     name: item.placemark.name ?? "Unknown",
                     address: formatAddress(from: item.placemark),
-                    coordinate: item.placemark.coordinate,
-                    distance: distance,
+                    latitude: item.placemark.coordinate.latitude,
+                    longitude: item.placemark.coordinate.longitude,
                     category: "search",
                     phoneNumber: item.phoneNumber,
+                    distance: distance,
                     url: item.url
                 )
                 
@@ -725,7 +805,7 @@ struct MapView: View {
     
     // MARK: - Actions
     
-    private func showLocationOnMap(_ location: NearbyLocation) {
+    private func showLocationOnMap(_ location: LocationInfo) {
         withAnimation(.easeInOut(duration: 0.5)) {
             mapRegion = MKCoordinateRegion(
                 center: location.coordinate,
@@ -734,7 +814,7 @@ struct MapView: View {
         }
     }
     
-    private func navigateToLocation(_ location: NearbyLocation) {
+    private func navigateToLocation(_ location: LocationInfo) {
         // Open navigation in external maps app
         let coordinate = location.coordinate
         let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
@@ -742,7 +822,7 @@ struct MapView: View {
         mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
     }
     
-    private func sharePlace(_ place: NearbyLocation) {
+    private func sharePlace(_ place: LocationInfo) {
         // Create platform map URL
         let encodedName = place.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let lat = place.coordinate.latitude
@@ -767,7 +847,7 @@ struct MapView: View {
         }
     }
     
-    private func pinPlace(_ place: NearbyLocation) {
+    private func pinPlace(_ place: LocationInfo) {
         // Create a new Place object from the location
         let newPlace = Place(context: viewContext)
         newPlace.dateAdded = Date()
@@ -776,13 +856,13 @@ struct MapView: View {
         newPlace.isPrivate = false
         
         // Store location coordinates
-        let clLocation = CLLocation(latitude: place.coordinate.latitude, longitude: place.coordinate.longitude)
+        let clLocation = CLLocation(latitude: place.latitude, longitude: place.longitude)
         if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: clLocation, requiringSecureCoding: false) {
             newPlace.setValue(locationData, forKey: "coordinates")
         }
         
         // Store location info as JSON
-        let locationInfo = LocationInfo(from: place)
+        let locationInfo = place
         if let locationData = try? JSONEncoder().encode([locationInfo]),
            let locationJSON = String(data: locationData, encoding: .utf8) {
             newPlace.locations = locationJSON
@@ -816,6 +896,12 @@ struct MapView: View {
         
         return components.joined(separator: " ")
     }
+    
+    private func saveSearchAsPlaces(city: String, searchString: String) {
+        // This will be implemented in the next task
+        print("📍 Saving search as places: City='\(city)', Search='\(searchString)'")
+        // TODO: Create Places for each location and RList
+    }
 }
 
 
@@ -823,11 +909,69 @@ struct MapView: View {
 struct MapAnnotationItem: Identifiable {
     let id = UUID()
     let coordinate: CLLocationCoordinate2D
-    let location: NearbyLocation?
+    let location: LocationInfo?
     
-    init(coordinate: CLLocationCoordinate2D, location: NearbyLocation? = nil) {
+    init(coordinate: CLLocationCoordinate2D, location: LocationInfo? = nil) {
         self.coordinate = coordinate
         self.location = location
+    }
+}
+
+struct SaveSearchDialog: View {
+    @Binding var city: String
+    @Binding var searchString: String
+    let onSave: (String, String) -> Void
+    let onCancel: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Save Search Results")
+                .font(.title2)
+                .fontWeight(.bold)
+                .padding(.top)
+            
+            VStack(alignment: .leading, spacing: 12) {
+                Text("City")
+                    .font(.headline)
+                TextField("Enter city name", text: $city)
+                    .textFieldStyle(.roundedBorder)
+                
+                Text("Search String")
+                    .font(.headline)
+                TextField("Enter search description", text: $searchString)
+                    .textFieldStyle(.roundedBorder)
+            }
+            .padding(.horizontal)
+            
+            Spacer()
+            
+            HStack(spacing: 20) {
+                Button("Cancel") {
+                    onCancel()
+                }
+                .font(.headline)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(.systemGray5))
+                .cornerRadius(10)
+                
+                Button("Save") {
+                    onSave(city, searchString)
+                }
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .cornerRadius(10)
+                .disabled(city.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                         searchString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(.horizontal)
+            .padding(.bottom)
+        }
+        .navigationBarHidden(true)
     }
 }
 

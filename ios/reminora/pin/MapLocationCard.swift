@@ -13,7 +13,7 @@ import UIKit
 import Foundation
 
 struct MapLocationCard: View {
-    let place: NearbyLocation
+    let place: LocationInfo
     let isFavorited: Bool
     let isRejected: Bool
     let isSelected: Bool

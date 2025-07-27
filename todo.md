@@ -6,8 +6,11 @@ maybe use pink idea - one button for creating lists ?
 click to favor should remove favorite.
 image - swipe up - show map and details. add show details to menu
 image - scale to fit area between title and tumbnails
-use time on photo as pin time
 bucket photos by similarity. display all photos. 
+
+add pin menu does not work
+rename UserList to RListData and ListItem to RListItemData
+
 
 Future place
 

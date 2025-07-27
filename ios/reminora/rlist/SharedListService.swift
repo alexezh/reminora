@@ -77,8 +77,8 @@ class SharedListService: ObservableObject {
             let sharedList = getOrCreateSharedList(in: context, userId: currentUserId)
             
             // Check if this place is already in the shared list
-            let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", 
+            let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@",
                                                sharedList.id ?? "", 
                                                place.objectID.uriRepresentation().absoluteString)
             
@@ -86,7 +86,7 @@ class SharedListService: ObservableObject {
                 let existingItems = try context.fetch(fetchRequest)
                 if existingItems.isEmpty {
                     // Add the pin to the shared list
-                    let listItem = ListItem(context: context)
+                    let listItem = RListItemData(context: context)
                     listItem.id = UUID().uuidString
                     listItem.placeId = place.objectID.uriRepresentation().absoluteString
                     listItem.addedAt = Date()
@@ -114,7 +114,7 @@ class SharedListService: ObservableObject {
         let sharedList = getOrCreateSharedList(in: context, userId: userId)
         
         // Get all list items for the shared list
-        let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+        let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "listId == %@", sharedList.id ?? "")
         fetchRequest.sortDescriptors = [NSSortDescriptor(key: "addedAt", ascending: false)]
         

@@ -19,9 +19,42 @@ struct MapView: View {
     @State private var showingSuggestions = false
     @State private var mapRegion = MKCoordinateRegion()
     @State private var selectedMapLocation: NearbyLocation?
+    @State private var selectedCardLocation: NearbyLocation?
     @State private var showingAddPinDialog = false
     @State private var navigatingToLocation: NearbyLocation?
     @StateObject private var locationManager = LocationManager()
+    
+    private let locationPreferenceService = LocationPreferenceService.shared
+    
+    // MARK: - Location Memory
+    
+    private var lastMapRegionKey: String { "MapView.lastMapRegion" }
+    
+    private func saveMapRegion() {
+        let regionData = [
+            "latitude": mapRegion.center.latitude,
+            "longitude": mapRegion.center.longitude,
+            "latitudeDelta": mapRegion.span.latitudeDelta,
+            "longitudeDelta": mapRegion.span.longitudeDelta
+        ]
+        UserDefaults.standard.set(regionData, forKey: lastMapRegionKey)
+    }
+    
+    private func loadLastMapRegion() {
+        guard let regionData = UserDefaults.standard.dictionary(forKey: lastMapRegionKey) as? [String: Double],
+              let latitude = regionData["latitude"],
+              let longitude = regionData["longitude"],
+              let latitudeDelta = regionData["latitudeDelta"],
+              let longitudeDelta = regionData["longitudeDelta"] else {
+            return
+        }
+        
+        mapRegion = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
+            span: MKCoordinateSpan(latitudeDelta: latitudeDelta, longitudeDelta: longitudeDelta)
+        )
+        print("📍 MapView: Restored last map region: \(latitude), \(longitude)")
+    }
     
     private let searchTerms = [
         "restaurant food dining",
@@ -125,21 +158,48 @@ struct MapView: View {
                         MapAnnotationItem(coordinate: location.coordinate, location: location)
                     }) { annotation in
                         MapAnnotation(coordinate: annotation.coordinate) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.red)
-                                    .frame(width: 16, height: 16)
-                                Circle()
-                                    .stroke(Color.white, lineWidth: 2)
-                                    .frame(width: 16, height: 16)
-                            }
-                            .onTapGesture {
-                                selectedMapLocation = annotation.location
-                                showingAddPinDialog = true
+                            let isSelected = selectedCardLocation?.id == annotation.location?.id
+                            
+                            if isSelected {
+                                // Pin icon for selected location
+                                Image(systemName: "mappin.and.ellipse")
+                                    .font(.title2)
+                                    .foregroundColor(.blue)
+                                    .background(
+                                        Circle()
+                                            .fill(Color.white)
+                                            .frame(width: 24, height: 24)
+                                    )
+                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                                    .onTapGesture {
+                                        selectedMapLocation = annotation.location
+                                        showingAddPinDialog = true
+                                    }
+                            } else {
+                                // Circle for unselected locations
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: 16, height: 16)
+                                    Circle()
+                                        .stroke(Color.white, lineWidth: 2)
+                                        .frame(width: 16, height: 16)
+                                }
+                                .onTapGesture {
+                                    selectedMapLocation = annotation.location
+                                    showingAddPinDialog = true
+                                }
                             }
                         }
                     }
+                    .onChange(of: mapRegion) { _, newRegion in
+                        saveMapRegion()
+                    }
                     .onAppear {
+                        // Try to load last map region first
+                        loadLastMapRegion()
+                        
+                        // If no saved region, use user location
                         if mapRegion.center.latitude == 0 && mapRegion.center.longitude == 0 {
                             mapRegion = MKCoordinateRegion(
                                 center: userLocation,
@@ -309,11 +369,15 @@ struct MapView: View {
                                 place: place,
                                 isFavorited: isLocationFavorited(place),
                                 isRejected: isLocationRejected(place),
+                                isSelected: selectedCardLocation?.id == place.id,
                                 onShareTap: { sharePlace(place) },
                                 onPinTap: { pinPlace(place) },
                                 onFavTap: { toggleFavorite(place) },
                                 onRejectTap: { toggleReject(place) },
-                                onLocationTap: { showLocationOnMap(place) },
+                                onLocationTap: { 
+                                    selectedCardLocation = place
+                                    showLocationOnMap(place) 
+                                },
                                 onNavigateTap: { navigateToLocation(place) }
                             )
                         }
@@ -324,7 +388,7 @@ struct MapView: View {
             }
         }
         .onAppear {
-            // Request location permission and get user location
+            // Load last saved map region first\n            loadLastMapRegion()\n            \n            // Request location permission and get user location
             print("📍 MapView appeared")
             print("📍 Location authorization status: \(CLLocationManager.locationServicesEnabled() ? "enabled" : "disabled")")
             print("📍 Location authorization: \(locationManager.manager.authorizationStatus)")
@@ -364,99 +428,19 @@ struct MapView: View {
     // MARK: - Location Management
     
     private func isLocationFavorited(_ location: NearbyLocation) -> Bool {
-        let fetchRequest: NSFetchRequest<LocationPreference> = LocationPreference.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "locationId == %@ AND isFavorited == true", location.id)
-        
-        do {
-            let results = try viewContext.fetch(fetchRequest)
-            return !results.isEmpty
-        } catch {
-            print("Error fetching location preference: \(error)")
-            return false
-        }
+        return locationPreferenceService.isLocationFavorited(location, context: viewContext)
     }
     
     private func isLocationRejected(_ location: NearbyLocation) -> Bool {
-        let fetchRequest: NSFetchRequest<LocationPreference> = LocationPreference.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "locationId == %@ AND isRejected == true", location.id)
-        
-        do {
-            let results = try viewContext.fetch(fetchRequest)
-            return !results.isEmpty
-        } catch {
-            print("Error fetching location preference: \(error)")
-            return false
-        }
+        return locationPreferenceService.isLocationRejected(location, context: viewContext)
     }
     
     private func toggleFavorite(_ location: NearbyLocation) {
-        let fetchRequest: NSFetchRequest<LocationPreference> = LocationPreference.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "locationId == %@", location.id)
-        
-        do {
-            let results = try viewContext.fetch(fetchRequest)
-            let preference: LocationPreference
-            
-            if let existing = results.first {
-                preference = existing
-            } else {
-                preference = LocationPreference(context: viewContext)
-                preference.locationId = location.id
-                preference.locationName = location.name
-                preference.locationAddress = location.address
-                preference.latitude = location.coordinate.latitude
-                preference.longitude = location.coordinate.longitude
-                preference.createdAt = Date()
-            }
-            
-            preference.isFavorited.toggle()
-            preference.isRejected = false // Clear reject when favoriting
-            preference.updatedAt = Date()
-            
-            try viewContext.save()
-            
-            // Haptic feedback
-            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-            impactFeedback.impactOccurred()
-            
-        } catch {
-            print("Error toggling favorite: \(error)")
-        }
+        _ = locationPreferenceService.toggleFavorite(location, context: viewContext)
     }
     
     private func toggleReject(_ location: NearbyLocation) {
-        let fetchRequest: NSFetchRequest<LocationPreference> = LocationPreference.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "locationId == %@", location.id)
-        
-        do {
-            let results = try viewContext.fetch(fetchRequest)
-            let preference: LocationPreference
-            
-            if let existing = results.first {
-                preference = existing
-            } else {
-                preference = LocationPreference(context: viewContext)
-                preference.locationId = location.id
-                preference.locationName = location.name
-                preference.locationAddress = location.address
-                preference.latitude = location.coordinate.latitude
-                preference.longitude = location.coordinate.longitude
-                preference.createdAt = Date()
-            }
-            
-            preference.isRejected.toggle()
-            preference.isFavorited = false // Clear favorite when rejecting
-            preference.updatedAt = Date()
-            
-            try viewContext.save()
-            
-            // Haptic feedback
-            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-            impactFeedback.impactOccurred()
-            
-        } catch {
-            print("Error toggling reject: \(error)")
-        }
+        _ = locationPreferenceService.toggleReject(location, context: viewContext)
     }
     
     // MARK: - Search History Management
@@ -639,6 +623,11 @@ struct MapView: View {
                     self.nearbyPlaces = places.sorted { $0.distance < $1.distance }
                     self.isLoading = false
                     
+                    // Automatically navigate to first search result
+                    if !places.isEmpty {
+                        self.showLocationOnMap(places[0])
+                    }
+                    
                     if places.isEmpty {
                         print("⚠️ No results found for '\(query)' - trying broader search")
                         // Try a broader search without location restriction
@@ -700,6 +689,9 @@ struct MapView: View {
                 if !places.isEmpty {
                     self.nearbyPlaces = places.sorted { $0.distance < $1.distance }
                     print("🎯 Broader search results: \(places.count) places")
+                    
+                    // Automatically navigate to first search result
+                    self.showLocationOnMap(places[0])
                 } else {
                     print("❌ Even broader search found no results for '\(query)'")
                 }
@@ -808,6 +800,7 @@ struct MapLocationCard: View {
     let place: NearbyLocation
     let isFavorited: Bool
     let isRejected: Bool
+    let isSelected: Bool
     let onShareTap: () -> Void
     let onPinTap: () -> Void
     let onFavTap: () -> Void
@@ -897,13 +890,22 @@ struct MapLocationCard: View {
             }
         }
         .padding(16)
-        .background(isFavorited ? Color.blue.opacity(0.05) : Color(UIColor.systemBackground))
+        .background(
+            isSelected ? Color.blue.opacity(0.15) : 
+            isFavorited ? Color.blue.opacity(0.05) : 
+            Color(UIColor.systemBackground)
+        )
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isFavorited ? Color.blue.opacity(0.3) : Color.clear, lineWidth: 1)
+                .stroke(
+                    isSelected ? Color.blue.opacity(0.5) : 
+                    isFavorited ? Color.blue.opacity(0.3) : 
+                    Color.clear, 
+                    lineWidth: isSelected ? 2 : 1
+                )
         )
-        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        .shadow(color: .black.opacity(isSelected ? 0.15 : 0.1), radius: isSelected ? 4 : 2, x: 0, y: 1)
     }
 }
 

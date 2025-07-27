@@ -402,7 +402,7 @@ struct RListDetailView: View {
         return Array(places)
     }
     
-    private func openLocationInMap(_ location: NearbyLocation) {
+    private func openLocationInMap(_ location: LocationInfo) {
         let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: location.coordinate))
         mapItem.name = location.name
         mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])

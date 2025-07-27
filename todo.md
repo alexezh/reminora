@@ -1,8 +1,6 @@
 
 invented word combining reminisce + aurora (dawn of memory)
 
-maybe use pink idea - one button for creating lists ? 
-
 click to favor should remove favorite.
 image - swipe up - show map and details. add show details to menu
 image - scale to fit area between title and tumbnails
@@ -10,24 +8,18 @@ bucket photos by similarity. display all photos.
 
 add pin menu does not work
 rename UserList to RListData and ListItem to RListItemData
-
+allow RList to create another RList. For search lists, remember search string and options. When displaying, 
+add option to refresh should shows delta. Remove - swipe right
 
 Future place
 
 pull down - refresh all followings
 add - quick button to pincard.
 
-Alllist remove title
-
 Distance in pin wrong
-Make PinDetailView take whole screen. Right now there is space on top
 
 Smart search , remember and discard 
 Remember searches forever , combine most interesting 
-Scroll map for pin to be visible
-
-Make swipe view show full list
-Make photos separate app ? 
 
 Other features
 Photos - make collage from list ? 
@@ -38,10 +30,6 @@ Book ?
 
 
 do not resort items unless call search here, done on top right of the map
-
-add multi-line edit. add cancel, done. add list of places nearby
-when selecting place, navigate with back button?
-
 
  
 ==========

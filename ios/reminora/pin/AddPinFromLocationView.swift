@@ -11,7 +11,7 @@ import MapKit
 import CoreData
 
 struct AddPinFromLocationView: View {
-    let location: NearbyLocation
+    let location: LocationInfo
     let onDismiss: () -> Void
     
     @Environment(\.managedObjectContext) private var viewContext
@@ -42,7 +42,7 @@ struct AddPinFromLocationView: View {
                         HStack {
                             Image(systemName: "location.fill")
                                 .foregroundColor(.blue)
-                            Text(String(format: "%.4f, %.4f", location.coordinate.latitude, location.coordinate.longitude))
+                            Text(String(format: "%.4f, %.4f", location.latitude, location.longitude))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .monospaced()
@@ -131,13 +131,13 @@ struct AddPinFromLocationView: View {
         
         Task {
             do {
-                // Create LocationInfo from NearbyLocation
-                let locationInfo = LocationInfo(from: location)
+                // Use existing LocationInfo
+                let locationInfo = location
                 
                 // Save the pin using CloudSyncService for proper cloud sync (no image data)
                 let place = try await cloudSyncService.savePinAndSyncToCloud(
                     imageData: Data(),
-                    location: CLLocation(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude),
+                    location: CLLocation(latitude: location.latitude, longitude: location.longitude),
                     caption: caption.isEmpty ? location.name : caption,
                     isPrivate: isPrivate,
                     locations: [locationInfo],

@@ -137,9 +137,9 @@ class SharedListService: ObservableObject {
                             result.append(RListPinItem(place: place))
                         }
                     } else if let url = place.url, url.hasPrefix("location://") {
-                        // This is a shared location, convert to NearbyLocation
-                        if let nearbyLocation = convertPlaceToNearbyLocation(place) {
-                            result.append(RListLocationItem(location: nearbyLocation))
+                        // This is a shared location, convert to LocationInfo
+                        if let locationInfo = convertPlaceToLocationInfo(place) {
+                            result.append(RListLocationItem(location: locationInfo))
                         } else {
                             // Fallback to showing as pin if conversion fails
                             result.append(RListPinItem(place: place))
@@ -174,7 +174,7 @@ class SharedListService: ObservableObject {
         return fetchResult.firstObject
     }
     
-    private func convertPlaceToNearbyLocation(_ place: Place) -> NearbyLocation? {
+    private func convertPlaceToLocationInfo(_ place: Place) -> LocationInfo? {
         guard let url = place.url,
               url.hasPrefix("location://"),
               let placeName = place.post else {
@@ -215,14 +215,15 @@ class SharedListService: ObservableObject {
             coordinate = clLocation.coordinate
         }
         
-        return NearbyLocation(
+        return LocationInfo(
             id: locationId,
             name: placeName,
             address: address,
-            coordinate: coordinate,
-            distance: distance,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
             category: "shared location",
             phoneNumber: nil,
+            distance: distance,
             url: nil
         )
     }
@@ -237,7 +238,7 @@ extension SharedListService {
         onPhotoTap: @escaping (PHAsset) -> Void,
         onPinTap: @escaping (Place) -> Void,
         onPhotoStackTap: @escaping ([PHAsset]) -> Void,
-        onLocationTap: ((NearbyLocation) -> Void)? = nil
+        onLocationTap: ((LocationInfo) -> Void)? = nil
     ) -> some View {
         SharedListView(
             context: context,

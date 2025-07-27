@@ -18,19 +18,19 @@ struct NearbyLocationsView: View {
         self._selectedLocations = selectedLocations
     }
     
-    @State private var nearbyPlaces: [NearbyLocation] = []
+    @State private var nearbyPlaces: [LocationInfo] = []
     @State private var isLoading = true
     @State private var selectedCategory = "All"
     @State private var showingShareSheet = false
     @State private var shareText = ""
     @State private var showingListPicker = false
     @State private var showingAddPin = false
-    @State private var selectedPlace: NearbyLocation?
+    @State private var selectedPlace: LocationInfo?
     @State private var selectedPlaceIds: Set<String> = []
     
     private let categories = ["All", "Restaurant", "Cafe", "Shopping", "Gas Station", "Bank", "Hospital", "Hotel", "Tourist Attraction"]
     
-    var filteredPlaces: [NearbyLocation] {
+    var filteredPlaces: [LocationInfo] {
         let filtered = if selectedCategory == "All" {
             nearbyPlaces
         } else {
@@ -237,7 +237,7 @@ struct NearbyLocationsView: View {
             "school university"
         ]
         
-        var allPlaces: [NearbyLocation] = []
+        var allPlaces: [LocationInfo] = []
         
         for searchTerm in searchTerms {
             print("🗺️ NearbyLocations - Searching for: \(searchTerm)")
@@ -254,19 +254,20 @@ struct NearbyLocationsView: View {
                 let response = try await search.start()
                 print("🗺️ NearbyLocations - Found \(response.mapItems.count) items for \(searchTerm)")
                 
-                let places = response.mapItems.prefix(5).compactMap { item -> NearbyLocation? in
+                let places = response.mapItems.prefix(5).compactMap { item -> LocationInfo? in
                     guard let location = item.placemark.location else { return nil }
                     
                     let distance = location.distance(from: CLLocation(latitude: searchLocation.latitude, longitude: searchLocation.longitude))
                     
-                    return NearbyLocation(
+                    return LocationInfo(
                         id: item.placemark.name ?? UUID().uuidString,
                         name: item.placemark.name ?? "Unknown",
                         address: formatAddress(from: item.placemark),
-                        coordinate: item.placemark.coordinate,
-                        distance: distance,
+                        latitude: item.placemark.coordinate.latitude,
+                        longitude: item.placemark.coordinate.longitude,
                         category: searchTerm,
                         phoneNumber: item.phoneNumber,
+                        distance: distance,
                         url: item.url
                     )
                 }
@@ -304,11 +305,11 @@ struct NearbyLocationsView: View {
         return components.joined(separator: " ")
     }
     
-    private func sharePlace(_ place: NearbyLocation) {
+    private func sharePlace(_ place: LocationInfo) {
         // Create platform map URL
         let encodedName = place.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let lat = place.coordinate.latitude
-        let lon = place.coordinate.longitude
+        let lat = place.latitude
+        let lon = place.longitude
         
         // Create Apple Maps URL (works on iOS, falls back to web on other platforms)
         let mapURL = "https://maps.apple.com/?q=\(encodedName)&ll=\(lat),\(lon)&t=m"
@@ -321,18 +322,18 @@ struct NearbyLocationsView: View {
         showingShareSheet = true
     }
     
-    private func pinPlace(_ place: NearbyLocation) {
+    private func pinPlace(_ place: LocationInfo) {
         selectedPlace = place
         showingAddPin = true
     }
     
-    private func openInNativeMap(_ place: NearbyLocation) {
+    private func openInNativeMap(_ place: LocationInfo) {
         let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: place.coordinate))
         mapItem.name = place.name
         mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
     }
     
-    private func togglePlaceSelection(_ place: NearbyLocation) {
+    private func togglePlaceSelection(_ place: LocationInfo) {
         if selectedPlaceIds.contains(place.id) {
             selectedPlaceIds.remove(place.id)
         } else {
@@ -342,12 +343,12 @@ struct NearbyLocationsView: View {
     
     private func saveSelectedLocations() {
         let selected = filteredPlaces.filter { selectedPlaceIds.contains($0.id) }
-        let locationInfos = selected.map { LocationInfo(from: $0) }
+        let locationInfos = selected
         selectedLocations.append(contentsOf: locationInfos)
         presentationMode.wrappedValue.dismiss()
     }
     
-    private func addLocationToSharedList(_ location: NearbyLocation) {
+    private func addLocationToSharedList(_ location: LocationInfo) {
         let context = viewContext
         
         // Check if "Shared" list exists
@@ -378,7 +379,7 @@ struct NearbyLocationsView: View {
             locationPlace.isPrivate = false  // Default to public
             
             // Store location coordinates
-            let clLocation = CLLocation(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+            let clLocation = CLLocation(latitude: location.latitude, longitude: location.longitude)
             if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: clLocation, requiringSecureCoding: false) {
                 locationPlace.setValue(locationData, forKey: "coordinates")
             }
@@ -420,7 +421,7 @@ struct NearbyLocationsView: View {
 }
 
 struct SelectableLocationCard: View {
-    let place: NearbyLocation
+    let place: LocationInfo
     let isSelected: Bool
     let onToggleSelection: () -> Void
     
@@ -473,7 +474,7 @@ struct SelectableLocationCard: View {
 }
 
 struct NearbyLocationCard: View {
-    let place: NearbyLocation
+    let place: LocationInfo
     let onMapTap: () -> Void
     let onShareTap: () -> Void
     let onSaveTap: () -> Void

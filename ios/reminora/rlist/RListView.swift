@@ -15,7 +15,7 @@ enum RListItemType {
     case photo(PHAsset)
     case photoStack([PHAsset])
     case pin(Place)
-    case location(NearbyLocation)
+    case location(LocationInfo)
 }
 
 // MARK: - RListView Item Implementations
@@ -60,7 +60,7 @@ struct RListLocationItem: RListViewItem {
     let date: Date
     let itemType: RListItemType
     
-    init(location: NearbyLocation) {
+    init(location: LocationInfo) {
         self.id = location.id
         self.date = Date() // Use current date for shared locations
         self.itemType = .location(location)
@@ -73,7 +73,7 @@ enum RListDataSource {
     case userList(UserList, [Place])
     case nearbyPhotos([PHAsset])
     case pins([Place])
-    case locations([NearbyLocation])
+    case locations([LocationInfo])
     case mixed([any RListViewItem])
 }
 
@@ -121,7 +121,7 @@ struct RListView: View {
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (Place) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
-    let onLocationTap: ((NearbyLocation) -> Void)?
+    let onLocationTap: ((LocationInfo) -> Void)?
     
     @State private var sections: [RListDateSection] = []
     @State private var isLoading = true
@@ -251,7 +251,7 @@ struct RListSectionView: View {
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (Place) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
-    let onLocationTap: ((NearbyLocation) -> Void)?
+    let onLocationTap: ((LocationInfo) -> Void)?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -338,7 +338,7 @@ struct RListRowView: View {
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (Place) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
-    let onLocationTap: ((NearbyLocation) -> Void)?
+    let onLocationTap: ((LocationInfo) -> Void)?
     
     var body: some View {
         switch row.type {
@@ -400,7 +400,7 @@ struct RListItemView: View {
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (Place) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
-    let onLocationTap: ((NearbyLocation) -> Void)?
+    let onLocationTap: ((LocationInfo) -> Void)?
     
     var body: some View {
         switch item.itemType {
@@ -650,7 +650,7 @@ struct RListPinView: View {
 }
 
 struct RListLocationView: View {
-    let location: NearbyLocation
+    let location: LocationInfo
     let onTap: () -> Void
     
     var body: some View {
@@ -675,7 +675,7 @@ struct RListLocationView: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     
-                    Text(location.address)
+                    Text(location.address ?? "Unknown address")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .lineLimit(2)

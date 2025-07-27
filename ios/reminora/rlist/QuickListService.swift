@@ -540,7 +540,7 @@ extension QuickListService {
         onPhotoTap: @escaping (PHAsset) -> Void,
         onPinTap: @escaping (Place) -> Void,
         onPhotoStackTap: @escaping ([PHAsset]) -> Void,
-        onLocationTap: ((NearbyLocation) -> Void)? = nil
+        onLocationTap: ((LocationInfo) -> Void)? = nil
     ) -> some View {
         QuickListView(
             context: context,

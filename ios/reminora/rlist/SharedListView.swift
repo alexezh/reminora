@@ -18,7 +18,7 @@ struct SharedListView: View {
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (Place) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
-    let onLocationTap: ((NearbyLocation) -> Void)?
+    let onLocationTap: ((LocationInfo) -> Void)?
     
     @State private var items: [any RListViewItem] = []
     @State private var isLoading = true

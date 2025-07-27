@@ -106,13 +106,16 @@ struct PinDetailView: View {
                 )
                 
                 // Create a new PlaceAddress with the available data
+                // Use address if available, otherwise use name
+                let displayAddress = locationInfo.address?.isEmpty == false ? locationInfo.address! : locationInfo.name
+                
                 return PlaceAddress(
                     coordinates: coordinates,
                     country: nil,
                     city: nil,
-                    phone: nil,
+                    phone: locationInfo.phoneNumber,
                     website: nil,
-                    fullAddress: locationInfo.name
+                    fullAddress: displayAddress
                 )
             }
         } catch {
@@ -325,6 +328,18 @@ struct PinDetailView: View {
                             
                             ForEach(placeAddresses) { address in
                                 AddressCardView(address: address)
+                                    .contextMenu {
+                                        Button("Copy Address") {
+                                            let addressText = address.fullAddress ?? "\(address.city ?? ""), \(address.country ?? "")"
+                                            UIPasteboard.general.string = addressText
+                                        }
+                                        
+                                        if isOwner {
+                                            Button("Edit Address") {
+                                                showingEditAddresses = true
+                                            }
+                                        }
+                                    }
                             }
                         }
                         .padding(.horizontal, 16)
@@ -373,11 +388,6 @@ struct PinDetailView: View {
                     
                     // Action button - iOS 16 style menu
                     Menu {
-                        if isOwner {
-                            Button("Edit Address") {
-                                showingEditAddresses = true
-                            }
-                        }
                         Button("Map") {
                             showNearbyPlaces()
                         }
@@ -456,20 +466,6 @@ struct PinDetailView: View {
                 title: "Share",
                 systemImage: "square.and.arrow.up",
                 action: sharePlace,
-                color: .blue
-            ),
-            ToolbarButtonConfig(
-                id: "map",
-                title: "Map",
-                systemImage: "map",
-                action: showNearbyPlaces,
-                color: .blue
-            ),
-            ToolbarButtonConfig(
-                id: "photos",
-                title: "Photos",
-                systemImage: "photo.stack",
-                action: showNearbyPhotos,
                 color: .blue
             ),
             ToolbarButtonConfig(

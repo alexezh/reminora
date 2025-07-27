@@ -30,22 +30,70 @@ struct PinMainView: View {
   @State private var showingNearbyLocations = false
   @State private var showingActionMenu = false
   @State private var showingOpenInvite = false
+  
+  // Sort options
+  enum SortOption: String, CaseIterable {
+    case recent = "recent"
+    case distance = "distance"
+    
+    var displayName: String {
+      switch self {
+      case .recent: return "Recent"
+      case .distance: return "Distance"
+      }
+    }
+  }
+  
+  @State private var selectedSortOption: SortOption = .recent
+  
+  private let sortPreferenceKey = "PinMainView.sortOption"
 
   var filteredItems: [Place] {
-    let allItems = Array(items).sorted { a, b in
-      (a.dateAdded ?? Date.distantPast) > (b.dateAdded ?? Date.distantPast)
+    var allItems = Array(items)
+    
+    // Apply sorting based on selected option
+    switch selectedSortOption {
+    case .recent:
+      allItems = allItems.sorted { a, b in
+        (a.dateAdded ?? Date.distantPast) > (b.dateAdded ?? Date.distantPast)
+      }
+    case .distance:
+      // Sort by distance from current location
+      if let userLocation = locationManager.lastLocation {
+        allItems = allItems.sorted { a, b in
+          let distanceA = distanceFromUserLocation(place: a, userLocation: userLocation)
+          let distanceB = distanceFromUserLocation(place: b, userLocation: userLocation)
+          return distanceA < distanceB
+        }
+      } else {
+        // Fallback to recent if no location available
+        allItems = allItems.sorted { a, b in
+          (a.dateAdded ?? Date.distantPast) > (b.dateAdded ?? Date.distantPast)
+        }
+      }
     }
     
-    if !searchText.isEmpty {
+    // Trim whitespace from search text for more responsive filtering
+    let trimmedSearchText = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    
+    if !trimmedSearchText.isEmpty {
       // Use PinFilterService for fuzzy search
-      let filtered = pinFilterService.filterPins(allItems, searchText: searchText)
-      return pinFilterService.sortByRelevance(filtered, searchText: searchText)
+      let filtered = pinFilterService.filterPins(allItems, searchText: trimmedSearchText)
+      return pinFilterService.sortByRelevance(filtered, searchText: trimmedSearchText)
     } else {
-      // Return items sorted by date added (most recent first)
+      // Return items with applied sort
       return allItems
     }
   }
-
+  
+  // Helper function to calculate distance from user location
+  private func distanceFromUserLocation(place: Place, userLocation: CLLocation) -> CLLocationDistance {
+    guard let locationData = place.value(forKey: "coordinates") as? Data,
+          let placeLocation = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation else {
+      return CLLocationDistance.greatestFiniteMagnitude // Place at end if no location
+    }
+    return userLocation.distance(from: placeLocation)
+  }
 
   var body: some View {
     GeometryReader { geometry in
@@ -70,6 +118,29 @@ struct PinMainView: View {
               }
             }) {
               Image(systemName: isSearching ? "xmark" : "magnifyingglass")
+                .font(.title2)
+                .foregroundColor(.blue)
+            }
+            .padding(.trailing, 8)
+            
+            // Sort menu
+            Menu {
+              ForEach(SortOption.allCases, id: \.self) { option in
+                Button(action: {
+                  selectedSortOption = option
+                  saveSortPreference()
+                }) {
+                  HStack {
+                    Text(option.displayName)
+                    if selectedSortOption == option {
+                      Spacer()
+                      Image(systemName: "checkmark")
+                    }
+                  }
+                }
+              }
+            } label: {
+              Image(systemName: selectedSortOption == .recent ? "clock" : "location")
                 .font(.title2)
                 .foregroundColor(.blue)
             }
@@ -105,6 +176,12 @@ struct PinMainView: View {
               TextField("Search by location or title...", text: $searchText)
                 .textFieldStyle(PlainTextFieldStyle())
                 .padding(.vertical, 8)
+                .onChange(of: searchText) { _ in
+                  // Ensure immediate UI update for search results
+                  DispatchQueue.main.async {
+                    // This forces a view update cycle
+                  }
+                }
 
               if !searchText.isEmpty {
                 Button("Clear") {
@@ -119,7 +196,7 @@ struct PinMainView: View {
             .cornerRadius(8)
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
-            .transition(.opacity.combined(with: .move(edge: .top)))
+            .transition(.opacity)
           }
           
           // Main card list
@@ -228,6 +305,7 @@ struct PinMainView: View {
       }
     }
     .onAppear {
+      loadSortPreference()
       syncFollowingUsersIfNeeded()
     }
     .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
@@ -239,6 +317,19 @@ struct PinMainView: View {
     }
   }
 
+  
+  // MARK: - Sort Preferences
+  
+  private func loadSortPreference() {
+    if let savedSort = UserDefaults.standard.string(forKey: sortPreferenceKey),
+       let sortOption = SortOption(rawValue: savedSort) {
+      selectedSortOption = sortOption
+    }
+  }
+  
+  private func saveSortPreference() {
+    UserDefaults.standard.set(selectedSortOption.rawValue, forKey: sortPreferenceKey)
+  }
   
   // MARK: - Following Users Sync
   

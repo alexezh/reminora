@@ -429,9 +429,11 @@ struct MapView: View {
         }
         .sheet(isPresented: $showingAddPinDialog) {
             if let selectedLocation = selectedMapLocation {
-                AddPinFromLocationView(location: selectedLocation) {
-                    showingAddPinDialog = false
-                    selectedMapLocation = nil
+                NavigationView {
+                    AddPinFromLocationView(location: selectedLocation) {
+                        showingAddPinDialog = false
+                        selectedMapLocation = nil
+                    }
                 }
             }
         }
@@ -452,7 +454,15 @@ struct MapView: View {
     }
     
     private func toggleReject(_ location: NearbyLocation) {
+        let wasRejected = locationPreferenceService.isLocationRejected(location, context: viewContext)
         _ = locationPreferenceService.toggleReject(location, context: viewContext)
+        
+        // If location was just rejected (dismissed), provide feedback
+        if !wasRejected {
+            print("📍 Location dismissed: \(location.name)")
+            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+            impactFeedback.impactOccurred()
+        }
     }
     
     // MARK: - Search History Management
@@ -808,118 +818,7 @@ struct MapView: View {
     }
 }
 
-struct MapLocationCard: View {
-    let place: NearbyLocation
-    let isFavorited: Bool
-    let isRejected: Bool
-    let isSelected: Bool
-    let onShareTap: () -> Void
-    let onPinTap: () -> Void
-    let onFavTap: () -> Void
-    let onRejectTap: () -> Void
-    let onLocationTap: () -> Void
-    let onNavigateTap: () -> Void
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Main content - Tappable to show on map
-            VStack(alignment: .leading, spacing: 8) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(place.name)
-                        .font(.headline)
-                        .lineLimit(2)
-                        .foregroundColor(isFavorited ? .blue : .primary)
-                        .fontWeight(isFavorited ? .semibold : .regular)
-                    
-                    Text(place.address)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                    
-                    HStack {
-                        Image(systemName: "location")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                        Text("\(String(format: "%.1f", place.distance / 1000)) km")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        if isFavorited {
-                            Spacer()
-                            Image(systemName: "heart.fill")
-                                .font(.caption)
-                                .foregroundColor(.red)
-                        }
-                    }
-                }
-            }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                onLocationTap()
-            }
-            
-            // Action buttons
-            HStack(spacing: 0) {
-                Button(action: onNavigateTap) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "square.and.arrow.up")
-                        Text("Share")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .frame(maxWidth: .infinity)
-                }
-                
-                Button(action: onPinTap) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus.circle")
-                        Text("Add Pin")
-                    }
-                    .font(.caption)
-                    .foregroundColor(.blue)
-                    .frame(maxWidth: .infinity)
-                }
-                
-                Button(action: onFavTap) {
-                    HStack(spacing: 4) {
-                        Image(systemName: isFavorited ? "heart.fill" : "heart")
-                        Text("Fav")
-                    }
-                    .font(.caption)
-                    .foregroundColor(isFavorited ? .red : .blue)
-                    .frame(maxWidth: .infinity)
-                }
-                
-                Button(action: onRejectTap) {
-                    HStack(spacing: 4) {
-                        Image(systemName: isRejected ? "x.circle.fill" : "x.circle")
-                        Text("Dismiss")
-                    }
-                    .font(.caption)
-                    .foregroundColor(isRejected ? .red : .blue)
-                    .frame(maxWidth: .infinity)
-                }
-            }
-        }
-        .padding(16)
-        .background(
-            isSelected ? Color.blue.opacity(0.15) : 
-            isFavorited ? Color.blue.opacity(0.05) : 
-            Color(UIColor.systemBackground)
-        )
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(
-                    isSelected ? Color.blue.opacity(0.5) : 
-                    isFavorited ? Color.blue.opacity(0.3) : 
-                    Color.clear, 
-                    lineWidth: isSelected ? 2 : 1
-                )
-        )
-        .shadow(color: .black.opacity(isSelected ? 0.15 : 0.1), radius: isSelected ? 4 : 2, x: 0, y: 1)
-    }
-}
+
 
 struct MapAnnotationItem: Identifiable {
     let id = UUID()

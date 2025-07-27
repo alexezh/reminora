@@ -22,9 +22,14 @@ struct PinCardView: View {
   
   @State private var selectedCard: CardType
   
+  private var hasValidImageData: Bool {
+    guard let imageData = place.imageData else { return false }
+    return !imageData.isEmpty
+  }
+  
   private var availableCards: [CardType] {
     var cards: [CardType] = [.text]
-    if place.imageData != nil {
+    if hasValidImageData {
       cards.append(.image)
     }
     cards.append(.map)
@@ -43,8 +48,9 @@ struct PinCardView: View {
     self.onMapTap = onMapTap
     self.onUserTap = onUserTap
     
-    // Default to image card if image is available, otherwise text card
-    self._selectedCard = State(initialValue: place.imageData != nil ? .image : .text)
+    // Default to image card if valid image data is available, otherwise text card
+    let hasImage = place.imageData != nil && !place.imageData!.isEmpty
+    self._selectedCard = State(initialValue: hasImage ? .image : .text)
   }
   
   var body: some View {
@@ -75,8 +81,8 @@ struct PinCardView: View {
             }
           }
         
-        // Image Card (Center position) - Only show if image exists
-        if place.imageData != nil {
+        // Image Card (Center position) - Only show if valid image data exists
+        if hasValidImageData {
           imageCard
             .frame(width: cardWidth, height: cardHeight)
             .background(Color(.systemBackground))
@@ -89,7 +95,7 @@ struct PinCardView: View {
             .scaleEffect(selectedCard == .image ? 1.0 : 0.9)
             .opacity(selectedCard == .image ? 1.0 : 0.7)
             .zIndex(selectedCard == .image ? 3 : 2)
-            .offset(x: place.imageData != nil ? visibleEdgeWidth : 0)
+            .offset(x: hasValidImageData ? visibleEdgeWidth : 0)
             .animation(.spring(response: 0.6, dampingFraction: 0.8), value: selectedCard)
             .onTapGesture {
               withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
@@ -111,7 +117,7 @@ struct PinCardView: View {
           .scaleEffect(selectedCard == .map ? 1.0 : 0.9)
           .opacity(selectedCard == .map ? 1.0 : 0.7)
           .zIndex(selectedCard == .map ? 3 : 1)
-          .offset(x: place.imageData != nil ? visibleEdgeWidth * 2 : visibleEdgeWidth)
+          .offset(x: hasValidImageData ? visibleEdgeWidth * 2 : visibleEdgeWidth)
           .animation(.spring(response: 0.6, dampingFraction: 0.8), value: selectedCard)
           .onTapGesture {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
@@ -210,21 +216,6 @@ struct PinCardView: View {
         .buttonStyle(PlainButtonStyle())
         
         Spacer()
-        
-        // Card indicators
-        HStack(spacing: 8) {
-          ForEach(availableCards, id: \.self) { cardType in
-            Circle()
-              .fill(selectedCard == cardType ? Color.blue : Color.gray.opacity(0.3))
-              .frame(width: 8, height: 8)
-              .onTapGesture {
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                  selectedCard = cardType
-                }
-              }
-          }
-          Spacer()
-        }
       } else {
         // Compressed content when text card is partially visible - show key info
         VStack(alignment: .leading, spacing: 6) {

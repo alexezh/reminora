@@ -312,7 +312,7 @@ struct AddPinFromPhotoView: View {
                         isPrivate: isPrivate,
                         locations: currentLocations.isEmpty ? nil : currentLocations,
                         context: viewContext,
-                        pinDate: asset.creationDate
+                        pinDate: Date()
                     )
                     
                     await MainActor.run {

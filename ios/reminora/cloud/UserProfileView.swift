@@ -8,7 +8,7 @@ import Photos
 struct UserContentItem: RListViewItem {
     let id: String
     let date: Date
-    let itemType: RListItemType
+    let itemType: RRListItemDataType
     let sourceType: UserContentSourceType
 }
 
@@ -311,7 +311,7 @@ struct UserProfileView: View {
         await MainActor.run {
             guard let currentUser = AuthenticationService.shared.currentAccount else { return }
             
-            let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+            let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
             
             do {
@@ -320,7 +320,7 @@ struct UserProfileView: View {
                 if following {
                     // Add follow relationship if not exists
                     if existingFollows.isEmpty {
-                        let follow = UserList(context: viewContext)
+                        let follow = RListData(context: viewContext)
                         follow.id = UUID().uuidString
                         follow.userId = userId
                         follow.name = userName
@@ -346,7 +346,7 @@ struct UserProfileView: View {
     
     private func checkLocalFollowStatus() async -> Bool {
         return await MainActor.run {
-            let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+            let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
             
             do {

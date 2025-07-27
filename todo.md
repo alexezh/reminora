@@ -7,7 +7,6 @@ image - scale to fit area between title and tumbnails
 bucket photos by similarity. display all photos. 
 
 add pin menu does not work
-rename UserList to RListData and ListItem to RListItemData
 allow RList to create another RList. For search lists, remember search string and options. When displaying, 
 add option to refresh should shows delta. Remove - swipe right
 

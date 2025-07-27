@@ -9,8 +9,8 @@ struct RListPickerView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var authService = AuthenticationService.shared
     
-    @FetchRequest private var userLists: FetchedResults<UserList>
-    @FetchRequest private var listItems: FetchedResults<ListItem>
+    @FetchRequest private var userLists: FetchedResults<RListData>
+    @FetchRequest private var listItems: FetchedResults<RListItemData>
     @State private var isSaving = false
     
     init(place: LocationInfo, isPresented: Binding<Bool>) {
@@ -18,16 +18,16 @@ struct RListPickerView: View {
         self._isPresented = isPresented
         
         // Fetch user's lists
-        self._userLists = FetchRequest<UserList>(
+        self._userLists = FetchRequest<RListData>(
             sortDescriptors: [
-                NSSortDescriptor(keyPath: \UserList.name, ascending: true)
+                NSSortDescriptor(keyPath: \RListData.name, ascending: true)
             ],
             predicate: NSPredicate(format: "userId == %@", AuthenticationService.shared.currentAccount?.id ?? ""),
             animation: .default
         )
         
-        self._listItems = FetchRequest<ListItem>(
-            sortDescriptors: [NSSortDescriptor(keyPath: \ListItem.addedAt, ascending: false)],
+        self._listItems = FetchRequest<RListItemData>(
+            sortDescriptors: [NSSortDescriptor(keyPath: \RListItemData.addedAt, ascending: false)],
             animation: .default
         )
     }
@@ -132,7 +132,7 @@ struct RListPickerView: View {
         }
     }
     
-    private func saveToList(_ list: UserList) {
+    private func saveToList(_ list: RListData) {
         isSaving = true
         
         // Create the place
@@ -148,7 +148,7 @@ struct RListPickerView: View {
         }
         
         // Create list item
-        let listItem = ListItem(context: viewContext)
+        let listItem = RListItemData(context: viewContext)
         listItem.id = UUID().uuidString
         listItem.placeId = newPlace.objectID.uriRepresentation().absoluteString
         listItem.addedAt = Date()
@@ -180,7 +180,7 @@ struct RListPickerView: View {
         isSaving = true
         
         // Create default "My Pins" list
-        let defaultList = UserList(context: viewContext)
+        let defaultList = RListData(context: viewContext)
         defaultList.id = UUID().uuidString
         defaultList.name = "My Pins"
         defaultList.createdAt = Date()
@@ -190,7 +190,7 @@ struct RListPickerView: View {
         saveToNewList(defaultList)
     }
     
-    private func saveToNewList(_ list: UserList) {
+    private func saveToNewList(_ list: RListData) {
         // Create the place
         let newPlace = Place(context: viewContext)
         newPlace.dateAdded = Date()
@@ -204,7 +204,7 @@ struct RListPickerView: View {
         }
         
         // Create list item
-        let listItem = ListItem(context: viewContext)
+        let listItem = RListItemData(context: viewContext)
         listItem.id = UUID().uuidString
         listItem.placeId = newPlace.objectID.uriRepresentation().absoluteString
         listItem.addedAt = Date()
@@ -227,7 +227,7 @@ struct RListPickerView: View {
         isSaving = false
     }
     
-    private func itemCount(for list: UserList) -> Int {
+    private func itemCount(for list: RListData) -> Int {
         return listItems.filter { $0.listId == list.id }.count
     }
 }

@@ -352,18 +352,18 @@ struct NearbyLocationsView: View {
         let context = viewContext
         
         // Check if "Shared" list exists
-        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "name == %@", "Shared")
         
         do {
             let existingLists = try context.fetch(fetchRequest)
-            let sharedList: UserList
+            let sharedList: RListData
             
             if let existing = existingLists.first {
                 sharedList = existing
             } else {
                 // Create "Shared" list
-                sharedList = UserList(context: context)
+                sharedList = RListData(context: context)
                 sharedList.id = UUID().uuidString
                 sharedList.name = "Shared"
                 sharedList.createdAt = Date()
@@ -390,7 +390,7 @@ struct NearbyLocationsView: View {
             locationPlace.url = "location://\(location.id)|\(locationInfo)"
             
             // Check if location is already in the list
-            let itemFetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            let itemFetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
             itemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", 
                                                    sharedList.id ?? "", 
                                                    locationPlace.objectID.uriRepresentation().absoluteString)
@@ -402,7 +402,7 @@ struct NearbyLocationsView: View {
                 try context.save()
                 
                 // Add location to shared list
-                let item = ListItem(context: context)
+                let item = RListItemData(context: context)
                 item.id = UUID().uuidString
                 item.listId = sharedList.id
                 item.placeId = locationPlace.objectID.uriRepresentation().absoluteString

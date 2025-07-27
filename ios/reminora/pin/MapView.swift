@@ -407,16 +407,12 @@ struct MapView: View {
                         ForEach(filteredPlaces, id: \.id) { place in
                             MapLocationCard(
                                 place: place,
-                                isFavorited: isLocationFavorited(place),
-                                isRejected: isLocationRejected(place),
                                 isSelected: selectedCardLocation?.id == place.id,
                                 onShareTap: { sharePlace(place) },
                                 onPinTap: { 
                                     selectedMapLocation = place
                                     showingAddPinDialog = true
                                 },
-                                onFavTap: { toggleFavorite(place) },
-                                onRejectTap: { toggleReject(place) },
                                 onLocationTap: { 
                                     selectedCardLocation = place
                                     showLocationOnMap(place) 

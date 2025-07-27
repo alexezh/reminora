@@ -16,14 +16,14 @@ class SharedListService: ObservableObject {
     // MARK: - Shared List Management
     
     /// Gets or creates the Shared List for the current user
-    func getOrCreateSharedList(in context: NSManagedObjectContext, userId: String) -> UserList {
+    func getOrCreateSharedList(in context: NSManagedObjectContext, userId: String) -> RListData {
         // Validate userId is not empty
         guard !userId.isEmpty else {
             print("❌ Cannot create SharedList with empty userId")
             fatalError("SharedList requires valid userId")
         }
         
-        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", Self.sharedListName, userId)
         
         do {
@@ -33,7 +33,7 @@ class SharedListService: ObservableObject {
             } else {
                 // Create new Shared List
                 print("🗂️ Creating new Shared List for userId: \(userId)")
-                let sharedList = UserList(context: context)
+                let sharedList = RListData(context: context)
                 sharedList.id = UUID().uuidString
                 sharedList.name = Self.sharedListName
                 sharedList.createdAt = Date()
@@ -46,7 +46,7 @@ class SharedListService: ObservableObject {
             print("❌ Failed to get/create Shared List: \(error)")
             // Return a temporary one if database fails - but don't insert it into context
             print("🗂️ Creating temporary Shared List for userId: \(userId)")
-            let tempList = UserList(context: context)
+            let tempList = RListData(context: context)
             tempList.id = UUID().uuidString
             tempList.name = Self.sharedListName
             tempList.createdAt = Date()

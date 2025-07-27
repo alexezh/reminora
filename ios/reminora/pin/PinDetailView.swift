@@ -129,7 +129,7 @@ struct PinDetailView: View {
         }
     }
     
-    // Get the owner information from the ListItem that contains this place
+    // Get the owner information from the RListItemData that contains this place
     private var sharedByInfo: (userId: String, userName: String)? {
         // First try to get info from sharing service (for pins from shared lists)
         if let sharingInfo = pinSharingService.getSharedUserInfo(from: place, context: viewContext) {
@@ -176,7 +176,7 @@ struct PinDetailView: View {
         let placeId = place.objectID.uriRepresentation().absoluteString
         
         // Find Quick list for current user
-        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", "Quick", currentUser.id)
         
         do {
@@ -184,7 +184,7 @@ struct PinDetailView: View {
             guard let quickList = quickLists.first else { return false }
             
             // Check if place is in this Quick list
-            let itemFetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            let itemFetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
             itemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", quickList.id ?? "", placeId)
             
             let items = try viewContext.fetch(itemFetchRequest)
@@ -491,7 +491,7 @@ struct PinDetailView: View {
         }
         
         // Check if already following
-        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
         
         do {
@@ -502,7 +502,7 @@ struct PinDetailView: View {
             }
             
             // Create new follow relationship
-            let follow = UserList(context: viewContext)
+            let follow = RListData(context: viewContext)
             follow.id = UUID().uuidString
             follow.userId = userId
             follow.name = userName
@@ -534,18 +534,18 @@ struct PinDetailView: View {
         let placeId = place.objectID.uriRepresentation().absoluteString
         
         // Find or create Quick list
-        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", "Quick", currentUser.id)
         
         do {
             let quickLists = try viewContext.fetch(fetchRequest)
-            let quickList: UserList
+            let quickList: RListData
             
             if let existingList = quickLists.first {
                 quickList = existingList
             } else {
                 // Create Quick list
-                quickList = UserList(context: viewContext)
+                quickList = RListData(context: viewContext)
                 quickList.id = UUID().uuidString
                 quickList.name = "Quick"
                 quickList.createdAt = Date()
@@ -553,7 +553,7 @@ struct PinDetailView: View {
             }
             
             // Check if item already exists in Quick list
-            let itemFetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            let itemFetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
             itemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", quickList.id ?? "", placeId)
             
             let existingItems = try viewContext.fetch(itemFetchRequest)
@@ -566,7 +566,7 @@ struct PinDetailView: View {
                 print("Removed place from Quick list: \(place.post ?? "Unknown")")
             } else {
                 // Add to Quick list
-                let listItem = ListItem(context: viewContext)
+                let listItem = RListItemData(context: viewContext)
                 listItem.id = UUID().uuidString
                 listItem.placeId = placeId
                 listItem.addedAt = Date()

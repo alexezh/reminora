@@ -387,32 +387,32 @@ struct ProfileView: View {
         let context = viewContext
         
         // Check if "Shared" list exists
-        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "name == %@", "Shared")
         
         do {
             let existingLists = try context.fetch(fetchRequest)
-            let sharedList: UserList
+            let sharedList: RListData
             
             if let existing = existingLists.first {
                 sharedList = existing
             } else {
                 // Create "Shared" list
-                sharedList = UserList(context: context)
+                sharedList = RListData(context: context)
                 sharedList.id = UUID().uuidString
                 sharedList.name = "Shared"
                 sharedList.createdAt = Date()
             }
             
             // Check if place is already in the list
-            let itemFetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            let itemFetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
             itemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", sharedList.id ?? "", place.cloudId ?? "")
             
             let existingItems = try context.fetch(itemFetchRequest)
             
             if existingItems.isEmpty {
                 // Add place to shared list
-                let item = ListItem(context: context)
+                let item = RListItemData(context: context)
                 item.id = UUID().uuidString
                 item.listId = sharedList.id
                 item.placeId = place.cloudId

@@ -14,7 +14,7 @@ struct AddToListPickerView: View {
     let onListSelected: (String) -> Void
     let onDismiss: () -> Void
     
-    @State private var userLists: [UserList] = []
+    @State private var userLists: [RListData] = []
     @State private var isLoading = true
     
     var body: some View {
@@ -77,15 +77,15 @@ struct AddToListPickerView: View {
             }
         }
         .task {
-            await loadUserLists()
+            await loadRListDatas()
         }
     }
     
-    private func loadUserLists() async {
+    private func loadRListDatas() async {
         isLoading = true
         
         do {
-            let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+            let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "userId == %@ AND name != %@", userId, QuickListService.quickListName)
             fetchRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
             

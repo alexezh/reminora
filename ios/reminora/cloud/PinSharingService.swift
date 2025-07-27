@@ -234,8 +234,8 @@ class PinSharingService: ObservableObject {
     
     /// Extract shared user information from a place
     func getSharedUserInfo(from place: Place, context: NSManagedObjectContext) -> (userId: String, userName: String)? {
-        // First try to get from ListItem
-        let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+        // First try to get from RListItemData
+        let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "placeId == %@", place.objectID.uriRepresentation().absoluteString)
         
         do {
@@ -247,10 +247,10 @@ class PinSharingService: ObservableObject {
                 return (userId: userId, userName: userName)
             }
         } catch {
-            print("Failed to fetch ListItem for shared info: \(error)")
+            print("Failed to fetch RListItemData for shared info: \(error)")
         }
         
-        // If not found in ListItem, try to parse from place URL
+        // If not found in RListItemData, try to parse from place URL
         return parseUserInfoFromURL(place.url)
     }
     

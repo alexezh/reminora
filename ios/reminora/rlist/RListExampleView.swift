@@ -67,7 +67,7 @@ extension RListExampleView {
     }
     
     // Example: User List View
-    static func userListExample(with list: UserList, places: [Place]) -> RListExampleView {
+    static func userListExample(with list: RListData, places: [Place]) -> RListExampleView {
         RListExampleView(dataSource: .userList(list, places))
     }
     
@@ -107,7 +107,7 @@ extension RListView {
     
     // Helper initializer for User List integration
     static func userListView(
-        list: UserList,
+        list: RListData,
         places: [Place],
         onPinTap: @escaping (Place) -> Void
     ) -> RListView {

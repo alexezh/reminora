@@ -422,13 +422,13 @@ struct PinMainView: View {
     }
   }
   
-  private func getFollowedUsers() async -> [UserList] {
+  private func getFollowedUsers() async -> [RListData] {
     // Perform Core Data operations on background queue to avoid UI blocking
     return await withCheckedContinuation { continuation in
       Task.detached {
         let backgroundContext = PersistenceController.shared.container.newBackgroundContext()
         backgroundContext.perform {
-          let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+          let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
           fetchRequest.predicate = NSPredicate(format: "userId != nil AND userId != ''")
           fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
           

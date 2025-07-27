@@ -6,11 +6,11 @@ import MapKit
 
 // shows list of places saved into list
 struct RListDetailView: View {
-    let list: UserList
+    let list: RListData
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.presentationMode) var presentationMode
 
-    @FetchRequest private var listItems: FetchedResults<ListItem>
+    @FetchRequest private var listItems: FetchedResults<RListItemData>
     @FetchRequest private var places: FetchedResults<Place>
     
     // Quick List menu states
@@ -25,12 +25,12 @@ struct RListDetailView: View {
     @State private var selectedPhotoStack: PhotoStack? = nil
     @State private var selectedPin: Place? = nil
 
-    init(list: UserList) {
+    init(list: RListData) {
         self.list = list
 
         // Fetch items for this list
-        self._listItems = FetchRequest<ListItem>(
-            sortDescriptors: [NSSortDescriptor(keyPath: \ListItem.addedAt, ascending: false)],
+        self._listItems = FetchRequest<RListItemData>(
+            sortDescriptors: [NSSortDescriptor(keyPath: \RListItemData.addedAt, ascending: false)],
             predicate: NSPredicate(format: "listId == %@", list.id ?? ""),
             animation: .default
         )
@@ -367,7 +367,7 @@ struct RListDetailView: View {
         return AuthenticationService.shared.currentAccount?.id ?? ""
     }
 
-    private func placeForItem(_ item: ListItem) -> Place? {
+    private func placeForItem(_ item: RListItemData) -> Place? {
         // Find place by matching the object ID stored in placeId
         return places.first { place in
             place.objectID.uriRepresentation().absoluteString == item.placeId
@@ -411,7 +411,7 @@ struct RListDetailView: View {
 
 #Preview {
     let context = PersistenceController.preview.container.viewContext
-    let sampleList = UserList(context: context)
+    let sampleList = RListData(context: context)
     sampleList.id = "sample"
     sampleList.name = "Quick"
     sampleList.createdAt = Date()

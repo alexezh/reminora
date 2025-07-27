@@ -24,3 +24,8 @@ Main iOS application directory containing the Reminora app source code.
 - Location services
 - Map integration
 - Cloud synchronization
+
+## Important Guidelines
+- **Entity Renames**: Always confirm with user before making large-scale entity or model renames that affect Core Data and multiple files
+- **Breaking Changes**: Ask for explicit confirmation before making changes that could break compilation across many files
+- **Core Data**: Remember that Core Data entity renames require careful coordination between model updates and code changes

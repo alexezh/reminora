@@ -230,13 +230,13 @@ struct reminoraApp: App {
         }
         
         // Find or create the shared list
-        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", "Shared", authService.currentAccount?.id ?? "")
         
         do {
             print("🔗 Fetching shared lists...")
             let sharedLists = try context.fetch(fetchRequest)
-            let sharedList: UserList
+            let sharedList: RListData
             
             if let existingList = sharedLists.first {
                 print("🔗 ✅ Found existing shared list: \(existingList.name ?? "Unknown")")
@@ -244,7 +244,7 @@ struct reminoraApp: App {
             } else {
                 print("🔗 Creating new shared list...")
                 // Create shared list
-                sharedList = UserList(context: context)
+                sharedList = RListData(context: context)
                 sharedList.id = UUID().uuidString
                 sharedList.name = "Shared"
                 sharedList.createdAt = Date()
@@ -254,7 +254,7 @@ struct reminoraApp: App {
             
             print("🔗 Adding place to shared list...")
             // Add item to shared list
-            let listItem = ListItem(context: context)
+            let listItem = RListItemData(context: context)
             listItem.id = UUID().uuidString
             listItem.placeId = newPlace.objectID.uriRepresentation().absoluteString
             listItem.addedAt = Date()

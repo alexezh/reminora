@@ -14,13 +14,9 @@ import Foundation
 
 struct MapLocationCard: View {
     let place: LocationInfo
-    let isFavorited: Bool
-    let isRejected: Bool
     let isSelected: Bool
     let onShareTap: () -> Void
     let onPinTap: () -> Void
-    let onFavTap: () -> Void
-    let onRejectTap: () -> Void
     let onLocationTap: () -> Void
     let onNavigateTap: () -> Void
     
@@ -32,10 +28,10 @@ struct MapLocationCard: View {
                     Text(place.name)
                         .font(.headline)
                         .lineLimit(2)
-                        .foregroundColor(isFavorited ? .blue : .primary)
-                        .fontWeight(isFavorited ? .semibold : .regular)
+                        .foregroundColor(.primary)
+                        .fontWeight(.regular)
                     
-                    Text(place.address)
+                    Text(place.address ?? "Unknown address")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .lineLimit(2)
@@ -48,12 +44,6 @@ struct MapLocationCard: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        if isFavorited {
-                            Spacer()
-                            Image(systemName: "heart.fill")
-                                .font(.caption)
-                                .foregroundColor(.red)
-                        }
                     }
                 }
             }
@@ -84,31 +74,11 @@ struct MapLocationCard: View {
                     .frame(maxWidth: .infinity)
                 }
                 
-                Button(action: onFavTap) {
-                    HStack(spacing: 4) {
-                        Image(systemName: isFavorited ? "heart.fill" : "heart")
-                        Text("Fav")
-                    }
-                    .font(.caption)
-                    .foregroundColor(isFavorited ? .red : .blue)
-                    .frame(maxWidth: .infinity)
-                }
-                
-                Button(action: onRejectTap) {
-                    HStack(spacing: 4) {
-                        Image(systemName: isRejected ? "x.circle.fill" : "x.circle")
-                        Text("Dismiss")
-                    }
-                    .font(.caption)
-                    .foregroundColor(isRejected ? .red : .blue)
-                    .frame(maxWidth: .infinity)
-                }
             }
         }
         .padding(16)
         .background(
             isSelected ? Color.blue.opacity(0.15) : 
-            isFavorited ? Color.blue.opacity(0.05) : 
             Color(UIColor.systemBackground)
         )
         .cornerRadius(12)
@@ -116,7 +86,6 @@ struct MapLocationCard: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(
                     isSelected ? Color.blue.opacity(0.5) : 
-                    isFavorited ? Color.blue.opacity(0.3) : 
                     Color.clear, 
                     lineWidth: isSelected ? 2 : 1
                 )

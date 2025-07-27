@@ -15,8 +15,8 @@ class QuickListService: ObservableObject {
     // MARK: - Quick List Management
     
     /// Gets or creates the Quick List for the current user
-    func getOrCreateQuickList(in context: NSManagedObjectContext, userId: String) -> UserList {
-        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+    func getOrCreateQuickList(in context: NSManagedObjectContext, userId: String) -> RListData {
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", Self.quickListName, userId)
         
         do {
@@ -25,7 +25,7 @@ class QuickListService: ObservableObject {
                 return quickList
             } else {
                 // Create new Quick List
-                let quickList = UserList(context: context)
+                let quickList = RListData(context: context)
                 quickList.id = UUID().uuidString
                 quickList.name = Self.quickListName
                 quickList.createdAt = Date()
@@ -37,7 +37,7 @@ class QuickListService: ObservableObject {
         } catch {
             print("❌ Failed to get/create Quick List: \(error)")
             // Return a temporary one if database fails
-            let tempList = UserList(context: context)
+            let tempList = RListData(context: context)
             tempList.id = UUID().uuidString
             tempList.name = Self.quickListName
             tempList.createdAt = Date()
@@ -106,7 +106,7 @@ class QuickListService: ObservableObject {
     
     // MARK: - Quick List Content
     
-    /// Gets all items in the Quick List as RListViewItems
+    /// Gets all items in the Quick List as RListViewItems (internal implementation)
     func getQuickListItems(context: NSManagedObjectContext, userId: String) async -> [any RListViewItem] {
         let quickList = getOrCreateQuickList(in: context, userId: userId)
         print("🔍 Quick List ID: \(quickList.id ?? "nil"), User ID: \(userId)")
@@ -170,7 +170,7 @@ class QuickListService: ObservableObject {
     
     // MARK: - Private Helper Methods
     
-    private func isAssetInList(_ asset: PHAsset, list: UserList, context: NSManagedObjectContext) -> Bool {
+    private func isAssetInList(_ asset: PHAsset, list: RListData, context: NSManagedObjectContext) -> Bool {
         // Look for a place with URL pattern "photo://localIdentifier"
         let photoURL = "photo://\(asset.localIdentifier)"
         //print("🔍 Checking if asset \(asset.localIdentifier) is in list \(list.id ?? "nil")")
@@ -207,7 +207,7 @@ class QuickListService: ObservableObject {
         }
     }
     
-    private func addAssetToList(_ asset: PHAsset, list: UserList, context: NSManagedObjectContext) -> Bool {
+    private func addAssetToList(_ asset: PHAsset, list: RListData, context: NSManagedObjectContext) -> Bool {
         print("🔍 Adding asset \(asset.localIdentifier) to list \(list.id ?? "nil")")
         
         // Check if already exists
@@ -239,7 +239,7 @@ class QuickListService: ObservableObject {
         }
     }
     
-    private func removeAssetFromList(_ asset: PHAsset, list: UserList, context: NSManagedObjectContext) -> Bool {
+    private func removeAssetFromList(_ asset: PHAsset, list: RListData, context: NSManagedObjectContext) -> Bool {
         let photoURL = "photo://\(asset.localIdentifier)"
         
         // Find the place representing this photo
@@ -342,7 +342,7 @@ class QuickListService: ObservableObject {
         }
     }
     
-    private func isPlaceInList(_ place: Place, list: UserList, context: NSManagedObjectContext) -> Bool {
+    private func isPlaceInList(_ place: Place, list: RListData, context: NSManagedObjectContext) -> Bool {
         let placeId = place.objectID.uriRepresentation().absoluteString
         let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", 
@@ -358,7 +358,7 @@ class QuickListService: ObservableObject {
         }
     }
     
-    private func addPlaceToList(_ place: Place, list: UserList, context: NSManagedObjectContext) -> Bool {
+    private func addPlaceToList(_ place: Place, list: RListData, context: NSManagedObjectContext) -> Bool {
         // Check if already exists
         if isPlaceInList(place, list: list, context: context) {
             return true // Already in list
@@ -379,7 +379,7 @@ class QuickListService: ObservableObject {
         }
     }
     
-    private func removePlaceFromList(_ place: Place, list: UserList, context: NSManagedObjectContext) -> Bool {
+    private func removePlaceFromList(_ place: Place, list: RListData, context: NSManagedObjectContext) -> Bool {
         let placeId = place.objectID.uriRepresentation().absoluteString
         let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", 
@@ -433,7 +433,7 @@ class QuickListService: ObservableObject {
         
         do {
             // Create the new list
-            let newList = UserList(context: context)
+            let newList = RListData(context: context)
             newList.id = UUID().uuidString
             newList.name = newListName
             newList.createdAt = Date()
@@ -457,7 +457,7 @@ class QuickListService: ObservableObject {
             print("🔍 ✅ Successfully created list '\(newListName)' with \(quickListItems.count) items")
             
             // Send notification to refresh the AllRListsView
-            NotificationCenter.default.post(name: NSNotification.Name("UserListsChanged"), object: nil)
+            NotificationCenter.default.post(name: NSNotification.Name("RListDatasChanged"), object: nil)
             
             return true
         } catch {
@@ -489,7 +489,7 @@ class QuickListService: ObservableObject {
             print("🔍 ✅ Successfully moved \(quickListItems.count) items to existing list")
             
             // Send notification to refresh the AllRListsView
-            NotificationCenter.default.post(name: NSNotification.Name("UserListsChanged"), object: nil)
+            NotificationCenter.default.post(name: NSNotification.Name("RListDatasChanged"), object: nil)
             
             return true
         } catch {
@@ -521,7 +521,7 @@ class QuickListService: ObservableObject {
             print("🔍 ✅ Successfully cleared \(quickListItems.count) items from Quick List")
             
             // Send notification to refresh the AllRListsView
-            NotificationCenter.default.post(name: NSNotification.Name("UserListsChanged"), object: nil)
+            NotificationCenter.default.post(name: NSNotification.Name("RListDatasChanged"), object: nil)
             
             return true
         } catch {

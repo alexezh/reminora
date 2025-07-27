@@ -8,10 +8,10 @@ import MapKit
 protocol RListViewItem: Identifiable {
     var id: String { get }
     var date: Date { get }
-    var itemType: RListItemType { get }
+    var itemType: RRListItemDataType { get }
 }
 
-enum RListItemType {
+enum RRListItemDataType {
     case photo(PHAsset)
     case photoStack([PHAsset])
     case pin(Place)
@@ -22,7 +22,7 @@ enum RListItemType {
 struct RListPhotoItem: RListViewItem {
     let id: String
     let date: Date
-    let itemType: RListItemType
+    let itemType: RRListItemDataType
     
     init(asset: PHAsset) {
         self.id = asset.localIdentifier
@@ -34,7 +34,7 @@ struct RListPhotoItem: RListViewItem {
 struct RListPhotoStackItem: RListViewItem {
     let id: String
     let date: Date
-    let itemType: RListItemType
+    let itemType: RRListItemDataType
     
     init(assets: [PHAsset]) {
         self.id = assets.map { $0.localIdentifier }.joined(separator: "-")
@@ -46,7 +46,7 @@ struct RListPhotoStackItem: RListViewItem {
 struct RListPinItem: RListViewItem {
     let id: String
     let date: Date
-    let itemType: RListItemType
+    let itemType: RRListItemDataType
     
     init(place: Place) {
         self.id = place.objectID.uriRepresentation().absoluteString
@@ -58,7 +58,7 @@ struct RListPinItem: RListViewItem {
 struct RListLocationItem: RListViewItem {
     let id: String
     let date: Date
-    let itemType: RListItemType
+    let itemType: RRListItemDataType
     
     init(location: LocationInfo) {
         self.id = location.id
@@ -70,7 +70,7 @@ struct RListLocationItem: RListViewItem {
 // MARK: - RListView Data Source
 enum RListDataSource {
     case photoLibrary([PHAsset])
-    case userList(UserList, [Place])
+    case userList(RListData, [Place])
     case nearbyPhotos([PHAsset])
     case pins([Place])
     case locations([LocationInfo])
@@ -363,7 +363,7 @@ struct RListRowView: View {
             
         case .pinRow:
             ForEach(row.items, id: \.id) { item in
-                RListItemView(
+                RRListItemDataView(
                     item: item,
                     onPhotoTap: onPhotoTap,
                     onPinTap: onPinTap,
@@ -394,8 +394,8 @@ struct RListPhotoGridItemView: View {
     }
 }
 
-// MARK: - RListItemView
-struct RListItemView: View {
+// MARK: - RRListItemDataView
+struct RRListItemDataView: View {
     let item: any RListViewItem
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (Place) -> Void

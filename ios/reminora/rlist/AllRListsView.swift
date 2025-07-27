@@ -27,7 +27,7 @@ struct AllRListsView: View {
         self.onPhotoStackTap = onPhotoStackTap
     }
     
-    @State private var userLists: [UserList] = []
+    @State private var userLists: [RListData] = []
     @State private var isLoading = true
     @State private var refreshTrigger = UUID()
     
@@ -35,13 +35,13 @@ struct AllRListsView: View {
         NavigationView {
             listContent
                 .refreshable {
-                    await loadUserLists()
+                    await loadRListDatas()
                 }
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button(action: {
                             Task {
-                                await loadUserLists()
+                                await loadRListDatas()
                             }
                         }) {
                             Image(systemName: "arrow.clockwise")
@@ -50,13 +50,13 @@ struct AllRListsView: View {
                 }
         }
         .task {
-            await loadUserLists()
+            await loadRListDatas()
         }
         .task(id: refreshTrigger) {
-            await loadUserLists()
+            await loadRListDatas()
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("UserListsChanged"))) { _ in
-            print("🔍 AllRListsView received UserListsChanged notification")
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RListDatasChanged"))) { _ in
+            print("🔍 AllRListsView received RListDatasChanged notification")
             refreshTrigger = UUID()
         }
     }
@@ -100,7 +100,7 @@ struct AllRListsView: View {
         }
     }
     
-    private func listItemView(for userList: UserList) -> some View {
+    private func listItemView(for userList: RListData) -> some View {
         NavigationLink(destination: RListDetailView(list: userList)) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -124,14 +124,14 @@ struct AllRListsView: View {
         }
     }
     
-    private func loadUserLists() async {
+    private func loadRListDatas() async {
         isLoading = true
         
         // Ensure Quick and Shared lists exist
         await ensureSystemLists()
         
         // Fetch all user lists for this user
-        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
         fetchRequest.sortDescriptors = [
             NSSortDescriptor(key: "createdAt", ascending: false)
@@ -176,7 +176,7 @@ struct AllRListsView: View {
     
     private func ensureSystemLists() async {
         // Check if they already exist first
-        let fetchRequest: NSFetchRequest<UserList> = UserList.fetchRequest()
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "userId == %@ AND (name == %@ OR name == %@)", userId, "Quick", "Shared")
         
         do {
@@ -187,7 +187,7 @@ struct AllRListsView: View {
             
             // Create Quick List if it doesn't exist
             if !existingNames.contains("Quick") {
-                let quickList = UserList(context: context)
+                let quickList = RListData(context: context)
                 quickList.id = UUID().uuidString
                 quickList.name = "Quick"
                 quickList.createdAt = Date()
@@ -198,7 +198,7 @@ struct AllRListsView: View {
             
             // Create Shared List if it doesn't exist
             if !existingNames.contains("Shared") {
-                let sharedList = UserList(context: context)
+                let sharedList = RListData(context: context)
                 sharedList.id = UUID().uuidString
                 sharedList.name = "Shared"
                 sharedList.createdAt = Date()

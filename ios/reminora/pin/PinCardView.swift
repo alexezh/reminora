@@ -20,7 +20,7 @@ struct PinCardView: View {
   let onMapTap: () -> Void
   let onUserTap: (String, String) -> Void
   
-  @State private var selectedCard: CardType = .text
+  @State private var selectedCard: CardType
   
   private var availableCards: [CardType] {
     var cards: [CardType] = [.text]
@@ -33,6 +33,18 @@ struct PinCardView: View {
   
   enum CardType {
     case text, image, map
+  }
+  
+  init(place: Place, cardHeight: CGFloat, onPhotoTap: @escaping () -> Void, onTitleTap: @escaping () -> Void, onMapTap: @escaping () -> Void, onUserTap: @escaping (String, String) -> Void) {
+    self.place = place
+    self.cardHeight = cardHeight
+    self.onPhotoTap = onPhotoTap
+    self.onTitleTap = onTitleTap
+    self.onMapTap = onMapTap
+    self.onUserTap = onUserTap
+    
+    // Default to image card if image is available, otherwise text card
+    self._selectedCard = State(initialValue: place.imageData != nil ? .image : .text)
   }
   
   var body: some View {
@@ -114,7 +126,7 @@ struct PinCardView: View {
   }
   
   private var textCard: some View {
-    VStack(alignment: .leading, spacing: selectedCard == .text ? 12 : 8) {
+    VStack(alignment: .leading, spacing: 12) {
       if selectedCard == .text {
         // Full content when text card is selected
         // Title (tappable)
@@ -214,19 +226,52 @@ struct PinCardView: View {
           Spacer()
         }
       } else {
-        // Compressed content when text card is partially visible
-        VStack(spacing: 4) {
-          Image(systemName: "text.alignleft")
-            .font(.title2)
-            .foregroundColor(.blue)
-          Text("Text")
-            .font(.caption)
-            .foregroundColor(.blue)
+        // Compressed content when text card is partially visible - show key info
+        VStack(alignment: .leading, spacing: 6) {
+          // Title (truncated)
+          Text(place.post ?? "Untitled Pin")
+            .font(.body)
+            .fontWeight(.semibold)
+            .foregroundColor(.primary)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+          
+          // Location (if available)
+          if let locationName = getLocationName() {
+            HStack(spacing: 4) {
+              Image(systemName: "location.fill")
+                .font(.caption)
+                .foregroundColor(.blue)
+              Text(locationName)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+            }
+          }
+          
+          // User info
+          HStack(spacing: 6) {
+            Image(systemName: "person.circle.fill")
+              .font(.caption)
+              .foregroundColor(.blue)
+            
+            if let originalDisplayName = place.value(forKey: "originalDisplayName") as? String {
+              Text(originalDisplayName)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+            } else {
+              Text("You")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
+          }
+          
+          Spacer()
         }
-        Spacer()
       }
     }
-    .padding(selectedCard == .text ? 20 : 12)
+    .padding(20)
     .contentShape(Rectangle())
     .onTapGesture {
       withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {

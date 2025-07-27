@@ -9,8 +9,6 @@ image - scale to fit area between title and tumbnails
 use time on photo as pin time
 bucket photos by similarity. display all photos. 
 
-pindetailsview. when photo is available, select it. Keep details on text card visible when it is not selected
-
 Future place
 
 pull down - refresh all followings

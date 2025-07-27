@@ -192,7 +192,16 @@ struct MapView: View {
                             }
                         }
                     }
-                    .onChange(of: mapRegion) { _, newRegion in
+                    .onChange(of: mapRegion.center.latitude) { _ in
+                        saveMapRegion()
+                    }
+                    .onChange(of: mapRegion.center.longitude) { _ in
+                        saveMapRegion()
+                    }
+                    .onChange(of: mapRegion.span.latitudeDelta) { _ in
+                        saveMapRegion()
+                    }
+                    .onChange(of: mapRegion.span.longitudeDelta) { _ in
                         saveMapRegion()
                     }
                     .onAppear {

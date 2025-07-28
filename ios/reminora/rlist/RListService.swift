@@ -257,7 +257,7 @@ class RListService: ObservableObject {
         print("🔍 Quick List ID: \(quickList.id ?? "nil"), User ID: \(userId)")
         
         // Get all list items for this list
-        let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+        let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "listId == %@", quickList.id ?? "")
         fetchRequest.sortDescriptors = [NSSortDescriptor(key: "addedAt", ascending: false)]
         
@@ -331,7 +331,7 @@ class RListService: ObservableObject {
             let quickList = getOrCreateQuickList(in: context, userId: userId)
             
             // Move all items from Quick List to new list
-            let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "listId == %@", quickList.id ?? "")
             
             let quickListItems = try context.fetch(fetchRequest)
@@ -363,7 +363,7 @@ class RListService: ObservableObject {
             let quickList = getOrCreateQuickList(in: context, userId: userId)
             
             // Get all Quick List items
-            let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "listId == %@", quickList.id ?? "")
             
             let quickListItems = try context.fetch(fetchRequest)
@@ -395,7 +395,7 @@ class RListService: ObservableObject {
             let quickList = getOrCreateQuickList(in: context, userId: userId)
             
             // Get all Quick List items
-            let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "listId == %@", quickList.id ?? "")
             
             let quickListItems = try context.fetch(fetchRequest)
@@ -441,8 +441,8 @@ class RListService: ObservableObject {
             
             // Check if this place is in the list
             let placeId = place.objectID.uriRepresentation().absoluteString
-            let listItemFetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
-            listItemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", 
+            let listItemFetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
+            listItemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@",
                                                        list.id ?? "", placeId)
             
             let count = try context.count(for: listItemFetchRequest)
@@ -468,7 +468,7 @@ class RListService: ObservableObject {
         print("🔍 Created place with URL: \(place.url ?? "nil")")
         
         // Add the place to the list
-        let listItem = ListItem(context: context)
+        let listItem = RListItemData(context: context)
         listItem.id = UUID().uuidString
         listItem.listId = list.id ?? ""
         listItem.placeId = place.objectID.uriRepresentation().absoluteString
@@ -501,8 +501,8 @@ class RListService: ObservableObject {
             let placeId = place.objectID.uriRepresentation().absoluteString
             
             // Remove from list
-            let listItemFetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
-            listItemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", 
+            let listItemFetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
+            listItemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@",
                                                        list.id ?? "", placeId)
             
             let items = try context.fetch(listItemFetchRequest)
@@ -591,8 +591,8 @@ class RListService: ObservableObject {
     
     private func isPlaceInList(_ place: PinData, list: RListData, context: NSManagedObjectContext) -> Bool {
         let placeId = place.objectID.uriRepresentation().absoluteString
-        let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", 
+        let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@",
                                            list.id ?? "", placeId)
         fetchRequest.fetchLimit = 1
         
@@ -611,7 +611,7 @@ class RListService: ObservableObject {
             return true // Already in list
         }
         
-        let listItem = ListItem(context: context)
+        let listItem = RListItemData(context: context)
         listItem.id = UUID().uuidString
         listItem.listId = list.id ?? ""
         listItem.placeId = place.objectID.uriRepresentation().absoluteString
@@ -628,8 +628,8 @@ class RListService: ObservableObject {
     
     private func removePlaceFromList(_ place: PinData, list: RListData, context: NSManagedObjectContext) -> Bool {
         let placeId = place.objectID.uriRepresentation().absoluteString
-        let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", 
+        let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@",
                                            list.id ?? "", placeId)
         
         do {

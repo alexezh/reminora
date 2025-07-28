@@ -124,7 +124,7 @@ struct MapView: View {
         
         // Filter by category (skip category filtering for search results)
         if selectedCategory != "All" && !filtered.allSatisfy({ $0.category == "search" }) {
-            filtered = filtered.filter { $0.category.contains(selectedCategory.lowercased()) }
+            filtered = filtered.filter { $0.category?.contains(selectedCategory.lowercased()) ?? false }
             print("🔍 After category filter (\(selectedCategory)): \(filtered.count) places")
         }
         
@@ -132,8 +132,8 @@ struct MapView: View {
         if !searchText.isEmpty && !filtered.allSatisfy({ $0.category == "search" }) {
             filtered = filtered.filter { place in
                 place.name.localizedCaseInsensitiveContains(searchText) ||
-                place.address.localizedCaseInsensitiveContains(searchText) ||
-                place.category.localizedCaseInsensitiveContains(searchText)
+                (place.address?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+                (place.category?.localizedCaseInsensitiveContains(searchText) ?? false)
             }
             print("🔍 After search text filter (\(searchText)): \(filtered.count) places")
         }
@@ -577,9 +577,13 @@ struct MapView: View {
         // Get city from first location if available
         if let firstLocation = nearbyPlaces.first {
             // Try to extract city from address
-            let addressComponents = firstLocation.address.components(separatedBy: ", ")
-            if addressComponents.count >= 2 {
-                saveDialogCity = addressComponents[addressComponents.count - 2] // Second to last component is usually city
+            if let address = firstLocation.address {
+                let addressComponents = address.components(separatedBy: ", ")
+                if addressComponents.count >= 2 {
+                    saveDialogCity = addressComponents[addressComponents.count - 2] // Second to last component is usually city
+                } else {
+                    saveDialogCity = firstLocation.name
+                }
             } else {
                 saveDialogCity = firstLocation.name
             }

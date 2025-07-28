@@ -46,7 +46,7 @@ struct RListPickerView: View {
                             .font(.headline)
                             .lineLimit(1)
                         
-                        Text(place.address)
+                        Text(place.address ?? "No address")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .lineLimit(1)

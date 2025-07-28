@@ -86,7 +86,7 @@ struct AddToListPickerView: View {
         
         do {
             let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "userId == %@ AND name != %@", userId, QuickListService.quickListName)
+            fetchRequest.predicate = NSPredicate(format: "userId == %@ AND name != %@", userId, RListService.quickListName)
             fetchRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
             
             let lists = try context.fetch(fetchRequest)

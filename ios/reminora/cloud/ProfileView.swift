@@ -314,7 +314,7 @@ struct ProfileView: View {
         let context = viewContext
         
         // Check if place already exists (by cloudId or similar content)
-        let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+        let fetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
         
         // First try to find by cloudId
         if !placeId.isEmpty {
@@ -345,7 +345,7 @@ struct ProfileView: View {
         
         // Create new place
         do {
-            let place = Place(context: context)
+            let place = PinData(context: context)
             place.post = placeName
             place.dateAdded = Date()
             place.cloudId = placeId
@@ -354,7 +354,7 @@ struct ProfileView: View {
             // Set location
             let location = CLLocation(latitude: lat, longitude: lon)
             let locationData = try NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false)
-            place.setValue(locationData, forKey: "coordinates")
+            place.coordinates = locationData
             
             // Add owner info to URL field
             if let ownerId = ownerId, let ownerHandle = ownerHandle {
@@ -383,53 +383,13 @@ struct ProfileView: View {
         }
     }
     
-    private func addToSharedList(place: Place) {
-        let context = viewContext
-        
-        // Check if "Shared" list exists
-        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "name == %@", "Shared")
-        
-        do {
-            let existingLists = try context.fetch(fetchRequest)
-            let sharedList: RListData
-            
-            if let existing = existingLists.first {
-                sharedList = existing
-            } else {
-                // Create "Shared" list
-                sharedList = RListData(context: context)
-                sharedList.id = UUID().uuidString
-                sharedList.name = "Shared"
-                sharedList.createdAt = Date()
-            }
-            
-            // Check if place is already in the list
-            let itemFetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
-            itemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@", sharedList.id ?? "", place.cloudId ?? "")
-            
-            let existingItems = try context.fetch(itemFetchRequest)
-            
-            if existingItems.isEmpty {
-                // Add place to shared list
-                let item = RListItemData(context: context)
-                item.id = UUID().uuidString
-                item.listId = sharedList.id
-                item.placeId = place.cloudId
-                item.addedAt = Date()
-                
-                try context.save()
-                print("✅ Added place to Shared list")
-            } else {
-                print("ℹ️ Place already in Shared list")
-            }
-            
-        } catch {
-            print("❌ Failed to add to shared list: \(error)")
+    private func addToSharedList(place: PinData) {
+        Task {
+            await RListService.shared.addToSharedList(place: place)
         }
     }
     
-    private func fetchPhotoForSharedPlace(place: Place, originalPlaceId: String) async {
+    private func fetchPhotoForSharedPlace(place: PinData, originalPlaceId: String) async {
         print("🔍 Fetching photo for shared place from: \(originalPlaceId)")
         
         let context = viewContext
@@ -443,7 +403,7 @@ struct ProfileView: View {
         }
     }
     
-    private func fetchFromLocalCoreData(place: Place, coreDataURI: String, context: NSManagedObjectContext) async {
+    private func fetchFromLocalCoreData(place: PinData, coreDataURI: String, context: NSManagedObjectContext) async {
         print("🔍 Attempting to resolve Core Data URI: \(coreDataURI)")
         
         do {
@@ -479,7 +439,7 @@ struct ProfileView: View {
             print("✅ Successfully created object ID: \(objectID)")
             
             // Try to fetch the original place
-            let originalPlace = try context.existingObject(with: objectID) as? Place
+            let originalPlace = try context.existingObject(with: objectID) as? PinData
             
             await MainActor.run {
                 if let originalPlace = originalPlace {
@@ -497,7 +457,7 @@ struct ProfileView: View {
                         print("⚠️ Original place has no image data")
                     }
                 } else {
-                    print("❌ Original place not found or is not a Place entity")
+                    print("❌ Original place not found or is not a PinData entity")
                     Task {
                         await fallbackToCloudFetch(place: place, context: context)
                     }
@@ -510,19 +470,19 @@ struct ProfileView: View {
         }
     }
     
-    private func fallbackToCloudFetch(place: Place, context: NSManagedObjectContext) async {
+    private func fallbackToCloudFetch(place: PinData, context: NSManagedObjectContext) async {
         print("🔄 Falling back to alternative fetch method for shared place")
         
         // Try to find a place with matching coordinates and name
         await MainActor.run {
             guard let placeName = place.post,
-                  let locationData = place.value(forKey: "coordinates") as? Data,
+                  let locationData = place.coordinates,
                   let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation else {
                 print("❌ Cannot extract location data for fallback search")
                 return
             }
             
-            let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+            let fetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "post == %@", placeName)
             
             do {
@@ -530,7 +490,7 @@ struct ProfileView: View {
                 
                 // Find a place with similar location (within 100 meters)
                 for similarPlace in similarPlaces {
-                    if let similarLocationData = similarPlace.value(forKey: "coordinates") as? Data,
+                    if let similarLocationData = similarPlace.coordinates,
                        let similarLocation = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(similarLocationData) as? CLLocation {
                         
                         let distance = location.distance(from: similarLocation)
@@ -550,7 +510,7 @@ struct ProfileView: View {
         }
     }
     
-    private func fetchFromCloud(place: Place, cloudId: String, context: NSManagedObjectContext) async {
+    private func fetchFromCloud(place: PinData, cloudId: String, context: NSManagedObjectContext) async {
         // This would be implemented to fetch from cloud storage
         // For now, we'll just log that we would fetch from cloud
         print("🔍 Would fetch photo from cloud for cloudId: \(cloudId)")

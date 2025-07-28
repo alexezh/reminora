@@ -136,7 +136,7 @@ struct RListPickerView: View {
         isSaving = true
         
         // Create the place
-        let newPlace = Place(context: viewContext)
+        let newPlace = PinData(context: viewContext)
         newPlace.dateAdded = Date()
         newPlace.post = place.name
         newPlace.url = place.address
@@ -192,7 +192,7 @@ struct RListPickerView: View {
     
     private func saveToNewList(_ list: RListData) {
         // Create the place
-        let newPlace = Place(context: viewContext)
+        let newPlace = PinData(context: viewContext)
         newPlace.dateAdded = Date()
         newPlace.post = place.name
         newPlace.url = place.address

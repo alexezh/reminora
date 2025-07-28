@@ -87,7 +87,7 @@
             <fetchIndexElement property="preference" type="Binary" order="ascending"/>
         </fetchIndex>
     </entity>
-    <entity name="Place" representedClassName="Place" syncable="YES" codeGenerationType="class">
+    <entity name="PinData" representedClassName="PinData" syncable="YES" codeGenerationType="class">
         <attribute name="cloudId" optional="YES" attributeType="String"/>
         <attribute name="cloudSyncedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="coordinates" optional="YES" attributeType="Binary"/>

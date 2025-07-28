@@ -17,7 +17,7 @@ class PinFilterService: ObservableObject {
      * @param threshold Similarity threshold for fuzzy matching (0.0 to 1.0)
      * @return Filtered array of places matching the search criteria
      */
-    func filterPins(_ places: [Place], searchText: String, threshold: Double = 0.6) -> [Place] {
+    func filterPins(_ places: [PinData], searchText: String, threshold: Double = 0.6) -> [PinData] {
         guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return places
         }
@@ -154,7 +154,7 @@ class PinFilterService: ObservableObject {
      * @param searchText Original search query
      * @return Places sorted by relevance (best matches first)
      */
-    func sortByRelevance(_ places: [Place], searchText: String) -> [Place] {
+    func sortByRelevance(_ places: [PinData], searchText: String) -> [PinData] {
         let query = searchText.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         
         return places.sorted { place1, place2 in
@@ -170,7 +170,7 @@ class PinFilterService: ObservableObject {
      * @param query Search query
      * @return Relevance score (higher is better)
      */
-    private func calculateRelevanceScore(place: Place, query: String) -> Double {
+    private func calculateRelevanceScore(place: PinData, query: String) -> Double {
         var score: Double = 0.0
         
         // Exact match in title gets highest score

@@ -200,7 +200,7 @@ struct reminoraApp: App {
         
         print("🔗 Creating new place...")
         // Create the place
-        let newPlace = Place(context: context)
+        let newPlace = PinData(context: context)
         newPlace.dateAdded = Date()
         newPlace.post = name
         newPlace.url = "Shared via Reminora link"
@@ -285,7 +285,7 @@ struct reminoraApp: App {
         }
     }
     
-    private func navigateToSharedPlace(_ place: Place) {
+    private func navigateToSharedPlace(_ place: PinData) {
         print("🔗 navigateToSharedPlace called for: \(place.post ?? "Unknown")")
         
         // Post a notification to trigger navigation in ContentView
@@ -297,11 +297,11 @@ struct reminoraApp: App {
         print("🔗 ✅ Posted navigation notification")
     }
     
-    private func findPlace(withId placeId: String, context: NSManagedObjectContext) -> Place? {
+    private func findPlace(withId placeId: String, context: NSManagedObjectContext) -> PinData? {
         // Try to find the place using Core Data URI
         if let url = URL(string: placeId),
            let objectID = context.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: url) {
-            return try? context.existingObject(with: objectID) as? Place
+            return try? context.existingObject(with: objectID) as? PinData
         }
         return nil
     }

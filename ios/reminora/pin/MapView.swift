@@ -844,8 +844,8 @@ struct MapView: View {
     }
     
     private func pinPlace(_ place: LocationInfo) {
-        // Create a new Place object from the location
-        let newPlace = Place(context: viewContext)
+        // Create a new PinData object from the location
+        let newPlace = PinData(context: viewContext)
         newPlace.dateAdded = Date()
         newPlace.post = place.name
         newPlace.url = place.address

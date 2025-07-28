@@ -32,8 +32,8 @@ struct PlaceCoordinates: Codable {
 
 /// show list of places on the map
 struct PinDetailView: View {
-    let place: Place
-    let allPlaces: [Place]
+    let place: PinData
+    let allPlaces: [PinData]
     let onBack: () -> Void
 
     @Environment(\.managedObjectContext) private var viewContext
@@ -51,7 +51,7 @@ struct PinDetailView: View {
     @State private var showingUserProfile = false
     @State private var showingEditAddresses = false
 
-    init(place: Place, allPlaces: [Place], onBack: @escaping () -> Void) {
+    init(place: PinData, allPlaces: [PinData], onBack: @escaping () -> Void) {
         self.place = place
         self.allPlaces = allPlaces
         self.onBack = onBack
@@ -65,7 +65,7 @@ struct PinDetailView: View {
             ))
     }
 
-    var nearbyPlaces: [Place] {
+    var nearbyPlaces: [PinData] {
         let selectedCoord = Self.coordinate(item: place)
         return allPlaces.filter { item in
             let coord = Self.coordinate(item: item)
@@ -624,7 +624,7 @@ struct PinDetailView: View {
     }
 
     // Helper methods
-    static func coordinate(item: Place) -> CLLocationCoordinate2D {
+    static func coordinate(item: PinData) -> CLLocationCoordinate2D {
         if let locationData = item.value(forKey: "coordinates") as? Data,
             let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData)
                 as? CLLocation

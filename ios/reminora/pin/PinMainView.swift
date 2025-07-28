@@ -14,17 +14,17 @@ struct PinMainView: View {
   @StateObject private var pinFilterService = PinFilterService.shared
 
   @FetchRequest(
-    sortDescriptors: [NSSortDescriptor(keyPath: \Place.dateAdded, ascending: true)],
+    sortDescriptors: [NSSortDescriptor(keyPath: \PinData.dateAdded, ascending: true)],
     animation: .default)
-  private var items: FetchedResults<Place>
+  private var items: FetchedResults<PinData>
 
   @State private var searchText: String = ""
   @State private var isSearching: Bool = false
   @State private var isSyncingFollows = false
   @State private var lastSyncTime: Date? = nil
-  @State private var selectedPlace: Place?
+  @State private var selectedPlace: PinData?
   @State private var selectedUser: (String, String)?
-  @State private var selectedLocationPlace: Place?
+  @State private var selectedLocationPlace: PinData?
   @State private var showingPinDetail = false
   @State private var showingUserProfile = false
   @State private var showingNearbyLocations = false
@@ -48,7 +48,7 @@ struct PinMainView: View {
   
   private let sortPreferenceKey = "PinMainView.sortOption"
 
-  var filteredItems: [Place] {
+  var filteredItems: [PinData] {
     var allItems = Array(items)
     
     // Apply sorting based on selected option
@@ -87,7 +87,7 @@ struct PinMainView: View {
   }
   
   // Helper function to calculate distance from user location
-  private func distanceFromUserLocation(place: Place, userLocation: CLLocation) -> CLLocationDistance {
+  private func distanceFromUserLocation(place: PinData, userLocation: CLLocation) -> CLLocationDistance {
     guard let locationData = place.value(forKey: "coordinates") as? Data,
           let placeLocation = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation else {
       return CLLocationDistance.greatestFiniteMagnitude // Place at end if no location
@@ -445,7 +445,7 @@ struct PinMainView: View {
     }
   }
   
-  private func getLocationFromPlace(_ place: Place) -> CLLocation? {
+  private func getLocationFromPlace(_ place: PinData) -> CLLocation? {
     if let locationData = place.value(forKey: "coordinates") as? Data,
        let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
       return location

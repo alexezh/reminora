@@ -60,7 +60,7 @@ class SharedListService: ObservableObject {
     // MARK: - Shared Items Management
     
     /// Adds a pin to the shared list
-    func addToSharedList(place: Place, userId: String? = nil) async {
+    func addToSharedList(place: PinData, userId: String? = nil) async {
         guard let context = place.managedObjectContext else {
             print("❌ No managed object context for place")
             return
@@ -160,11 +160,11 @@ class SharedListService: ObservableObject {
     
     // MARK: - Helper Methods
     
-    private func getPlaceFromId(_ placeId: String, context: NSManagedObjectContext) -> Place? {
+    private func getPlaceFromId(_ placeId: String, context: NSManagedObjectContext) -> PinData? {
         // Try to find the place using Core Data URI
         if let url = URL(string: placeId),
            let objectID = context.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: url) {
-            return try? context.existingObject(with: objectID) as? Place
+            return try? context.existingObject(with: objectID) as? PinData
         }
         return nil
     }
@@ -174,7 +174,7 @@ class SharedListService: ObservableObject {
         return fetchResult.firstObject
     }
     
-    private func convertPlaceToLocationInfo(_ place: Place) -> LocationInfo? {
+    private func convertPlaceToLocationInfo(_ place: PinData) -> LocationInfo? {
         guard let url = place.url,
               url.hasPrefix("location://"),
               let placeName = place.post else {
@@ -236,7 +236,7 @@ extension SharedListService {
         context: NSManagedObjectContext,
         userId: String,
         onPhotoTap: @escaping (PHAsset) -> Void,
-        onPinTap: @escaping (Place) -> Void,
+        onPinTap: @escaping (PinData) -> Void,
         onPhotoStackTap: @escaping ([PHAsset]) -> Void,
         onLocationTap: ((LocationInfo) -> Void)? = nil
     ) -> some View {

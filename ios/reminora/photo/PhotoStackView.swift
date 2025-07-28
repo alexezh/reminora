@@ -128,7 +128,7 @@ struct PhotoStackView: View {
     }
     
     private var quickListView: some View {
-        QuickListService.createQuickListView(
+        RListService.createQuickListView(
             context: viewContext,
             userId: AuthenticationService.shared.currentAccount?.id ?? "",
             onPhotoTap: { asset in
@@ -647,7 +647,7 @@ struct PhotoStackCell: View {
         guard shouldShowQuickListButton else { return }
         
         let userId = AuthenticationService.shared.currentAccount?.id ?? ""
-        isInQuickList = QuickListService.shared.isPhotoInQuickList(stack.primaryAsset, context: viewContext, userId: userId)
+        isInQuickList = RListService.shared.isPhotoInQuickList(stack.primaryAsset, context: viewContext, userId: userId)
     }
     
     private func toggleQuickList() {
@@ -656,7 +656,7 @@ struct PhotoStackCell: View {
         let userId = AuthenticationService.shared.currentAccount?.id ?? ""
         let wasInList = isInQuickList
         
-        let success = QuickListService.shared.togglePhotoInQuickList(stack.primaryAsset, context: viewContext, userId: userId)
+        let success = RListService.shared.togglePhotoInQuickList(stack.primaryAsset, context: viewContext, userId: userId)
         
         if success {
             isInQuickList = !wasInList

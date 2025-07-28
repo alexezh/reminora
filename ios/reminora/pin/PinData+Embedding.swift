@@ -3,14 +3,14 @@ import CoreData
 import CoreLocation
 import UIKit
 
-// MARK: - Place Entity Extensions for Embeddings
-extension Place {
+// MARK: - PinData Entity Extensions for Embeddings
+extension PinData {
     
     // MARK: - Embedding Management
     
     /// Get the embedding vector as float array
     var embeddingVector: [Float]? {
-        guard let embeddingData = self.value(forKey: "imageEmbedding") as? Data else {
+        guard let embeddingData = self.imageEmbedding else {
             return nil
         }
         return ImageEmbeddingService.shared.dataToEmbedding(embeddingData)
@@ -19,12 +19,12 @@ extension Place {
     /// Set the embedding vector from float array  
     func setEmbeddingVector(_ embedding: [Float]) {
         let data = ImageEmbeddingService.shared.embeddingToData(embedding)
-        self.setValue(data, forKey: "imageEmbedding")
+        self.imageEmbedding = data
     }
     
     /// Check if this place has an embedding computed
     var hasEmbedding: Bool {
-        return self.value(forKey: "imageEmbedding") as? Data != nil
+        return self.imageEmbedding != nil
     }
     
     /// Compute and store embedding for this place's image
@@ -46,24 +46,24 @@ extension Place {
     }
     
     /// Find similar places based on embedding similarity
-    func findSimilarPlaces(in context: NSManagedObjectContext, threshold: Float = 0.8, limit: Int = 10) -> [PlaceSimilarity] {
+    func findSimilarPlaces(in context: NSManagedObjectContext, threshold: Float = 0.8, limit: Int = 10) -> [PinDataSimilarity] {
         guard let targetEmbedding = self.embeddingVector else {
             print("No embedding available for comparison")
             return []
         }
         
-        let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+        let fetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "imageEmbedding != nil AND self != %@", self)
         
         do {
             let places = try context.fetch(fetchRequest)
-            var similarities: [PlaceSimilarity] = []
+            var similarities: [PinDataSimilarity] = []
             
             for place in places {
                 if let embedding = place.embeddingVector {
                     let similarity = ImageEmbeddingService.shared.cosineSimilarity(targetEmbedding, embedding)
                     if similarity >= threshold {
-                        similarities.append(PlaceSimilarity(place: place, similarity: similarity))
+                        similarities.append(PinDataSimilarity(place: place, similarity: similarity))
                     }
                 }
             }
@@ -81,8 +81,8 @@ extension Place {
 
 // MARK: - Supporting Types
 
-struct PlaceSimilarity {
-    let place: Place
+struct PinDataSimilarity {
+    let place: PinData
     let similarity: Float
     
     var percentage: Int {
@@ -90,11 +90,11 @@ struct PlaceSimilarity {
     }
 }
 
-// MARK: - Place Creation with Embedding
+// MARK: - PinData Creation with Embedding
 
-extension Place {
+extension PinData {
     
-    /// Create a new Place with automatic embedding computation
+    /// Create a new PinData with automatic embedding computation
     static func createWithEmbedding(
         context: NSManagedObjectContext,
         imageData: Data,
@@ -102,8 +102,8 @@ extension Place {
         post: String? = nil,
         url: String? = nil,
         dateAdded: Date? = nil
-    ) async -> Place {
-        let place = Place(context: context)
+    ) async -> PinData {
+        let place = PinData(context: context)
         place.imageData = imageData
         place.coordinates = location?.encodedData
         place.post = post
@@ -140,14 +140,14 @@ extension CLLocation {
 
 // MARK: - Embedding Management Service
 
-class PlaceEmbeddingManager {
-    static let shared = PlaceEmbeddingManager()
+class PinDataEmbeddingManager {
+    static let shared = PinDataEmbeddingManager()
     
     private init() {}
     
     /// Compute embeddings for all places that don't have them
     func computeMissingEmbeddings(in context: NSManagedObjectContext) async {
-        let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+        let fetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "imageEmbedding == nil AND imageData != nil")
         
         do {
@@ -177,7 +177,7 @@ class PlaceEmbeddingManager {
     
     /// Find duplicate or very similar images
     func findDuplicateImages(in context: NSManagedObjectContext, threshold: Float = 0.95) -> [DuplicateGroup] {
-        let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+        let fetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "imageEmbedding != nil")
         
         do {
@@ -212,10 +212,10 @@ class PlaceEmbeddingManager {
     
     /// Get embedding statistics
     func getEmbeddingStats(in context: NSManagedObjectContext) -> EmbeddingStats {
-        let totalFetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+        let totalFetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
         totalFetchRequest.predicate = NSPredicate(format: "imageData != nil")
         
-        let embeddingFetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+        let embeddingFetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
         embeddingFetchRequest.predicate = NSPredicate(format: "imageEmbedding != nil")
         
         do {
@@ -237,10 +237,10 @@ class PlaceEmbeddingManager {
 // MARK: - Supporting Types
 
 struct DuplicateGroup {
-    let original: Place
-    let duplicates: [PlaceSimilarity]
+    let original: PinData
+    let duplicates: [PinDataSimilarity]
     
-    var allPlaces: [Place] {
+    var allPlaces: [PinData] {
         return [original] + duplicates.map { $0.place }
     }
     

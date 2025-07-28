@@ -370,8 +370,8 @@ struct NearbyLocationsView: View {
                 sharedList.userId = AuthenticationService.shared.currentAccount?.id ?? ""
             }
             
-            // Create a location entry as a Place object with special identifier
-            let locationPlace = Place(context: context)
+            // Create a location entry as a PinData object with special identifier
+            let locationPlace = PinData(context: context)
             locationPlace.post = location.name
             locationPlace.url = "location://\(location.id)" // Special marker for locations
             locationPlace.dateAdded = Date()

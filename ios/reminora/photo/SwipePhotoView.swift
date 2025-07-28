@@ -448,7 +448,7 @@ struct SwipePhotoView: View {
     }
     
     
-    private func createShareURL(for place: Place) {
+    private func createShareURL(for place: PinData) {
         let coord = coordinate(for: place)
         let placeId = place.objectID.uriRepresentation().absoluteString
         let encodedName = (place.post ?? "Shared Photo").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
@@ -471,7 +471,7 @@ struct SwipePhotoView: View {
         print("PhotoStackView - After assignment - shareData:", shareData?.message ?? "nil", shareData?.link ?? "nil")
     }
     
-    private func coordinate(for place: Place) -> CLLocationCoordinate2D {
+    private func coordinate(for place: PinData) -> CLLocationCoordinate2D {
         if let locationData = place.value(forKey: "coordinates") as? Data,
            let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
             return location.coordinate
@@ -540,7 +540,7 @@ struct SwipePhotoView: View {
     
     private func updateQuickListStatus() {
         let userId = AuthenticationService.shared.currentAccount?.id ?? ""
-        let newStatus = QuickListService.shared.isPhotoInQuickList(currentAsset, context: viewContext, userId: userId)
+        let newStatus = RListService.shared.isPhotoInQuickList(currentAsset, context: viewContext, userId: userId)
         print("🔍 Checking Quick List status for photo \(currentAsset.localIdentifier), userId: \(userId), result: \(newStatus)")
         isInQuickList = newStatus
     }
@@ -551,7 +551,7 @@ struct SwipePhotoView: View {
         
         print("🔄 Toggling Quick List for photo \(currentAsset.localIdentifier), userId: \(userId), currently in list: \(wasInList)")
         
-        let success = QuickListService.shared.togglePhotoInQuickList(currentAsset, context: viewContext, userId: userId)
+        let success = RListService.shared.togglePhotoInQuickList(currentAsset, context: viewContext, userId: userId)
         
         print("🔄 Toggle result: \(success)")
         

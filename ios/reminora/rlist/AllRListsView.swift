@@ -16,10 +16,10 @@ struct AllRListsView: View {
     let context: NSManagedObjectContext
     let userId: String
     let onPhotoTap: ((PHAsset) -> Void)?
-    let onPinTap: ((Place) -> Void)?
+    let onPinTap: ((PinData) -> Void)?
     let onPhotoStackTap: (([PHAsset]) -> Void)?
     
-    init(context: NSManagedObjectContext, userId: String, onPhotoTap: ((PHAsset) -> Void)? = nil, onPinTap: ((Place) -> Void)? = nil, onPhotoStackTap: (([PHAsset]) -> Void)? = nil) {
+    init(context: NSManagedObjectContext, userId: String, onPhotoTap: ((PHAsset) -> Void)? = nil, onPinTap: ((PinData) -> Void)? = nil, onPhotoStackTap: (([PHAsset]) -> Void)? = nil) {
         self.context = context
         self.userId = userId
         self.onPhotoTap = onPhotoTap
@@ -107,7 +107,7 @@ struct AllRListsView: View {
                     Text(userList.name ?? "Unnamed List")
                         .font(.headline)
                     
-//                    if userList.name == QuickListService.quickListName {
+//                    if userList.name == RListService.quickListName {
 //                        Image(systemName: "star.fill")
 //                            .foregroundColor(.yellow)
 //                            .font(.caption)

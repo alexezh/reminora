@@ -11,7 +11,7 @@ struct RListDetailView: View {
     @Environment(\.presentationMode) var presentationMode
 
     @FetchRequest private var listItems: FetchedResults<RListItemData>
-    @FetchRequest private var places: FetchedResults<Place>
+    @FetchRequest private var places: FetchedResults<PinData>
     
     // Quick List menu states
     @State private var showingMenu = false
@@ -23,7 +23,7 @@ struct RListDetailView: View {
     
     // View presentation states
     @State private var selectedPhotoStack: PhotoStack? = nil
-    @State private var selectedPin: Place? = nil
+    @State private var selectedPin: PinData? = nil
 
     init(list: RListData) {
         self.list = list
@@ -36,8 +36,8 @@ struct RListDetailView: View {
         )
 
         // Fetch all places to match with list items
-        self._places = FetchRequest<Place>(
-            sortDescriptors: [NSSortDescriptor(keyPath: \Place.dateAdded, ascending: false)],
+        self._places = FetchRequest<PinData>(
+            sortDescriptors: [NSSortDescriptor(keyPath: \PinData.dateAdded, ascending: false)],
             animation: .default
         )
     }
@@ -107,7 +107,7 @@ struct RListDetailView: View {
             
             // RList content - always use mixed content approach
             if isQuickList {
-                // Use QuickListService for Quick List to get mixed content
+                // Use RListService for Quick List to get mixed content
                 QuickListView(
                     context: viewContext,
                     userId: getCurrentUserId(),
@@ -131,7 +131,7 @@ struct RListDetailView: View {
                     }
                 )
             } else if isSharedList {
-                // Use SharedListService for Shared List to get shared content
+                // Use RListService for Shared List to get shared content
                 SharedListView(
                     context: viewContext,
                     userId: getCurrentUserId(),
@@ -248,7 +248,7 @@ struct RListDetailView: View {
         guard !trimmedName.isEmpty else { return }
         
         Task {
-            let success = await QuickListService.shared.createListFromQuickList(
+            let success = await RListService.shared.createListFromQuickList(
                 newListName: trimmedName,
                 context: viewContext,
                 userId: getCurrentUserId()
@@ -276,7 +276,7 @@ struct RListDetailView: View {
         guard let listId = selectedListId else { return }
         
         Task {
-            let success = await QuickListService.shared.moveQuickListToExistingList(
+            let success = await RListService.shared.moveQuickListToExistingList(
                 targetListId: listId,
                 context: viewContext,
                 userId: getCurrentUserId()
@@ -304,7 +304,7 @@ struct RListDetailView: View {
     
     private func clearQuickList() {
         Task {
-            let success = await QuickListService.shared.clearQuickList(
+            let success = await RListService.shared.clearQuickList(
                 context: viewContext,
                 userId: getCurrentUserId()
             )
@@ -367,7 +367,7 @@ struct RListDetailView: View {
         return AuthenticationService.shared.currentAccount?.id ?? ""
     }
 
-    private func placeForItem(_ item: RListItemData) -> Place? {
+    private func placeForItem(_ item: RListItemData) -> PinData? {
         // Find place by matching the object ID stored in placeId
         return places.first { place in
             place.objectID.uriRepresentation().absoluteString == item.placeId
@@ -396,7 +396,7 @@ struct RListDetailView: View {
         }
     }
     
-    private func getAllPlaces() -> [Place] {
+    private func getAllPlaces() -> [PinData] {
         // Return all places for PinDetailView context
         // This could be optimized to return only nearby places
         return Array(places)

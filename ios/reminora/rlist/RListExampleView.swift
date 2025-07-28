@@ -6,7 +6,7 @@ import CoreData
 struct RListExampleView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @State private var selectedAsset: PHAsset?
-    @State private var selectedPlace: Place?
+    @State private var selectedPlace: PinData?
     @State private var showingPinDetail = false
     
     // Example data sources
@@ -67,7 +67,7 @@ extension RListExampleView {
     }
     
     // Example: User List View
-    static func userListExample(with list: RListData, places: [Place]) -> RListExampleView {
+    static func userListExample(with list: RListData, places: [PinData]) -> RListExampleView {
         RListExampleView(dataSource: .userList(list, places))
     }
     
@@ -77,7 +77,7 @@ extension RListExampleView {
     }
     
     // Example: Pins Only View
-    static func pinsOnlyExample(with places: [Place]) -> RListExampleView {
+    static func pinsOnlyExample(with places: [PinData]) -> RListExampleView {
         RListExampleView(dataSource: .pins(places))
     }
     
@@ -108,8 +108,8 @@ extension RListView {
     // Helper initializer for User List integration
     static func userListView(
         list: RListData,
-        places: [Place],
-        onPinTap: @escaping (Place) -> Void
+        places: [PinData],
+        onPinTap: @escaping (PinData) -> Void
     ) -> RListView {
         RListView(
             dataSource: .userList(list, places),
@@ -139,7 +139,7 @@ extension RListView {
     static func mixedContentView(
         items: [any RListViewItem],
         onPhotoTap: @escaping (PHAsset) -> Void,
-        onPinTap: @escaping (Place) -> Void,
+        onPinTap: @escaping (PinData) -> Void,
         onPhotoStackTap: @escaping ([PHAsset]) -> Void
     ) -> RListView {
         RListView(

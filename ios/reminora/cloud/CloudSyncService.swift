@@ -62,11 +62,11 @@ class CloudSyncService: ObservableObject {
         locations: [LocationInfo]? = nil,
         context: NSManagedObjectContext,
         pinDate: Date? = nil
-    ) async throws -> Place {
+    ) async throws -> PinData {
         
         // First, save to local database
         let place = try await MainActor.run {
-            let newPlace = Place(context: context)
+            let newPlace = PinData(context: context)
             newPlace.imageData = imageData
             newPlace.dateAdded = pinDate ?? Date()
             newPlace.post = caption.isEmpty ? "Added from Photos" : caption
@@ -118,7 +118,7 @@ class CloudSyncService: ObservableObject {
     /**
      * Upload a specific pin to cloud
      */
-    func uploadPin(place: Place) async throws {
+    func uploadPin(place: PinData) async throws {
         guard let imageData = place.imageData else {
             throw APIError.invalidResponse
         }
@@ -160,7 +160,7 @@ class CloudSyncService: ObservableObject {
         let context = persistenceController.container.viewContext
         
         // Fetch photos that haven't been uploaded yet (excluding private photos)
-        let request: NSFetchRequest<Place> = Place.fetchRequest()
+        let request: NSFetchRequest<PinData> = PinData.fetchRequest()
         request.predicate = NSPredicate(format: "cloudId == nil AND imageData != nil AND isPrivate == false")
         
         let localPhotos = try context.fetch(request)
@@ -175,7 +175,7 @@ class CloudSyncService: ObservableObject {
         }
     }
     
-    private func uploadPhoto(place: Place) async throws {
+    private func uploadPhoto(place: PinData) async throws {
         // Use the new uploadPin method
         try await uploadPin(place: place)
     }
@@ -197,7 +197,7 @@ class CloudSyncService: ObservableObject {
         let context = persistenceController.container.viewContext
         
         // Check if we already have this photo
-        let request: NSFetchRequest<Place> = Place.fetchRequest()
+        let request: NSFetchRequest<PinData> = PinData.fetchRequest()
         request.predicate = NSPredicate(format: "cloudId == %@", cloudPhoto.id)
         request.fetchLimit = 1
         
@@ -255,7 +255,7 @@ class CloudSyncService: ObservableObject {
         }
     }
     
-    private func updatePlaceFromCloudPhoto(place: Place, cloudPhoto: PinAPI) {
+    private func updatePlaceFromCloudPhoto(place: PinData, cloudPhoto: PinAPI) {
         // Update caption if it changed
         if place.post != cloudPhoto.caption {
             place.setValue(cloudPhoto.caption, forKey: "post")
@@ -296,7 +296,7 @@ class CloudSyncService: ObservableObject {
             
             for photo in photos {
                 // Check if this photo already exists locally
-                let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+                let fetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
                 fetchRequest.predicate = NSPredicate(format: "cloudId == %@", photo.id)
                 
                 do {
@@ -304,7 +304,7 @@ class CloudSyncService: ObservableObject {
                     
                     if existingPlaces.isEmpty {
                         // Create new local place from cloud data
-                        let place = Place(context: context)
+                        let place = PinData(context: context)
                         place.post = photo.caption ?? ""
                         place.url = photo.location_name ?? ""
                         place.dateAdded = Date(timeIntervalSince1970: photo.created_at)
@@ -367,10 +367,10 @@ class CloudSyncService: ObservableObject {
     /**
      * Convert cloud photo to virtual Place object for display
      */
-    func convertPhotoToPlace(_ photo: PinAPI, context: NSManagedObjectContext) -> Place {
+    func convertPhotoToPlace(_ photo: PinAPI, context: NSManagedObjectContext) -> PinData {
         // Create a detached place object for display (not saved to Core Data)
         let entity = NSEntityDescription.entity(forEntityName: "Place", in: context)!
-        let place = Place(entity: entity, insertInto: nil) // insertInto: nil creates detached object
+        let place = PinData(entity: entity, insertInto: nil) // insertInto: nil creates detached object
         
         // Use caption if available, otherwise use a default title
         let title = photo.caption?.isEmpty == false ? photo.caption! : "Pin \(photo.id.prefix(8))"

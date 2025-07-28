@@ -13,7 +13,7 @@ import SwiftUI
 
 // MARK: - PinCardView Component
 struct PinCardView: View {
-  let place: Place
+  let place: PinData
   let cardHeight: CGFloat
   let onPhotoTap: () -> Void
   let onTitleTap: () -> Void
@@ -40,7 +40,7 @@ struct PinCardView: View {
     case text, image, map
   }
   
-  init(place: Place, cardHeight: CGFloat, onPhotoTap: @escaping () -> Void, onTitleTap: @escaping () -> Void, onMapTap: @escaping () -> Void, onUserTap: @escaping (String, String) -> Void) {
+  init(place: PinData, cardHeight: CGFloat, onPhotoTap: @escaping () -> Void, onTitleTap: @escaping () -> Void, onMapTap: @escaping () -> Void, onUserTap: @escaping (String, String) -> Void) {
     self.place = place
     self.cardHeight = cardHeight
     self.onPhotoTap = onPhotoTap

@@ -14,7 +14,7 @@ protocol RListViewItem: Identifiable {
 enum RRListItemDataType {
     case photo(PHAsset)
     case photoStack([PHAsset])
-    case pin(Place)
+    case pin(PinData)
     case location(LocationInfo)
 }
 
@@ -48,7 +48,7 @@ struct RListPinItem: RListViewItem {
     let date: Date
     let itemType: RRListItemDataType
     
-    init(place: Place) {
+    init(place: PinData) {
         self.id = place.objectID.uriRepresentation().absoluteString
         self.date = place.dateAdded ?? Date()
         self.itemType = .pin(place)
@@ -70,9 +70,9 @@ struct RListLocationItem: RListViewItem {
 // MARK: - RListView Data Source
 enum RListDataSource {
     case photoLibrary([PHAsset])
-    case userList(RListData, [Place])
+    case userList(RListData, [PinData])
     case nearbyPhotos([PHAsset])
-    case pins([Place])
+    case pins([PinData])
     case locations([LocationInfo])
     case mixed([any RListViewItem])
 }
@@ -119,7 +119,7 @@ struct RListDateSection: Identifiable {
 struct RListView: View {
     let dataSource: RListDataSource
     let onPhotoTap: (PHAsset) -> Void
-    let onPinTap: (Place) -> Void
+    let onPinTap: (PinData) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
     
@@ -249,7 +249,7 @@ struct RListView: View {
 struct RListSectionView: View {
     let section: RListDateSection
     let onPhotoTap: (PHAsset) -> Void
-    let onPinTap: (Place) -> Void
+    let onPinTap: (PinData) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
     
@@ -336,7 +336,7 @@ enum RListRowType {
 struct RListRowView: View {
     let row: RListRow
     let onPhotoTap: (PHAsset) -> Void
-    let onPinTap: (Place) -> Void
+    let onPinTap: (PinData) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
     
@@ -398,7 +398,7 @@ struct RListPhotoGridItemView: View {
 struct RRListItemDataView: View {
     let item: any RListViewItem
     let onPhotoTap: (PHAsset) -> Void
-    let onPinTap: (Place) -> Void
+    let onPinTap: (PinData) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
     
@@ -571,7 +571,7 @@ struct RListPhotoStackView: View {
 }
 
 struct RListPinView: View {
-    let place: Place
+    let place: PinData
     let onTap: () -> Void
     
     var body: some View {

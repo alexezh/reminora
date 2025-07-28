@@ -16,7 +16,7 @@ struct SharedListView: View {
     let context: NSManagedObjectContext
     let userId: String
     let onPhotoTap: (PHAsset) -> Void
-    let onPinTap: (Place) -> Void
+    let onPinTap: (PinData) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
     
@@ -66,7 +66,7 @@ struct SharedListView: View {
     
     private func loadItems() async {
         isLoading = true
-        let loadedItems = await SharedListService.shared.getSharedItems(context: context, userId: userId)
+        let loadedItems = await RListService.shared.getSharedItems(context: context, userId: userId)
         print("🔍 SharedListView loaded \(loadedItems.count) items")
         await MainActor.run {
             self.items = loadedItems

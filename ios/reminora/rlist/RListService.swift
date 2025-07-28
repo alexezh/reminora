@@ -2,17 +2,61 @@ import Foundation
 import CoreData
 import Photos
 import SwiftUI
+import CoreLocation
 
-// MARK: - Quick List Service
-class QuickListService: ObservableObject {
-    static let shared = QuickListService()
+// MARK: - Unified RList Service
+class RListService: ObservableObject {
+    static let shared = RListService()
     
     private init() {}
     
-    // Default Quick List name
+    // Default list names
+    static let sharedListName = "Shared"
     static let quickListName = "Quick"
     
-    // MARK: - Quick List Management
+    // MARK: - List Management
+    
+    /// Gets or creates the Shared List for the current user
+    func getOrCreateSharedList(in context: NSManagedObjectContext, userId: String) -> RListData {
+        // Validate userId is not empty
+        guard !userId.isEmpty else {
+            print("❌ Cannot create SharedList with empty userId")
+            fatalError("SharedList requires valid userId")
+        }
+        
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", Self.sharedListName, userId)
+        
+        do {
+            let existingLists = try context.fetch(fetchRequest)
+            if let sharedList = existingLists.first {
+                return sharedList
+            } else {
+                // Create new Shared List
+                print("🗂️ Creating new Shared List for userId: \(userId)")
+                let sharedList = RListData(context: context)
+                sharedList.id = UUID().uuidString
+                sharedList.name = Self.sharedListName
+                sharedList.createdAt = Date()
+                sharedList.userId = userId
+                
+                try context.save()
+                return sharedList
+            }
+        } catch {
+            print("❌ Failed to get/create Shared List: \(error)")
+            // Return a temporary one if database fails - but don't insert it into context
+            print("🗂️ Creating temporary Shared List for userId: \(userId)")
+            let tempList = RListData(context: context)
+            tempList.id = UUID().uuidString
+            tempList.name = Self.sharedListName
+            tempList.createdAt = Date()
+            tempList.userId = userId
+            
+            // Don't save the context here - let the caller decide
+            return tempList
+        }
+    }
     
     /// Gets or creates the Quick List for the current user
     func getOrCreateQuickList(in context: NSManagedObjectContext, userId: String) -> RListData {
@@ -46,7 +90,108 @@ class QuickListService: ObservableObject {
         }
     }
     
-    // MARK: - Photo Management
+    // MARK: - Shared List Management
+    
+    /// Adds a pin to the shared list
+    func addToSharedList(place: PinData, userId: String? = nil) async {
+        guard let context = place.managedObjectContext else {
+            print("❌ No managed object context for place")
+            return
+        }
+        
+        let currentUserId = userId ?? AuthenticationService.shared.currentAccount?.id ?? ""
+        guard !currentUserId.isEmpty else {
+            print("⚠️ No user ID available for shared list - skipping shared list addition")
+            return
+        }
+        
+        await MainActor.run {
+            // Get or create the shared list
+            let sharedList = getOrCreateSharedList(in: context, userId: currentUserId)
+            
+            // Check if this place is already in the shared list
+            let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@",
+                                               sharedList.id ?? "", 
+                                               place.objectID.uriRepresentation().absoluteString)
+            
+            do {
+                let existingItems = try context.fetch(fetchRequest)
+                if existingItems.isEmpty {
+                    // Add the pin to the shared list
+                    let listItem = RListItemData(context: context)
+                    listItem.id = UUID().uuidString
+                    listItem.placeId = place.objectID.uriRepresentation().absoluteString
+                    listItem.addedAt = Date()
+                    listItem.listId = sharedList.id ?? ""
+                    listItem.sharedByUserId = currentUserId
+                    listItem.sharedByUserName = AuthenticationService.shared.currentAccount?.display_name
+                    
+                    try context.save()
+                    print("✅ Added shared pin to shared list")
+                } else {
+                    print("📌 Pin already exists in shared list")
+                }
+            } catch {
+                print("❌ Failed to add pin to shared list: \(error)")
+            }
+        }
+    }
+    
+    /// Gets all items shared with the current user
+    func getSharedItems(context: NSManagedObjectContext, userId: String) async -> [any RListViewItem] {
+        // For now, return items in the Shared list
+        // In a real implementation, this would fetch items from a sharing service
+        // or items marked as shared with this user
+        
+        let sharedList = getOrCreateSharedList(in: context, userId: userId)
+        
+        // Get all list items for the shared list
+        let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "listId == %@", sharedList.id ?? "")
+        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "addedAt", ascending: false)]
+        
+        do {
+            let listItems = try context.fetch(fetchRequest)
+            var result: [any RListViewItem] = []
+            
+            for listItem in listItems {
+                if let placeId = listItem.placeId,
+                   let place = getPinDataFromId(placeId, context: context) {
+                    
+                    // Check if this place represents a photo from library (has special marker in URL)
+                    if let url = place.url, url.hasPrefix("photo://") {
+                        // Extract the photo identifier and try to get the asset
+                        let photoId = String(url.dropFirst(8)) // Remove "photo://" prefix
+                        if let asset = getAssetFromId(photoId) {
+                            result.append(RListPhotoItem(asset: asset))
+                        } else {
+                            // Photo no longer exists, but show as pin anyway
+                            result.append(RListPinItem(place: place))
+                        }
+                    } else if let url = place.url, url.hasPrefix("location://") {
+                        // This is a shared location, convert to LocationInfo
+                        if let locationInfo = convertPlaceToLocationInfo(place) {
+                            result.append(RListLocationItem(location: locationInfo))
+                        } else {
+                            // Fallback to showing as pin if conversion fails
+                            result.append(RListPinItem(place: place))
+                        }
+                    } else {
+                        // Regular pin
+                        result.append(RListPinItem(place: place))
+                    }
+                }
+            }
+            
+            return result
+        } catch {
+            print("❌ Failed to fetch Shared List items: \(error)")
+            return []
+        }
+    }
+    
+    // MARK: - Quick List Photo Management
     
     /// Checks if a photo is in the Quick List
     func isPhotoInQuickList(_ asset: PHAsset, context: NSManagedObjectContext, userId: String) -> Bool {
@@ -54,7 +199,7 @@ class QuickListService: ObservableObject {
         return isAssetInList(asset, list: quickList, context: context)
     }
     
-    /// Adds a photo to the Quick List by creating a PinData entity
+    /// Adds a photo to the Quick List by creating a Place entity
     func addPhotoToQuickList(_ asset: PHAsset, context: NSManagedObjectContext, userId: String) -> Bool {
         let quickList = getOrCreateQuickList(in: context, userId: userId)
         return addAssetToList(asset, list: quickList, context: context)
@@ -75,7 +220,7 @@ class QuickListService: ObservableObject {
         }
     }
     
-    // MARK: - Pin Management
+    // MARK: - Quick List Pin Management
     
     /// Checks if a pin is in the Quick List
     func isPinInQuickList(_ place: PinData, context: NSManagedObjectContext, userId: String) -> Bool {
@@ -106,7 +251,7 @@ class QuickListService: ObservableObject {
     
     // MARK: - Quick List Content
     
-    /// Gets all items in the Quick List as RListViewItems (internal implementation)
+    /// Gets all items in the Quick List as RListViewItems
     func getQuickListItems(context: NSManagedObjectContext, userId: String) async -> [any RListViewItem] {
         let quickList = getOrCreateQuickList(in: context, userId: userId)
         print("🔍 Quick List ID: \(quickList.id ?? "nil"), User ID: \(userId)")
@@ -130,9 +275,9 @@ class QuickListService: ObservableObject {
             for (index, listItem) in listItems.enumerated() {
                 print("🔍 Processing item \(index + 1): placeId = \(listItem.placeId ?? "nil")")
                 
-                // All items are stored as Places - some may represent photos from library
+                // All items are stored as PinData - some may represent photos from library
                 if let placeId = listItem.placeId,
-                   let place = getPlaceFromId(placeId, context: context) {
+                   let place = getPinDataFromId(placeId, context: context) {
                     
                     print("🔍 Found place for item \(index + 1): url = \(place.url ?? "nil")")
                     
@@ -168,12 +313,116 @@ class QuickListService: ObservableObject {
         }
     }
     
+    // MARK: - Quick List Management Actions
+    
+    /// Creates a new list with the given name and moves all Quick List items to it
+    func createListFromQuickList(newListName: String, context: NSManagedObjectContext, userId: String) async -> Bool {
+        print("🔍 Creating new list '\(newListName)' from Quick List")
+        
+        do {
+            // Create the new list
+            let newList = RListData(context: context)
+            newList.id = UUID().uuidString
+            newList.name = newListName
+            newList.createdAt = Date()
+            newList.userId = userId
+            
+            // Get Quick List
+            let quickList = getOrCreateQuickList(in: context, userId: userId)
+            
+            // Move all items from Quick List to new list
+            let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "listId == %@", quickList.id ?? "")
+            
+            let quickListItems = try context.fetch(fetchRequest)
+            print("🔍 Moving \(quickListItems.count) items to new list")
+            
+            for item in quickListItems {
+                item.listId = newList.id ?? ""
+            }
+            
+            try context.save()
+            print("🔍 ✅ Successfully created list '\(newListName)' with \(quickListItems.count) items")
+            
+            // Send notification to refresh the AllRListsView
+            NotificationCenter.default.post(name: NSNotification.Name("RListDatasChanged"), object: nil)
+            
+            return true
+        } catch {
+            print("❌ Failed to create list from Quick List: \(error)")
+            return false
+        }
+    }
+    
+    /// Moves all Quick List items to an existing list
+    func moveQuickListToExistingList(targetListId: String, context: NSManagedObjectContext, userId: String) async -> Bool {
+        print("🔍 Moving Quick List items to existing list: \(targetListId)")
+        
+        do {
+            // Get Quick List
+            let quickList = getOrCreateQuickList(in: context, userId: userId)
+            
+            // Get all Quick List items
+            let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "listId == %@", quickList.id ?? "")
+            
+            let quickListItems = try context.fetch(fetchRequest)
+            print("🔍 Moving \(quickListItems.count) items to target list")
+            
+            for item in quickListItems {
+                item.listId = targetListId
+            }
+            
+            try context.save()
+            print("🔍 ✅ Successfully moved \(quickListItems.count) items to existing list")
+            
+            // Send notification to refresh the AllRListsView
+            NotificationCenter.default.post(name: NSNotification.Name("RListDatasChanged"), object: nil)
+            
+            return true
+        } catch {
+            print("❌ Failed to move Quick List to existing list: \(error)")
+            return false
+        }
+    }
+    
+    /// Clears all items from the Quick List
+    func clearQuickList(context: NSManagedObjectContext, userId: String) async -> Bool {
+        print("🔍 Clearing Quick List")
+        
+        do {
+            // Get Quick List
+            let quickList = getOrCreateQuickList(in: context, userId: userId)
+            
+            // Get all Quick List items
+            let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "listId == %@", quickList.id ?? "")
+            
+            let quickListItems = try context.fetch(fetchRequest)
+            print("🔍 Deleting \(quickListItems.count) items from Quick List")
+            
+            for item in quickListItems {
+                context.delete(item)
+            }
+            
+            try context.save()
+            print("🔍 ✅ Successfully cleared \(quickListItems.count) items from Quick List")
+            
+            // Send notification to refresh the AllRListsView
+            NotificationCenter.default.post(name: NSNotification.Name("RListDatasChanged"), object: nil)
+            
+            return true
+        } catch {
+            print("❌ Failed to clear Quick List: \(error)")
+            return false
+        }
+    }
+    
     // MARK: - Private Helper Methods
     
     private func isAssetInList(_ asset: PHAsset, list: RListData, context: NSManagedObjectContext) -> Bool {
         // Look for a place with URL pattern "photo://localIdentifier"
         let photoURL = "photo://\(asset.localIdentifier)"
-        //print("🔍 Checking if asset \(asset.localIdentifier) is in list \(list.id ?? "nil")")
         
         // First find places with this URL
         let placeFetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
@@ -181,14 +430,12 @@ class QuickListService: ObservableObject {
         
         do {
             let places = try context.fetch(placeFetchRequest)
-            //print("🔍 Found \(places.count) places with URL: \(photoURL)")
             
             if places.count > 1 {
                 print("🔍 ⚠️ WARNING: Multiple places found for same photo URL!")
             }
             
             guard let place = places.first else { 
-                //print("🔍 No place found for URL: \(photoURL)")
                 return false 
             }
             
@@ -217,7 +464,7 @@ class QuickListService: ObservableObject {
         }
         
         // Create a PinData entity to represent this photo
-        let place = createPlaceFromAsset(asset, context: context)
+        let place = createPinDataFromAsset(asset, context: context)
         print("🔍 Created place with URL: \(place.url ?? "nil")")
         
         // Add the place to the list
@@ -274,7 +521,7 @@ class QuickListService: ObservableObject {
         }
     }
     
-    private func createPlaceFromAsset(_ asset: PHAsset, context: NSManagedObjectContext) -> PinData {
+    private func createPinDataFromAsset(_ asset: PHAsset, context: NSManagedObjectContext) -> PinData {
         // Check if place already exists for this photo
         let photoURL = "photo://\(asset.localIdentifier)"
         let fetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
@@ -398,7 +645,7 @@ class QuickListService: ObservableObject {
         }
     }
     
-    private func getPlaceFromId(_ placeId: String, context: NSManagedObjectContext) -> PinData? {
+    private func getPinDataFromId(_ placeId: String, context: NSManagedObjectContext) -> PinData? {
         // Try to find the place using Core Data URI
         do {
             if let url = URL(string: placeId),
@@ -425,114 +672,82 @@ class QuickListService: ObservableObject {
         return fetchResult.firstObject
     }
     
-    // MARK: - Quick List Management Actions
-    
-    /// Creates a new list with the given name and moves all Quick List items to it
-    func createListFromQuickList(newListName: String, context: NSManagedObjectContext, userId: String) async -> Bool {
-        print("🔍 Creating new list '\(newListName)' from Quick List")
-        
-        do {
-            // Create the new list
-            let newList = RListData(context: context)
-            newList.id = UUID().uuidString
-            newList.name = newListName
-            newList.createdAt = Date()
-            newList.userId = userId
-            
-            // Get Quick List
-            let quickList = getOrCreateQuickList(in: context, userId: userId)
-            
-            // Move all items from Quick List to new list
-            let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "listId == %@", quickList.id ?? "")
-            
-            let quickListItems = try context.fetch(fetchRequest)
-            print("🔍 Moving \(quickListItems.count) items to new list")
-            
-            for item in quickListItems {
-                item.listId = newList.id ?? ""
-            }
-            
-            try context.save()
-            print("🔍 ✅ Successfully created list '\(newListName)' with \(quickListItems.count) items")
-            
-            // Send notification to refresh the AllRListsView
-            NotificationCenter.default.post(name: NSNotification.Name("RListDatasChanged"), object: nil)
-            
-            return true
-        } catch {
-            print("❌ Failed to create list from Quick List: \(error)")
-            return false
+    private func convertPlaceToLocationInfo(_ place: PinData) -> LocationInfo? {
+        guard let url = place.url,
+              url.hasPrefix("location://"),
+              let placeName = place.post else {
+            return nil
         }
-    }
-    
-    /// Moves all Quick List items to an existing list
-    func moveQuickListToExistingList(targetListId: String, context: NSManagedObjectContext, userId: String) async -> Bool {
-        print("🔍 Moving Quick List items to existing list: \(targetListId)")
         
-        do {
-            // Get Quick List
-            let quickList = getOrCreateQuickList(in: context, userId: userId)
-            
-            // Get all Quick List items
-            let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "listId == %@", quickList.id ?? "")
-            
-            let quickListItems = try context.fetch(fetchRequest)
-            print("🔍 Moving \(quickListItems.count) items to target list")
-            
-            for item in quickListItems {
-                item.listId = targetListId
-            }
-            
-            try context.save()
-            print("🔍 ✅ Successfully moved \(quickListItems.count) items to existing list")
-            
-            // Send notification to refresh the AllRListsView
-            NotificationCenter.default.post(name: NSNotification.Name("RListDatasChanged"), object: nil)
-            
-            return true
-        } catch {
-            print("❌ Failed to move Quick List to existing list: \(error)")
-            return false
-        }
-    }
-    
-    /// Clears all items from the Quick List
-    func clearQuickList(context: NSManagedObjectContext, userId: String) async -> Bool {
-        print("🔍 Clearing Quick List")
+        // Extract location data
+        let urlComponents = url.dropFirst("location://".count)
+        let parts = urlComponents.components(separatedBy: "|")
         
-        do {
-            // Get Quick List
-            let quickList = getOrCreateQuickList(in: context, userId: userId)
+        guard let locationId = parts.first else { return nil }
+        
+        // Get location address and distance from URL if available
+        var address = "Unknown address"
+        var distance: Double = 0
+        
+        if parts.count > 1 {
+            let infoString = parts[1]
+            let infoLines = infoString.components(separatedBy: "\n")
             
-            // Get all Quick List items
-            let fetchRequest: NSFetchRequest<ListItem> = ListItem.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "listId == %@", quickList.id ?? "")
-            
-            let quickListItems = try context.fetch(fetchRequest)
-            print("🔍 Deleting \(quickListItems.count) items from Quick List")
-            
-            for item in quickListItems {
-                context.delete(item)
+            if infoLines.count >= 2 {
+                address = infoLines[0]
+                let distanceLine = infoLines[1]
+                
+                // Extract distance from "Distance: X.X km" format
+                if let distanceMatch = distanceLine.range(of: #"Distance: ([\d.]+) km"#, options: .regularExpression) {
+                    let distanceString = String(distanceLine[distanceMatch]).replacingOccurrences(of: "Distance: ", with: "").replacingOccurrences(of: " km", with: "")
+                    distance = Double(distanceString) ?? 0
+                    distance *= 1000 // Convert km to meters
+                }
             }
-            
-            try context.save()
-            print("🔍 ✅ Successfully cleared \(quickListItems.count) items from Quick List")
-            
-            // Send notification to refresh the AllRListsView
-            NotificationCenter.default.post(name: NSNotification.Name("RListDatasChanged"), object: nil)
-            
-            return true
-        } catch {
-            print("❌ Failed to clear Quick List: \(error)")
-            return false
         }
+        
+        // Get location coordinates from Core Data
+        var coordinate = CLLocationCoordinate2D(latitude: 0, longitude: 0)
+        if let locationData = place.coordinates,
+           let clLocation = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
+            coordinate = clLocation.coordinate
+        }
+        
+        return LocationInfo(
+            id: locationId,
+            name: placeName,
+            address: address,
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            category: "shared location",
+            phoneNumber: nil,
+            distance: distance,
+            url: nil
+        )
     }
 }
 
-// MARK: - Quick List View Helper
-extension QuickListService {
+// MARK: - View Helper Extensions
+extension RListService {
+    /// Creates an RListView configured for the Shared List
+    static func createSharedListView(
+        context: NSManagedObjectContext,
+        userId: String,
+        onPhotoTap: @escaping (PHAsset) -> Void,
+        onPinTap: @escaping (PinData) -> Void,
+        onPhotoStackTap: @escaping ([PHAsset]) -> Void,
+        onLocationTap: ((LocationInfo) -> Void)? = nil
+    ) -> some View {
+        SharedListView(
+            context: context,
+            userId: userId,
+            onPhotoTap: onPhotoTap,
+            onPinTap: onPinTap,
+            onPhotoStackTap: onPhotoStackTap,
+            onLocationTap: onLocationTap
+        )
+    }
+    
     /// Creates an RListView configured for the Quick List
     static func createQuickListView(
         context: NSManagedObjectContext,
@@ -552,5 +767,3 @@ extension QuickListService {
         )
     }
 }
-
-

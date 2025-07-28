@@ -37,7 +37,7 @@ struct NearbyPhotosGridView: View {
     @StateObject private var locationManager = LocationManager()
     
     @State private var photoAssets: [PHAsset] = []
-    @State private var nearbyPlaces: [Place] = []
+    @State private var nearbyPlaces: [PinData] = []
     @State private var selectedAsset: PHAsset?
     @State private var showingImagePicker = false
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
@@ -209,12 +209,12 @@ struct NearbyPhotosGridView: View {
             return
         }
         
-        let request: NSFetchRequest<Place> = Place.fetchRequest()
+        let request: NSFetchRequest<Place> = PinData.fetchRequest()
         request.predicate = NSPredicate(value: true) // Fetch all places for now
         
         do {
             let allPlaces = try viewContext.fetch(request)
-            nearbyPlaces = allPlaces.compactMap { place -> Place? in
+            nearbyPlaces = allPlaces.compactMap { place -> PinData? in
                 guard let location = place.coordinates,
                       let data = location as? Data,
                       let clLocation = try? NSKeyedUnarchiver.unarchivedObject(ofClass: CLLocation.self, from: data) else {
@@ -305,7 +305,7 @@ struct NearbyPhotosGridView: View {
             }
             
             DispatchQueue.main.async {
-                let newPlace = Place(context: viewContext)
+                let newPlace = PinData(context: viewContext)
                 newPlace.imageData = imageData
                 newPlace.dateAdded = asset.creationDate ?? Date()
                 
@@ -604,7 +604,7 @@ struct PhotoZoomView: View {
             
             DispatchQueue.main.async {
                 // Create new Place
-                let newPlace = Place(context: viewContext)
+                let newPlace = PinData(context: viewContext)
                 newPlace.imageData = imageData
                 newPlace.dateAdded = asset.creationDate ?? Date()
                 
@@ -635,7 +635,7 @@ struct PhotoZoomView: View {
         }
     }
     
-    private func createShareURL(for place: Place) {
+    private func createShareURL(for place: PinData) {
         let coord = coordinate(for: place)
         let placeId = place.objectID.uriRepresentation().absoluteString
         let encodedName = (place.post ?? "Shared Photo").addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
@@ -648,7 +648,7 @@ struct PhotoZoomView: View {
         showingShareSheet = true
     }
     
-    private func coordinate(for place: Place) -> CLLocationCoordinate2D {
+    private func coordinate(for place: PinData) -> CLLocationCoordinate2D {
         if let locationData = place.value(forKey: "coordinates") as? Data,
            let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation {
             return location.coordinate
@@ -787,7 +787,7 @@ struct ZoomableImageView: View {
 // MARK: - Nearby Places List
 
 struct NearbyPlacesList: View {
-    let places: [Place]
+    let places: [PinData]
     let centerLocation: CLLocationCoordinate2D?
     
     var body: some View {
@@ -808,7 +808,7 @@ struct NearbyPlacesList: View {
 }
 
 struct NearbyPlaceRow: View {
-    let place: Place
+    let place: PinData
     let centerLocation: CLLocationCoordinate2D?
     
     private var distance: String {

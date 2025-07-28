@@ -13,7 +13,7 @@ struct UserContentItem: RListViewItem {
 }
 
 enum UserContentSourceType {
-    case userPin(Place)
+    case userPin(PinData)
     case userComment(UserCommentData)
 }
 
@@ -38,7 +38,7 @@ struct UserProfileView: View {
     @State private var isFollowing = false
     @State private var isFollowActionLoading = false
     @State private var contentItems: [UserContentItem] = []
-    @State private var selectedPin: Place?
+    @State private var selectedPin: PinData?
     @State private var selectedPhotoStack: PhotoStack?
 
     var body: some View {
@@ -406,7 +406,7 @@ struct UserProfileView: View {
             print("📱 Falling back to local data for user: \(userId)")
             
             // Load user's pins from local Core Data as fallback
-            let pinFetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+            let pinFetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
             
             // Check if this is current user or other user
             let isCurrentUser = userId == AuthenticationService.shared.currentAccount?.id
@@ -477,9 +477,9 @@ struct UserProfileView: View {
     
     
     // Create a virtual place for comment display in RListView
-    private func createVirtualPlaceForComment(_ comment: Comment, in context: NSManagedObjectContext) -> Place {
+    private func createVirtualPlaceForComment(_ comment: Comment, in context: NSManagedObjectContext) -> PinData {
         // Note: This is an in-memory only object, not saved to Core Data
-        let virtualPlace = Place(context: context)
+        let virtualPlace = PinData(context: context)
         virtualPlace.post = comment.commentText ?? "Comment"
         virtualPlace.dateAdded = comment.createdAt ?? Date()
         virtualPlace.url = "virtual-comment-\(comment.id ?? UUID().uuidString)"
@@ -547,7 +547,7 @@ struct UserProfileView: View {
 
 // MARK: - Pin Thumbnail View
 struct PinThumbnailView: View {
-    let pin: Place
+    let pin: PinData
 
     var body: some View {
         VStack(spacing: 4) {
@@ -620,7 +620,7 @@ struct UserPinsView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
-    @State private var pins: [Place] = []
+    @State private var pins: [PinData] = []
     @State private var isLoading = true
 
     var body: some View {
@@ -673,7 +673,7 @@ struct UserPinsView: View {
     private func loadPins() async {
         isLoading = true
 
-        let fetchRequest: NSFetchRequest<Place> = Place.fetchRequest()
+        let fetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
 
         // Check if this is the current user's profile
         let isCurrentUser = userId == AuthenticationService.shared.currentAccount?.id
@@ -705,7 +705,7 @@ struct UserPinsView: View {
 
 // MARK: - Pin Grid Item View
 struct PinGridItemView: View {
-    let pin: Place
+    let pin: PinData
 
     var body: some View {
         if let imageData = pin.imageData, let uiImage = UIImage(data: imageData) {

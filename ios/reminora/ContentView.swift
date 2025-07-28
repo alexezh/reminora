@@ -16,7 +16,7 @@ struct ContentView: View {
 
     @State private var selectedTab = UserDefaults.standard.integer(forKey: "selectedTab")
     @State private var showingSharedPlace = false
-    @State private var sharedPlace: Place?
+    @State private var sharedPlace: PinData?
     @State private var isSwipePhotoViewOpen = false
     @StateObject private var toolbarManager = ToolbarManager()
 
@@ -92,7 +92,7 @@ struct ContentView: View {
         ) { notification in
             print("🔗 ContentView received NavigateToSharedPlace notification")
 
-            if let place = notification.object as? Place {
+            if let place = notification.object as? PinData {
                 print("🔗 ContentView navigating to shared place: \(place.post ?? "Unknown")")
 
                 // Switch to Pin tab and show the shared place

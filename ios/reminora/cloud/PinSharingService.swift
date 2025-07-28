@@ -60,7 +60,7 @@ class PinSharingService: ObservableObject {
     
     // MARK: - Pin Sharing
     // share pin with external over sms
-    func sharePin(_ place: Place) async throws -> PinShareResponse {
+    func sharePin(_ place: PinData) async throws -> PinShareResponse {
         print("🔗 PinSharingService: Starting to share pin")
         
         // Check authentication first
@@ -210,7 +210,7 @@ class PinSharingService: ObservableObject {
     // MARK: - Shared Pin Analysis
     
     /// Check if a place is shared from another user
-    func isSharedFromOtherUser(_ place: Place, context: NSManagedObjectContext) -> Bool {
+    func isSharedFromOtherUser(_ place: PinData, context: NSManagedObjectContext) -> Bool {
         // Check if this place came from a shared link
         guard isSharedItem(place) else { return false }
         
@@ -225,7 +225,7 @@ class PinSharingService: ObservableObject {
     }
     
     /// Check if a place is a shared item
-    func isSharedItem(_ place: Place) -> Bool {
+    func isSharedItem(_ place: PinData) -> Bool {
         if let url = place.url {
             return url.contains("Shared via Reminora link") || url.contains("Shared by @")
         }
@@ -233,7 +233,7 @@ class PinSharingService: ObservableObject {
     }
     
     /// Extract shared user information from a place
-    func getSharedUserInfo(from place: Place, context: NSManagedObjectContext) -> (userId: String, userName: String)? {
+    func getSharedUserInfo(from place: PinData, context: NSManagedObjectContext) -> (userId: String, userName: String)? {
         // First try to get from RListItemData
         let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "placeId == %@", place.objectID.uriRepresentation().absoluteString)
@@ -287,7 +287,7 @@ class PinSharingService: ObservableObject {
     
     // MARK: - Private Methods
     
-    private func createPinShareRequest(from place: Place) -> [String: Any]? {
+    private func createPinShareRequest(from place: PinData) -> [String: Any]? {
         // Extract location
         guard let locationData = place.value(forKey: "coordinates") as? Data,
               let location = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(locationData) as? CLLocation else {

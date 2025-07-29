@@ -115,19 +115,19 @@ class PhotoEmbeddingService {
             var similarities: [PhotoSimilarity] = []
             
             for embedding in allEmbeddings {
-//                guard let vector = getEmbeddingVector(from: embedding),
-//                      isPhotoAvailable(for: embedding) else { continue }
-
                 guard let embeddingData = embedding.embedding else {
                     continue
                 }
-                embeddingData.withUnsafeBytes {
-                    let floats = $0.bindMemory(to: Float.self)
-
-                    let similarity = ImageEmbeddingService.shared.cosineSimilarity2(targetVector, floats)
-                    if similarity >= threshold {
-                        similarities.append(PhotoSimilarity(embedding: embedding, similarity: similarity))
-                    }
+                
+                // Calculate similarity safely outside the unsafe block
+                let similarity: Float = embeddingData.withUnsafeBytes { bytes in
+                    let floats = bytes.bindMemory(to: Float.self)
+                    return ImageEmbeddingService.shared.cosineSimilarity2(targetVector, floats)
+                }
+                
+                // Create PhotoSimilarity object outside the unsafe context
+                if similarity >= threshold {
+                    similarities.append(PhotoSimilarity(embedding: embedding, similarity: similarity))
                 }
             }
             

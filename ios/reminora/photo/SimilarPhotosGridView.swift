@@ -15,6 +15,7 @@ struct SimilarPhotosGridView: View {
     private let columns = [
         GridItem(.flexible()),
         GridItem(.flexible()),
+        GridItem(.flexible()),
         GridItem(.flexible())
     ]
     
@@ -49,7 +50,7 @@ struct SimilarPhotosGridView: View {
                     .padding(.horizontal, 32)
                 } else {
                     ScrollView {
-                        LazyVGrid(columns: columns, spacing: 12) {
+                        LazyVGrid(columns: columns, spacing: 8) {
                             ForEach(Array(similarPhotos.enumerated()), id: \.offset) { index, similarity in
                                 SimilarPhotoGridCell(
                                     similarity: similarity,
@@ -62,7 +63,7 @@ struct SimilarPhotosGridView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, 8)
                         .padding(.top, 12)
                         .padding(.bottom, 100) // Extra space for safe area
                     }
@@ -119,6 +120,7 @@ struct SimilarPhotosGridView: View {
                         removal: .scale(scale: 0.1, anchor: .center)
                             .combined(with: .opacity)
                     ))
+                    .zIndex(999)
                 }
             }
         )
@@ -170,13 +172,13 @@ struct SimilarPhotoGridCell: View {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(height: 120)
+                        .frame(height: 100)
                         .clipped()
                         .cornerRadius(12)
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.3))
-                        .frame(height: 120)
+                        .frame(height: 100)
                         .cornerRadius(12)
                         .overlay(
                             ProgressView()

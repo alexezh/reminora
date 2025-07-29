@@ -5,6 +5,7 @@ import Vision
 import UIKit
 import CryptoKit
 
+// compute embedding for photos
 class PhotoEmbeddingService {
     static let shared = PhotoEmbeddingService()
     

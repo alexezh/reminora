@@ -3,6 +3,7 @@ import CoreML
 import Vision
 import UIKit
 
+// computes embedding for any picture
 class ImageEmbeddingService {
     static let shared = ImageEmbeddingService()
     

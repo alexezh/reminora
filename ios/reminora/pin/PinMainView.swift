@@ -124,31 +124,28 @@ struct PinMainView: View {
             }
             .padding(.trailing, 8)
             
-            // Sort menu
+            // Action menu
             Menu {
-              ForEach(SortOption.allCases, id: \.self) { option in
-                Button(action: {
-                  selectedSortOption = option
-                  saveSortPreference()
-                }) {
-                  HStack {
-                    Text(option.displayName)
-                    if selectedSortOption == option {
-                      Spacer()
-                      Image(systemName: "checkmark")
+              // Sort options
+              Menu("Sort by") {
+                ForEach(SortOption.allCases, id: \.self) { option in
+                  Button(action: {
+                    selectedSortOption = option
+                    saveSortPreference()
+                  }) {
+                    HStack {
+                      Text(option.displayName)
+                      if selectedSortOption == option {
+                        Spacer()
+                        Image(systemName: "checkmark")
+                      }
                     }
                   }
                 }
               }
-            } label: {
-              Image(systemName: selectedSortOption == .recent ? "clock" : "location")
-                .font(.title2)
-                .foregroundColor(.blue)
-            }
-            .padding(.trailing, 8)
-            
-            // Action menu
-            Menu {
+              
+              Divider()
+              
               Button("Add Pin") {
                 showingAddPin = true
               }

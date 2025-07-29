@@ -9,7 +9,6 @@ import SwiftUI
 
 struct MapFilterView: View {
     @Binding var selectedCategory: String
-    @Binding var showRejected: Bool
     
     let categories: [String]
     
@@ -52,27 +51,6 @@ struct MapFilterView: View {
                 }
             }
             .padding(.horizontal, 16)
-            
-            // Show rejected checkbox
-            HStack {
-                Button(action: {
-                    showRejected.toggle()
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: showRejected ? "checkmark.square.fill" : "square")
-                            .font(.title3)
-                            .foregroundColor(showRejected ? .blue : .gray)
-                        Text("Show rejected locations")
-                            .font(.subheadline)
-                            .foregroundColor(.primary)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
         }
         .padding(.vertical, 8)
     }

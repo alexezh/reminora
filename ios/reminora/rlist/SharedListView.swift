@@ -52,7 +52,8 @@ struct SharedListView: View {
                         onPhotoTap: onPhotoTap,
                         onPinTap: onPinTap,
                         onPhotoStackTap: onPhotoStackTap,
-                        onLocationTap: onLocationTap
+                        onLocationTap: onLocationTap,
+                        onDeleteItem: nil // Shared items cannot be deleted
                     )
                 }
             }

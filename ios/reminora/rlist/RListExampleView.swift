@@ -36,6 +36,10 @@ struct RListExampleView: View {
                 onLocationTap: { location in
                     // Handle location tap if needed
                     print("Location tapped: \(location.name)")
+                },
+                onDeleteItem: { item in
+                    // Handle delete for demo purposes
+                    print("Delete item: \(item.id)")
                 }
             )
             .navigationTitle("RList Demo")
@@ -101,7 +105,8 @@ extension RListView {
             onPhotoTap: onPhotoTap,
             onPinTap: { _ in }, // No pins in photo library
             onPhotoStackTap: onPhotoStackTap,
-            onLocationTap: nil // No locations in photo library
+            onLocationTap: nil, // No locations in photo library
+            onDeleteItem: nil // No delete for photo library
         )
     }
     
@@ -116,7 +121,8 @@ extension RListView {
             onPhotoTap: { _ in }, // No photos in user lists
             onPinTap: onPinTap,
             onPhotoStackTap: { _ in },
-            onLocationTap: nil // No locations in basic user lists
+            onLocationTap: nil, // No locations in basic user lists
+            onDeleteItem: nil // No delete for helper views
         )
     }
     
@@ -131,7 +137,8 @@ extension RListView {
             onPhotoTap: onPhotoTap,
             onPinTap: { _ in }, // No pins in nearby photos
             onPhotoStackTap: onPhotoStackTap,
-            onLocationTap: nil // No locations in nearby photos
+            onLocationTap: nil, // No locations in nearby photos
+            onDeleteItem: nil // No delete for helper views
         )
     }
     
@@ -147,7 +154,8 @@ extension RListView {
             onPhotoTap: onPhotoTap,
             onPinTap: onPinTap,
             onPhotoStackTap: onPhotoStackTap,
-            onLocationTap: nil // Mixed content may have locations in future
+            onLocationTap: nil, // Mixed content may have locations in future
+            onDeleteItem: nil // No delete for helper views
         )
     }
 }

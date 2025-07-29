@@ -10,7 +10,6 @@ add pin menu does not work
 allow RList to create another RList. For search lists, remember search string and options. When displaying, 
 add option to refresh should shows delta. Remove - swipe right
 
-MapView. save should use name of area on the map + search string
 List - add swipe to delete. 
 Save search results does not work
 

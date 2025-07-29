@@ -30,7 +30,6 @@ struct SwipePhotoView: View {
     @State private var showingMenu = false
     @State private var shareData: PhotoShareData?
     @State private var isLoading = false
-    @State private var currentPreference: PhotoPreferenceType = .neutral
     @State private var isPreferenceManagerReady = false
     @State private var isInQuickList = false
     @State private var scrollOffset: CGFloat = 0
@@ -233,9 +232,6 @@ struct SwipePhotoView: View {
                                 Button("Find Similar") {
                                     showingSimilarGridView = true
                                 }
-                                Button("Add Pin", action: {
-                                    showingAddPin = true
-                                })
                             } label: {
                                 Image(systemName: "ellipsis.circle")
                                     .font(.title2)
@@ -316,7 +312,6 @@ struct SwipePhotoView: View {
             toolbarManager.hideCustomToolbar()
         }
         .onChange(of: currentIndex) { _, _ in
-            updateCurrentPreference()
             updateQuickListStatus()
             updateFavoriteStatus()
             updateToolbar()
@@ -385,38 +380,6 @@ struct SwipePhotoView: View {
         }
     }
     
-    private func thumbsUp() {
-        guard isPreferenceManagerReady else { return }
-        
-        preferenceManager.setPreference(for: currentAsset, preference: .like)
-        print("Thumbs up for photo at index \(currentIndex)")
-        
-        // Update UI state immediately
-        currentPreference = .like
-        
-        // Provide haptic feedback
-        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-        impactFeedback.impactOccurred()
-    }
-    
-    private func thumbsDown() {
-        guard isPreferenceManagerReady else { return }
-        
-        preferenceManager.setPreference(for: currentAsset, preference: .dislike)
-        print("Thumbs down for photo at index \(currentIndex)")
-        
-        // Update UI state immediately
-        currentPreference = .dislike
-        
-        // Provide haptic feedback
-        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-        impactFeedback.impactOccurred()
-        
-        // Auto-dismiss after marking as disliked
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            onDismiss()
-        }
-    }
     
     private func toggleFavorite() {
         print("Toggling favorite for photo at index \(currentIndex)")
@@ -501,7 +464,6 @@ struct SwipePhotoView: View {
         if retryCount > 30 {
             print("Core Data initialization timeout, proceeding anyway")
             isPreferenceManagerReady = true
-            updateCurrentPreference()
             return
         }
         
@@ -511,7 +473,6 @@ struct SwipePhotoView: View {
             if viewContext.persistentStoreCoordinator != nil {
                 print("SwipePhotoView: Core Data ready after \(retryCount) retries")
                 isPreferenceManagerReady = true
-                updateCurrentPreference()
             } else {
                 // Wait a bit longer and try again
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -521,25 +482,6 @@ struct SwipePhotoView: View {
         }
     }
     
-    private func updateCurrentPreference() {
-        guard isPreferenceManagerReady else { 
-            print("Preference manager not ready, skipping preference update")
-            return 
-        }
-        
-        do {
-            currentPreference = preferenceManager.getPreference(for: currentAsset)
-            print("Updated preference for asset: \(currentPreference)")
-        } catch {
-            print("Error getting preference: \(error)")
-            // Fallback to neutral if there's an error
-            currentPreference = .neutral
-        }
-        
-        // Also update Quick List status and favorite status
-        updateQuickListStatus()
-        updateFavoriteStatus()
-    }
     
     // MARK: - Quick List Management
     
@@ -606,18 +548,18 @@ struct SwipePhotoView: View {
                 color: isFavorite ? .red : .primary
             ),
             ToolbarButtonConfig(
-                id: "reject",
-                title: "Reject",
-                systemImage: currentPreference == .dislike ? "x.circle.fill" : "x.circle",
-                action: thumbsDown,
-                color: currentPreference == .dislike ? .orange : .primary
-            ),
-            ToolbarButtonConfig(
                 id: "quick",
                 title: "Quick List",
                 systemImage: isInQuickList ? "plus.square.fill" : "plus.square",
                 action: toggleQuickList,
                 color: isInQuickList ? .orange : .primary
+            ),
+            ToolbarButtonConfig(
+                id: "addpin",
+                title: "Add Pin",
+                systemImage: "mappin.and.ellipse",
+                action: { showingAddPin = true },
+                color: .primary
             )
         ]
         
@@ -643,18 +585,18 @@ struct SwipePhotoView: View {
                 color: isFavorite ? .red : .primary
             ),
             ToolbarButtonConfig(
-                id: "reject",
-                title: "Reject",
-                systemImage: currentPreference == .dislike ? "x.circle.fill" : "x.circle",
-                action: thumbsDown,
-                color: currentPreference == .dislike ? .orange : .primary
-            ),
-            ToolbarButtonConfig(
                 id: "quick",
                 title: "Quick List",
                 systemImage: isInQuickList ? "plus.square.fill" : "plus.square",
                 action: toggleQuickList,
                 color: isInQuickList ? .orange : .primary
+            ),
+            ToolbarButtonConfig(
+                id: "addpin",
+                title: "Add Pin",
+                systemImage: "mappin.and.ellipse",
+                action: { showingAddPin = true },
+                color: .primary
             )
         ]
         

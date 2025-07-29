@@ -175,6 +175,10 @@ struct RListDetailView: View {
                     onLocationTap: { location in
                         // Open location in native map
                         openLocationInMap(location)
+                    },
+                    onDeleteItem: { item in
+                        // Handle delete - remove from list
+                        deleteItemFromList(item)
                     }
                 )
             }
@@ -382,6 +386,37 @@ struct RListDetailView: View {
             return "bolt.fill"
         default:
             return "list.bullet"
+        }
+    }
+    
+    private func deleteItemFromList(_ item: any RListViewItem) {
+        
+        // Find the corresponding RListItemData to delete
+        let itemToDelete = listItems.first { listItem in
+            switch item.itemType {
+            case .pin(let pinData):
+                return listItem.placeId == pinData.objectID.uriRepresentation().absoluteString
+            case .photo(let asset):
+                return listItem.placeId?.contains(asset.localIdentifier) == true
+            case .photoStack(let assets):
+                return assets.allSatisfy { asset in
+                    listItem.placeId?.contains(asset.localIdentifier) == true
+                }
+            case .location(_):
+                // Location items are not stored in Core Data lists yet
+                return false
+            }
+        }
+        
+        if let itemToDelete = itemToDelete {
+            viewContext.delete(itemToDelete)
+            
+            do {
+                try viewContext.save()
+                print("✅ Successfully deleted item from list '\(list.name ?? "Unknown")'")
+            } catch {
+                print("❌ Failed to delete item from list: \(error)")
+            }
         }
     }
 

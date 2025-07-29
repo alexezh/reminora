@@ -14,7 +14,6 @@ struct MapView: View {
     @State private var userLocation: CLLocationCoordinate2D?
     @State private var showingSearch = false
     @State private var selectedCategory = "All"
-    @State private var showRejected = false
     @State private var searchSuggestions: [String] = []
     @State private var showingSuggestions = false
     @State private var mapRegion = MKCoordinateRegion()
@@ -144,12 +143,10 @@ struct MapView: View {
             print("🔍 Sample categories: \(sampleCategories)")
         }
         
-        // Filter out rejected locations unless showRejected is true
-        if !showRejected {
-            let beforeRejectFilter = filtered.count
-            filtered = filtered.filter { !isLocationRejected($0) }
-            print("🔍 After reject filter: \(filtered.count) places (removed \(beforeRejectFilter - filtered.count))")
-        }
+        // Always filter out rejected locations
+        let beforeRejectFilter = filtered.count
+        filtered = filtered.filter { !isLocationRejected($0) }
+        print("🔍 After reject filter: \(filtered.count) places (removed \(beforeRejectFilter - filtered.count))")
         
         print("🔍 Final filtered places count: \(filtered.count)")
         
@@ -347,7 +344,6 @@ struct MapView: View {
             // Filter controls
             MapFilterView(
                 selectedCategory: $selectedCategory,
-                showRejected: $showRejected,
                 categories: categories
             )
             
@@ -898,9 +894,80 @@ struct MapView: View {
     }
     
     private func saveSearchAsPlaces(city: String, searchString: String) {
-        // This will be implemented in the next task
         print("📍 Saving search as places: City='\(city)', Search='\(searchString)'")
-        // TODO: Create Places for each location and RList
+        
+        guard let userId = AuthenticationService.shared.currentAccount?.id, !userId.isEmpty else {
+            print("❌ No user ID available for saving search")
+            return
+        }
+        
+        Task {
+            do {
+                // Create the list name combining city and search string
+                let listName = if !searchString.isEmpty {
+                    "\(city) - \(searchString)"
+                } else {
+                    city
+                }
+                
+                // Create a new RListData
+                let newList = RListData(context: viewContext)
+                newList.id = UUID().uuidString
+                newList.name = listName
+                newList.createdAt = Date()
+                newList.userId = userId
+                // TODO: Add searchString property to Core Data model
+                // newList.searchString = searchString.isEmpty ? nil : searchString
+                
+                print("📍 Created new list: '\(listName)' with \(filteredPlaces.count) locations")
+                
+                // First, save the new list to get a valid context
+                try viewContext.save()
+                
+                // Create PinData for each location and add to list
+                var createdPins: [PinData] = []
+                for location in filteredPlaces {
+                    // Create a PinData entry for this location
+                    let pinData = PinData(context: viewContext)
+                    pinData.post = location.name
+                    pinData.url = "location://\(location.id)|\(location.address ?? "Unknown address")\nDistance: \(String(format: "%.1f", location.distance / 1000)) km"
+                    pinData.dateAdded = Date()
+                    pinData.isPrivate = false
+                    
+                    // Store location coordinates
+                    let clLocation = CLLocation(latitude: location.latitude, longitude: location.longitude)
+                    if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: clLocation, requiringSecureCoding: false) {
+                        pinData.coordinates = locationData
+                    }
+                    
+                    createdPins.append(pinData)
+                }
+                
+                // Save the pins to get valid object IDs
+                try viewContext.save()
+                
+                // Now create list items with valid object IDs
+                for pinData in createdPins {
+                    let listItem = RListItemData(context: viewContext)
+                    listItem.id = UUID().uuidString
+                    listItem.listId = newList.id
+                    listItem.placeId = pinData.objectID.uriRepresentation().absoluteString
+                    listItem.addedAt = Date()
+                }
+                
+                // Final save with all list items
+                try viewContext.save()
+                print("✅ Successfully saved \(filteredPlaces.count) locations to list '\(listName)'")
+                
+                // Send notification to refresh any list views
+                await MainActor.run {
+                    NotificationCenter.default.post(name: NSNotification.Name("RListDatasChanged"), object: nil)
+                }
+                
+            } catch {
+                print("❌ Failed to save search as places: \(error)")
+            }
+        }
     }
 }
 

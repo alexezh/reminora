@@ -30,6 +30,7 @@ struct PinMainView: View {
   @State private var showingNearbyLocations = false
   @State private var showingActionMenu = false
   @State private var showingOpenInvite = false
+  @State private var showingAddPin = false
   
   // Sort options
   enum SortOption: String, CaseIterable {
@@ -149,7 +150,7 @@ struct PinMainView: View {
             // Action menu
             Menu {
               Button("Add Pin") {
-                // TODO: Navigate to add pin
+                showingAddPin = true
               }
               Button("Add Open Invite") {
                 showingOpenInvite = true
@@ -314,6 +315,9 @@ struct PinMainView: View {
     }
     .sheet(isPresented: $showingOpenInvite) {
       OpenInviteView()
+    }
+    .sheet(isPresented: $showingAddPin) {
+      MapView()
     }
   }
 

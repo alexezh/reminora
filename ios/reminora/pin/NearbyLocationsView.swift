@@ -34,7 +34,7 @@ struct NearbyLocationsView: View {
         let filtered = if selectedCategory == "All" {
             nearbyPlaces
         } else {
-            nearbyPlaces.filter { $0.category.contains(selectedCategory.lowercased()) }
+            nearbyPlaces.filter { $0.categorySafe.contains(selectedCategory.lowercased()) }
         }
         print("🗺️ NearbyLocations - filteredPlaces: \(filtered.count) places for category '\(selectedCategory)'")
         return filtered
@@ -436,7 +436,7 @@ struct SelectableLocationCard: View {
                                 .lineLimit(2)
                                 .foregroundColor(.primary)
                             
-                            Text(place.address)
+                            Text(place.addressSafe)
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .lineLimit(2)
@@ -488,7 +488,7 @@ struct NearbyLocationCard: View {
                         .font(.headline)
                         .lineLimit(2)
                     
-                    Text(place.address)
+                    Text(place.addressSafe)
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .lineLimit(2)

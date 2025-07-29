@@ -21,6 +21,25 @@ struct AddPinFromLocationView: View {
     
     private let cloudSyncService = CloudSyncService.shared
     
+    private var defaultCaption: String {
+        let placeName = location.name
+        
+        // Try to extract city from address
+        if let address = location.address {
+            let components = address.components(separatedBy: ", ")
+            // Find the city component (usually second to last, before state/country)
+            if components.count >= 2 {
+                let city = components[components.count - 2].trimmingCharacters(in: .whitespacesAndNewlines)
+                if !city.isEmpty && city != placeName {
+                    return "\(placeName), \(city)"
+                }
+            }
+        }
+        
+        // Fallback to just the place name
+        return placeName
+    }
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -35,7 +54,7 @@ struct AddPinFromLocationView: View {
                             .font(.title2)
                             .fontWeight(.semibold)
                         
-                        Text(location.address)
+                        Text(location.address ?? "Address not available")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
@@ -138,7 +157,7 @@ struct AddPinFromLocationView: View {
                 let place = try await cloudSyncService.savePinAndSyncToCloud(
                     imageData: Data(),
                     location: CLLocation(latitude: location.latitude, longitude: location.longitude),
-                    caption: caption.isEmpty ? location.name : caption,
+                    caption: caption.isEmpty ? defaultCaption : caption,
                     isPrivate: isPrivate,
                     locations: [locationInfo],
                     context: viewContext,

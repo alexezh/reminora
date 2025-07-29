@@ -209,7 +209,7 @@ struct NearbyPhotosGridView: View {
             return
         }
         
-        let request: NSFetchRequest<Place> = PinData.fetchRequest()
+        let request: NSFetchRequest<PinData> = PinData.fetchRequest()
         request.predicate = NSPredicate(value: true) // Fetch all places for now
         
         do {

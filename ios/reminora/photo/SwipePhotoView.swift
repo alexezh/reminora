@@ -35,6 +35,7 @@ struct SwipePhotoView: View {
     @State private var isInQuickList = false
     @State private var scrollOffset: CGFloat = 0
     @State private var showingMap = false
+    @State private var isFavorite = false
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
@@ -317,6 +318,7 @@ struct SwipePhotoView: View {
         .onChange(of: currentIndex) { _, _ in
             updateCurrentPreference()
             updateQuickListStatus()
+            updateFavoriteStatus()
             updateToolbar()
         }
         .sheet(isPresented: $showingAddPin) {
@@ -427,6 +429,8 @@ struct SwipePhotoView: View {
             DispatchQueue.main.async {
                 if success {
                     print("✅ Successfully toggled favorite status")
+                    // Update our state to reflect the change
+                    self.isFavorite = !self.isFavorite
                     // Provide haptic feedback
                     let impactFeedback = UIImpactFeedbackGenerator(style: .light)
                     impactFeedback.impactOccurred()
@@ -532,8 +536,9 @@ struct SwipePhotoView: View {
             currentPreference = .neutral
         }
         
-        // Also update Quick List status
+        // Also update Quick List status and favorite status
         updateQuickListStatus()
+        updateFavoriteStatus()
     }
     
     // MARK: - Quick List Management
@@ -543,6 +548,11 @@ struct SwipePhotoView: View {
         let newStatus = RListService.shared.isPhotoInQuickList(currentAsset, context: viewContext, userId: userId)
         print("🔍 Checking Quick List status for photo \(currentAsset.localIdentifier), userId: \(userId), result: \(newStatus)")
         isInQuickList = newStatus
+    }
+    
+    private func updateFavoriteStatus() {
+        isFavorite = currentAsset.isFavorite
+        print("🔍 Updated favorite status for photo \(currentAsset.localIdentifier): \(isFavorite)")
     }
     
     private func toggleQuickList() {
@@ -591,9 +601,9 @@ struct SwipePhotoView: View {
             ToolbarButtonConfig(
                 id: "favorite",
                 title: "Favorite",
-                systemImage: currentAsset.isFavorite ? "heart.fill" : "heart",
+                systemImage: isFavorite ? "heart.fill" : "heart",
                 action: toggleFavorite,
-                color: currentAsset.isFavorite ? .red : .primary
+                color: isFavorite ? .red : .primary
             ),
             ToolbarButtonConfig(
                 id: "reject",
@@ -628,9 +638,9 @@ struct SwipePhotoView: View {
             ToolbarButtonConfig(
                 id: "favorite",
                 title: "Favorite",
-                systemImage: currentAsset.isFavorite ? "heart.fill" : "heart",
+                systemImage: isFavorite ? "heart.fill" : "heart",
                 action: toggleFavorite,
-                color: currentAsset.isFavorite ? .red : .primary
+                color: isFavorite ? .red : .primary
             ),
             ToolbarButtonConfig(
                 id: "reject",

@@ -65,16 +65,20 @@ class PhotoEmbeddingService {
     
     /// Get existing embedding for a PHAsset
     func getEmbedding(for asset: PHAsset, in context: NSManagedObjectContext) async -> PhotoEmbedding? {
-        let fetchRequest: NSFetchRequest<PhotoEmbedding> = PhotoEmbedding.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "localIdentifier == %@", asset.localIdentifier)
-        fetchRequest.fetchLimit = 1
-        
-        do {
-            let results = try context.fetch(fetchRequest)
-            return results.first
-        } catch {
-            print("Failed to fetch embedding: \(error)")
-            return nil
+        return await withCheckedContinuation { continuation in
+            context.perform {
+                let fetchRequest: NSFetchRequest<PhotoEmbedding> = PhotoEmbedding.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "localIdentifier == %@", asset.localIdentifier)
+                fetchRequest.fetchLimit = 1
+                
+                do {
+                    let results = try context.fetch(fetchRequest)
+                    continuation.resume(returning: results.first)
+                } catch {
+                    print("Failed to fetch embedding: \(error)")
+                    continuation.resume(returning: nil)
+                }
+            }
         }
     }
     
@@ -107,48 +111,53 @@ class PhotoEmbeddingService {
             return []
         }
         
-        // Get all other embeddings
-        let fetchRequest: NSFetchRequest<PhotoEmbedding> = PhotoEmbedding.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "localIdentifier != %@ AND embedding != nil", asset.localIdentifier)
-        
-        do {
-            let allEmbeddings = try context.fetch(fetchRequest)
-            var similarities: [PhotoSimilarity] = []
-            
-            for embedding in allEmbeddings {
-                guard let embeddingData = embedding.embedding else {
-                    continue
-                }
+        // Get all other embeddings using thread-safe context access
+        let allEmbeddings = await withCheckedContinuation { continuation in
+            context.perform {
+                let fetchRequest: NSFetchRequest<PhotoEmbedding> = PhotoEmbedding.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "localIdentifier != %@ AND embedding != nil", asset.localIdentifier)
                 
-                // Calculate similarity safely outside the unsafe block
-                let similarity: Float = embeddingData.withUnsafeBytes { bytes in
-                    let floats = bytes.bindMemory(to: Float.self)
-                    return ImageEmbeddingService.shared.cosineSimilarity2(targetVector, floats)
-                }
-                
-                // Create PhotoSimilarity object outside the unsafe context
-                if similarity >= threshold {
-                    similarities.append(PhotoSimilarity(embedding: embedding, similarity: similarity))
+                do {
+                    let embeddings = try context.fetch(fetchRequest)
+                    continuation.resume(returning: embeddings)
+                } catch {
+                    print("Failed to fetch embeddings for similarity search: \(error)")
+                    continuation.resume(returning: [])
                 }
             }
-            
-            // Sort by similarity (highest first) and limit results
-            similarities.sort { $0.similarity > $1.similarity }
-            let results = Array(similarities.prefix(limit))
-            
-            let totalTime = CFAbsoluteTimeGetCurrent() - findSimilarStartTime
-            print("📊 findSimilarPhotos completed in \(String(format: "%.3f", totalTime)) seconds")
-            print("📊 Found \(results.count) similar photos above threshold \(threshold)")
-            if embeddingComputeTime > 0 {
-                print("📊 Target embedding computation: \(String(format: "%.3f", embeddingComputeTime)) seconds")
-            }
-            
-            return results
-            
-        } catch {
-            print("Failed to fetch embeddings for similarity search: \(error)")
-            return []
         }
+        
+        var similarities: [PhotoSimilarity] = []
+        
+        for embedding in allEmbeddings {
+            guard let embeddingData = embedding.embedding else {
+                continue
+            }
+            
+            // Calculate similarity safely outside the unsafe block
+            let similarity: Float = embeddingData.withUnsafeBytes { bytes in
+                let floats = bytes.bindMemory(to: Float.self)
+                return ImageEmbeddingService.shared.cosineSimilarity2(targetVector, floats)
+            }
+            
+            // Create PhotoSimilarity object outside the unsafe context
+            if similarity >= threshold {
+                similarities.append(PhotoSimilarity(embedding: embedding, similarity: similarity))
+            }
+        }
+        
+        // Sort by similarity (highest first) and limit results
+        similarities.sort { $0.similarity > $1.similarity }
+        let results = Array(similarities.prefix(limit))
+        
+        let totalTime = CFAbsoluteTimeGetCurrent() - findSimilarStartTime
+        print("📊 findSimilarPhotos completed in \(String(format: "%.3f", totalTime)) seconds")
+        print("📊 Found \(results.count) similar photos above threshold \(threshold)")
+        if embeddingComputeTime > 0 {
+            print("📊 Target embedding computation: \(String(format: "%.3f", embeddingComputeTime)) seconds")
+        }
+        
+        return results
     }
     
     // MARK: - Batch Operations
@@ -247,100 +256,113 @@ class PhotoEmbeddingService {
     
     /// Get statistics about embedding coverage
     func getEmbeddingStats(in context: NSManagedObjectContext) -> PhotoEmbeddingStats {
-        // Count total photos
+        // Count total photos (Photos framework access is thread-safe)
         let fetchOptions = PHFetchOptions()
         fetchOptions.includeHiddenAssets = false
         let allPhotos = PHAsset.fetchAssets(with: .image, options: fetchOptions)
         let totalPhotos = allPhotos.count
         
-        // Count embeddings
-        let embeddingFetchRequest: NSFetchRequest<PhotoEmbedding> = PhotoEmbedding.fetchRequest()
-        embeddingFetchRequest.predicate = NSPredicate(format: "embedding != nil")
-        
-        do {
-            let embeddingCount = try context.count(for: embeddingFetchRequest)
-            let coverage = totalPhotos > 0 ? Float(embeddingCount) / Float(totalPhotos) : 0.0
+        // Count embeddings using context.perform synchronously
+        var embeddingCount = 0
+        context.performAndWait {
+            let embeddingFetchRequest: NSFetchRequest<PhotoEmbedding> = PhotoEmbedding.fetchRequest()
+            embeddingFetchRequest.predicate = NSPredicate(format: "embedding != nil")
             
-            return PhotoEmbeddingStats(
-                totalPhotos: totalPhotos,
-                photosWithEmbeddings: embeddingCount,
-                coverage: coverage
-            )
-        } catch {
-            print("Failed to get embedding stats: \(error)")
-            return PhotoEmbeddingStats(totalPhotos: totalPhotos, photosWithEmbeddings: 0, coverage: 0.0)
+            do {
+                embeddingCount = try context.count(for: embeddingFetchRequest)
+            } catch {
+                print("Failed to get embedding stats: \(error)")
+                embeddingCount = 0
+            }
         }
+        
+        let coverage = totalPhotos > 0 ? Float(embeddingCount) / Float(totalPhotos) : 0.0
+        
+        return PhotoEmbeddingStats(
+            totalPhotos: totalPhotos,
+            photosWithEmbeddings: embeddingCount,
+            coverage: coverage
+        )
     }
     
     /// Clean up embeddings for photos that no longer exist
     func cleanupOrphanedEmbeddings(in context: NSManagedObjectContext) async -> Int {
-        let fetchRequest: NSFetchRequest<PhotoEmbedding> = PhotoEmbedding.fetchRequest()
-        
-        do {
-            let allEmbeddings = try context.fetch(fetchRequest)
-            var removedCount = 0
-            
-            for embedding in allEmbeddings {
-                if !isPhotoAvailable(for: embedding) {
-                    context.delete(embedding)
-                    removedCount += 1
+        return await withCheckedContinuation { continuation in
+            context.perform {
+                let fetchRequest: NSFetchRequest<PhotoEmbedding> = PhotoEmbedding.fetchRequest()
+                
+                do {
+                    let allEmbeddings = try context.fetch(fetchRequest)
+                    var removedCount = 0
+                    
+                    for embedding in allEmbeddings {
+                        if !self.isPhotoAvailable(for: embedding) {
+                            context.delete(embedding)
+                            removedCount += 1
+                        }
+                    }
+                    
+                    if removedCount > 0 {
+                        try context.save()
+                        print("Removed \(removedCount) orphaned embeddings")
+                    }
+                    
+                    continuation.resume(returning: removedCount)
+                    
+                } catch {
+                    print("Failed to cleanup orphaned embeddings: \(error)")
+                    continuation.resume(returning: 0)
                 }
             }
-            
-            if removedCount > 0 {
-                try context.save()
-                print("Removed \(removedCount) orphaned embeddings")
-            }
-            
-            return removedCount
-            
-        } catch {
-            print("Failed to cleanup orphaned embeddings: \(error)")
-            return 0
         }
     }
     
     /// Find potential duplicate photos
     func findDuplicates(in context: NSManagedObjectContext, threshold: Float = 0.95) async -> [DuplicatePhotoGroup] {
-        let fetchRequest: NSFetchRequest<PhotoEmbedding> = PhotoEmbedding.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "embedding != nil")
-        
-        do {
-            let embeddings = try context.fetch(fetchRequest)
-            var duplicateGroups: [DuplicatePhotoGroup] = []
-            var processedEmbeddings: Set<NSManagedObjectID> = []
-            
-            for embedding in embeddings {
-                if processedEmbeddings.contains(embedding.objectID) { continue }
-                guard let targetVector = getEmbeddingVector(from: embedding) else { continue }
+        let embeddings = await withCheckedContinuation { continuation in
+            context.perform {
+                let fetchRequest: NSFetchRequest<PhotoEmbedding> = PhotoEmbedding.fetchRequest()
+                fetchRequest.predicate = NSPredicate(format: "embedding != nil")
                 
-                var similarEmbeddings: [PhotoSimilarity] = []
-                
-                for otherEmbedding in embeddings {
-                    if otherEmbedding.objectID == embedding.objectID { continue }
-                    if processedEmbeddings.contains(otherEmbedding.objectID) { continue }
-                    
-                    guard let otherVector = getEmbeddingVector(from: otherEmbedding) else { continue }
-                    
-                    let similarity = ImageEmbeddingService.shared.cosineSimilarity(targetVector, otherVector)
-                    if similarity >= threshold {
-                        similarEmbeddings.append(PhotoSimilarity(embedding: otherEmbedding, similarity: similarity))
-                        processedEmbeddings.insert(otherEmbedding.objectID)
-                    }
+                do {
+                    let results = try context.fetch(fetchRequest)
+                    continuation.resume(returning: results)
+                } catch {
+                    print("Failed to find duplicates: \(error)")
+                    continuation.resume(returning: [])
                 }
+            }
+        }
+        
+        var duplicateGroups: [DuplicatePhotoGroup] = []
+        var processedEmbeddings: Set<NSManagedObjectID> = []
+        
+        for embedding in embeddings {
+            if processedEmbeddings.contains(embedding.objectID) { continue }
+            guard let targetVector = getEmbeddingVector(from: embedding) else { continue }
+            
+            var similarEmbeddings: [PhotoSimilarity] = []
+            
+            for otherEmbedding in embeddings {
+                if otherEmbedding.objectID == embedding.objectID { continue }
+                if processedEmbeddings.contains(otherEmbedding.objectID) { continue }
                 
-                if !similarEmbeddings.isEmpty {
-                    duplicateGroups.append(DuplicatePhotoGroup(original: embedding, duplicates: similarEmbeddings))
-                    processedEmbeddings.insert(embedding.objectID)
+                guard let otherVector = getEmbeddingVector(from: otherEmbedding) else { continue }
+                
+                let similarity = ImageEmbeddingService.shared.cosineSimilarity(targetVector, otherVector)
+                if similarity >= threshold {
+                    similarEmbeddings.append(PhotoSimilarity(embedding: otherEmbedding, similarity: similarity))
+                    processedEmbeddings.insert(otherEmbedding.objectID)
                 }
             }
             
-            return duplicateGroups
-            
-        } catch {
-            print("Failed to find duplicates: \(error)")
-            return []
+            if !similarEmbeddings.isEmpty {
+                duplicateGroups.append(DuplicatePhotoGroup(original: embedding, duplicates: similarEmbeddings))
+                processedEmbeddings.insert(embedding.objectID)
+            }
         }
+        
+        return duplicateGroups
     }
     
     // MARK: - Helper Methods

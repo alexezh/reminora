@@ -24,7 +24,7 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             // Photos Tab
             NavigationView {
-                PhotoStackView(isSwipePhotoViewOpen: $isSwipePhotoViewOpen)
+                PhotoMainView(isSwipePhotoViewOpen: $isSwipePhotoViewOpen)
             }
             .tabItem {
                 Image(systemName: "photo.stack")

@@ -6,7 +6,7 @@ import CoreData
 import MapKit
 import CoreLocation
 
-struct PhotoStackView: View {
+struct PhotoMainView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Binding var isSwipePhotoViewOpen: Bool
     @State private var photoAssets: [PHAsset] = []
@@ -427,51 +427,123 @@ struct PhotoStackView: View {
     }
     
     private func createPhotoStacks(from assets: [PHAsset]) {
-        print("Creating photo stacks from \(assets.count) assets")
-        var stacks: [PhotoStack] = []
-        var currentStack: [PHAsset] = []
-        var lastDate: Date?
+        print("Creating photo stacks from \(assets.count) assets using similarity indices")
         
-        for asset in assets {
-            guard let creationDate = asset.creationDate else {
-                // Handle assets without creation date
-                if !currentStack.isEmpty {
-                    stacks.append(PhotoStack(assets: currentStack))
-                    currentStack = []
+        Task {
+            let stacks = await createSimilarityBasedStacks(from: assets)
+            await MainActor.run {
+                self.filteredPhotoStacks = stacks
+                print("Created \(stacks.count) photo stacks using similarity")
+            }
+        }
+    }
+    
+    private func createSimilarityBasedStacks(from assets: [PHAsset]) async -> [PhotoStack] {
+        // Check if similarity indices are available
+        let embeddingStats = PhotoEmbeddingService.shared.getEmbeddingStats(in: viewContext)
+        let hasEmbeddings = embeddingStats.photosWithEmbeddings > 0
+        
+        print("📊 Embedding coverage: \(embeddingStats.photosWithEmbeddings)/\(embeddingStats.totalPhotos) (\(embeddingStats.coveragePercentage)%)")
+        
+        if !hasEmbeddings {
+            print("📊 No similarity indices available, using individual photos")
+            // If no embeddings, put all photos separately and trigger embedding computation
+            Task {
+                await PhotoEmbeddingService.shared.computeAllEmbeddings(in: viewContext) { processed, total in
+                    print("📊 Computing embeddings: \(processed)/\(total)")
                 }
-                stacks.append(PhotoStack(assets: [asset]))
-                lastDate = nil
+                // Refresh the view once embeddings are available
+                await MainActor.run {
+                    self.applyFilter()
+                }
+            }
+            return assets.map { PhotoStack(assets: [$0]) }
+        }
+        
+        // Limit processing to prevent hangs - process in batches
+        let maxAssetsToProcess = 100
+        let assetsToProcess = Array(assets.prefix(maxAssetsToProcess))
+        
+        var stacks: [PhotoStack] = []
+        var processedAssets: Set<String> = []
+        
+        // Process assets sequentially by time with yield points
+        for i in 0..<assetsToProcess.count {
+            let currentAsset = assetsToProcess[i]
+            
+            // Skip if already processed
+            if processedAssets.contains(currentAsset.localIdentifier) {
                 continue
             }
             
-            if let lastDate = lastDate {
-                let timeDifference = lastDate.timeIntervalSince(creationDate)
+            var currentStack = [currentAsset]
+            processedAssets.insert(currentAsset.localIdentifier)
+            
+            // Only compare with next sequential photos (by time) - limit comparison window
+            let maxComparisons = 5 // Only compare with next 5 photos to prevent hangs
+            let endIndex = min(i + maxComparisons + 1, assetsToProcess.count)
+            
+            for j in (i + 1)..<endIndex {
+                let nextAsset = assetsToProcess[j]
                 
-                if timeDifference <= stackingInterval {
-                    // Add to current stack
-                    currentStack.append(asset)
-                } else {
-                    // Start new stack
-                    if !currentStack.isEmpty {
-                        stacks.append(PhotoStack(assets: currentStack))
-                    }
-                    currentStack = [asset]
+                // Skip if already processed
+                if processedAssets.contains(nextAsset.localIdentifier) {
+                    break // Stop checking if we hit a processed asset
                 }
-            } else {
-                // First asset
-                currentStack = [asset]
+                
+                // Check similarity between current stack's first photo and next photo
+                let similarity = await getSimilarity(between: currentAsset, and: nextAsset)
+                
+                if let similarity = similarity, similarity > 0.95 {
+                    print("📊 Found similar photos: \(currentAsset.localIdentifier) <-> \(nextAsset.localIdentifier) (similarity: \(Int(similarity * 100))%)")
+                    currentStack.append(nextAsset)
+                    processedAssets.insert(nextAsset.localIdentifier)
+                } else {
+                    // If similarity is not high enough or not available, stop stacking
+                    break
+                }
             }
             
-            lastDate = creationDate
-        }
-        
-        // Add final stack
-        if !currentStack.isEmpty {
             stacks.append(PhotoStack(assets: currentStack))
+            
+            if currentStack.count > 1 {
+                print("📊 Created stack with \(currentStack.count) similar photos")
+            }
+            
+            // Yield to prevent blocking main thread every 10 assets
+            if i % 10 == 0 {
+                await Task.yield()
+            }
         }
         
-        print("Created \(stacks.count) photo stacks")
-        filteredPhotoStacks = stacks
+        // Add remaining assets as individual stacks if we hit the limit
+        if assets.count > maxAssetsToProcess {
+            let remainingAssets = Array(assets.dropFirst(maxAssetsToProcess))
+            let remainingStacks = remainingAssets.map { PhotoStack(assets: [$0]) }
+            stacks.append(contentsOf: remainingStacks)
+            print("📊 Added \(remainingAssets.count) remaining assets as individual photos (processing limit reached)")
+        }
+        
+        return stacks
+    }
+    
+    private func getSimilarity(between asset1: PHAsset, and asset2: PHAsset) async -> Float? {
+        // Get embeddings for both assets
+        guard let embedding1 = await PhotoEmbeddingService.shared.getEmbedding(for: asset1, in: viewContext),
+              let embedding2 = await PhotoEmbeddingService.shared.getEmbedding(for: asset2, in: viewContext),
+              let vector1 = getEmbeddingVector(from: embedding1),
+              let vector2 = getEmbeddingVector(from: embedding2) else {
+            return nil
+        }
+        
+        return ImageEmbeddingService.shared.cosineSimilarity(vector1, vector2)
+    }
+    
+    private func getEmbeddingVector(from photoEmbedding: PhotoEmbedding) -> [Float]? {
+        guard let embeddingData = photoEmbedding.embedding else {
+            return nil
+        }
+        return PhotoEmbeddingService.shared.dataToEmbedding(embeddingData)
     }
 }
 
@@ -764,6 +836,6 @@ extension SwipePhotoView {
 
 struct PhotoStackView_Previews: PreviewProvider {
     static var previews: some View {
-        PhotoStackView(isSwipePhotoViewOpen: .constant(false))
+        PhotoMainView(isSwipePhotoViewOpen: .constant(false))
     }
 }

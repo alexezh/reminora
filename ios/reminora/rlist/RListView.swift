@@ -371,23 +371,27 @@ struct RListRowView: View {
     var body: some View {
         switch row.type {
         case .photoRow:
-            HStack(spacing: 4) {
-                ForEach(Array(row.items.enumerated()), id: \.offset) { _, item in
-                    RListPhotoGridItemView(
-                        item: item,
-                        onPhotoTap: onPhotoTap,
-                        onPhotoStackTap: onPhotoStackTap
-                    )
-                }
+            GeometryReader { geometry in
+                let spacing: CGFloat = 4
+                let totalSpacing = spacing * CGFloat(max(0, row.items.count - 1))
+                let availableWidth = geometry.size.width - totalSpacing
+                let itemWidth = availableWidth / CGFloat(row.items.count)
                 
-                // Fill remaining space if less than 3 photos
-                if row.items.count < 3 {
-                    ForEach(0..<(3 - row.items.count), id: \.self) { _ in
-                        Color.clear
-                            .aspectRatio(1, contentMode: .fit)
+                HStack(spacing: spacing) {
+                    ForEach(Array(row.items.enumerated()), id: \.offset) { _, item in
+                        RListPhotoGridItemView(
+                            item: item,
+                            onPhotoTap: onPhotoTap,
+                            onPhotoStackTap: onPhotoStackTap
+                        )
+                        .frame(width: itemWidth, height: itemWidth)
+                        .clipped()
                     }
+                    
+                    Spacer(minLength: 0)
                 }
             }
+            .aspectRatio(CGFloat(row.items.count), contentMode: .fit) // Maintain aspect ratio based on item count
             
         case .pinRow:
             ForEach(row.items, id: \.id) { item in
@@ -491,13 +495,13 @@ struct RListPhotoGridView: View {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .aspectRatio(1, contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
                     .cornerRadius(8)
             } else {
                 Rectangle()
                     .fill(Color.gray.opacity(0.3))
-                    .aspectRatio(1, contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .cornerRadius(8)
                     .overlay(
                         ProgressView()

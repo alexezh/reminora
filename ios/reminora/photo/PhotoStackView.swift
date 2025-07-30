@@ -162,13 +162,6 @@ struct PhotoStackView: View {
     // Time interval for grouping photos into stacks (in minutes)
     private let stackingInterval: TimeInterval = 10 * 60 // 10 minutes
     
-    private let columns = [
-        GridItem(.flexible(), spacing: 1),
-        GridItem(.flexible(), spacing: 1),
-        GridItem(.flexible(), spacing: 1),
-        GridItem(.flexible(), spacing: 1)
-    ]
-    
     var body: some View {
         VStack {
             // Search button at top
@@ -186,100 +179,103 @@ struct PhotoStackView: View {
             }
             
             if !isCoreDataReady {
-                    // Show loading UI while Core Data is initializing
+                // Show loading UI while Core Data is initializing
+                VStack(spacing: 20) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                    Text("Initializing...")
+                        .font(.title2)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if authorizationStatus == .authorized || authorizationStatus == .limited {
+                
+                if filteredPhotoStacks.isEmpty && isCoreDataReady {
+                    // Show empty state with retry option
                     VStack(spacing: 20) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                        Text("Initializing...")
-                            .font(.title2)
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if authorizationStatus == .authorized || authorizationStatus == .limited {
-                    
-                    if filteredPhotoStacks.isEmpty && isCoreDataReady {
-                        // Show empty state with retry option
-                        VStack(spacing: 20) {
-                            Image(systemName: "photo.stack")
-                                .font(.system(size: 60))
-                                .foregroundColor(.gray)
-                            
-                            Text("No Photos Found")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                            
-                            Text("Unable to load photos. Try refreshing.")
-                                .font(.body)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                            
-                            Button("Refresh") {
-                                print("Manual refresh triggered")
-                                hasTriedInitialLoad = false
-                                loadPhotoAssets()
-                            }
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding()
-                    } else {
-                        GeometryReader { geometry in
-                            let squareSize = (geometry.size.width - 3) / 4 // 4 photos with 3 gaps of 1px
-                            
-                            ScrollView {
-                                LazyVGrid(columns: columns, spacing: 1) {
-                                    ForEach(filteredPhotoStacks, id: \.id) { stack in
-                                        PhotoStackCell(
-                                            stack: stack,
-                                            onTap: {
-                                                print("PhotoStackCell tapped for stack with \(stack.assets.count) assets")
-                                                selectedStackIndex = 0
-                                                withAnimation(.easeInOut(duration: 0.2)) {
-                                                    selectedStack = stack
-                                                    isSwipePhotoViewOpen = true
-                                                }
-                                                print("Set selectedStack")
-                                            }
-                                        )
-                                        .frame(width: squareSize, height: squareSize)
-                                        .clipped()
-                                    }
-                                }
-                                .padding(.horizontal, 0)
-                            }
-                        }
-                    }
-                } else {
-                    VStack(spacing: 20) {
-                        Image(systemName: "photo.on.rectangle")
+                        Image(systemName: "photo.stack")
                             .font(.system(size: 60))
                             .foregroundColor(.gray)
                         
-                        Text("Photo Access Required")
+                        Text("No Photos Found")
                             .font(.title2)
                             .fontWeight(.semibold)
                         
-                        Text("Please allow access to your photo library to see your photos")
+                        Text("Unable to load photos. Try refreshing.")
                             .font(.body)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                         
-                        Button("Grant Access") {
-                            requestPhotoAccess()
+                        Button("Refresh") {
+                            print("Manual refresh triggered")
+                            hasTriedInitialLoad = false
+                            loadPhotoAssets()
                         }
                         .padding()
                         .background(Color.blue)
                         .foregroundColor(.white)
                         .cornerRadius(10)
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding()
+                } else {
+                    // Use RListView to display photos with date separators
+                    RListView(
+                        dataSource: .photoLibrary(photoAssets),
+                        onPhotoTap: { asset in
+                            // Create a stack with just this photo and show it
+                            let stack = PhotoStack(assets: [asset])
+                            selectedStackIndex = 0
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedStack = stack
+                                isSwipePhotoViewOpen = true
+                            }
+                        },
+                        onPinTap: { _ in
+                            // Not used in photo library view
+                        },
+                        onPhotoStackTap: { assets in
+                            // Create a stack and show it
+                            let stack = PhotoStack(assets: assets)
+                            selectedStackIndex = 0
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedStack = stack
+                                isSwipePhotoViewOpen = true
+                            }
+                        },
+                        onLocationTap: { _ in
+                            // Not used in photo library view
+                        }
+                    )
                 }
+            } else {
+                VStack(spacing: 20) {
+                    Image(systemName: "photo.on.rectangle")
+                        .font(.system(size: 60))
+                        .foregroundColor(.gray)
+                    
+                    Text("Photo Access Required")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    
+                    Text("Please allow access to your photo library to see your photos")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    Button("Grant Access") {
+                        requestPhotoAccess()
+                    }
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                }
+                .padding()
             }
+        }
             .onAppear {
                 initializeCoreData()
                 requestPhotoAccess()
@@ -406,8 +402,12 @@ struct PhotoStackView: View {
             print("Search text: '\(searchText)' - would implement metadata search here")
         }
         
-        photoAssets = filteredAssets
-        applyFilter()
+        // Apply preferences filter and update photoAssets
+        let preferenceFilteredAssets = preferenceManager.getFilteredAssets(from: filteredAssets, filter: currentFilter)
+        photoAssets = preferenceFilteredAssets
+        
+        // Create photo stacks for empty state check
+        createPhotoStacks(from: preferenceFilteredAssets)
     }
     
     private func applyFilter() {
@@ -415,9 +415,14 @@ struct PhotoStackView: View {
             print("Core Data not ready, skipping filter")
             return 
         }
-        //print("Applying filter: \(currentFilter.displayName) to \(photoAssets.count) assets")
-        let filteredAssets = preferenceManager.getFilteredAssets(from: photoAssets, filter: currentFilter)
-        //print("Filtered to \(filteredAssets.count) assets")
+        print("Applying filter: \(currentFilter.displayName) to \(allPhotoAssets.count) assets")
+        let filteredAssets = preferenceManager.getFilteredAssets(from: allPhotoAssets, filter: currentFilter)
+        print("Filtered to \(filteredAssets.count) assets")
+        
+        // Update photoAssets with filtered results - RListView will handle stacking internally
+        photoAssets = filteredAssets
+        
+        // Create photo stacks for empty state check
         createPhotoStacks(from: filteredAssets)
     }
     
@@ -744,7 +749,7 @@ struct PhotoShareData: Identifiable {
 // Helper functions for SwipePhotoView
 extension SwipePhotoView {
     private func formatLocation(_ location: CLLocation) -> String {
-        let geocoder = CLGeocoder()
+        let _ = CLGeocoder() // Reserved for future reverse geocoding
         // For now, just show coordinates. In real app, you'd reverse geocode
         return String(format: "%.4f, %.4f", location.coordinate.latitude, location.coordinate.longitude)
     }

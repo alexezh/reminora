@@ -25,13 +25,13 @@ struct RListPhotoStackGridView: View {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .aspectRatio(1, contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
                         .cornerRadius(8)
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.3))
-                        .aspectRatio(1, contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .cornerRadius(8)
                         .overlay(
                             ProgressView()

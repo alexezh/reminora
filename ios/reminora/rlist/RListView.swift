@@ -123,6 +123,25 @@ struct RListView: View {
     let onPhotoStackTap: ([PHAsset]) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
     let onDeleteItem: ((any RListViewItem) -> Void)?
+    let onUserTap: ((String, String) -> Void)?
+    
+    init(
+        dataSource: RListDataSource,
+        onPhotoTap: @escaping (PHAsset) -> Void,
+        onPinTap: @escaping (PinData) -> Void,
+        onPhotoStackTap: @escaping ([PHAsset]) -> Void,
+        onLocationTap: ((LocationInfo) -> Void)? = nil,
+        onDeleteItem: ((any RListViewItem) -> Void)? = nil,
+        onUserTap: ((String, String) -> Void)? = nil
+    ) {
+        self.dataSource = dataSource
+        self.onPhotoTap = onPhotoTap
+        self.onPinTap = onPinTap
+        self.onPhotoStackTap = onPhotoStackTap
+        self.onLocationTap = onLocationTap
+        self.onDeleteItem = onDeleteItem
+        self.onUserTap = onUserTap
+    }
     
     @State private var sections: [RListDateSection] = []
     @State private var isLoading = true
@@ -149,7 +168,8 @@ struct RListView: View {
                             onPinTap: onPinTap,
                             onPhotoStackTap: onPhotoStackTap,
                             onLocationTap: onLocationTap,
-                            onDeleteItem: onDeleteItem
+                            onDeleteItem: onDeleteItem,
+                            onUserTap: onUserTap
                         )
                     }
                 }
@@ -255,6 +275,7 @@ struct RListSectionView: View {
     let onPhotoStackTap: ([PHAsset]) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
     let onDeleteItem: ((any RListViewItem) -> Void)?
+    let onUserTap: ((String, String) -> Void)?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -279,7 +300,8 @@ struct RListSectionView: View {
                         onPinTap: onPinTap,
                         onPhotoStackTap: onPhotoStackTap,
                         onLocationTap: onLocationTap,
-                        onDeleteItem: onDeleteItem
+                        onDeleteItem: onDeleteItem,
+                        onUserTap: onUserTap
                     )
                 }
             }
@@ -344,6 +366,7 @@ struct RListRowView: View {
     let onPhotoStackTap: ([PHAsset]) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
     let onDeleteItem: ((any RListViewItem) -> Void)?
+    let onUserTap: ((String, String) -> Void)?
     
     var body: some View {
         switch row.type {
@@ -374,7 +397,8 @@ struct RListRowView: View {
                     onPinTap: onPinTap,
                     onPhotoStackTap: onPhotoStackTap,
                     onLocationTap: onLocationTap,
-                    onDeleteItem: onDeleteItem
+                    onDeleteItem: onDeleteItem,
+                    onUserTap: onUserTap
                 )
             }
         }
@@ -408,6 +432,7 @@ struct RRListItemDataView: View {
     let onPhotoStackTap: ([PHAsset]) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
     let onDeleteItem: ((any RListViewItem) -> Void)?
+    let onUserTap: ((String, String) -> Void)?
     
     var body: some View {
         switch item.itemType {
@@ -416,16 +441,37 @@ struct RRListItemDataView: View {
         case .photoStack(let assets):
             RListPhotoStackView(assets: assets, onTap: { onPhotoStackTap(assets) })
         case .pin(let place):
-            PinCardView(
-                place: place,
-                cardHeight: 200,
-                onPhotoTap: { onPinTap(place) },
-                onTitleTap: { onPinTap(place) },
-                onMapTap: { onPinTap(place) },
-                onUserTap: { userId, userName in
-                    // Handle user tap if needed - could add onUserTap callback to RListView
+            VStack(spacing: 0) {
+                PinCardView(
+                    place: place,
+                    cardHeight: 200,
+                    onPhotoTap: { onPinTap(place) },
+                    onTitleTap: { onPinTap(place) },
+                    onMapTap: { onPinTap(place) },
+                    onUserTap: { userId, userName in
+                        onUserTap?(userId, userName)
+                    }
+                )
+                
+                // Add delete button if delete is supported
+                if let onDeleteItem = onDeleteItem {
+                    HStack {
+                        Spacer()
+                        Button(action: { onDeleteItem(item) }) {
+                            HStack {
+                                Image(systemName: "trash")
+                                Text("Remove")
+                            }
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
                 }
-            )
+            }
         case .location(let location):
             RListLocationView(location: location, onTap: { onLocationTap?(location) }, onDelete: onDeleteItem != nil ? { onDeleteItem!(item) } : nil)
         }
@@ -529,6 +575,7 @@ struct EmptyStateView: View {
         onPinTap: { _ in },
         onPhotoStackTap: { _ in },
         onLocationTap: { _ in },
-        onDeleteItem: { _ in }
+        onDeleteItem: { _ in },
+        onUserTap: { _, _ in }
     )
 }

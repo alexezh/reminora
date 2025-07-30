@@ -650,7 +650,11 @@ struct PhotoStackCell: View {
         guard shouldShowQuickListButton else { return }
         
         let userId = AuthenticationService.shared.currentAccount?.id ?? ""
-        isInQuickList = RListService.shared.isPhotoInQuickList(stack.primaryAsset, context: viewContext, userId: userId)
+        let newStatus = RListService.shared.isPhotoInQuickList(stack.primaryAsset, context: viewContext, userId: userId)
+        
+        print("🔍 DEBUG updateQuickListStatus: assetId=\(stack.primaryAsset.localIdentifier), oldStatus=\(isInQuickList), newStatus=\(newStatus)")
+        
+        isInQuickList = newStatus
     }
     
     private func toggleQuickList() {
@@ -659,10 +663,15 @@ struct PhotoStackCell: View {
         let userId = AuthenticationService.shared.currentAccount?.id ?? ""
         let wasInList = isInQuickList
         
+        print("🔍 DEBUG toggleQuickList: wasInList=\(wasInList), userId=\(userId), assetId=\(stack.primaryAsset.localIdentifier)")
+        
         let success = RListService.shared.togglePhotoInQuickList(stack.primaryAsset, context: viewContext, userId: userId)
+        
+        print("🔍 DEBUG toggleQuickList: success=\(success)")
         
         if success {
             isInQuickList = !wasInList
+            print("🔍 DEBUG toggleQuickList: Updated state - isInQuickList=\(isInQuickList)")
             
             // Provide haptic feedback
             let impactFeedback = UIImpactFeedbackGenerator(style: .light)

@@ -124,6 +124,66 @@ class PhotoPreferenceManager {
             return assets.filter { getPreference(for: $0) != .dislike }
         }
     }
+    
+    // MARK: - Stack ID Management
+    
+    func setStackId(for asset: PHAsset, stackId: Int32) {
+        let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "photoId == %@", asset.localIdentifier)
+        
+        do {
+            let existing = try viewContext.fetch(fetchRequest)
+            let photoPreference: PhotoPreference
+            
+            if let existingPreference = existing.first {
+                photoPreference = existingPreference
+            } else {
+                photoPreference = PhotoPreference(context: viewContext)
+                photoPreference.photoId = asset.localIdentifier
+                photoPreference.preference = PhotoPreferenceType.neutral.rawValue
+            }
+            
+            photoPreference.stackId = stackId
+            photoPreference.dateModified = Date()
+            
+            try viewContext.save()
+        } catch {
+            print("Failed to save stack ID: \(error)")
+        }
+    }
+    
+    func getStackId(for asset: PHAsset) -> Int32? {
+        let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "photoId == %@", asset.localIdentifier)
+        
+        do {
+            let results = try viewContext.fetch(fetchRequest)
+            if let preference = results.first {
+                return preference.stackId > 0 ? preference.stackId : nil
+            }
+        } catch {
+            print("Failed to fetch stack ID: \(error)")
+        }
+        
+        return nil
+    }
+    
+    func clearAllStackIds() {
+        let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "stackId > 0")
+        
+        do {
+            let results = try viewContext.fetch(fetchRequest)
+            for photoPreference in results {
+                photoPreference.stackId = 0
+            }
+            
+            try viewContext.save()
+            print("Cleared all stack IDs from photo preferences")
+        } catch {
+            print("Failed to clear stack IDs: \(error)")
+        }
+    }
 }
 
 enum PhotoPreferenceType: String, CaseIterable {

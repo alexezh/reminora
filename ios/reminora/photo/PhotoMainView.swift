@@ -445,6 +445,9 @@ struct PhotoMainView: View {
         
         print("📊 Embedding coverage: \(embeddingStats.photosWithEmbeddings)/\(embeddingStats.totalPhotos) (\(embeddingStats.coveragePercentage)%)")
         
+        // Clear existing stack IDs at the start of each stacking operation
+        preferenceManager.clearAllStackIds()
+        
         if !hasEmbeddings {
             print("📊 No similarity indices available, using individual photos")
             // If no embeddings, put all photos separately and trigger embedding computation
@@ -466,6 +469,7 @@ struct PhotoMainView: View {
         
         var stacks: [PhotoStack] = []
         var processedAssets: Set<String> = []
+        var currentStackId: Int32 = 1 // Start stack IDs at 1
         
         // Process assets sequentially by time with yield points
         for i in 0..<assetsToProcess.count {
@@ -504,11 +508,16 @@ struct PhotoMainView: View {
                 }
             }
             
-            stacks.append(PhotoStack(assets: currentStack))
-            
+            // Store stack ID for all photos in this stack if it has more than one photo
             if currentStack.count > 1 {
-                print("📊 Created stack with \(currentStack.count) similar photos")
+                for asset in currentStack {
+                    preferenceManager.setStackId(for: asset, stackId: currentStackId)
+                }
+                print("📊 Created stack with ID \(currentStackId) containing \(currentStack.count) similar photos")
+                currentStackId += 1 // Increment for next stack
             }
+            
+            stacks.append(PhotoStack(assets: currentStack))
             
             // Yield to prevent blocking main thread every 10 assets
             if i % 10 == 0 {
@@ -524,6 +533,7 @@ struct PhotoMainView: View {
             print("📊 Added \(remainingAssets.count) remaining assets as individual photos (processing limit reached)")
         }
         
+        print("📊 Stored stack IDs for \(currentStackId - 1) similarity-based stacks")
         return stacks
     }
     

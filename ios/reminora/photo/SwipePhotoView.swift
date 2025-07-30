@@ -306,6 +306,8 @@ struct SwipePhotoView: View {
             }
             print("Starting preference manager initialization...")
             initializePreferenceManager()
+            updateQuickListStatus()
+            updateFavoriteStatus()
             setupToolbar()
         }
         .onDisappear {
@@ -394,6 +396,8 @@ struct SwipePhotoView: View {
                     print("✅ Successfully toggled favorite status")
                     // Update our state to reflect the change
                     self.isFavorite = !self.isFavorite
+                    // Update the toolbar to reflect the new favorite state
+                    self.updateToolbar()
                     // Provide haptic feedback
                     let impactFeedback = UIImpactFeedbackGenerator(style: .light)
                     impactFeedback.impactOccurred()

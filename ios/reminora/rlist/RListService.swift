@@ -275,34 +275,42 @@ class RListService: ObservableObject {
             for (index, listItem) in listItems.enumerated() {
                 print("🔍 Processing item \(index + 1): placeId = \(listItem.placeId ?? "nil")")
                 
-                // All items are stored as PinData - some may represent photos from library
-                if let placeId = listItem.placeId,
-                   let place = getPinDataFromId(placeId, context: context) {
-                    
-                    print("🔍 Found place for item \(index + 1): url = \(place.url ?? "nil")")
-                    
-                    // Check if this place represents a photo from library (has special marker in URL)
-                    if let url = place.url, url.hasPrefix("photo://") {
-                        // Extract the photo identifier and try to get the asset
-                        let photoId = String(url.dropFirst(8)) // Remove "photo://" prefix
-                        print("🔍 Extracting photo ID: \(photoId)")
-                        
-                        if let asset = getAssetFromId(photoId) {
-                            print("🔍 Found asset for photo ID: \(photoId)")
-                            result.append(RListPhotoItem(asset: asset))
-                        } else {
-                            print("🔍 Asset not found for photo ID: \(photoId), showing as pin")
-                            // Photo no longer exists, but show as pin anyway
-                            result.append(RListPinItem(place: place))
-                        }
+                guard let placeId = listItem.placeId else {
+                    print("🔍 ❌ No placeId for item \(index + 1)")
+                    continue
+                }
+                
+                // Check if this is a direct photo identifier
+                if placeId.hasPrefix("photo://") {
+                    // Direct photo reference - extract the photo identifier and get the asset
+                    let photoId = String(placeId.dropFirst(8)) // Remove "photo://" prefix
+                    print("🔍 Direct photo reference - extracting photo ID: \(photoId)")
+                    if let asset = getAssetFromId(photoId) {
+                        print("🔍 Found asset for photo ID: \(photoId)")
+                        result.append(RListPhotoItem(asset: asset))
                     } else {
-                        print("🔍 Regular pin item")
-                        // Regular pin
-                        result.append(RListPinItem(place: place))
+                        print("🔍 ❌ Asset not found for photo ID: \(photoId) - removing from list")
+                        // Photo no longer exists, clean up the orphaned list item
+                        context.delete(listItem)
                     }
                 } else {
-                    print("🔍 ❌ Could not find place for item \(index + 1) - place lookup failed")
+                    // Core Data object reference - try to get the PinData object
+                    if let place = getPinDataFromId(placeId, context: context) {
+                        print("🔍 Found place for item \(index + 1): url = \(place.url ?? "nil")")
+                        result.append(RListPinItem(place: place))
+                    } else {
+                        print("🔍 ❌ Could not find place for item \(index + 1) - removing orphaned list item")
+                        // Place no longer exists, clean up the orphaned list item
+                        context.delete(listItem)
+                    }
                 }
+            }
+            
+            // Save context if we cleaned up any orphaned items
+            do {
+                try context.save()
+            } catch {
+                print("❌ Failed to save context after cleanup: \(error)")
             }
             
             print("🔍 Final result: \(result.count) items")
@@ -421,32 +429,15 @@ class RListService: ObservableObject {
     // MARK: - Private Helper Methods
     
     private func isAssetInList(_ asset: PHAsset, list: RListData, context: NSManagedObjectContext) -> Bool {
-        // Look for a place with URL pattern "photo://localIdentifier"
-        let photoURL = "photo://\(asset.localIdentifier)"
+        // Look directly for the photo identifier in list items
+        let photoIdentifier = "photo://\(asset.localIdentifier)"
         
-        // First find places with this URL
-        let placeFetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
-        placeFetchRequest.predicate = NSPredicate(format: "url == %@", photoURL)
+        let listItemFetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
+        listItemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@",
+                                                   list.id ?? "", photoIdentifier)
         
         do {
-            let places = try context.fetch(placeFetchRequest)
-            
-            if places.count > 1 {
-                print("🔍 ⚠️ WARNING: Multiple places found for same photo URL!")
-            }
-            
-            guard let place = places.first else { 
-                return false 
-            }
-            
-            // Check if this place is in the list
-            let placeId = place.objectID.uriRepresentation().absoluteString
-            let listItemFetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
-            listItemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@",
-                                                       list.id ?? "", placeId)
-            
             let count = try context.count(for: listItemFetchRequest)
-            print("🔍 Found \(count) list items for place \(placeId)")
             return count > 0
         } catch {
             print("❌ Failed to check if asset is in list: \(error)")
@@ -463,15 +454,15 @@ class RListService: ObservableObject {
             return true // Already in list
         }
         
-        // Create a PinData entity to represent this photo
-        let place = createPinDataFromAsset(asset, context: context)
-        print("🔍 Created place with URL: \(place.url ?? "nil")")
+        // Store photo directly using its localIdentifier (no PinData needed)
+        let photoIdentifier = "photo://\(asset.localIdentifier)"
+        print("🔍 Storing photo directly with identifier: \(photoIdentifier)")
         
-        // Add the place to the list
+        // Add the photo to the list
         let listItem = RListItemData(context: context)
         listItem.id = UUID().uuidString
         listItem.listId = list.id ?? ""
-        listItem.placeId = place.objectID.uriRepresentation().absoluteString
+        listItem.placeId = photoIdentifier // Store photo ID directly, not Core Data objectID
         listItem.addedAt = Date()
         
         print("🔍 Created list item with ID: \(listItem.id ?? "nil"), listId: \(listItem.listId ?? "nil"), placeId: \(listItem.placeId ?? "nil")")
@@ -479,6 +470,12 @@ class RListService: ObservableObject {
         do {
             try context.save()
             print("🔍 ✅ Successfully saved asset to list")
+            
+            // Send notification to update UI
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: NSNotification.Name("RListDatasChanged"), object: nil)
+            }
+            
             return true
         } catch {
             print("❌ Failed to add asset to list: \(error)")
@@ -487,33 +484,26 @@ class RListService: ObservableObject {
     }
     
     private func removeAssetFromList(_ asset: PHAsset, list: RListData, context: NSManagedObjectContext) -> Bool {
-        let photoURL = "photo://\(asset.localIdentifier)"
+        let photoIdentifier = "photo://\(asset.localIdentifier)"
         
-        // Find the place representing this photo
-        let placeFetchRequest: NSFetchRequest<PinData> = PinData.fetchRequest()
-        placeFetchRequest.predicate = NSPredicate(format: "url == %@", photoURL)
-        placeFetchRequest.fetchLimit = 1
+        // Remove from list by finding the list item with the photo identifier
+        let listItemFetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
+        listItemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@",
+                                                   list.id ?? "", photoIdentifier)
         
         do {
-            let places = try context.fetch(placeFetchRequest)
-            guard let place = places.first else { return false }
-            
-            let placeId = place.objectID.uriRepresentation().absoluteString
-            
-            // Remove from list
-            let listItemFetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
-            listItemFetchRequest.predicate = NSPredicate(format: "listId == %@ AND placeId == %@",
-                                                       list.id ?? "", placeId)
-            
             let items = try context.fetch(listItemFetchRequest)
             for item in items {
                 context.delete(item)
             }
             
-            // Optionally delete the place if it's not in any other lists
-            // For now, we'll keep it to preserve the data
-            
             try context.save()
+            
+            // Send notification to update UI
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: NSNotification.Name("RListDatasChanged"), object: nil)
+            }
+            
             return true
         } catch {
             print("❌ Failed to remove asset from list: \(error)")

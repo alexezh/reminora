@@ -141,8 +141,12 @@ struct PinDetailView: View {
            let originalUsername = place.originalUsername,
            !originalUserId.isEmpty,
            !originalUsername.isEmpty {
+            print("🔍 DEBUG PinDetailView: Found original user info - userId: '\(originalUserId)', username: '\(originalUsername)'")
             return (userId: originalUserId, userName: originalUsername)
         }
+        
+        print("🔍 DEBUG PinDetailView: No original user info found - originalUserId: '\(place.originalUserId ?? "nil")', originalUsername: '\(place.originalUsername ?? "nil")'")
+        print("🔍 DEBUG PinDetailView: place.post: '\(place.post ?? "nil")', place.url: '\(place.url ?? "nil")'")
         
         return nil
     }
@@ -158,7 +162,9 @@ struct PinDetailView: View {
         if let originalUserId = place.originalUserId,
            !originalUserId.isEmpty {
             let currentUserId = authService.currentAccount?.id ?? ""
-            return originalUserId != currentUserId
+            let isFromOther = originalUserId != currentUserId
+            print("🔍 DEBUG isFromOtherUser: originalUserId='\(originalUserId)', currentUserId='\(currentUserId)', isFromOther=\(isFromOther)")
+            return isFromOther
         }
         
         return false

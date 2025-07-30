@@ -265,15 +265,32 @@ struct reminoraApp: App {
             if !ownerId.isEmpty {
                 listItem.sharedByUserId = ownerId
                 print("🔗 ✅ Stored owner ID: \(ownerId)")
+                
+                // Also store original owner info in the PinData object itself
+                newPlace.originalUserId = ownerId
+                print("🔗 ✅ Set originalUserId on place: \(ownerId)")
             }
             if !ownerHandle.isEmpty {
                 listItem.sharedByUserName = ownerHandle
                 print("🔗 ✅ Stored owner handle: \(ownerHandle)")
+                
+                // Also store original owner info in the PinData object itself
+                newPlace.originalUsername = ownerHandle
+                newPlace.originalDisplayName = ownerHandle // Use handle as display name if that's all we have
+                print("🔗 ✅ Set originalUsername and originalDisplayName on place: \(ownerHandle)")
             }
             
             print("🔗 Saving to Core Data...")
             try context.save()
             print("🔗 ✅ Successfully added shared place to Shared list: \(name)")
+            
+            // Debug: Verify the owner information was set correctly
+            print("🔍 DEBUG: Final place properties:")
+            print("🔍 DEBUG: originalUserId = '\(newPlace.originalUserId ?? "nil")'")
+            print("🔍 DEBUG: originalUsername = '\(newPlace.originalUsername ?? "nil")'")
+            print("🔍 DEBUG: originalDisplayName = '\(newPlace.originalDisplayName ?? "nil")'")
+            print("🔍 DEBUG: post = '\(newPlace.post ?? "nil")'")
+            print("🔍 DEBUG: url = '\(newPlace.url ?? "nil")'")
             
             // Navigate to the shared place
             DispatchQueue.main.async {

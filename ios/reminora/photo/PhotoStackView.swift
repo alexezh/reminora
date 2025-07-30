@@ -626,6 +626,9 @@ struct PhotoStackCell: View {
             loadThumbnail()
             updateQuickListStatus()
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RListDatasChanged"))) { _ in
+            updateQuickListStatus()
+        }
     }
     
     private func loadThumbnail() {

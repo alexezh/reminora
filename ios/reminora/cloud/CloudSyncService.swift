@@ -137,7 +137,7 @@ class CloudSyncService: ObservableObject {
             imageData: imageData,
             location: location,
             caption: place.post,
-            locations: place.locations
+            locations: nil // Backend doesn't support locations field yet
         )
         
         // Update local record with cloud ID
@@ -219,7 +219,7 @@ class CloudSyncService: ObservableObject {
     }
     
     private func createPlaceFromCloudPhoto(cloudPhoto: PinAPI, context: NSManagedObjectContext) {
-        let entity = NSEntityDescription.entity(forEntityName: "Place", in: context)!
+        let entity = NSEntityDescription.entity(forEntityName: "PinData", in: context)!
         let place = NSManagedObject(entity: entity, insertInto: context)
         
         // Set basic properties
@@ -369,7 +369,7 @@ class CloudSyncService: ObservableObject {
      */
     func convertPhotoToPlace(_ photo: PinAPI, context: NSManagedObjectContext) -> PinData {
         // Create a detached place object for display (not saved to Core Data)
-        let entity = NSEntityDescription.entity(forEntityName: "Place", in: context)!
+        let entity = NSEntityDescription.entity(forEntityName: "PinData", in: context)!
         let place = PinData(entity: entity, insertInto: nil) // insertInto: nil creates detached object
         
         // Use caption if available, otherwise use a default title

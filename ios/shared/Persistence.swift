@@ -101,7 +101,7 @@ class PersistenceController {
         }
 
         withStore { context in
-            let entity = NSEntityDescription.entity(forEntityName: "Place", in: context)!
+            let entity = NSEntityDescription.entity(forEntityName: "PinData", in: context)!
             let sharedImage = NSManagedObject(entity: entity, insertInto: context)
             sharedImage.setValue(scaledData, forKey: "imageData")
             sharedImage.setValue(url?.absoluteString, forKey: "url")
@@ -138,7 +138,7 @@ class PersistenceController {
         }
 
         withStore { context in
-            let entity = NSEntityDescription.entity(forEntityName: "Place", in: context)!
+            let entity = NSEntityDescription.entity(forEntityName: "PinData", in: context)!
             let sharedImage = NSManagedObject(entity: entity, insertInto: context)
             sharedImage.setValue(scaledData, forKey: "imageData")
             sharedImage.setValue(nil, forKey: "url") // No URL for photo library images

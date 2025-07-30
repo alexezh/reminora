@@ -416,7 +416,16 @@ struct RRListItemDataView: View {
         case .photoStack(let assets):
             RListPhotoStackView(assets: assets, onTap: { onPhotoStackTap(assets) })
         case .pin(let place):
-            RListPinView(place: place, onTap: { onPinTap(place) }, onDelete: onDeleteItem != nil ? { onDeleteItem!(item) } : nil)
+            PinCardView(
+                place: place,
+                cardHeight: 200,
+                onPhotoTap: { onPinTap(place) },
+                onTitleTap: { onPinTap(place) },
+                onMapTap: { onPinTap(place) },
+                onUserTap: { userId, userName in
+                    // Handle user tap if needed - could add onUserTap callback to RListView
+                }
+            )
         case .location(let location):
             RListLocationView(location: location, onTap: { onLocationTap?(location) }, onDelete: onDeleteItem != nil ? { onDeleteItem!(item) } : nil)
         }

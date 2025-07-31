@@ -7,6 +7,7 @@ import Foundation
 struct MapView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.presentationMode) var presentationMode
+    @Environment(\.toolbarManager) private var toolbarManager
     
     @State private var searchText = ""
     @State private var nearbyPlaces: [LocationInfo] = []
@@ -426,6 +427,7 @@ struct MapView: View {
             // Load last saved map region and search cache
             loadLastMapRegion()
             loadSearchCache()
+            setupToolbar()
             
             // Request location permission and get user location
             print("📍 MapView appeared")
@@ -441,6 +443,9 @@ struct MapView: View {
             } else {
                 print("⚠️ No user location available")
             }
+        }
+        .onDisappear {
+            toolbarManager.hideCustomToolbar()
         }
         .onChange(of: locationManager.lastLocation) { _, newLocation in
             if let location = newLocation {
@@ -968,6 +973,49 @@ struct MapView: View {
                 print("❌ Failed to save search as places: \(error)")
             }
         }
+    }
+    
+    // MARK: - Toolbar Setup
+    
+    private func setupToolbar() {
+        let toolbarButtons = [
+            ToolbarButtonConfig(
+                id: "photos",
+                title: "Photos",
+                systemImage: "photo",
+                action: { 
+                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 0)
+                },
+                color: .blue
+            ),
+            ToolbarButtonConfig(
+                id: "pins",
+                title: "Pins",
+                systemImage: "mappin.and.ellipse",
+                action: { 
+                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 2)
+                },
+                color: .red
+            ),
+            ToolbarButtonConfig(
+                id: "search",
+                title: "Search",
+                systemImage: "magnifyingglass",
+                action: { showingSearch = true },
+                color: .green
+            ),
+            ToolbarButtonConfig(
+                id: "lists",
+                title: "Lists",
+                systemImage: "list.bullet.circle",
+                action: { 
+                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 3)
+                },
+                color: .purple
+            )
+        ]
+        
+        toolbarManager.setCustomToolbar(buttons: toolbarButtons)
     }
 }
 

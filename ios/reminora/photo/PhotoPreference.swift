@@ -1,5 +1,5 @@
-import Foundation
 import CoreData
+import Foundation
 import Photos
 
 // Core Data will auto-generate PhotoPreference class
@@ -7,11 +7,11 @@ import Photos
 // Helper class for managing photo preferences
 class PhotoPreferenceManager {
     private let viewContext: NSManagedObjectContext
-    
+
     init(viewContext: NSManagedObjectContext) {
         self.viewContext = viewContext
     }
-    
+
     func setPreference(for asset: PHAsset, preference: PhotoPreferenceType) {
         if preference == .like {
             // Use Photos framework to set favorite
@@ -22,7 +22,7 @@ class PhotoPreferenceManager {
                     print("Failed to set photo as favorite: \(error)")
                 }
             }
-        } else if preference == .dislike {
+        } else if preference == .archive {
             // Remove from favorites if it was favorited
             if asset.isFavorite {
                 PHPhotoLibrary.shared().performChanges({
@@ -33,25 +33,25 @@ class PhotoPreferenceManager {
                     }
                 }
             }
-            
+
             // Store dislike in Core Data
             let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "photoId == %@", asset.localIdentifier)
-            
+
             do {
                 let existing = try viewContext.fetch(fetchRequest)
                 let photoPreference: PhotoPreference
-                
+
                 if let existingPreference = existing.first {
                     photoPreference = existingPreference
                 } else {
                     photoPreference = PhotoPreference(context: viewContext)
                     photoPreference.photoId = asset.localIdentifier
                 }
-                
+
                 photoPreference.preference = preference.rawValue
                 photoPreference.dateModified = Date()
-                
+
                 try viewContext.save()
             } catch {
                 print("Failed to save photo preference: \(error)")
@@ -67,11 +67,11 @@ class PhotoPreferenceManager {
                     }
                 }
             }
-            
+
             // Remove dislike from Core Data if it exists
             let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "photoId == %@", asset.localIdentifier)
-            
+
             do {
                 let existing = try viewContext.fetch(fetchRequest)
                 if let existingPreference = existing.first {
@@ -83,33 +83,33 @@ class PhotoPreferenceManager {
             }
         }
     }
-    
+
     func getPreference(for asset: PHAsset) -> PhotoPreferenceType {
         // Check if it's favorited in Photos app first
         if asset.isFavorite {
             return .like
         }
-        
+
         // Check if it's disliked in our Core Data storage
         let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "photoId == %@", asset.localIdentifier)
-        
+
         do {
             let results = try viewContext.fetch(fetchRequest)
             if let preference = results.first, let preferenceValue = preference.preference {
                 let prefType = PhotoPreferenceType(rawValue: preferenceValue) ?? .neutral
                 // Only return dislike from Core Data, favorites come from Photos app
-                if prefType == .dislike {
-                    return .dislike
+                if prefType == .archive {
+                    return .archive
                 }
             }
         } catch {
             print("Failed to fetch photo preference: \(error)")
         }
-        
+
         return .neutral
     }
-    
+
     func getFilteredAssets(from assets: [PHAsset], filter: PhotoFilterType) -> [PHAsset] {
         switch filter {
         case .all:
@@ -117,24 +117,24 @@ class PhotoPreferenceManager {
         case .favorites:
             return assets.filter { $0.isFavorite }
         case .dislikes:
-            return assets.filter { getPreference(for: $0) == .dislike }
+            return assets.filter { getPreference(for: $0) == .archive }
         case .neutral:
-            return assets.filter { !$0.isFavorite && getPreference(for: $0) != .dislike }
+            return assets.filter { !$0.isFavorite && getPreference(for: $0) != .archive }
         case .notDisliked:
-            return assets.filter { getPreference(for: $0) != .dislike }
+            return assets.filter { getPreference(for: $0) != .archive }
         }
     }
-    
+
     // MARK: - Stack ID Management
-    
+
     func setStackId(for asset: PHAsset, stackId: Int32) {
         let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "photoId == %@", asset.localIdentifier)
-        
+
         do {
             let existing = try viewContext.fetch(fetchRequest)
             let photoPreference: PhotoPreference
-            
+
             if let existingPreference = existing.first {
                 photoPreference = existingPreference
             } else {
@@ -142,20 +142,20 @@ class PhotoPreferenceManager {
                 photoPreference.photoId = asset.localIdentifier
                 photoPreference.preference = PhotoPreferenceType.neutral.rawValue
             }
-            
+
             photoPreference.stackId = stackId
             photoPreference.dateModified = Date()
-            
+
             try viewContext.save()
         } catch {
             print("Failed to save stack ID: \(error)")
         }
     }
-    
+
     func getStackId(for asset: PHAsset) -> Int32? {
         let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "photoId == %@", asset.localIdentifier)
-        
+
         do {
             let results = try viewContext.fetch(fetchRequest)
             if let preference = results.first {
@@ -164,20 +164,20 @@ class PhotoPreferenceManager {
         } catch {
             print("Failed to fetch stack ID: \(error)")
         }
-        
+
         return nil
     }
-    
+
     func clearAllStackIds() {
         let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "stackId > 0")
-        
+
         do {
             let results = try viewContext.fetch(fetchRequest)
             for photoPreference in results {
                 photoPreference.stackId = 0
             }
-            
+
             try viewContext.save()
             print("Cleared all stack IDs from photo preferences")
         } catch {
@@ -188,7 +188,7 @@ class PhotoPreferenceManager {
 
 enum PhotoPreferenceType: String, CaseIterable {
     case like = "like"
-    case dislike = "dislike"
+    case archive = "archive"
     case neutral = "neutral"
 }
 
@@ -198,7 +198,7 @@ enum PhotoFilterType: String, CaseIterable {
     case dislikes = "dislikes"
     case neutral = "neutral"
     case notDisliked = "notDisliked"
-    
+
     var displayName: String {
         switch self {
         case .all:
@@ -213,7 +213,7 @@ enum PhotoFilterType: String, CaseIterable {
             return "Photos"
         }
     }
-    
+
     var iconName: String {
         switch self {
         case .all:

@@ -484,7 +484,7 @@ struct PinDetailView: View {
             )
         ]
         
-        toolbarManager.setCustomToolbar(buttons: toolbarButtons, hideDefaultTabBar: true)
+        toolbarManager.setCustomToolbar(buttons: toolbarButtons)
     }
 
     // MARK: - Actions

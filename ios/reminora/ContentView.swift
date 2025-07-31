@@ -26,6 +26,8 @@ struct ContentView: View {
             NavigationView {
                 PhotoMainView(isSwipePhotoViewOpen: $isSwipePhotoViewOpen)
             }
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarHidden(true)
             .tabItem {
                 Image(systemName: "photo.stack")
             }
@@ -35,6 +37,7 @@ struct ContentView: View {
             NavigationView {
                 MapView()
             }
+            .navigationBarHidden(true)
             .tabItem {
                 Image(systemName: "map")
             }
@@ -44,6 +47,7 @@ struct ContentView: View {
             NavigationView {
                 PinMainView()
             }
+            .navigationBarHidden(true)
             .tabItem {
                 Image(systemName: "mappin.and.ellipse")
             }
@@ -66,16 +70,19 @@ struct ContentView: View {
                 .tag(4)
         }
         .accentColor(.blue)
-        .toolbar(toolbarManager.hideDefaultTabBar || isSwipePhotoViewOpen ? .hidden : .visible, for: .tabBar)
+        .toolbar(.hidden, for: .bottomBar) // Always hide default tab bar, use only dynamic toolbar
         .onChange(of: selectedTab) { _, newValue in
             UserDefaults.standard.set(newValue, forKey: "selectedTab")
+            
+            // Set appropriate toolbar for the selected tab
+            setupToolbarForTab(newValue)
         }
         .environment(\.toolbarManager, toolbarManager)
         .sheet(isPresented: $toolbarManager.showActionSheet) {
             UniversalActionSheet()
                 .presentationDetents([.medium])
         }
-        .overlay(alignment: toolbarManager.showOnlyFAB ? .center : .bottom) {
+        .overlay(alignment: .bottom) {
             // Custom dynamic toolbar (show when enabled, including when SwipePhotoView is open with its buttons)
             if toolbarManager.showCustomToolbar {
                 DynamicToolbar(
@@ -91,6 +98,9 @@ struct ContentView: View {
         .onAppear {
             // Start background embedding computation for all photos
             startBackgroundEmbeddingComputation()
+            
+            // Set up toolbar for initial tab
+            setupToolbarForTab(selectedTab)
         }
         .onReceive(
             NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToSharedPlace"))
@@ -169,6 +179,101 @@ struct ContentView: View {
             } else {
                 print("📊 ✅ All photos already have embeddings, skipping computation")
             }
+        }
+    }
+    
+    // MARK: - Toolbar Management
+    
+    private func setupToolbarForTab(_ tabIndex: Int) {
+        print("🔧 ContentView: Setting up toolbar for tab \(tabIndex)")
+        
+        switch tabIndex {
+        case 0: // Photos Tab - FAB only
+            toolbarManager.setFABOnlyMode()
+            
+        case 1: // Map Tab - Full toolbar with navigation buttons
+            let mapButtons = [
+                ToolbarButtonConfig(
+                    id: "photos",
+                    title: "Photos",
+                    systemImage: "photo",
+                    action: { self.selectedTab = 0 },
+                    color: .blue
+                ),
+                ToolbarButtonConfig(
+                    id: "pins",
+                    title: "Pins",
+                    systemImage: "mappin.and.ellipse",
+                    action: { self.selectedTab = 2 },
+                    color: .red
+                ),
+                ToolbarButtonConfig(
+                    id: "lists",
+                    title: "Lists",
+                    systemImage: "list.bullet.circle",
+                    action: { self.selectedTab = 3 },
+                    color: .purple
+                )
+            ]
+            toolbarManager.setCustomToolbar(buttons: mapButtons)
+            
+        case 2: // Pins Tab - Full toolbar with navigation buttons  
+            let pinButtons = [
+                ToolbarButtonConfig(
+                    id: "photos",
+                    title: "Photos",
+                    systemImage: "photo",
+                    action: { self.selectedTab = 0 },
+                    color: .blue
+                ),
+                ToolbarButtonConfig(
+                    id: "map",
+                    title: "Map",
+                    systemImage: "map",
+                    action: { self.selectedTab = 1 },
+                    color: .green
+                ),
+                ToolbarButtonConfig(
+                    id: "lists",
+                    title: "Lists",
+                    systemImage: "list.bullet.circle",
+                    action: { self.selectedTab = 3 },
+                    color: .purple
+                )
+            ]
+            toolbarManager.setCustomToolbar(buttons: pinButtons)
+            
+        case 3: // Lists Tab - Full toolbar with navigation buttons
+            let listButtons = [
+                ToolbarButtonConfig(
+                    id: "photos",
+                    title: "Photos",
+                    systemImage: "photo",
+                    action: { self.selectedTab = 0 },
+                    color: .blue
+                ),
+                ToolbarButtonConfig(
+                    id: "map",
+                    title: "Map",
+                    systemImage: "map",
+                    action: { self.selectedTab = 1 },
+                    color: .green
+                ),
+                ToolbarButtonConfig(
+                    id: "pins",
+                    title: "Pins",
+                    systemImage: "mappin.and.ellipse",
+                    action: { self.selectedTab = 2 },
+                    color: .red
+                )
+            ]
+            toolbarManager.setCustomToolbar(buttons: listButtons)
+            
+        case 4: // Profile Tab - FAB only for now
+            toolbarManager.setFABOnlyMode()
+            
+        default:
+            toolbarManager.setFABOnlyMode()
         }
     }
 }

@@ -254,7 +254,6 @@ struct PinMainView: View {
             }
           }
         }
-        .navigationBarHidden(true)
         }
         
         // Hidden NavigationLinks for programmatic navigation
@@ -463,27 +462,45 @@ struct PinMainView: View {
   
   private func setupToolbar() {
     let toolbarButtons = [
+      // Navigation buttons
+      ToolbarButtonConfig(
+        id: "photos",
+        title: "Photos",
+        systemImage: "photo",
+        action: { 
+          NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 0)
+        },
+        color: .blue
+      ),
+      ToolbarButtonConfig(
+        id: "map",
+        title: "Map",
+        systemImage: "map",
+        action: { 
+          NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 1)
+        },
+        color: .green
+      ),
+      // Action buttons
       ToolbarButtonConfig(
         id: "add",
         title: "Add Pin",
         systemImage: "plus",
         action: { showingAddPin = true },
-        color: .blue
+        color: .orange
       ),
       ToolbarButtonConfig(
-        id: "sync",  
-        title: "Sync",
-        systemImage: "arrow.clockwise",
+        id: "lists",
+        title: "Lists",
+        systemImage: "list.bullet.circle",
         action: { 
-          Task {
-            await performBackgroundSync()
-          }
+          NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 3)
         },
-        color: .green
+        color: .purple
       )
     ]
     
-    toolbarManager.setCustomToolbar(buttons: toolbarButtons, hideDefaultTabBar: false)
+    toolbarManager.setCustomToolbar(buttons: toolbarButtons)
   }
 
 }

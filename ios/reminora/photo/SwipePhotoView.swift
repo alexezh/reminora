@@ -568,7 +568,7 @@ struct SwipePhotoView: View {
             )
         ]
         
-        toolbarManager.setCustomToolbar(buttons: toolbarButtons, hideDefaultTabBar: true)
+        toolbarManager.setCustomToolbar(buttons: toolbarButtons)
     }
     
     private func updateToolbar() {

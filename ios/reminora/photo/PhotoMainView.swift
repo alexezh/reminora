@@ -282,23 +282,23 @@ struct PhotoMainView: View {
                 .padding()
             }
         }
-            .onAppear {
-                initializeCoreData()
-                requestPhotoAccess()
-                setupToolbar()
-            }
-            .onDisappear {
-                toolbarManager.hideCustomToolbar()
-            }
-            .onChange(of: isCoreDataReady) { _, isReady in
-                if isReady && !hasTriedInitialLoad {
-                    hasTriedInitialLoad = true
-                    print("Core Data became ready, triggering initial load")
-                    if authorizationStatus == .authorized || authorizationStatus == .limited {
-                        loadPhotoAssets()
-                    }
+        .onAppear {
+            initializeCoreData()
+            requestPhotoAccess()
+            setupToolbar()
+        }
+        .onDisappear {
+            toolbarManager.hideCustomToolbar()
+        }
+        .onChange(of: isCoreDataReady) { _, isReady in
+            if isReady && !hasTriedInitialLoad {
+                hasTriedInitialLoad = true
+                print("Core Data became ready, triggering initial load")
+                if authorizationStatus == .authorized || authorizationStatus == .limited {
+                    loadPhotoAssets()
                 }
             }
+        }
         .overlay {
             if let selectedStack = selectedStack {
                 SwipePhotoView(
@@ -327,6 +327,7 @@ struct PhotoMainView: View {
         .sheet(isPresented: $showingSearch) {
             searchDialogView
         }
+        .toolbar(.hidden, for: .navigationBar)
     }
     
     private func requestPhotoAccess() {
@@ -631,7 +632,7 @@ struct PhotoStackCell: View {
     }
     
     private var shouldShowDislikeIcon: Bool {
-        !stack.isStack && primaryAssetPreference == .dislike
+        !stack.isStack && primaryAssetPreference == .archive
     }
     
     private var shouldShowQuickListButton: Bool {

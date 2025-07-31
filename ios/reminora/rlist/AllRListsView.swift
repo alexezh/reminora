@@ -19,6 +19,8 @@ struct AllRListsView: View {
     let onPinTap: ((PinData) -> Void)?
     let onPhotoStackTap: (([PHAsset]) -> Void)?
     
+    @Environment(\.toolbarManager) private var toolbarManager
+    
     init(context: NSManagedObjectContext, userId: String, onPhotoTap: ((PHAsset) -> Void)? = nil, onPinTap: ((PinData) -> Void)? = nil, onPhotoStackTap: (([PHAsset]) -> Void)? = nil) {
         self.context = context
         self.userId = userId
@@ -58,6 +60,12 @@ struct AllRListsView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RListDatasChanged"))) { _ in
             print("🔍 AllRListsView received RListDatasChanged notification")
             refreshTrigger = UUID()
+        }
+        .onAppear {
+            setupToolbar()
+        }
+        .onDisappear {
+            toolbarManager.hideCustomToolbar()
         }
     }
     
@@ -223,5 +231,50 @@ struct AllRListsView: View {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter.string(from: date)
+    }
+    
+    // MARK: - Toolbar Setup
+    
+    private func setupToolbar() {
+        let toolbarButtons = [
+            ToolbarButtonConfig(
+                id: "photos",
+                title: "Photos",
+                systemImage: "photo",
+                action: { 
+                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 0)
+                },
+                color: .blue
+            ),
+            ToolbarButtonConfig(
+                id: "map",
+                title: "Map",
+                systemImage: "map",
+                action: { 
+                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 1)
+                },
+                color: .green
+            ),
+            ToolbarButtonConfig(
+                id: "pins",
+                title: "Pins",
+                systemImage: "mappin.and.ellipse",
+                action: { 
+                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 2)
+                },
+                color: .red
+            ),
+            ToolbarButtonConfig(
+                id: "profile",
+                title: "Profile",
+                systemImage: "person.circle",
+                action: { 
+                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 4)
+                },
+                color: .purple
+            )
+        ]
+        
+        toolbarManager.setCustomToolbar(buttons: toolbarButtons)
     }
 }

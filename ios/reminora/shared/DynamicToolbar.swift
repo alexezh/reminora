@@ -180,7 +180,6 @@ extension ToolbarProvider {
 class ToolbarManager: ObservableObject {
     @Published var customButtons: [ToolbarButtonConfig] = []
     @Published var showCustomToolbar = false
-    @Published var hideDefaultTabBar = false
     @Published var version = 0
     @Published var showActionSheet = false
     @Published var showOnlyFAB = false // Show only the FAB button, hide toolbar background and other buttons
@@ -197,14 +196,14 @@ class ToolbarManager: ObservableObject {
         )
     }
     
-    func setCustomToolbar(buttons: [ToolbarButtonConfig], hideDefaultTabBar: Bool = true) {
+    func setCustomToolbar(buttons: [ToolbarButtonConfig]) {
         print("🔧 ToolbarManager: Setting \(buttons.count) toolbar buttons with IDs: \(buttons.map { $0.id })")
         
         // Remove any existing FAB buttons and add the universal one
         let nonFABButtons = buttons.filter { !$0.isFAB }
         customButtons = nonFABButtons + [universalFABButton]
         showCustomToolbar = !customButtons.isEmpty
-        self.hideDefaultTabBar = hideDefaultTabBar
+        showOnlyFAB = false // Reset FAB-only mode
     }
     
     func updateCustomToolbar(buttons: [ToolbarButtonConfig]) {
@@ -219,7 +218,6 @@ class ToolbarManager: ObservableObject {
     
     func hideCustomToolbar() {
         showCustomToolbar = false
-        hideDefaultTabBar = false
         showOnlyFAB = false
         customButtons = []
     }
@@ -229,7 +227,6 @@ class ToolbarManager: ObservableObject {
         customButtons = [universalFABButton]
         showCustomToolbar = true
         showOnlyFAB = true
-        hideDefaultTabBar = false // Keep default tab bar visible
         version += 1 // Force UI update
     }
 }

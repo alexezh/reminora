@@ -284,27 +284,6 @@ struct SwipePhotoView: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                     
-                    // FAB positioned in bottom right
-                    HStack {
-                        Spacer()
-                        VStack {
-                            Spacer()
-                            Button(action: {
-                                showingActionSheet = true
-                            }) {
-                                Image(systemName: "ellipsis")
-                                    .font(.title2)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.white)
-                                    .frame(width: 56, height: 56)
-                                    .background(Color.blue)
-                                    .clipShape(Circle())
-                                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-                            }
-                            .padding(.trailing, 20)
-                            .padding(.bottom, 34) // Safe area padding
-                        }
-                    }
                 }
             }
         }
@@ -319,10 +298,15 @@ struct SwipePhotoView: View {
             initializePreferenceManager()
             updateQuickListStatus()
             updateFavoriteStatus()
+            setupToolbar()
+        }
+        .onDisappear {
+            toolbarManager.hideCustomToolbar()
         }
         .onChange(of: currentIndex) { _, _ in
             updateQuickListStatus()
             updateFavoriteStatus()
+            updateToolbar()
         }
         .sheet(isPresented: $showingAddPin) {
             NavigationView {
@@ -549,6 +533,80 @@ struct SwipePhotoView: View {
         }
     }
     
+
+    // MARK: - Toolbar Setup
+    
+    private func setupToolbar() {
+        let toolbarButtons = [
+            ToolbarButtonConfig(
+                id: "share",
+                title: "Share",
+                systemImage: "square.and.arrow.up",
+                action: sharePhoto,
+                color: .blue
+            ),
+            ToolbarButtonConfig(
+                id: "favorite",
+                title: "Favorite",
+                systemImage: isFavorite ? "heart.fill" : "heart",
+                action: toggleFavorite,
+                color: isFavorite ? .red : .primary
+            ),
+            ToolbarButtonConfig(
+                id: "quick",
+                title: "Quick List",
+                systemImage: isInQuickList ? "plus.square.fill" : "plus.square",
+                action: toggleQuickList,
+                color: isInQuickList ? .orange : .primary
+            ),
+            ToolbarButtonConfig(
+                id: "addpin",
+                title: "Add Pin",
+                systemImage: "mappin.and.ellipse",
+                action: { showingAddPin = true },
+                color: .primary
+            )
+        ]
+        
+        toolbarManager.setCustomToolbar(buttons: toolbarButtons, hideDefaultTabBar: true)
+    }
+    
+    private func updateToolbar() {
+        // Update toolbar when photo changes - explicitly replace buttons
+        print("📱 SwipePhotoView: Updating toolbar for photo \(currentIndex)")
+        let toolbarButtons = [
+            ToolbarButtonConfig(
+                id: "share",
+                title: "Share",
+                systemImage: "square.and.arrow.up",
+                action: sharePhoto,
+                color: .blue
+            ),
+            ToolbarButtonConfig(
+                id: "favorite",
+                title: "Favorite",
+                systemImage: isFavorite ? "heart.fill" : "heart",
+                action: toggleFavorite,
+                color: isFavorite ? .red : .primary
+            ),
+            ToolbarButtonConfig(
+                id: "quick",
+                title: "Quick List",
+                systemImage: isInQuickList ? "plus.square.fill" : "plus.square",
+                action: toggleQuickList,
+                color: isInQuickList ? .orange : .primary
+            ),
+            ToolbarButtonConfig(
+                id: "addpin",
+                title: "Add Pin",
+                systemImage: "mappin.and.ellipse",
+                action: { showingAddPin = true },
+                color: .primary
+            )
+        ]
+        
+        toolbarManager.updateCustomToolbar(buttons: toolbarButtons)
+    }
 
     // MARK: - Formatting Helpers
     

@@ -8,6 +8,7 @@ import SwiftUI
  */
 struct PinMainView: View {
   @Environment(\.managedObjectContext) private var viewContext
+  @Environment(\.toolbarManager) private var toolbarManager
   @StateObject private var locationManager = LocationManager()
   @StateObject private var authService = AuthenticationService.shared
   @StateObject private var cloudSyncService = CloudSyncService.shared
@@ -305,6 +306,10 @@ struct PinMainView: View {
     .onAppear {
       loadSortPreference()
       syncFollowingUsersIfNeeded()
+      setupToolbar()
+    }
+    .onDisappear {
+      toolbarManager.hideCustomToolbar()
     }
     .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
       // App returned from background - sync if needed
@@ -452,6 +457,33 @@ struct PinMainView: View {
       return location
     }
     return nil
+  }
+  
+  // MARK: - Toolbar Setup
+  
+  private func setupToolbar() {
+    let toolbarButtons = [
+      ToolbarButtonConfig(
+        id: "add",
+        title: "Add Pin",
+        systemImage: "plus",
+        action: { showingAddPin = true },
+        color: .blue
+      ),
+      ToolbarButtonConfig(
+        id: "sync",  
+        title: "Sync",
+        systemImage: "arrow.clockwise",
+        action: { 
+          Task {
+            await performBackgroundSync()
+          }
+        },
+        color: .green
+      )
+    ]
+    
+    toolbarManager.setCustomToolbar(buttons: toolbarButtons, hideDefaultTabBar: false)
   }
 
 }

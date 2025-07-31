@@ -8,6 +8,7 @@ import CoreLocation
 
 struct PhotoMainView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.toolbarManager) private var toolbarManager
     @Binding var isSwipePhotoViewOpen: Bool
     @State private var photoAssets: [PHAsset] = []
     @State private var filteredPhotoStacks: [PhotoStack] = []
@@ -23,6 +24,11 @@ struct PhotoMainView: View {
     @State private var startDate: Date?
     @State private var endDate: Date?
     @State private var allPhotoAssets: [PHAsset] = [] // Store all photos before filtering
+    
+    // Track stacking state to reduce repetitive logging
+    @State private var lastEmbeddingCount = -1
+    @State private var hasStacksBeenCleared = false
+    @State private var hasTriggeredEmbeddingComputation = false
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
@@ -279,6 +285,10 @@ struct PhotoMainView: View {
             .onAppear {
                 initializeCoreData()
                 requestPhotoAccess()
+                setupToolbar()
+            }
+            .onDisappear {
+                toolbarManager.hideCustomToolbar()
             }
             .onChange(of: isCoreDataReady) { _, isReady in
                 if isReady && !hasTriedInitialLoad {
@@ -443,21 +453,32 @@ struct PhotoMainView: View {
         let embeddingStats = PhotoEmbeddingService.shared.getEmbeddingStats(in: viewContext)
         let hasEmbeddings = embeddingStats.photosWithEmbeddings > 0
         
-        print("📊 Embedding coverage: \(embeddingStats.photosWithEmbeddings)/\(embeddingStats.totalPhotos) (\(embeddingStats.coveragePercentage)%)")
+        // Only print embedding stats if they're meaningful or different from last time
+        if embeddingStats.photosWithEmbeddings != lastEmbeddingCount {
+            print("📊 Embedding coverage: \(embeddingStats.photosWithEmbeddings)/\(embeddingStats.totalPhotos) (\(embeddingStats.coveragePercentage)%)")
+            lastEmbeddingCount = embeddingStats.photosWithEmbeddings
+        }
         
-        // Clear existing stack IDs at the start of each stacking operation
-        preferenceManager.clearAllStackIds()
+        // Clear existing stack IDs only once per session to avoid repeated work
+        if !hasStacksBeenCleared {
+            preferenceManager.clearAllStackIds()
+            hasStacksBeenCleared = true
+        }
         
         if !hasEmbeddings {
-            print("📊 No similarity indices available, using individual photos")
-            // If no embeddings, put all photos separately and trigger embedding computation
-            Task {
-                await PhotoEmbeddingService.shared.computeAllEmbeddings(in: viewContext) { processed, total in
-                    print("📊 Computing embeddings: \(processed)/\(total)")
-                }
-                // Refresh the view once embeddings are available
-                await MainActor.run {
-                    self.applyFilter()
+            // Only log and trigger computation once per session
+            if !hasTriggeredEmbeddingComputation {
+                print("📊 No similarity indices available, using individual photos")
+                hasTriggeredEmbeddingComputation = true
+                
+                // Trigger embedding computation in background without blocking UI
+                Task.detached {
+                    await PhotoEmbeddingService.shared.computeAllEmbeddings(in: viewContext) { processed, total in
+                        // Only log every 10 photos to reduce spam
+                        if processed % 10 == 0 || processed == total {
+                            print("📊 Computing embeddings: \(processed)/\(total)")
+                        }
+                    }
                 }
             }
             return assets.map { PhotoStack(assets: [$0]) }
@@ -554,6 +575,13 @@ struct PhotoMainView: View {
             return nil
         }
         return PhotoEmbeddingService.shared.dataToEmbedding(embeddingData)
+    }
+    
+    // MARK: - Toolbar Setup
+    
+    private func setupToolbar() {
+        // Use FAB-only mode in PhotoMainView to keep the view clean
+        toolbarManager.setFABOnlyMode()
     }
 }
 

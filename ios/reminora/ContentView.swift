@@ -71,7 +71,11 @@ struct ContentView: View {
             UserDefaults.standard.set(newValue, forKey: "selectedTab")
         }
         .environment(\.toolbarManager, toolbarManager)
-        .overlay(alignment: .bottom) {
+        .sheet(isPresented: $toolbarManager.showActionSheet) {
+            UniversalActionSheet()
+                .presentationDetents([.medium])
+        }
+        .overlay(alignment: toolbarManager.showOnlyFAB ? .center : .bottom) {
             // Custom dynamic toolbar (show when enabled, including when SwipePhotoView is open with its buttons)
             if toolbarManager.showCustomToolbar {
                 DynamicToolbar(
@@ -79,7 +83,8 @@ struct ContentView: View {
                     position: .bottom,
                     backgroundColor: Color(.systemBackground),
                     isVisible: toolbarManager.showCustomToolbar,
-                    version: toolbarManager.version
+                    version: toolbarManager.version,
+                    showOnlyFAB: toolbarManager.showOnlyFAB
                 )
             }
         }
@@ -103,6 +108,14 @@ struct ContentView: View {
                 print("🔗 ContentView set selectedTab=1, showing shared place")
             } else {
                 print("🔗 ❌ ContentView: notification object is not a Place")
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSNotification.Name("SwitchToTab"))
+        ) { notification in
+            if let tabIndex = notification.object as? Int {
+                selectedTab = tabIndex
+                print("🔗 ContentView switched to tab: \(tabIndex)")
             }
         }
         .overlay {
@@ -157,6 +170,123 @@ struct ContentView: View {
                 print("📊 ✅ All photos already have embeddings, skipping computation")
             }
         }
+    }
+}
+
+// MARK: - Universal Action Sheet
+
+struct UniversalActionSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Handle bar - closer to top
+            RoundedRectangle(cornerRadius: 2.5)
+                .fill(Color.secondary.opacity(0.3))
+                .frame(width: 36, height: 5)
+                .padding(.top, 6)
+                .padding(.bottom, 16)
+            
+            // Top section with Photo, Pin, List, Settings buttons
+            HStack(spacing: 20) {
+                QuickActionButton(
+                    icon: "photo",
+                    title: "Photo",
+                    color: .blue,
+                    action: {
+                        dismiss()
+                        // Navigate to photo tab
+                        NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 0)
+                    }
+                )
+                
+                QuickActionButton(
+                    icon: "mappin.and.ellipse",
+                    title: "Pin",
+                    color: .red,
+                    action: {
+                        dismiss()
+                        // Navigate to pin tab
+                        NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 2)
+                    }
+                )
+                
+                QuickActionButton(
+                    icon: "list.bullet.circle",
+                    title: "List",
+                    color: .orange,
+                    action: {
+                        dismiss()
+                        // Navigate to list tab
+                        NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 3)
+                    }
+                )
+                
+                QuickActionButton(
+                    icon: "gear",
+                    title: "Settings",
+                    color: .gray,
+                    action: {
+                        dismiss()
+                        print("Settings tapped")
+                    }
+                )
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 34)
+        }
+        .background(Color(.systemBackground))
+    }
+}
+
+struct QuickActionButton: View {
+    let icon: String
+    let title: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundColor(.white)
+                    .frame(width: 50, height: 50)
+                    .background(color)
+                    .clipShape(Circle())
+                
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.primary)
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+struct UniversalActionButton: View {
+    let icon: String
+    let title: String
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundColor(.blue)
+                    .frame(width: 24)
+                
+                Text(title)
+                    .font(.body)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+            }
+            .padding(.vertical, 16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

@@ -399,27 +399,6 @@ struct PinDetailView: View {
                 
                 Spacer()
                 
-                // FAB positioned in bottom right
-                HStack {
-                    Spacer()
-                    VStack {
-                        Spacer()
-                        Button(action: {
-                            showingActionSheet = true
-                        }) {
-                            Image(systemName: "ellipsis")
-                                .font(.title2)
-                                .fontWeight(.medium)
-                                .foregroundColor(.white)
-                                .frame(width: 56, height: 56)
-                                .background(Color.blue)
-                                .clipShape(Circle())
-                                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
-                        }
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 34) // Safe area padding
-                    }
-                }
             }
         }
         .navigationBarHidden(true)
@@ -477,10 +456,36 @@ struct PinDetailView: View {
             .presentationDetents([.medium])
         }
         .onAppear {
-            // Pin detail setup
+            setupToolbar()
+        }
+        .onDisappear {
+            toolbarManager.hideCustomToolbar()
         }
     }
 
+
+    // MARK: - Toolbar Setup
+    
+    private func setupToolbar() {
+        let toolbarButtons = [
+            ToolbarButtonConfig(
+                id: "share",
+                title: "Share",
+                systemImage: "square.and.arrow.up",
+                action: sharePlace,
+                color: .blue
+            ),
+            ToolbarButtonConfig(
+                id: "list",
+                title: "Quick",
+                systemImage: isInQuickCollection ? "checkmark.square.fill" : "plus.square",
+                action: toggleQuickList,
+                color: isInQuickCollection ? .green : .blue
+            )
+        ]
+        
+        toolbarManager.setCustomToolbar(buttons: toolbarButtons, hideDefaultTabBar: true)
+    }
 
     // MARK: - Actions
 

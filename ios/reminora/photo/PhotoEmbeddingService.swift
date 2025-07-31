@@ -9,6 +9,11 @@ import CryptoKit
 class PhotoEmbeddingService {
     static let shared = PhotoEmbeddingService()
     
+    // Track failed assets to prevent infinite retry loops
+    private var failedAssets: Set<String> = []
+    private let maxRetryAttempts = 3
+    private var retryAttempts: [String: Int] = [:]
+    
     private init() {}
     
     // MARK: - Core Embedding Operations
@@ -36,11 +41,31 @@ class PhotoEmbeddingService {
             return false
         }
         
-        // Compute embedding
-        guard let embedding = await ImageEmbeddingService.shared.computeBasicEmbedding(for: image) else {
-            print("Failed to compute embedding for asset: \(asset.localIdentifier)")
+        // Check if this asset has failed too many times
+        let assetId = asset.localIdentifier
+        let currentAttempts = retryAttempts[assetId] ?? 0
+        
+        if failedAssets.contains(assetId) || currentAttempts >= maxRetryAttempts {
+            print("⏭️ Skipping asset \(assetId) - failed \(currentAttempts) times, marked as permanently failed")
             return false
         }
+        
+        // Compute embedding
+        guard let embedding = await ImageEmbeddingService.shared.computeBasicEmbedding(for: image) else {
+            // Track the failure
+            retryAttempts[assetId] = currentAttempts + 1
+            
+            if retryAttempts[assetId]! >= maxRetryAttempts {
+                failedAssets.insert(assetId)
+                print("❌ Asset \(assetId) failed \(maxRetryAttempts) times, marking as permanently failed")
+            } else {
+                print("⚠️ Failed to compute embedding for asset: \(assetId) (attempt \(retryAttempts[assetId]!)/\(maxRetryAttempts))")
+            }
+            return false
+        }
+        
+        // Clear retry attempts on success
+        retryAttempts.removeValue(forKey: assetId)
         
         // Store in Core Data
         await MainActor.run {
@@ -210,6 +235,18 @@ class PhotoEmbeddingService {
                 continue
             }
             
+            // Skip if asset has permanently failed
+            if failedAssets.contains(asset.localIdentifier) {
+                print("📊 Skipping \(asset.localIdentifier) - permanently failed")
+                processedCount += 1
+                latestProcessedDate = asset.creationDate ?? latestProcessedDate
+                
+                await MainActor.run {
+                    progressCallback(processedCount, totalCount)
+                }
+                continue
+            }
+            
             // Time the embedding computation
             let computeStartTime = CFAbsoluteTimeGetCurrent()
             let success = await computeAndStoreEmbedding(for: asset, in: context)
@@ -244,6 +281,10 @@ class PhotoEmbeddingService {
         print("📊 Total batch time: \(String(format: "%.3f", totalBatchTime)) seconds")
         print("📊 Photos processed: \(processedCount)/\(totalCount)")
         print("📊 Embeddings computed: \(actualComputeCount)")
+        print("📊 Permanently failed assets: \(failedAssets.count)")
+        if !failedAssets.isEmpty {
+            print("📊 Failed asset IDs: \(Array(failedAssets).prefix(5).joined(separator: ", "))...")
+        }
         
         if actualComputeCount > 0 {
             let avgComputeTime = totalComputeTime / Double(actualComputeCount)
@@ -471,6 +512,18 @@ class PhotoEmbeddingService {
     func resetEmbeddingWaterline() {
         UserDefaults.standard.removeObject(forKey: waterlineKey)
         print("📊 Reset embedding waterline - next scan will process all photos")
+    }
+    
+    /// Clear all failure tracking to allow retry of previously failed assets
+    func clearFailureTracking() {
+        failedAssets.removeAll()
+        retryAttempts.removeAll()
+        print("📊 Cleared all failure tracking - previously failed assets can be retried")
+    }
+    
+    /// Get count of permanently failed assets
+    func getFailedAssetsCount() -> Int {
+        return failedAssets.count
     }
 }
 

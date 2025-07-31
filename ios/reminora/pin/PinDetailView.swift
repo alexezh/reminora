@@ -50,6 +50,7 @@ struct PinDetailView: View {
     @State private var showingActionMenu = false
     @State private var showingUserProfile = false
     @State private var showingEditAddresses = false
+    @State private var showingActionSheet = false
 
     init(place: PinData, allPlaces: [PinData], onBack: @escaping () -> Void) {
         self.place = place
@@ -392,31 +393,33 @@ struct PinDetailView: View {
                     
                     Spacer()
                     
-                    // Action button - iOS 16 style menu
-                    Menu {
-                        Button("Map") {
-                            showNearbyPlaces()
-                        }
-                        Button("Photos") {
-                            showNearbyPhotos()
-                        }
-                        Button(isInQuickCollection ? "Remove from Quick" : "Add to Quick") {
-                            toggleQuickList()
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.title2)
-                            .foregroundColor(.primary)
-                            .padding(8)
-                            .background(.ultraThinMaterial, in: Circle())
-                    }
-                    .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 10) // Minimal top spacing - closer to top
                 
                 Spacer()
+                
+                // FAB positioned in bottom right
+                HStack {
+                    Spacer()
+                    VStack {
+                        Spacer()
+                        Button(action: {
+                            showingActionSheet = true
+                        }) {
+                            Image(systemName: "ellipsis")
+                                .font(.title2)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                                .frame(width: 56, height: 56)
+                                .background(Color.blue)
+                                .clipShape(Circle())
+                                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 34) // Safe area padding
+                    }
+                }
             }
         }
         .navigationBarHidden(true)
@@ -455,36 +458,29 @@ struct PinDetailView: View {
                 }
             )
         }
-        .onAppear {
-            setupToolbar()
+        .sheet(isPresented: $showingActionSheet) {
+            PinActionSheet(
+                isInQuickCollection: isInQuickCollection,
+                onMap: { 
+                    showingActionSheet = false
+                    showNearbyPlaces()
+                },
+                onPhotos: {
+                    showingActionSheet = false
+                    showNearbyPhotos()
+                },
+                onToggleQuick: {
+                    showingActionSheet = false
+                    toggleQuickList()
+                }
+            )
+            .presentationDetents([.medium])
         }
-        .onDisappear {
-            toolbarManager.hideCustomToolbar()
+        .onAppear {
+            // Pin detail setup
         }
     }
 
-    // MARK: - Toolbar Setup
-    
-    private func setupToolbar() {
-        let toolbarButtons = [
-            ToolbarButtonConfig(
-                id: "share",
-                title: "Share",
-                systemImage: "square.and.arrow.up",
-                action: sharePlace,
-                color: .blue
-            ),
-            ToolbarButtonConfig(
-                id: "list",
-                title: "Quick",
-                systemImage: isInQuickCollection ? "checkmark.square.fill" : "plus.square",
-                action: toggleQuickList,
-                color: isInQuickCollection ? .green : .blue
-            )
-        ]
-        
-        toolbarManager.setCustomToolbar(buttons: toolbarButtons, hideDefaultTabBar: true)
-    }
 
     // MARK: - Actions
 
@@ -585,9 +581,6 @@ struct PinDetailView: View {
             // Show success feedback
             let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
             impactFeedback.impactOccurred()
-            
-            // Refresh toolbar to update button state
-            setupToolbar()
             
         } catch {
             print("Failed to toggle place in Quick list: \(error)")

@@ -35,6 +35,7 @@ struct SwipePhotoView: View {
     @State private var scrollOffset: CGFloat = 0
     @State private var showingMap = false
     @State private var isFavorite = false
+    @State private var showingActionSheet = false
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
@@ -227,18 +228,6 @@ struct SwipePhotoView: View {
                             
                             Spacer()
                             
-                            // Menu button (vertical dots) - iOS 16 style popup
-                            Menu {
-                                Button("Find Similar") {
-                                    showingSimilarGridView = true
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis.circle")
-                                    .font(.title2)
-                                    .foregroundColor(.primary)
-                                    .padding(8)
-                                    .background(.ultraThinMaterial, in: Circle())
-                            }
                         }
                         .padding(.horizontal, 16)
                         .padding(.top, 20)
@@ -258,7 +247,7 @@ struct SwipePhotoView: View {
                     
                     Spacer()
                     
-                    // Floating bottom section with thumbnails (hide when map is showing)
+                    // Floating bottom section with thumbnails and FAB (hide when map is showing)
                     if !showingMap {
                         VStack(spacing: 12) {
                             // Thumbnail strip (iOS Photos style)
@@ -294,6 +283,28 @@ struct SwipePhotoView: View {
                         .padding(.bottom, 34) // Safe area padding
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
+                    
+                    // FAB positioned in bottom right
+                    HStack {
+                        Spacer()
+                        VStack {
+                            Spacer()
+                            Button(action: {
+                                showingActionSheet = true
+                            }) {
+                                Image(systemName: "ellipsis")
+                                    .font(.title2)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
+                                    .frame(width: 56, height: 56)
+                                    .background(Color.blue)
+                                    .clipShape(Circle())
+                                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+                            }
+                            .padding(.trailing, 20)
+                            .padding(.bottom, 34) // Safe area padding
+                        }
+                    }
                 }
             }
         }
@@ -308,15 +319,10 @@ struct SwipePhotoView: View {
             initializePreferenceManager()
             updateQuickListStatus()
             updateFavoriteStatus()
-            setupToolbar()
-        }
-        .onDisappear {
-            toolbarManager.hideCustomToolbar()
         }
         .onChange(of: currentIndex) { _, _ in
             updateQuickListStatus()
             updateFavoriteStatus()
-            updateToolbar()
         }
         .sheet(isPresented: $showingAddPin) {
             NavigationView {
@@ -337,6 +343,18 @@ struct SwipePhotoView: View {
         }
         .sheet(isPresented: $showingSimilarGridView) {
             SimilarPhotosGridView(targetAsset: currentAsset)
+        }
+        .sheet(isPresented: $showingActionSheet) {
+            PhotoActionSheet(
+                isFavorite: isFavorite,
+                isInQuickList: isInQuickList,
+                onShare: sharePhoto,
+                onToggleFavorite: toggleFavorite,
+                onToggleQuickList: toggleQuickList,
+                onAddPin: { showingAddPin = true },
+                onFindSimilar: { showingSimilarGridView = true }
+            )
+            .presentationDetents([.medium])
         }
         .navigationBarHidden(true)
     }
@@ -396,8 +414,6 @@ struct SwipePhotoView: View {
                     print("✅ Successfully toggled favorite status")
                     // Update our state to reflect the change
                     self.isFavorite = !self.isFavorite
-                    // Update the toolbar to reflect the new favorite state
-                    self.updateToolbar()
                     // Provide haptic feedback
                     let impactFeedback = UIImpactFeedbackGenerator(style: .light)
                     impactFeedback.impactOccurred()
@@ -533,79 +549,6 @@ struct SwipePhotoView: View {
         }
     }
     
-    // MARK: - Toolbar Setup
-    
-    private func setupToolbar() {
-        let toolbarButtons = [
-            ToolbarButtonConfig(
-                id: "share",
-                title: "Share",
-                systemImage: "square.and.arrow.up",
-                action: sharePhoto,
-                color: .blue
-            ),
-            ToolbarButtonConfig(
-                id: "favorite",
-                title: "Favorite",
-                systemImage: isFavorite ? "heart.fill" : "heart",
-                action: toggleFavorite,
-                color: isFavorite ? .red : .primary
-            ),
-            ToolbarButtonConfig(
-                id: "quick",
-                title: "Quick List",
-                systemImage: isInQuickList ? "plus.square.fill" : "plus.square",
-                action: toggleQuickList,
-                color: isInQuickList ? .orange : .primary
-            ),
-            ToolbarButtonConfig(
-                id: "addpin",
-                title: "Add Pin",
-                systemImage: "mappin.and.ellipse",
-                action: { showingAddPin = true },
-                color: .primary
-            )
-        ]
-        
-        toolbarManager.setCustomToolbar(buttons: toolbarButtons, hideDefaultTabBar: true)
-    }
-    
-    private func updateToolbar() {
-        // Update toolbar when photo changes - explicitly replace buttons
-        print("📱 SwipePhotoView: Updating toolbar for photo \(currentIndex)")
-        let toolbarButtons = [
-            ToolbarButtonConfig(
-                id: "share",
-                title: "Share",
-                systemImage: "square.and.arrow.up",
-                action: sharePhoto,
-                color: .blue
-            ),
-            ToolbarButtonConfig(
-                id: "favorite",
-                title: "Favorite",
-                systemImage: isFavorite ? "heart.fill" : "heart",
-                action: toggleFavorite,
-                color: isFavorite ? .red : .primary
-            ),
-            ToolbarButtonConfig(
-                id: "quick",
-                title: "Quick List",
-                systemImage: isInQuickList ? "plus.square.fill" : "plus.square",
-                action: toggleQuickList,
-                color: isInQuickList ? .orange : .primary
-            ),
-            ToolbarButtonConfig(
-                id: "addpin",
-                title: "Add Pin",
-                systemImage: "mappin.and.ellipse",
-                action: { showingAddPin = true },
-                color: .primary
-            )
-        ]
-        
-        toolbarManager.updateCustomToolbar(buttons: toolbarButtons)
-    }
 
     // MARK: - Formatting Helpers
     

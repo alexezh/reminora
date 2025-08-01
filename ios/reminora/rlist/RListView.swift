@@ -125,8 +125,14 @@ struct RListView: View {
     let onDeleteItem: ((any RListViewItem) -> Void)?
     let onUserTap: ((String, String) -> Void)?
     
+    // Selection mode support
+    let isSelectionMode: Bool
+    let selectedAssets: Set<String>
+    
     init(
         dataSource: RListDataSource,
+        isSelectionMode: Bool = false,
+        selectedAssets: Set<String> = [],
         onPhotoTap: @escaping (PHAsset) -> Void,
         onPinTap: @escaping (PinData) -> Void,
         onPhotoStackTap: @escaping ([PHAsset]) -> Void,
@@ -135,6 +141,8 @@ struct RListView: View {
         onUserTap: ((String, String) -> Void)? = nil
     ) {
         self.dataSource = dataSource
+        self.isSelectionMode = isSelectionMode
+        self.selectedAssets = selectedAssets
         self.onPhotoTap = onPhotoTap
         self.onPinTap = onPinTap
         self.onPhotoStackTap = onPhotoStackTap
@@ -164,6 +172,8 @@ struct RListView: View {
                     ForEach(sections) { section in
                         RListSectionView(
                             section: section,
+                            isSelectionMode: isSelectionMode,
+                            selectedAssets: selectedAssets,
                             onPhotoTap: onPhotoTap,
                             onPinTap: onPinTap,
                             onPhotoStackTap: onPhotoStackTap,
@@ -270,6 +280,8 @@ struct RListView: View {
 // MARK: - RListSectionView
 struct RListSectionView: View {
     let section: RListDateSection
+    let isSelectionMode: Bool
+    let selectedAssets: Set<String>
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (PinData) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
@@ -296,6 +308,8 @@ struct RListSectionView: View {
                 ForEach(Array(arrangeItemsInRows().enumerated()), id: \.offset) { _, row in
                     RListRowView(
                         row: row,
+                        isSelectionMode: isSelectionMode,
+                        selectedAssets: selectedAssets,
                         onPhotoTap: onPhotoTap,
                         onPinTap: onPinTap,
                         onPhotoStackTap: onPhotoStackTap,
@@ -361,6 +375,8 @@ enum RListRowType {
 // MARK: - RListRowView
 struct RListRowView: View {
     let row: RListRow
+    let isSelectionMode: Bool
+    let selectedAssets: Set<String>
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (PinData) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
@@ -381,6 +397,8 @@ struct RListRowView: View {
                     ForEach(Array(row.items.enumerated()), id: \.offset) { _, item in
                         RListPhotoGridItemView(
                             item: item,
+                            isSelectionMode: isSelectionMode,
+                            selectedAssets: selectedAssets,
                             onPhotoTap: onPhotoTap,
                             onPhotoStackTap: onPhotoStackTap
                         )
@@ -397,6 +415,8 @@ struct RListRowView: View {
             ForEach(row.items, id: \.id) { item in
                 RRListItemDataView(
                     item: item,
+                    isSelectionMode: isSelectionMode,
+                    selectedAssets: selectedAssets,
                     onPhotoTap: onPhotoTap,
                     onPinTap: onPinTap,
                     onPhotoStackTap: onPhotoStackTap,
@@ -412,15 +432,27 @@ struct RListRowView: View {
 // MARK: - RListPhotoGridItemView
 struct RListPhotoGridItemView: View {
     let item: any RListViewItem
+    let isSelectionMode: Bool
+    let selectedAssets: Set<String>
     let onPhotoTap: (PHAsset) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
     
     var body: some View {
         switch item.itemType {
         case .photo(let asset):
-            RListPhotoGridView(asset: asset, onTap: { onPhotoTap(asset) })
+            RListPhotoGridView(
+                asset: asset, 
+                isSelectionMode: isSelectionMode,
+                isSelected: selectedAssets.contains(asset.localIdentifier),
+                onTap: { onPhotoTap(asset) }
+            )
         case .photoStack(let assets):
-            RListPhotoStackGridView(assets: assets, onTap: { onPhotoStackTap(assets) })
+            RListPhotoStackGridView(
+                assets: assets, 
+                isSelectionMode: isSelectionMode,
+                isSelected: assets.allSatisfy { selectedAssets.contains($0.localIdentifier) },
+                onTap: { onPhotoStackTap(assets) }
+            )
         case .pin(_), .location(_):
             // This shouldn't happen in photo rows, but handle gracefully
             EmptyView()
@@ -431,12 +463,36 @@ struct RListPhotoGridItemView: View {
 // MARK: - RRListItemDataView
 struct RRListItemDataView: View {
     let item: any RListViewItem
+    let isSelectionMode: Bool
+    let selectedAssets: Set<String>
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (PinData) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
     let onDeleteItem: ((any RListViewItem) -> Void)?
     let onUserTap: ((String, String) -> Void)?
+    
+    init(
+        item: any RListViewItem,
+        isSelectionMode: Bool = false,
+        selectedAssets: Set<String> = [],
+        onPhotoTap: @escaping (PHAsset) -> Void,
+        onPinTap: @escaping (PinData) -> Void,
+        onPhotoStackTap: @escaping ([PHAsset]) -> Void,
+        onLocationTap: ((LocationInfo) -> Void)? = nil,
+        onDeleteItem: ((any RListViewItem) -> Void)? = nil,
+        onUserTap: ((String, String) -> Void)? = nil
+    ) {
+        self.item = item
+        self.isSelectionMode = isSelectionMode
+        self.selectedAssets = selectedAssets
+        self.onPhotoTap = onPhotoTap
+        self.onPinTap = onPinTap
+        self.onPhotoStackTap = onPhotoStackTap
+        self.onLocationTap = onLocationTap
+        self.onDeleteItem = onDeleteItem
+        self.onUserTap = onUserTap
+    }
     
     var body: some View {
         switch item.itemType {
@@ -485,15 +541,25 @@ struct RRListItemDataView: View {
 // MARK: - Grid-specific Photo Views
 struct RListPhotoGridView: View {
     let asset: PHAsset
+    let isSelectionMode: Bool
+    let isSelected: Bool
     let onTap: () -> Void
+    
+    init(asset: PHAsset, isSelectionMode: Bool = false, isSelected: Bool = false, onTap: @escaping () -> Void) {
+        self.asset = asset
+        self.isSelectionMode = isSelectionMode
+        self.isSelected = isSelected
+        self.onTap = onTap
+    }
     
     @State private var image: UIImage?
     
     var body: some View {
         Button(action: onTap) {
-            if let image = image {
-                Image(uiImage: image)
-                    .resizable()
+            ZStack {
+                if let image = image {
+                    Image(uiImage: image)
+                        .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
@@ -508,6 +574,27 @@ struct RListPhotoGridView: View {
                             .progressViewStyle(CircularProgressViewStyle())
                             .scaleEffect(0.7)
                     )
+            }
+            
+            // Selection mode overlay
+            if isSelectionMode {
+                VStack {
+                    HStack {
+                        ZStack {
+                            Circle()
+                                .fill(Color.black.opacity(0.7))
+                                .frame(width: 24, height: 24)
+                            
+                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                .font(.caption)
+                                .foregroundColor(isSelected ? .blue : .white)
+                        }
+                        .padding(6)
+                        Spacer()
+                    }
+                    Spacer()
+                }
+            }
             }
         }
         .buttonStyle(PlainButtonStyle())

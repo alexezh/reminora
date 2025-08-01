@@ -1057,14 +1057,17 @@ struct NearbyPhotosMainView: View {
             Group {
                 if let selectedStack = selectedStack {
                     SwipePhotoView(
-                        stack: selectedStack,
-                        initialIndex: selectedStackIndex,
+                        allAssets: selectedStack.assets,
+                        photoStacks: [selectedStack],
+                        initialAssetId: selectedStack.assets[selectedStackIndex].localIdentifier,
                         onDismiss: {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 self.selectedStack = nil
                             }
                             // Refresh filter to remove disliked photos from view
                             applyFilter()
+                            // Restore toolbar state via ContentView
+                            NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
                         }
                     )
                     .transition(.asymmetric(

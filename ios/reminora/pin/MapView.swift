@@ -427,7 +427,6 @@ struct MapView: View {
             // Load last saved map region and search cache
             loadLastMapRegion()
             loadSearchCache()
-            setupToolbar()
             
             // Request location permission and get user location
             print("📍 MapView appeared")
@@ -443,9 +442,6 @@ struct MapView: View {
             } else {
                 print("⚠️ No user location available")
             }
-        }
-        .onDisappear {
-            toolbarManager.hideCustomToolbar()
         }
         .onChange(of: locationManager.lastLocation) { _, newLocation in
             if let location = newLocation {

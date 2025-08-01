@@ -25,6 +25,10 @@ struct PhotoMainView: View {
     @State private var endDate: Date?
     @State private var allPhotoAssets: [PHAsset] = [] // Store all photos before filtering
     
+    // Selection mode state
+    @State private var isSelectionMode = false
+    @State private var selectedAssets: Set<String> = [] // Using asset localIdentifiers
+    
     // Track stacking state to reduce repetitive logging
     @State private var lastEmbeddingCount = -1
     @State private var hasStacksBeenCleared = false
@@ -170,9 +174,11 @@ struct PhotoMainView: View {
     
     var body: some View {
         VStack {
-            // Search button at top
+            // Top buttons: Search and Select/Cancel
             HStack {
                 Spacer()
+                
+                // Search button
                 Button(action: {
                     showingSearch = true
                 }) {
@@ -180,8 +186,30 @@ struct PhotoMainView: View {
                         .font(.title2)
                         .foregroundColor(.blue)
                 }
+                .padding(.trailing, 8)
+                
+                // Select/Cancel button
+                Button(action: {
+                    toggleSelectionMode()
+                }) {
+                    Text(isSelectionMode ? "Cancel" : "Select")
+                        .font(.body)
+                        .foregroundColor(.blue)
+                }
                 .padding(.trailing, 16)
-                .padding(.top, 8)
+            }
+            .padding(.top, 8)
+            
+            // Selection status
+            if isSelectionMode {
+                HStack {
+                    Text(selectedAssets.isEmpty ? "Select photos" : "\(selectedAssets.count) selected")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 4)
             }
             
             if !isCoreDataReady {
@@ -229,25 +257,41 @@ struct PhotoMainView: View {
                     // Use RListView to display photos with date separators
                     RListView(
                         dataSource: .photoLibrary(photoAssets),
+                        isSelectionMode: isSelectionMode,
+                        selectedAssets: selectedAssets,
                         onPhotoTap: { asset in
-                            // Create a stack with just this photo and show it
-                            let stack = PhotoStack(assets: [asset])
-                            selectedStackIndex = 0
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedStack = stack
-                                isSwipePhotoViewOpen = true
+                            if isSelectionMode {
+                                toggleAssetSelection(asset)
+                            } else {
+                                // Create a stack with just this photo and show it
+                                let stack = PhotoStack(assets: [asset])
+                                selectedStackIndex = 0
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedStack = stack
+                                    isSwipePhotoViewOpen = true
+                                }
                             }
                         },
                         onPinTap: { _ in
                             // Not used in photo library view
                         },
                         onPhotoStackTap: { assets in
-                            // Create a stack and show it
-                            let stack = PhotoStack(assets: assets)
-                            selectedStackIndex = 0
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                selectedStack = stack
-                                isSwipePhotoViewOpen = true
+                            if isSelectionMode {
+                                // Select all photos in the stack
+                                for asset in assets {
+                                    if !selectedAssets.contains(asset.localIdentifier) {
+                                        selectedAssets.insert(asset.localIdentifier)
+                                    }
+                                }
+                                updateToolbar()
+                            } else {
+                                // Create a stack and show it
+                                let stack = PhotoStack(assets: assets)
+                                selectedStackIndex = 0
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    selectedStack = stack
+                                    isSwipePhotoViewOpen = true
+                                }
                             }
                         },
                         onLocationTap: { _ in
@@ -287,8 +331,10 @@ struct PhotoMainView: View {
             requestPhotoAccess()
             setupToolbar()
         }
-        .onDisappear {
-            toolbarManager.hideCustomToolbar()
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RestoreToolbar"))) { _ in
+            // Restore PhotoMainView specific toolbar when returning from SwipePhotoView
+            print("🔧 PhotoMainView: Restoring toolbar after SwipePhotoView dismissal")
+            setupToolbar()
         }
         .onChange(of: isCoreDataReady) { _, isReady in
             if isReady && !hasTriedInitialLoad {
@@ -302,8 +348,9 @@ struct PhotoMainView: View {
         .overlay {
             if let selectedStack = selectedStack {
                 SwipePhotoView(
-                    stack: selectedStack,
-                    initialIndex: selectedStackIndex,
+                    allAssets: photoAssets,
+                    photoStacks: filteredPhotoStacks,
+                    initialAssetId: selectedStack.primaryAsset.localIdentifier,
                     onDismiss: {
                         print("SwipePhotoView dismissed")
                         withAnimation(.easeInOut(duration: 0.3)) {
@@ -312,6 +359,8 @@ struct PhotoMainView: View {
                         }
                         // Refresh filter to remove disliked photos from view
                         applyFilter()
+                        // Restore toolbar state via ContentView  
+                        NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
                     }
                 )
                 .transition(.asymmetric(
@@ -578,11 +627,126 @@ struct PhotoMainView: View {
         return PhotoEmbeddingService.shared.dataToEmbedding(embeddingData)
     }
     
+    // MARK: - Selection Mode
+    
+    private func toggleSelectionMode() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isSelectionMode.toggle()
+            if !isSelectionMode {
+                selectedAssets.removeAll()
+            }
+            updateToolbar()
+        }
+    }
+    
+    private func toggleAssetSelection(_ asset: PHAsset) {
+        if selectedAssets.contains(asset.localIdentifier) {
+            selectedAssets.remove(asset.localIdentifier)
+        } else {
+            selectedAssets.insert(asset.localIdentifier)
+        }
+        updateToolbar()
+    }
+    
+    // MARK: - Batch Actions
+    
+    private func favoriteSelectedPhotos() {
+        let assetsToFavorite = allPhotoAssets.filter { selectedAssets.contains($0.localIdentifier) }
+        
+        PHPhotoLibrary.shared().performChanges({
+            for asset in assetsToFavorite {
+                let request = PHAssetChangeRequest(for: asset)
+                request.isFavorite = true
+            }
+        }) { success, error in
+            DispatchQueue.main.async {
+                if success {
+                    print("✅ Successfully favorited \(assetsToFavorite.count) photos")
+                } else {
+                    print("❌ Failed to favorite photos: \(error?.localizedDescription ?? "Unknown error")")
+                }
+                // Exit selection mode after action
+                self.isSelectionMode = false
+                self.selectedAssets.removeAll()
+                self.updateToolbar()
+            }
+        }
+    }
+    
+    private func archiveSelectedPhotos() {
+        let assetsToArchive = allPhotoAssets.filter { selectedAssets.contains($0.localIdentifier) }
+        
+        // Update preferences to mark as archived
+        for asset in assetsToArchive {
+            preferenceManager.setPreference(for: asset, preference: .archive)
+        }
+        
+        print("✅ Archived \(assetsToArchive.count) photos")
+        
+        // Exit selection mode and refresh
+        isSelectionMode = false
+        selectedAssets.removeAll()
+        updateToolbar()
+        applyFilter() // Refresh to remove archived photos if current filter excludes them
+    }
+    
+    private func addSelectedToQuickList() {
+        let assetsToAdd = allPhotoAssets.filter { selectedAssets.contains($0.localIdentifier) }
+        let userId = AuthenticationService.shared.currentAccount?.id ?? ""
+        
+        var successCount = 0
+        for asset in assetsToAdd {
+            if RListService.shared.togglePhotoInQuickList(asset, context: viewContext, userId: userId) {
+                successCount += 1
+            }
+        }
+        
+        print("✅ Added \(successCount) photos to Quick List")
+        
+        // Exit selection mode after action
+        isSelectionMode = false
+        selectedAssets.removeAll()
+        updateToolbar()
+    }
+    
     // MARK: - Toolbar Setup
     
     private func setupToolbar() {
-        // Use FAB-only mode in PhotoMainView to keep the view clean
-        toolbarManager.setFABOnlyMode()
+        updateToolbar()
+    }
+    
+    private func updateToolbar() {
+        let hasSelection = !selectedAssets.isEmpty
+        
+        // Always show these buttons, but enable/disable based on selection mode and selection count
+        let photoButtons = [
+            ToolbarButtonConfig(
+                id: "favorite",
+                title: "Favorite",
+                systemImage: "heart",
+                action: { self.favoriteSelectedPhotos() },
+                isEnabled: isSelectionMode && hasSelection,
+                color: (isSelectionMode && hasSelection) ? .red : .gray
+            ),
+            ToolbarButtonConfig(
+                id: "archive",
+                title: "Archive", 
+                systemImage: "archivebox",
+                action: { self.archiveSelectedPhotos() },
+                isEnabled: isSelectionMode && hasSelection,
+                color: (isSelectionMode && hasSelection) ? .orange : .gray
+            ),
+            ToolbarButtonConfig(
+                id: "quick",
+                title: "Quick List",
+                systemImage: "list.bullet.rectangle",
+                action: { self.addSelectedToQuickList() },
+                isEnabled: isSelectionMode && hasSelection,
+                color: (isSelectionMode && hasSelection) ? .blue : .gray
+            )
+        ]
+        
+        toolbarManager.setCustomToolbar(buttons: photoButtons)
     }
 }
 

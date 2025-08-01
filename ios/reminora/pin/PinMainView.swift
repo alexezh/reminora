@@ -123,43 +123,6 @@ struct PinMainView: View {
                 .font(.title2)
                 .foregroundColor(.blue)
             }
-            .padding(.trailing, 8)
-            
-            // Action menu
-            Menu {
-              // Sort options
-              Menu("Sort by") {
-                ForEach(SortOption.allCases, id: \.self) { option in
-                  Button(action: {
-                    selectedSortOption = option
-                    saveSortPreference()
-                  }) {
-                    HStack {
-                      Text(option.displayName)
-                      if selectedSortOption == option {
-                        Spacer()
-                        Image(systemName: "checkmark")
-                      }
-                    }
-                  }
-                }
-              }
-              
-              Divider()
-              
-              Button("Add Pin") {
-                showingAddPin = true
-              }
-              Button("Add Open Invite") {
-                showingOpenInvite = true
-              }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .font(.title2)
-                    .foregroundColor(.primary)
-                    .padding(8)
-                    .background(.ultraThinMaterial, in: Circle())
-            }
           }
           .padding(.horizontal, 16)
           .padding(.top, 8) // Top safe area padding
@@ -305,14 +268,24 @@ struct PinMainView: View {
     .onAppear {
       loadSortPreference()
       syncFollowingUsersIfNeeded()
-      setupToolbar()
-    }
-    .onDisappear {
-      toolbarManager.hideCustomToolbar()
     }
     .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
       // App returned from background - sync if needed
       syncFollowingUsersIfNeeded()
+    }
+    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AddPin"))) { _ in
+      print("🔧 PinMainView received AddPin notification")
+      showingAddPin = true
+    }
+    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AddOpenInvite"))) { _ in
+      print("🔧 PinMainView received AddOpenInvite notification")
+      showingOpenInvite = true
+    }
+    .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ToggleSort"))) { _ in
+      print("🔧 PinMainView received ToggleSort notification")
+      // Toggle between Recent and Distance sorting
+      selectedSortOption = selectedSortOption == .recent ? .distance : .recent
+      saveSortPreference()
     }
     .sheet(isPresented: $showingOpenInvite) {
       OpenInviteView()

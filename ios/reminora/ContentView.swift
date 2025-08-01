@@ -21,56 +21,47 @@ struct ContentView: View {
     @StateObject private var toolbarManager = ToolbarManager()
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            // Photos Tab
-            NavigationView {
-                PhotoMainView(isSwipePhotoViewOpen: $isSwipePhotoViewOpen)
-            }
-            .toolbar(.hidden, for: .navigationBar)
-            .navigationBarHidden(true)
-            .tabItem {
-                Image(systemName: "photo.stack")
-            }
-            .tag(0)
-
-            // Map Tab
-            NavigationView {
-                MapView()
-            }
-            .navigationBarHidden(true)
-            .tabItem {
-                Image(systemName: "map")
-            }
-            .tag(1)
-
-            // Pins Tab
-            NavigationView {
-                PinMainView()
-            }
-            .navigationBarHidden(true)
-            .tabItem {
-                Image(systemName: "mappin.and.ellipse")
-            }
-            .tag(2)
-
-            AllRListsView(
-                context: viewContext,
-                userId: authService.currentAccount?.id ?? ""
-            )
-            .tabItem {
-                Image(systemName: "list.bullet.circle")
-            }
-            .tag(3)
-            // Profile Tab
-            ProfileView()
-                .tabItem {
-                    Image(systemName: "person.circle")
-                    Text("Profile")
+        VStack(spacing: 0) {
+            ZStack {
+                // Photos Tab
+                if selectedTab == 0 {
+                    NavigationView {
+                        PhotoMainView(isSwipePhotoViewOpen: $isSwipePhotoViewOpen)
+                    }
+                    .navigationBarHidden(true)
                 }
-                .tag(4)
+                
+                // Map Tab
+                if selectedTab == 1 {
+                    NavigationView {
+                        MapView()
+                    }
+                    .navigationBarHidden(true)
+                }
+                
+                // Pins Tab
+                if selectedTab == 2 {
+                    NavigationView {
+                        PinMainView()
+                    }
+                    .navigationBarHidden(true)
+                }
+                
+                // Lists Tab
+                if selectedTab == 3 {
+                    AllRListsView(
+                        context: viewContext,
+                        userId: authService.currentAccount?.id ?? ""
+                    )
+                }
+                
+                // Profile Tab
+                if selectedTab == 4 {
+                    ProfileView()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .accentColor(.blue)
-        .toolbar(.hidden, for: .bottomBar) // Always hide default tab bar, use only dynamic toolbar
         .onChange(of: selectedTab) { _, newValue in
             UserDefaults.standard.set(newValue, forKey: "selectedTab")
             
@@ -79,8 +70,26 @@ struct ContentView: View {
         }
         .environment(\.toolbarManager, toolbarManager)
         .sheet(isPresented: $toolbarManager.showActionSheet) {
-            UniversalActionSheet()
-                .presentationDetents([.medium])
+            UniversalActionSheet(
+                selectedTab: selectedTab,
+                onRefreshLists: {
+                    // Trigger refresh on Lists tab
+                    NotificationCenter.default.post(name: NSNotification.Name("RefreshLists"), object: nil)
+                },
+                onAddPin: {
+                    // Trigger add pin on Pins tab
+                    NotificationCenter.default.post(name: NSNotification.Name("AddPin"), object: nil)
+                },
+                onAddOpenInvite: {
+                    // Trigger add open invite on Pins tab
+                    NotificationCenter.default.post(name: NSNotification.Name("AddOpenInvite"), object: nil)
+                },
+                onToggleSort: {
+                    // Trigger sort toggle on Pins tab
+                    NotificationCenter.default.post(name: NSNotification.Name("ToggleSort"), object: nil)
+                }
+            )
+            .presentationDetents([.medium])
         }
         .overlay(alignment: .bottom) {
             // Custom dynamic toolbar (show when enabled, including when SwipePhotoView is open with its buttons)
@@ -93,6 +102,7 @@ struct ContentView: View {
                     version: toolbarManager.version,
                     showOnlyFAB: toolbarManager.showOnlyFAB
                 )
+                .ignoresSafeArea(.container, edges: .bottom) // Extend to bottom edge
             }
         }
         .onAppear {
@@ -100,6 +110,11 @@ struct ContentView: View {
             startBackgroundEmbeddingComputation()
             
             // Set up toolbar for initial tab
+            setupToolbarForTab(selectedTab)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RestoreToolbar"))) { _ in
+            // Restore toolbar when returning from SwipePhotoView or other overlay views
+            print("🔧 ContentView: Restoring toolbar for current tab \(selectedTab)")
             setupToolbarForTab(selectedTab)
         }
         .onReceive(
@@ -282,6 +297,11 @@ struct ContentView: View {
 
 struct UniversalActionSheet: View {
     @Environment(\.dismiss) private var dismiss
+    let selectedTab: Int
+    let onRefreshLists: () -> Void
+    let onAddPin: () -> Void
+    let onAddOpenInvite: () -> Void
+    let onToggleSort: () -> Void
     
     var body: some View {
         VStack(spacing: 0) {
@@ -327,19 +347,78 @@ struct UniversalActionSheet: View {
                     }
                 )
                 
-                QuickActionButton(
-                    icon: "gear",
-                    title: "Settings",
-                    color: .gray,
-                    action: {
-                        dismiss()
-                        print("Settings tapped")
-                    }
-                )
+                // Show context-specific fourth button based on tab
+                if selectedTab == 3 {
+                    // Lists tab - show Refresh
+                    QuickActionButton(
+                        icon: "arrow.clockwise",
+                        title: "Refresh",
+                        color: .green,
+                        action: {
+                            dismiss()
+                            onRefreshLists()
+                        }
+                    )
+                } else if selectedTab == 2 {
+                    // Pins tab - show Sort
+                    QuickActionButton(
+                        icon: "arrow.up.arrow.down",
+                        title: "Sort",
+                        color: .green,
+                        action: {
+                            dismiss()
+                            onToggleSort()
+                        }
+                    )
+                } else {
+                    // Other tabs - show Settings
+                    QuickActionButton(
+                        icon: "gear",
+                        title: "Settings",
+                        color: .gray,
+                        action: {
+                            dismiss()
+                            print("Settings tapped")
+                        }
+                    )
+                }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 34)
+            
+            // Second row for Pins tab - Add Pin and Add Open Invite
+            if selectedTab == 2 {
+                HStack(spacing: 20) {
+                    QuickActionButton(
+                        icon: "plus.circle",
+                        title: "Add Pin",
+                        color: .orange,
+                        action: {
+                            dismiss()
+                            onAddPin()
+                        }
+                    )
+                    
+                    QuickActionButton(
+                        icon: "envelope.open",
+                        title: "Open Invite",
+                        color: .purple,
+                        action: {
+                            dismiss()
+                            onAddOpenInvite()
+                        }
+                    )
+                    
+                    // Empty spacers to maintain layout
+                    Spacer()
+                        .frame(width: 50, height: 50)
+                    Spacer()
+                        .frame(width: 50, height: 50)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+            }
         }
+        .padding(.bottom, 34)
         .background(Color(.systemBackground))
     }
 }

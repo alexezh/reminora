@@ -104,52 +104,59 @@ struct DynamicToolbar: View {
                 let leftButtons = Array(regularButtons.prefix(regularButtons.count / 2))
                 let rightButtons = Array(regularButtons.suffix(from: regularButtons.count / 2))
                 
-                ZStack {
-                    // Background with border - fixed height
-                    backgroundColor
-                        .frame(height: 60) // Fixed toolbar height
-                        .overlay(
-                            Rectangle()
-                                .fill(Color(.separator))
-                                .frame(height: 0.5),
-                            alignment: position == .bottom ? .top : .bottom
-                        )
-                    
-                    HStack(spacing: 0) {
-                        // Left buttons
-                        ForEach(leftButtons) { button in
-                            ToolbarButton(button: button)
-                        }
+                VStack(spacing: 0) {
+                    // Main toolbar content
+                    ZStack {
+                        // Background with border - reduced height
+                        backgroundColor
+                            .frame(height: 60) // Reduced from 70 to 60
+                            .overlay(
+                                Rectangle()
+                                    .fill(Color(.separator))
+                                    .frame(height: 0.5),
+                                alignment: position == .bottom ? .top : .bottom
+                            )
                         
-                        // Center spacer for FAB - make it larger
-                        if fabButton != nil {
-                            Spacer().frame(width: 80) // Larger space for bigger FAB
+                        HStack(spacing: 0) {
+                            // Left buttons
+                            ForEach(leftButtons) { button in
+                                ToolbarButton(button: button)
+                            }
+                            
+                            // Center spacer for FAB
+                            if fabButton != nil {
+                                Spacer().frame(width: 80) // Space for centered FAB
+                            }
+                            
+                            // Right buttons
+                            ForEach(rightButtons) { button in
+                                ToolbarButton(button: button)
+                            }
                         }
+                        .frame(height: 60) // Match background height
                         
-                        // Right buttons
-                        ForEach(rightButtons) { button in
-                            ToolbarButton(button: button)
+                        // Centered FAB button - positioned lower
+                        if let fab = fabButton {
+                            Button(action: fab.action) {
+                                Image(systemName: fab.systemImage)
+                                    .font(.title)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                    .frame(width: 56, height: 56)
+                                    .background(fab.isEnabled ? fab.color : Color.gray)
+                                    .clipShape(Circle())
+                                    .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
+                            }
+                            .disabled(!fab.isEnabled)
+                            .offset(y: position == .bottom ? 5 : -5) // Move lower in toolbar
                         }
                     }
-                    .frame(height: 60) // Match background height
                     
-                    // Centered FAB button - larger and more prominent
-                    if let fab = fabButton {
-                        Button(action: fab.action) {
-                            Image(systemName: fab.systemImage)
-                                .font(.title)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                                .frame(width: 64, height: 64)
-                                .background(fab.isEnabled ? fab.color : Color.gray)
-                                .clipShape(Circle())
-                                .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
-                        }
-                        .disabled(!fab.isEnabled)
-                        .offset(y: position == .bottom ? -10 : 10) // More prominent elevation
-                    }
+                    // Extend to bottom edge with safe area
+                    Rectangle()
+                        .fill(backgroundColor)
+                        .frame(height: 34) // Approximate safe area bottom height
                 }
-                .frame(height: 60) // Constrain entire toolbar height
             }
         }
     }
@@ -250,7 +257,7 @@ struct ToolbarButton: View {
     
     var body: some View {
         Button(action: button.action) {
-            VStack(spacing: 4) {
+            VStack(spacing: 2) {
                 Image(systemName: button.systemImage)
                     .font(.system(size: 20))
                     .foregroundColor(button.isEnabled ? button.color : .gray)
@@ -261,8 +268,9 @@ struct ToolbarButton: View {
                         .foregroundColor(button.isEnabled ? button.color : .gray)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: 60) // Fixed height to match toolbar
-            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, maxHeight: 60) // Match reduced toolbar height
+            .padding(.vertical, 4)
+            .offset(y: 8) // Move buttons lower in the toolbar
         }
         .disabled(!button.isEnabled)
     }

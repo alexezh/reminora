@@ -220,8 +220,9 @@ struct RListDetailView: View {
         // Present SwipePhotoView when a photo is selected
         .fullScreenCover(item: $selectedPhotoStack) { photoStack in
             SwipePhotoView(
-                stack: photoStack,
-                initialIndex: 0,
+                allAssets: photoStack.assets,
+                photoStacks: [photoStack], // Temporary single stack
+                initialAssetId: photoStack.primaryAsset.localIdentifier,
                 onDismiss: {
                     selectedPhotoStack = nil
                 }

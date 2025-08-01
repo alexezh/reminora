@@ -14,7 +14,16 @@ import MapKit
 
 struct RListPhotoStackGridView: View {
     let assets: [PHAsset]
+    let isSelectionMode: Bool
+    let isSelected: Bool
     let onTap: () -> Void
+    
+    init(assets: [PHAsset], isSelectionMode: Bool = false, isSelected: Bool = false, onTap: @escaping () -> Void) {
+        self.assets = assets
+        self.isSelectionMode = isSelectionMode
+        self.isSelected = isSelected
+        self.onTap = onTap
+    }
     
     @State private var image: UIImage?
     
@@ -55,6 +64,26 @@ struct RListPhotoStackGridView: View {
                                     .foregroundColor(.white)
                             }
                             .padding(6)
+                        }
+                        Spacer()
+                    }
+                }
+                
+                // Selection mode overlay
+                if isSelectionMode {
+                    VStack {
+                        HStack {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.black.opacity(0.7))
+                                    .frame(width: 24, height: 24)
+                                
+                                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                    .font(.caption)
+                                    .foregroundColor(isSelected ? .blue : .white)
+                            }
+                            .padding(6)
+                            Spacer()
                         }
                         Spacer()
                     }

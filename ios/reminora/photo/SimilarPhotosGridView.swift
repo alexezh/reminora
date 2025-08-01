@@ -105,8 +105,9 @@ struct SimilarPhotosGridView: View {
                     // Create a temporary PhotoStack for single photo display  
                     let singlePhotoStack = PhotoStack(assets: [photo])
                     SwipePhotoView(
-                        stack: singlePhotoStack,
-                        initialIndex: 0,
+                        allAssets: [photo],
+                        photoStacks: [singlePhotoStack],
+                        initialAssetId: photo.localIdentifier,
                         onDismiss: {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 showingSwipeView = false

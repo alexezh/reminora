@@ -39,17 +39,6 @@ struct AllRListsView: View {
                 .refreshable {
                     await loadRListDatas()
                 }
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: {
-                            Task {
-                                await loadRListDatas()
-                            }
-                        }) {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                    }
-                }
         }
         .task {
             await loadRListDatas()
@@ -61,11 +50,13 @@ struct AllRListsView: View {
             print("🔍 AllRListsView received RListDatasChanged notification")
             refreshTrigger = UUID()
         }
-        .onAppear {
-            setupToolbar()
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RefreshLists"))) { _ in
+            print("🔄 AllRListsView received RefreshLists notification")
+            Task {
+                await loadRListDatas()
+            }
         }
-        .onDisappear {
-            toolbarManager.hideCustomToolbar()
+        .onAppear {
         }
     }
     

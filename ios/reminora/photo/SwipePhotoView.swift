@@ -14,15 +14,24 @@ import CoreData
 import MapKit
 import CoreLocation
 
+// Photo group info for stack display
+struct PhotoGroup {
+    let stackId: String
+    let assets: [PHAsset]
+    let isExpanded: Bool = false
+}
+
 // presented as overlay; takes whole screen
 struct SwipePhotoView: View {
-    let stack: PhotoStack
-    let initialIndex: Int
+    let allAssets: [PHAsset] // Full list of all photos
+    let photoStacks: [PhotoStack] // Stack information
+    let initialAssetId: String // Initial asset to display
     let onDismiss: () -> Void
     
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.toolbarManager) private var toolbarManager
-    @State private var currentIndex: Int
+    @State private var currentIndex: Int = 0
+    @State private var expandedStacks: Set<String> = [] // Track which stacks are expanded
     @State private var showingNearbyPhotos = false
     @State private var showingAddPin = false
     @State private var showingSimilarImages = false
@@ -36,6 +45,7 @@ struct SwipePhotoView: View {
     @State private var showingMap = false
     @State private var isFavorite = false
     @State private var showingActionSheet = false
+    @State private var displayAssets: [PHAsset] = [] // Assets to display (includes expanded stacks)
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
@@ -43,15 +53,65 @@ struct SwipePhotoView: View {
     
     @StateObject private var photoSharingService = PhotoSharingService.shared
     
-    init(stack: PhotoStack, initialIndex: Int, onDismiss: @escaping () -> Void) {
-        self.stack = stack
-        self.initialIndex = initialIndex
+    init(allAssets: [PHAsset], photoStacks: [PhotoStack], initialAssetId: String, onDismiss: @escaping () -> Void) {
+        self.allAssets = allAssets
+        self.photoStacks = photoStacks
+        self.initialAssetId = initialAssetId
         self.onDismiss = onDismiss
-        self._currentIndex = State(initialValue: initialIndex)
     }
     
     private var currentAsset: PHAsset {
-        return stack.assets[currentIndex]
+        guard currentIndex >= 0 && currentIndex < displayAssets.count else {
+            return allAssets.first ?? PHAsset()
+        }
+        return displayAssets[currentIndex]
+    }
+    
+    // Helper function to get stack info for an asset
+    private func getStackInfo(for asset: PHAsset) -> (stack: PhotoStack?, isStack: Bool, count: Int) {
+        for stack in photoStacks {
+            if stack.assets.contains(where: { $0.localIdentifier == asset.localIdentifier }) {
+                return (stack: stack, isStack: stack.assets.count > 1, count: stack.assets.count)
+            }
+        }
+        return (stack: nil, isStack: false, count: 1)
+    }
+    
+    // Build display assets based on expanded stacks
+    private func buildDisplayAssets() {
+        var assets: [PHAsset] = []
+        
+        for stack in photoStacks {
+            let stackId = stack.id.uuidString
+            if stack.assets.count > 1 && expandedStacks.contains(stackId) {
+                // Stack is expanded - add all assets with separation
+                assets.append(contentsOf: stack.assets)
+            } else {
+                // Single asset or collapsed stack - add primary asset only
+                assets.append(stack.primaryAsset)
+            }
+        }
+        
+        displayAssets = assets
+        
+        // Don't try to update currentIndex here to avoid circular dependency
+        print("buildDisplayAssets: Built \(displayAssets.count) display assets")
+    }
+    
+    // Expand a stack to show all photos
+    private func expandStack(_ stack: PhotoStack?) {
+        guard let stack = stack else { return }
+        let stackId = stack.id.uuidString
+        expandedStacks.insert(stackId)
+        buildDisplayAssets()
+    }
+    
+    // Collapse a stack
+    private func collapseStack(_ stack: PhotoStack?) {
+        guard let stack = stack else { return }
+        let stackId = stack.id.uuidString
+        expandedStacks.remove(stackId)
+        buildDisplayAssets()
     }
     
     var body: some View {
@@ -60,134 +120,88 @@ struct SwipePhotoView: View {
             Color.black
                 .ignoresSafeArea(.all)
             
-            if !isPreferenceManagerReady {
-                // Show loading UI while preference manager is initializing
-                VStack {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(1.5)
-                    Text("Loading...")
-                        .foregroundColor(.white)
-                        .padding(.top, 16)
-                }
-            } else {
+            // Show the main content immediately
+            if true {
                 GeometryReader { geometry in
-                    // Calculate safe area for photo to avoid overlap with UI
-                    let topSafeArea: CGFloat = 120 // Space for top navigation
-                    let bottomSafeArea: CGFloat = stack.assets.count > 1 ? 80 : 20 // Space for thumbnails
-                    let availableHeight = geometry.size.height - topSafeArea - bottomSafeArea
-                    
                     VStack(spacing: 0) {
-                        // Top spacer for navigation
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(height: topSafeArea)
-                        
-                        // Scrollable photo and map area
-                        ScrollViewReader { scrollProxy in
-                            ScrollView(.vertical, showsIndicators: false) {
-                                VStack(spacing: 0) {
-                                    // Photo section
-                                    if !stack.assets.isEmpty {
-                                        TabView(selection: $currentIndex) {
-                                            ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                                                SwipePhotoImageView(asset: asset, isLoading: $isLoading)
-                                                    .tag(index)
-                                            }
-                                        }
-                                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                                        .frame(height: availableHeight)
-                                        .id("photo")
-                                    } else {
-                                        // Fallback for empty stack
-                                        ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                            .frame(height: availableHeight)
-                                            .id("photo")
-                                    }
-                                    
-                                    // Map section (only show if photo has location)
-                                    if currentAsset.location != nil {
-                                        VStack(spacing: 16) {
-                                            // Section header
-                                            HStack {
-                                                Image(systemName: "map")
-                                                    .font(.title2)
-                                                    .foregroundColor(.white)
-                                                Text("Location")
-                                                    .font(.title2)
-                                                    .fontWeight(.medium)
-                                                    .foregroundColor(.white)
+                        // Main photo area
+                        if !displayAssets.isEmpty {
+                            TabView(selection: $currentIndex) {
+                                ForEach(Array(displayAssets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                                    ZStack {
+                                        SwipePhotoImageView(asset: asset, isLoading: $isLoading)
+                                        
+                                        // Stack count indicator in top-right corner
+                                        let stackInfo = getStackInfo(for: asset)
+                                        if stackInfo.isStack && !expandedStacks.contains(stackInfo.stack?.id.uuidString ?? "") {
+                                            VStack {
+                                                HStack {
+                                                    Spacer()
+                                                    Button(action: {
+                                                        expandStack(stackInfo.stack)
+                                                    }) {
+                                                        ZStack {
+                                                            Circle()
+                                                                .fill(Color.black.opacity(0.7))
+                                                                .frame(width: 32, height: 32)
+                                                            
+                                                            Text("\(stackInfo.count)")
+                                                                .font(.caption)
+                                                                .fontWeight(.medium)
+                                                                .foregroundColor(.white)
+                                                        }
+                                                    }
+                                                    .padding(.top, 120)
+                                                    .padding(.trailing, 16)
+                                                }
                                                 Spacer()
                                             }
-                                            .padding(.horizontal, 20)
-                                            .padding(.top, 20)
-                                            
-                                            // Map view
-                                            MapViewForPhoto(location: currentAsset.location)
-                                                .frame(height: availableHeight * 0.8)
-                                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                                                .padding(.horizontal, 20)
-                                            
-                                            // Location details
-                                            if let location = currentAsset.location {
-                                                VStack(spacing: 8) {
-                                                    Text("Coordinates")
-                                                        .font(.headline)
-                                                        .foregroundColor(.white.opacity(0.9))
-                                                    Text(formatLocation(location))
-                                                        .font(.body)
-                                                        .foregroundColor(.white.opacity(0.7))
-                                                        .multilineTextAlignment(.center)
-                                                }
-                                                .padding(.horizontal, 20)
-                                            }
-                                            
-                                            // Bottom spacing
-                                            Rectangle()
-                                                .fill(Color.clear)
-                                                .frame(height: 60)
                                         }
-                                        .background(
-                                            LinearGradient(
-                                                gradient: Gradient(colors: [
-                                                    Color.clear,
-                                                    Color.black.opacity(0.3),
-                                                    Color.black.opacity(0.6)
-                                                ]),
-                                                startPoint: .top,
-                                                endPoint: .bottom
-                                            )
-                                        )
-                                        .id("map")
                                     }
+                                    .tag(index)
                                 }
                             }
-                            .frame(height: availableHeight)
-                            .gesture(
-                                DragGesture()
-                                    .onChanged { value in
-                                        handleScrollGesture(value: value, geometry: geometry)
-                                    }
-                                    .onEnded { value in
-                                        handleScrollEnd(value: value, geometry: geometry) { id, anchor in
-                                            scrollProxy.scrollTo(id, anchor: anchor)
+                            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                        } else {
+                            // Fallback when no display assets
+                            VStack {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(1.5)
+                                Text("Loading photos...")
+                                    .foregroundColor(.white)
+                                    .padding(.top, 16)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                        
+                        // Bottom thumbnail area
+                        VStack(spacing: 8) {
+                            // Thumbnail scroll view
+                            ScrollViewReader { scrollProxy in
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    LazyHStack(spacing: 2) {
+                                        ForEach(Array(displayAssets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                                            ThumbnailView(
+                                                asset: asset,
+                                                isSelected: index == currentIndex,
+                                                stackInfo: getStackInfo(for: asset)
+                                            ) {
+                                                currentIndex = index
+                                            }
                                         }
                                     }
-                            )
-                            .onChange(of: currentIndex) { _, _ in
-                                // Reset to photo view and show thumbnails when changing photos
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    scrollProxy.scrollTo("photo", anchor: .top)
-                                    showingMap = false
+                                    .padding(.horizontal, 16)
+                                }
+                                .frame(height: 60)
+                                .onChange(of: currentIndex) { _, newIndex in
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        scrollProxy.scrollTo(displayAssets[newIndex].localIdentifier, anchor: .center)
+                                    }
                                 }
                             }
                         }
-                        
-                        // Bottom spacer (will be covered by UI)
-                        Rectangle()
-                            .fill(Color.clear)
-                            .frame(height: bottomSafeArea)
+                        .padding(.bottom, 94) // 60px toolbar + 34px safe area
                     }
                 }
                 .ignoresSafeArea(.all)
@@ -247,53 +261,33 @@ struct SwipePhotoView: View {
                     
                     Spacer()
                     
-                    // Floating bottom section with thumbnails and FAB (hide when map is showing)
-                    if !showingMap {
-                        VStack(spacing: 12) {
-                            // Thumbnail strip (iOS Photos style)
-                            if stack.assets.count > 1 {
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 4) {
-                                        ForEach(Array(stack.assets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                                            PhotoThumbnailView(
-                                                asset: asset,
-                                                isSelected: index == currentIndex,
-                                                onTap: {
-                                                    currentIndex = index
-                                                }
-                                            )
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                }
-                                .frame(height: 60)
-                            }
-                        }
-                        .background(
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    Color.clear,
-                                    Color.black.opacity(0.3),
-                                    Color.black.opacity(0.6)
-                                ]),
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .padding(.bottom, 34) // Safe area padding
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
                     
                 }
             }
         }
         .onAppear {
-            print("SwipePhotoView onAppear called with stack of \(stack.assets.count) assets")
+            print("SwipePhotoView onAppear called with \(allAssets.count) total assets and \(photoStacks.count) stacks")
             isLoading = true
-            // Ensure the current index is valid
-            if currentIndex >= stack.assets.count {
-                currentIndex = 0
+            
+            // Use allAssets directly to avoid expensive stack processing
+            displayAssets = allAssets
+            print("Using allAssets directly: \(displayAssets.count) assets")
+            
+            // Limit to reasonable number to avoid memory issues
+            if displayAssets.count > 100 {
+                displayAssets = Array(displayAssets.prefix(100))
+                print("Limited to first 100 assets for performance")
             }
+            
+            // Find initial index based on initialAssetId
+            if let initialIndex = displayAssets.firstIndex(where: { $0.localIdentifier == initialAssetId }) {
+                currentIndex = initialIndex
+                print("Set currentIndex to \(currentIndex) for asset \(initialAssetId)")
+            } else {
+                currentIndex = 0
+                print("Defaulted currentIndex to 0")
+            }
+            
             print("Starting preference manager initialization...")
             initializePreferenceManager()
             updateQuickListStatus()
@@ -301,7 +295,8 @@ struct SwipePhotoView: View {
             setupToolbar()
         }
         .onDisappear {
-            toolbarManager.hideCustomToolbar()
+            // Don't hide the toolbar completely, let the parent view restore it
+            print("🔧 SwipePhotoView: onDisappear - not hiding toolbar to allow restoration")
         }
         .onChange(of: currentIndex) { _, _ in
             updateQuickListStatus()
@@ -623,57 +618,103 @@ struct SwipePhotoView: View {
     }
 }
 
-// MARK: - MapView Component
-
-struct MapViewForPhoto: View {
-    let location: CLLocation?
-    @State private var region: MKCoordinateRegion
-    
-    init(location: CLLocation?) {
-        self.location = location
-        
-        if let location = location {
-            self._region = State(initialValue: MKCoordinateRegion(
-                center: location.coordinate,
-                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-            ))
-        } else {
-            // Default to San Francisco if no location
-            self._region = State(initialValue: MKCoordinateRegion(
-                center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
-                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-            ))
-        }
-    }
-    
-    var body: some View {
-        if let location = location {
-            Map(coordinateRegion: $region, annotationItems: [PhotoMapAnnotationItem(coordinate: location.coordinate)]) { item in
-                MapAnnotation(coordinate: item.coordinate) {
-                    Image(systemName: "mappin.circle.fill")
-                        .font(.title)
-                        .foregroundColor(.red)
-                        .background(Circle().fill(Color.white).scaleEffect(0.8))
-                }
-            }
-            .disabled(true) // Disable interaction to prevent conflicts with swipe gestures
-        } else {
-            // Show message when no location available
-            VStack {
-                Image(systemName: "location.slash")
-                    .font(.largeTitle)
-                    .foregroundColor(.gray)
-                Text("No location data")
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemGray6))
-        }
-    }
-}
 
 struct PhotoMapAnnotationItem: Identifiable {
     let id = UUID()
     let coordinate: CLLocationCoordinate2D
+}
+
+// MARK: - ThumbnailView
+struct ThumbnailView: View {
+    let asset: PHAsset
+    let isSelected: Bool
+    let stackInfo: (stack: PhotoStack?, isStack: Bool, count: Int)
+    let onTap: () -> Void
+    
+    @State private var image: UIImage?
+    
+    var body: some View {
+        Button(action: onTap) {
+            ZStack {
+                if let image = image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 60, height: 60)
+                        .clipped()
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(isSelected ? Color.white : Color.clear, lineWidth: 2)
+                        )
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 60, height: 60)
+                        .cornerRadius(8)
+                        .overlay(
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(0.5)
+                        )
+                }
+                
+                // Stack indicator
+                if stackInfo.isStack {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            ZStack {
+                                Circle()
+                                    .fill(Color.black.opacity(0.8))
+                                    .frame(width: 16, height: 16)
+                                
+                                Text("\(stackInfo.count)")
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(2)
+                }
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+        .task {
+            await loadThumbnail()
+        }
+    }
+    
+    private func loadThumbnail() async {
+        let options = PHImageRequestOptions()
+        options.deliveryMode = .opportunistic
+        options.resizeMode = .fast
+        options.isNetworkAccessAllowed = true
+        
+        await withCheckedContinuation { continuation in
+            var hasResumed = false
+            
+            PHImageManager.default().requestImage(
+                for: asset,
+                targetSize: CGSize(width: 120, height: 120),
+                contentMode: .aspectFill,
+                options: options
+            ) { image, info in
+                guard !hasResumed else { return }
+                
+                let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
+                
+                if !isDegraded {
+                    hasResumed = true
+                    self.image = image
+                    continuation.resume()
+                } else if image == nil {
+                    hasResumed = true
+                    continuation.resume()
+                }
+            }
+        }
+    }
 }

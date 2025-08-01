@@ -31,9 +31,9 @@ open reminora.xcodeproj
 
 1. **Main App (`ios/reminora/`)**
    - `reminoraApp.swift` - SwiftUI App entry point, sets up Core Data environment
-   - `ContentView.swift` - Main view controller with map/photo library toggle
+   - `ContentView.swift` - Main view controller with custom navigation system (VStack + ZStack replacing TabView)
    - `PinMainView.swift` - Interactive map showing geotagged photos with sliding panel
-   - `PhotoLibraryView.swift` - Photo library browser with thumbnail grid
+   - `PhotoMainView.swift` - Photo library browser with smart stacking and similarity detection
    - `SwipePhotoView.swift` - Full-screen photo viewer with swipe navigation
    - `AddPinFromPhotoView.swift` - Create pins from photos with reverse geocoding
 
@@ -92,14 +92,35 @@ The app uses Core Data (iOS) with main entities:
 - **Offline Support**: Local-first architecture with cloud sync when available
 - **Cross-Platform**: iOS (SwiftUI) and Android (Kotlin) implementations
 
-### Navigation Flow
+### Navigation System
 
-1. **Home View**: Interactive map with pin clustering and dynamic toolbar
-2. **Photo Library**: Smart photo browser with swipe navigation and filtering
-3. **Add Pin**: Photo selection with reverse geocoding and privacy controls
-4. **Pin Details**: Full-screen pin view with address management and comments
-5. **User Profiles**: User discovery, following, and shared pin viewing
-6. **Location Discovery**: Interactive MapView with location search, sharing, and pin creation from discovered places
+**Custom Navigation Architecture:**
+- **No TabView**: Replaced iOS TabView with custom VStack + ZStack system for complete control
+- **Dynamic Toolbar**: Custom bottom toolbar with context-aware buttons and universal FAB
+- **Tab Management**: ContentView manages tab switching via `selectedTab` state and conditional view rendering
+
+**Navigation Flow:**
+1. **Photos Tab (0)**: PhotoMainView with FAB-only mode (centered floating button)
+2. **Map Tab (1)**: MapView with navigation toolbar (Photos, Pins, Lists + FAB)
+3. **Pins Tab (2)**: PinMainView with navigation toolbar + pin actions (Sort, Add Pin, Open Invite)
+4. **Lists Tab (3)**: AllRListsView with navigation toolbar + refresh action
+5. **Profile Tab (4)**: ProfileView with FAB-only mode
+
+**Universal FAB System:**
+- **Icon**: "r.circle.fill" - Blue circular button with "R" icon
+- **Position**: Always at bottom of screen (centered in toolbar or floating)
+- **Action**: Opens UniversalActionSheet with context-aware actions
+- **ActionSheet Contents**: 
+  - All tabs: Photo, Pin, List navigation buttons
+  - Pins tab: Additional Sort, Add Pin, Open Invite buttons
+  - Lists tab: Additional Refresh button
+  - Other tabs: Settings button
+
+**IMPORTANT - SwipePhotoView Integration:**
+- SwipePhotoView MUST restore toolbar state when dismissed
+- **FIX IMPLEMENTED**: Use `NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)` in onDismiss
+- ContentView listens for "RestoreToolbar" notification and calls `setupToolbarForTab(selectedTab)`
+- This ensures the correct toolbar configuration is restored for the current tab after SwipePhotoView dismissal
 
 ### Technical Details
 

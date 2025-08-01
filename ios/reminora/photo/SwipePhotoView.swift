@@ -124,44 +124,21 @@ struct SwipePhotoView: View {
             if true {
                 GeometryReader { geometry in
                     VStack(spacing: 0) {
-                        // Main photo area
-                        if !displayAssets.isEmpty {
-                            TabView(selection: $currentIndex) {
-                                ForEach(Array(displayAssets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                                    ZStack {
-                                        SwipePhotoImageView(asset: asset, isLoading: $isLoading)
-                                        
-                                        // Stack count indicator in top-right corner
-                                        let stackInfo = getStackInfo(for: asset)
-                                        if stackInfo.isStack && !expandedStacks.contains(stackInfo.stack?.id.uuidString ?? "") {
-                                            VStack {
-                                                HStack {
-                                                    Spacer()
-                                                    Button(action: {
-                                                        expandStack(stackInfo.stack)
-                                                    }) {
-                                                        ZStack {
-                                                            Circle()
-                                                                .fill(Color.black.opacity(0.7))
-                                                                .frame(width: 32, height: 32)
-                                                            
-                                                            Text("\(stackInfo.count)")
-                                                                .font(.caption)
-                                                                .fontWeight(.medium)
-                                                                .foregroundColor(.white)
-                                                        }
-                                                    }
-                                                    .padding(.top, 120)
-                                                    .padding(.trailing, 16)
+                        // Main photo area - single photo view
+                        if !displayAssets.isEmpty && currentIndex < displayAssets.count {
+                            SwipePhotoImageView(asset: displayAssets[currentIndex], isLoading: $isLoading)
+                                .gesture(
+                                    DragGesture()
+                                        .onEnded { value in
+                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                if value.translation.width > 100 && currentIndex > 0 {
+                                                    currentIndex -= 1
+                                                } else if value.translation.width < -100 && currentIndex < displayAssets.count - 1 {
+                                                    currentIndex += 1
                                                 }
-                                                Spacer()
                                             }
                                         }
-                                    }
-                                    .tag(index)
-                                }
-                            }
-                            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                                )
                         } else {
                             // Fallback when no display assets
                             VStack {
@@ -195,15 +172,17 @@ struct SwipePhotoView: View {
                                 }
                                 .frame(height: 60)
                                 .onChange(of: currentIndex) { _, newIndex in
+                                    guard newIndex >= 0 && newIndex < displayAssets.count else { return }
                                     withAnimation(.easeInOut(duration: 0.3)) {
                                         scrollProxy.scrollTo(displayAssets[newIndex].localIdentifier, anchor: .center)
                                     }
                                 }
                             }
                         }
-                        .padding(.bottom, 94) // 60px toolbar + 34px safe area
+                        .padding(.bottom, 8) // Small gap above toolbar
                     }
                 }
+                .padding(.bottom, 72) // Account for toolbar space (60px + 12px)
                 .ignoresSafeArea(.all)
                 
                 // Floating top navigation overlay
@@ -271,13 +250,7 @@ struct SwipePhotoView: View {
             
             // Use allAssets directly to avoid expensive stack processing
             displayAssets = allAssets
-            print("Using allAssets directly: \(displayAssets.count) assets")
-            
-            // Limit to reasonable number to avoid memory issues
-            if displayAssets.count > 100 {
-                displayAssets = Array(displayAssets.prefix(100))
-                print("Limited to first 100 assets for performance")
-            }
+            print("Using allAssets directly: \(displayAssets.count) assets - virtualized loading")
             
             // Find initial index based on initialAssetId
             if let initialIndex = displayAssets.firstIndex(where: { $0.localIdentifier == initialAssetId }) {

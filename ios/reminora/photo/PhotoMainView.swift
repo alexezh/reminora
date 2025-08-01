@@ -326,6 +326,7 @@ struct PhotoMainView: View {
                 .padding()
             }
         }
+        .padding(.bottom, 72) // Account for toolbar space (60px + 12px safe area)
         .onAppear {
             initializeCoreData()
             requestPhotoAccess()

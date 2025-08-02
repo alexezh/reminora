@@ -26,10 +26,6 @@ struct SwipePhotoView: View {
     @Environment(\.selectedAssetService) private var selectedAssetService
     @State private var currentIndex: Int = 0
     @State private var expandedStacks: Set<String> = [] // Track which stacks are expanded
-    @State private var showingNearbyPhotos = false
-    @State private var showingAddPin = false
-    @State private var showingSimilarImages = false
-    @State private var showingSimilarGridView = false
     @State private var showingMenu = false
     @State private var shareData: PhotoShareData?
     @State private var isLoading = false
@@ -584,7 +580,7 @@ struct SwipePhotoView: View {
             initializePreferenceManager()
             updateQuickListStatus()
             updateFavoriteStatus()
-            setupToolbar()
+            updateToolbar(false)
             // Set initial current photo in service
             selectedAssetService.setCurrentPhoto(currentAsset)
         }
@@ -597,41 +593,9 @@ struct SwipePhotoView: View {
         .onChange(of: currentIndex) { _, _ in
             updateQuickListStatus()
             updateFavoriteStatus()
-            updateToolbar()
+            updateToolbar(true)
             // Update current photo in service for ActionSheet integration
             selectedAssetService.setCurrentPhoto(currentAsset)
-        }
-        .sheet(isPresented: $showingAddPin) {
-            NavigationView {
-                AddPinFromPhotoView(
-                    asset: currentAsset,
-                    onDismiss: {
-                        showingAddPin = false
-                    }
-                )
-            }
-        }
-        .sheet(item: $shareData) { data in
-            let _ = print("PhotoStackView ShareSheet - text: '\(data.message)', url: '\(data.link)'")
-            ShareSheet(text: data.message, url: data.link)
-        }
-        .sheet(isPresented: $showingSimilarImages) {
-            PhotoSimilarityView(targetAsset: currentAsset)
-        }
-        .sheet(isPresented: $showingSimilarGridView) {
-            SimilarPhotosGridView(targetAsset: currentAsset)
-        }
-        .sheet(isPresented: $showingActionSheet) {
-            PhotoActionView(
-                isFavorite: isFavorite,
-                isInQuickList: isInQuickList,
-                onShare: sharePhoto,
-                onToggleFavorite: toggleFavorite,
-                onToggleQuickList: toggleQuickList,
-                onAddPin: { showingAddPin = true },
-                onFindSimilar: { showingSimilarGridView = true }
-            )
-            .presentationDetents([.medium])
         }
         .navigationBarHidden(true)
     }
@@ -699,11 +663,6 @@ struct SwipePhotoView: View {
                 }
             }
         }
-    }
-    
-    private func showSimilarImages() {
-        // Simply show the photo similarity view with the current asset
-        showingSimilarImages = true
     }
     
     private func sharePhoto() {
@@ -825,46 +784,8 @@ struct SwipePhotoView: View {
             print("❌ Failed to toggle Quick List status")
         }
     }
-    
-
-    // MARK: - Toolbar Setup
-    
-    private func setupToolbar() {
-        let toolbarButtons = [
-            ToolbarButtonConfig(
-                id: "share",
-                title: "Share",
-                systemImage: "square.and.arrow.up",
-                action: sharePhoto,
-                color: .blue
-            ),
-            ToolbarButtonConfig(
-                id: "favorite",
-                title: "Favorite",
-                systemImage: isFavorite ? "heart.fill" : "heart",
-                action: toggleFavorite,
-                color: isFavorite ? .red : .primary
-            ),
-            ToolbarButtonConfig(
-                id: "quick",
-                title: "Quick List",
-                systemImage: isInQuickList ? "plus.square.fill" : "plus.square",
-                action: toggleQuickList,
-                color: isInQuickList ? .orange : .primary
-            ),
-            ToolbarButtonConfig(
-                id: "addpin",
-                title: "Add Pin",
-                systemImage: "mappin.and.ellipse",
-                action: { showingAddPin = true },
-                color: .primary
-            )
-        ]
         
-        toolbarManager.setCustomToolbar(buttons: toolbarButtons)
-    }
-    
-    private func updateToolbar() {
+    private func updateToolbar(_ update: Bool) {
         // Update toolbar when photo changes - explicitly replace buttons
         print("📱 SwipePhotoView: Updating toolbar for photo \(currentIndex)")
         let toolbarButtons = [
@@ -889,16 +810,20 @@ struct SwipePhotoView: View {
                 action: toggleQuickList,
                 color: isInQuickList ? .orange : .primary
             ),
-            ToolbarButtonConfig(
-                id: "addpin",
-                title: "Add Pin",
-                systemImage: "mappin.and.ellipse",
-                action: { showingAddPin = true },
-                color: .primary
-            )
+//            ToolbarButtonConfig(
+//                id: "addpin",
+//                title: "Add Pin",
+//                systemImage: "mappin.and.ellipse",
+//                action: { showingAddPin = true },
+//                color: .primary
+//            )
         ]
-        
-        toolbarManager.updateCustomToolbar(buttons: toolbarButtons)
+
+        if update {
+            toolbarManager.updateCustomToolbar(buttons: toolbarButtons)
+        } else {
+            toolbarManager.setCustomToolbar(buttons: toolbarButtons)
+        }
     }
 
     // MARK: - Formatting Helpers

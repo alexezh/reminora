@@ -88,6 +88,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				cloud/CLAUDE.md,
+				ecard/CLAUDE.md,
 				Info.plist,
 				photo/CLAUDE.md,
 				pin/CLAUDE.md,

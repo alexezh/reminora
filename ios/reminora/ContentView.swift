@@ -23,6 +23,7 @@ struct ContentView: View {
     @StateObject private var selectedAssetService = SelectedAssetService.shared
     @StateObject private var sheetStack = SheetStack.shared
     @StateObject private var eCardTemplateService = ECardTemplateService.shared
+    @State private var isActionSheetScrolling = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -94,9 +95,13 @@ struct ContentView: View {
                 onToggleSort: {
                     // Trigger sort toggle on Pins tab
                     NotificationCenter.default.post(name: NSNotification.Name("ToggleSort"), object: nil)
+                },
+                onScrollingStateChanged: { isScrolling in
+                    isActionSheetScrolling = isScrolling
                 }
             )
             .presentationDetents([.height(400), .medium])
+            .interactiveDismissDisabled(isActionSheetScrolling)
         }
         // Add SheetRouter for centralized sheet management
         .overlay {

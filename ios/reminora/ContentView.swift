@@ -7,6 +7,7 @@
 
 import CoreData
 import MapKit
+import Photos
 import PhotosUI
 import SwiftUI
 
@@ -19,7 +20,10 @@ struct ContentView: View {
     @State private var sharedPlace: PinData?
     @State private var isSwipePhotoViewOpen = false
     @StateObject private var toolbarManager = ToolbarManager()
-    @State private var hasPhotoSelection = false
+    @StateObject private var selectedAssetService = SelectedAssetService.shared
+    @State private var showingSimilarPhotos = false
+    @State private var similarPhotoTarget: PHAsset?
+    @State private var showingDuplicatePhotos = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -70,10 +74,10 @@ struct ContentView: View {
             setupToolbarForTab(newValue)
         }
         .environment(\.toolbarManager, toolbarManager)
+        .environment(\.selectedAssetService, selectedAssetService)
         .sheet(isPresented: $toolbarManager.showActionSheet) {
             UniversalActionSheet(
                 selectedTab: selectedTab,
-                hasPhotoSelection: hasPhotoSelection,
                 onRefreshLists: {
                     // Trigger refresh on Lists tab
                     NotificationCenter.default.post(name: NSNotification.Name("RefreshLists"), object: nil)
@@ -145,13 +149,32 @@ struct ContentView: View {
                 print("🔗 ContentView switched to tab: \(tabIndex)")
             }
         }
-        .onReceive(
-            NotificationCenter.default.publisher(for: NSNotification.Name("PhotoSelectionChanged"))
-        ) { notification in
-            if let hasSelection = notification.object as? Bool {
-                hasPhotoSelection = hasSelection
-                print("📱 ContentView updated photo selection state: \(hasSelection)")
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindSimilarPhotos"))) { notification in
+            if let asset = notification.object as? PHAsset {
+                print("📷 ContentView: Finding similar photos for single asset: \(asset.localIdentifier)")
+                similarPhotoTarget = asset
+                showingSimilarPhotos = true
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindSimilarToSelected"))) { notification in
+            if let identifiers = notification.object as? Set<String> {
+                // Find the first selected asset from all photo assets (we'll need to get these from Photos library)
+                print("📷 ContentView: Finding similar photos for selected assets: \(identifiers.count) selected")
+                // For now, we'll need to get the first asset from the identifiers
+                if let firstId = identifiers.first {
+                    // Get the asset from Photos library
+                    let fetchOptions = PHFetchOptions()
+                    let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [firstId], options: fetchOptions)
+                    if let targetAsset = fetchResult.firstObject {
+                        similarPhotoTarget = targetAsset
+                        showingSimilarPhotos = true
+                    }
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindDuplicatePhotos"))) { _ in
+            print("📷 ContentView: Finding duplicate photos across entire library")
+            showingDuplicatePhotos = true
         }
         .overlay {
             if showingSharedPlace, let place = sharedPlace {
@@ -167,6 +190,20 @@ struct ContentView: View {
                     insertion: .scale(scale: 0.1).combined(with: .opacity),
                     removal: .scale(scale: 0.1).combined(with: .opacity)
                 ))
+            }
+        }
+        .sheet(isPresented: $showingSimilarPhotos) {
+            if let targetAsset = similarPhotoTarget {
+                SimilarPhotosGridView(targetAsset: targetAsset)
+            }
+        }
+        .sheet(isPresented: $showingDuplicatePhotos) {
+            // Use a dummy asset for duplicate detection - PhotoSimilarityView will find all duplicates
+            let fetchOptions = PHFetchOptions()
+            fetchOptions.fetchLimit = 1
+            let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+            if let firstAsset = fetchResult.firstObject {
+                PhotoSimilarityView(targetAsset: firstAsset)
             }
         }
     }
@@ -242,57 +279,11 @@ struct ContentView: View {
             ]
             toolbarManager.setCustomToolbar(buttons: mapButtons)
             
-        case 2: // Pins Tab - Full toolbar with navigation buttons  
-            let pinButtons = [
-                ToolbarButtonConfig(
-                    id: "photos",
-                    title: "Photos",
-                    systemImage: "photo",
-                    action: { self.selectedTab = 0 },
-                    color: .blue
-                ),
-                ToolbarButtonConfig(
-                    id: "map",
-                    title: "Map",
-                    systemImage: "map",
-                    action: { self.selectedTab = 1 },
-                    color: .green
-                ),
-                ToolbarButtonConfig(
-                    id: "lists",
-                    title: "Lists",
-                    systemImage: "list.bullet.circle",
-                    action: { self.selectedTab = 3 },
-                    color: .purple
-                )
-            ]
-            toolbarManager.setCustomToolbar(buttons: pinButtons)
+        case 2: // Pins Tab - Show FAB only
+            toolbarManager.setFABOnlyMode()
             
-        case 3: // Lists Tab - Full toolbar with navigation buttons
-            let listButtons = [
-                ToolbarButtonConfig(
-                    id: "photos",
-                    title: "Photos",
-                    systemImage: "photo",
-                    action: { self.selectedTab = 0 },
-                    color: .blue
-                ),
-                ToolbarButtonConfig(
-                    id: "map",
-                    title: "Map",
-                    systemImage: "map",
-                    action: { self.selectedTab = 1 },
-                    color: .green
-                ),
-                ToolbarButtonConfig(
-                    id: "pins",
-                    title: "Pins",
-                    systemImage: "mappin.and.ellipse",
-                    action: { self.selectedTab = 2 },
-                    color: .red
-                )
-            ]
-            toolbarManager.setCustomToolbar(buttons: listButtons)
+        case 3: // Lists Tab - Show FAB only
+            toolbarManager.setFABOnlyMode()
             
         case 4: // Profile Tab - FAB only for now
             toolbarManager.setFABOnlyMode()

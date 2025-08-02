@@ -459,7 +459,8 @@ struct PinDetailView: View {
             setupToolbar()
         }
         .onDisappear {
-            toolbarManager.hideCustomToolbar()
+            // Restore toolbar for the current tab instead of hiding completely
+            NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
         }
     }
 

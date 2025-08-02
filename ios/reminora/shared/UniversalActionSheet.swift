@@ -14,8 +14,8 @@ import SwiftUI
 // MARK: - Universal Action Sheet
 struct UniversalActionSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.selectedAssetService) private var selectedAssetService
     let selectedTab: Int
-    let hasPhotoSelection: Bool  // Whether photos are selected in PhotoMainView
     let onRefreshLists: () -> Void
     let onAddPin: () -> Void
     let onAddOpenInvite: () -> Void
@@ -30,8 +30,8 @@ struct UniversalActionSheet: View {
                 .padding(.top, 8)
                 .padding(.bottom, 12)
             
-            // Modern toolbar section - compact horizontal buttons
-            HStack(spacing: 12) {
+            // Modern toolbar section - spread buttons across full width
+            HStack(spacing: 0) {
                 ModernToolbarButton(
                     icon: "photo",
                     title: "Photos",
@@ -41,6 +41,7 @@ struct UniversalActionSheet: View {
                         NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 0)
                     }
                 )
+                .frame(maxWidth: .infinity)
                 
                 ModernToolbarButton(
                     icon: "map",
@@ -51,6 +52,7 @@ struct UniversalActionSheet: View {
                         NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 1)
                     }
                 )
+                .frame(maxWidth: .infinity)
                 
                 ModernToolbarButton(
                     icon: "mappin.and.ellipse",
@@ -61,6 +63,7 @@ struct UniversalActionSheet: View {
                         NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 2)
                     }
                 )
+                .frame(maxWidth: .infinity)
                 
                 ModernToolbarButton(
                     icon: "list.bullet.circle",
@@ -68,9 +71,12 @@ struct UniversalActionSheet: View {
                     isSelected: selectedTab == 3,
                     action: {
                         dismiss()
+                        // Post notification to auto-open quick list
                         NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 3)
+                        NotificationCenter.default.post(name: NSNotification.Name("AutoOpenQuickList"), object: nil)
                     }
                 )
+                .frame(maxWidth: .infinity)
                 
                 ModernToolbarButton(
                     icon: "gear",
@@ -81,6 +87,7 @@ struct UniversalActionSheet: View {
                         NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 4)
                     }
                 )
+                .frame(maxWidth: .infinity)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
@@ -97,37 +104,66 @@ struct UniversalActionSheet: View {
                     if selectedTab == 0 {
                         // Photos tab actions
                         ActionSectionHeader("Photo Actions")
-                        ActionListItem(icon: "archivebox", title: "Archive", isEnabled: hasPhotoSelection) {
+                        ActionListItem(icon: "archivebox", title: "Archive", isEnabled: selectedAssetService.hasPhotoSelection) {
                             dismiss()
-                            // TODO: Implement archive
+                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
+                                NotificationCenter.default.post(name: NSNotification.Name("ArchivePhoto"), object: currentPhoto)
+                            } else {
+                                NotificationCenter.default.post(name: NSNotification.Name("ArchiveSelectedPhotos"), object: selectedAssetService.selectedPhotoIdentifiers)
+                            }
                         }
-                        ActionListItem(icon: "trash", title: "Delete", isEnabled: hasPhotoSelection, isDestructive: true) {
+                        ActionListItem(icon: "trash", title: "Delete", isEnabled: selectedAssetService.hasPhotoSelection, isDestructive: true) {
                             dismiss()
-                            // TODO: Implement delete
+                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
+                                NotificationCenter.default.post(name: NSNotification.Name("DeletePhoto"), object: currentPhoto)
+                            } else {
+                                NotificationCenter.default.post(name: NSNotification.Name("DeleteSelectedPhotos"), object: selectedAssetService.selectedPhotoIdentifiers)
+                            }
                         }
-                        ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: hasPhotoSelection) {
+                        ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: selectedAssetService.hasPhotoSelection) {
                             dismiss()
-                            // TODO: Implement duplicate
+                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
+                                NotificationCenter.default.post(name: NSNotification.Name("DuplicatePhoto"), object: currentPhoto)
+                            } else {
+                                NotificationCenter.default.post(name: NSNotification.Name("DuplicateSelectedPhotos"), object: selectedAssetService.selectedPhotoIdentifiers)
+                            }
                         }
-                        ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: hasPhotoSelection) {
+                        ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: selectedAssetService.hasPhotoSelection) {
                             dismiss()
-                            // TODO: Implement add to quick list
+                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
+                                NotificationCenter.default.post(name: NSNotification.Name("AddPhotoToQuickList"), object: currentPhoto)
+                            } else {
+                                NotificationCenter.default.post(name: NSNotification.Name("AddSelectedPhotosToQuickList"), object: selectedAssetService.selectedPhotoIdentifiers)
+                            }
+                            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
                         }
-                        ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: hasPhotoSelection) {
+                        ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: selectedAssetService.hasPhotoSelection) {
                             dismiss()
-                            // TODO: Implement find similar
+                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
+                                NotificationCenter.default.post(name: NSNotification.Name("FindSimilarPhotos"), object: currentPhoto)
+                            } else {
+                                NotificationCenter.default.post(name: NSNotification.Name("FindSimilarToSelected"), object: selectedAssetService.selectedPhotoIdentifiers)
+                            }
                         }
                         ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true) {
                             dismiss()
-                            // TODO: Implement find duplicates
+                            NotificationCenter.default.post(name: NSNotification.Name("FindDuplicatePhotos"), object: nil)
                         }
-                        ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: hasPhotoSelection) {
+                        ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: selectedAssetService.hasPhotoSelection) {
                             dismiss()
-                            // TODO: Implement make ecard
+                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
+                                NotificationCenter.default.post(name: NSNotification.Name("MakeECard"), object: currentPhoto)
+                            } else {
+                                NotificationCenter.default.post(name: NSNotification.Name("MakeECardFromSelected"), object: selectedAssetService.selectedPhotoIdentifiers)
+                            }
                         }
-                        ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: hasPhotoSelection) {
+                        ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: selectedAssetService.hasPhotoSelection) {
                             dismiss()
-                            // TODO: Implement make collage
+                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
+                                NotificationCenter.default.post(name: NSNotification.Name("MakeCollage"), object: currentPhoto)
+                            } else {
+                                NotificationCenter.default.post(name: NSNotification.Name("MakeCollageFromSelected"), object: selectedAssetService.selectedPhotoIdentifiers)
+                            }
                         }
                     } else if selectedTab == 1 {
                         // Map tab actions
@@ -146,7 +182,9 @@ struct UniversalActionSheet: View {
                         }
                         ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true) {
                             dismiss()
-                            // TODO: Implement add to quick list
+                            // Trigger add to quick list and mark for auto-open
+                            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
+                            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
                         }
                         ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true) {
                             dismiss()
@@ -195,7 +233,9 @@ struct UniversalActionSheet: View {
                         }
                         ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true) {
                             dismiss()
-                            // TODO: Implement add to quick list
+                            // Trigger add to quick list and mark for auto-open
+                            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
+                            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
                         }
                         ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true) {
                             dismiss()
@@ -236,7 +276,9 @@ struct UniversalActionSheet: View {
                         }
                         ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true) {
                             dismiss()
-                            // TODO: Implement add to quick list
+                            // Trigger add to quick list and mark for auto-open
+                            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
+                            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
                         }
                         ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true) {
                             dismiss()
@@ -271,7 +313,9 @@ struct UniversalActionSheet: View {
                         }
                         ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true) {
                             dismiss()
-                            // TODO: Implement add to quick list
+                            // Trigger add to quick list and mark for auto-open
+                            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
+                            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
                         }
                         ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true) {
                             dismiss()

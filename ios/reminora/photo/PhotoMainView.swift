@@ -9,6 +9,7 @@ import CoreLocation
 struct PhotoMainView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.toolbarManager) private var toolbarManager
+    @Environment(\.selectedAssetService) private var selectedAssetService
     @Binding var isSwipePhotoViewOpen: Bool
     @State private var photoAssets: [PHAsset] = []
     @State private var filteredPhotoStacks: [PhotoStack] = []
@@ -20,6 +21,9 @@ struct PhotoMainView: View {
     @State private var hasTriedInitialLoad = false
     @State private var showingQuickList = false
     @State private var showingSearch = false
+    @State private var showingSimilarPhotos = false
+    @State private var similarPhotoTarget: PHAsset?
+    @State private var showingDuplicatePhotos = false
     @State private var searchText = ""
     @State private var startDate: Date?
     @State private var endDate: Date?
@@ -27,7 +31,6 @@ struct PhotoMainView: View {
     
     // Selection mode state
     @State private var isSelectionMode = false
-    @State private var selectedAssets: Set<String> = [] // Using asset localIdentifiers
     
     // Track stacking state to reduce repetitive logging
     @State private var lastEmbeddingCount = -1
@@ -203,7 +206,7 @@ struct PhotoMainView: View {
             // Selection status
             if isSelectionMode {
                 HStack {
-                    Text(selectedAssets.isEmpty ? "Select photos" : "\(selectedAssets.count) selected")
+                    Text(selectedAssetService.selectedPhotoCount == 0 ? "Select photos" : "\(selectedAssetService.selectedPhotoCount) selected")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     Spacer()
@@ -258,7 +261,7 @@ struct PhotoMainView: View {
                     RListView(
                         dataSource: .photoLibrary(photoAssets),
                         isSelectionMode: isSelectionMode,
-                        selectedAssets: selectedAssets,
+                        selectedAssets: selectedAssetService.selectedPhotoIdentifiers,
                         onPhotoTap: { asset in
                             if isSelectionMode {
                                 toggleAssetSelection(asset)
@@ -279,8 +282,8 @@ struct PhotoMainView: View {
                             if isSelectionMode {
                                 // Select all photos in the stack
                                 for asset in assets {
-                                    if !selectedAssets.contains(asset.localIdentifier) {
-                                        selectedAssets.insert(asset.localIdentifier)
+                                    if !selectedAssetService.isPhotoSelected(asset.localIdentifier) {
+                                        selectedAssetService.addSelectedPhoto(asset.localIdentifier)
                                     }
                                 }
                                 updateToolbar()
@@ -337,6 +340,26 @@ struct PhotoMainView: View {
             print("🔧 PhotoMainView: Restoring toolbar after SwipePhotoView dismissal")
             setupToolbar()
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindSimilarPhotos"))) { notification in
+            if let asset = notification.object as? PHAsset {
+                print("📷 Finding similar photos for single asset: \(asset.localIdentifier)")
+                similarPhotoTarget = asset
+                showingSimilarPhotos = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindSimilarToSelected"))) { notification in
+            if let identifiers = notification.object as? Set<String>,
+               let firstId = identifiers.first,
+               let targetAsset = allPhotoAssets.first(where: { $0.localIdentifier == firstId }) {
+                print("📷 Finding similar photos for selected assets, using first asset as target: \(targetAsset.localIdentifier)")
+                similarPhotoTarget = targetAsset
+                showingSimilarPhotos = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindDuplicatePhotos"))) { _ in
+            print("📷 Finding duplicate photos across entire library")
+            showingDuplicatePhotos = true
+        }
         .onChange(of: isCoreDataReady) { _, isReady in
             if isReady && !hasTriedInitialLoad {
                 hasTriedInitialLoad = true
@@ -376,6 +399,17 @@ struct PhotoMainView: View {
         }
         .sheet(isPresented: $showingSearch) {
             searchDialogView
+        }
+        .sheet(isPresented: $showingSimilarPhotos) {
+            if let targetAsset = similarPhotoTarget {
+                SimilarPhotosGridView(targetAsset: targetAsset)
+            }
+        }
+        .sheet(isPresented: $showingDuplicatePhotos) {
+            // Use first photo as target for duplicate detection - PhotoSimilarityView handles duplicates
+            if let firstAsset = allPhotoAssets.first {
+                PhotoSimilarityView(targetAsset: firstAsset)
+            }
         }
         .toolbar(.hidden, for: .navigationBar)
     }
@@ -634,34 +668,24 @@ struct PhotoMainView: View {
         withAnimation(.easeInOut(duration: 0.2)) {
             isSelectionMode.toggle()
             if !isSelectionMode {
-                selectedAssets.removeAll()
+                selectedAssetService.clearSelectedPhotos()
             }
             updateToolbar()
-            notifySelectionChanged()
         }
     }
     
     private func toggleAssetSelection(_ asset: PHAsset) {
-        if selectedAssets.contains(asset.localIdentifier) {
-            selectedAssets.remove(asset.localIdentifier)
+        if selectedAssetService.isPhotoSelected(asset.localIdentifier) {
+            selectedAssetService.removeSelectedPhoto(asset.localIdentifier)
         } else {
-            selectedAssets.insert(asset.localIdentifier)
+            selectedAssetService.addSelectedPhoto(asset.localIdentifier)
         }
-        notifySelectionChanged()
-    }
-    
-    private func notifySelectionChanged() {
-        let hasSelection = isSelectionMode && !selectedAssets.isEmpty
-        NotificationCenter.default.post(
-            name: NSNotification.Name("PhotoSelectionChanged"), 
-            object: hasSelection
-        )
     }
     
     // MARK: - Batch Actions
     
     private func favoriteSelectedPhotos() {
-        let assetsToFavorite = allPhotoAssets.filter { selectedAssets.contains($0.localIdentifier) }
+        let assetsToFavorite = allPhotoAssets.filter { selectedAssetService.selectedPhotoIdentifiers.contains($0.localIdentifier) }
         
         PHPhotoLibrary.shared().performChanges({
             for asset in assetsToFavorite {
@@ -677,14 +701,14 @@ struct PhotoMainView: View {
                 }
                 // Exit selection mode after action
                 self.isSelectionMode = false
-                self.selectedAssets.removeAll()
+                self.selectedAssetService.clearSelectedPhotos()
                 self.updateToolbar()
             }
         }
     }
     
     private func archiveSelectedPhotos() {
-        let assetsToArchive = allPhotoAssets.filter { selectedAssets.contains($0.localIdentifier) }
+        let assetsToArchive = allPhotoAssets.filter { selectedAssetService.selectedPhotoIdentifiers.contains($0.localIdentifier) }
         
         // Update preferences to mark as archived
         for asset in assetsToArchive {
@@ -695,13 +719,13 @@ struct PhotoMainView: View {
         
         // Exit selection mode and refresh
         isSelectionMode = false
-        selectedAssets.removeAll()
+        selectedAssetService.clearSelectedPhotos()
         updateToolbar()
         applyFilter() // Refresh to remove archived photos if current filter excludes them
     }
     
     private func addSelectedToQuickList() {
-        let assetsToAdd = allPhotoAssets.filter { selectedAssets.contains($0.localIdentifier) }
+        let assetsToAdd = allPhotoAssets.filter { selectedAssetService.selectedPhotoIdentifiers.contains($0.localIdentifier) }
         let userId = AuthenticationService.shared.currentAccount?.id ?? ""
         
         var successCount = 0
@@ -715,7 +739,7 @@ struct PhotoMainView: View {
         
         // Exit selection mode after action
         isSelectionMode = false
-        selectedAssets.removeAll()
+        selectedAssetService.clearSelectedPhotos()
         updateToolbar()
     }
     
@@ -726,7 +750,7 @@ struct PhotoMainView: View {
     }
     
     private func updateToolbar() {
-        let hasSelection = !selectedAssets.isEmpty
+        let hasSelection = selectedAssetService.selectedPhotoCount > 0
         
         // Always show these buttons, but enable/disable based on selection mode and selection count
         let photoButtons = [

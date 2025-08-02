@@ -23,6 +23,7 @@ struct SwipePhotoView: View {
     
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.toolbarManager) private var toolbarManager
+    @Environment(\.selectedAssetService) private var selectedAssetService
     @State private var currentIndex: Int = 0
     @State private var expandedStacks: Set<String> = [] // Track which stacks are expanded
     @State private var showingNearbyPhotos = false
@@ -32,6 +33,8 @@ struct SwipePhotoView: View {
     @State private var showingMenu = false
     @State private var shareData: PhotoShareData?
     @State private var isLoading = false
+    @State private var swipeOffset: CGFloat = 0
+    @State private var photoTransition: Bool = false
     @State private var isPreferenceManagerReady = false
     @State private var isInQuickList = false
     @State private var scrollOffset: CGFloat = 0
@@ -184,6 +187,20 @@ struct SwipePhotoView: View {
         }
         
         return (leadingSpacing, trailingSpacing)
+    }
+    
+    // Trigger photo transition animation
+    private func triggerPhotoTransition() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            photoTransition = true
+        }
+        
+        // Reset transition state after animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                photoTransition = false
+            }
+        }
     }
     
     // Handle swipe navigation with stack boundary respect
@@ -350,19 +367,30 @@ struct SwipePhotoView: View {
                         if !displayAssets.isEmpty && currentIndex < displayAssets.count {
                             let currentStackInfo = getStackInfo(for: displayAssets[currentIndex])
                             SwipePhotoImageView(asset: displayAssets[currentIndex], isLoading: $isLoading, stackInfo: currentStackInfo)
-                                .scaleEffect(isLoading ? 0.95 : 1.0) // Swipe effect
-                                .animation(.easeInOut(duration: 0.2), value: isLoading)
+                                .scaleEffect(photoTransition ? 0.9 : 1.0) // Photo transition effect
+                                .offset(x: swipeOffset) // Swipe offset for animation
+                                .opacity(photoTransition ? 0.7 : 1.0) // Fade effect during transition
+                                .animation(.easeInOut(duration: 0.3), value: photoTransition)
+                                .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: swipeOffset)
                                 .gesture(
                                     // Combined gesture for tap, long press, and swipe
                                     DragGesture(minimumDistance: 0)
                                         .onChanged { value in
                                             // Show swipe effect during drag
-                                            if abs(value.translation.width) > 20 {
+                                            let translation = value.translation.width
+                                            swipeOffset = translation * 0.3 // Damped swipe offset
+                                            
+                                            if abs(translation) > 20 {
                                                 isLoading = true
                                             }
                                         }
                                         .onEnded { value in
                                             isLoading = false
+                                            
+                                            // Reset swipe offset with spring animation
+                                            withAnimation(.interpolatingSpring(stiffness: 300, damping: 25)) {
+                                                swipeOffset = 0
+                                            }
                                             
                                             // Handle different gesture types
                                             let isHorizontalSwipe = abs(value.translation.width) > abs(value.translation.height)
@@ -380,6 +408,9 @@ struct SwipePhotoView: View {
                                                     }
                                                 }
                                             } else if isHorizontalSwipe && abs(value.translation.width) > LayoutConstants.swipeThreshold {
+                                                // Trigger photo transition animation
+                                                triggerPhotoTransition()
+                                                
                                                 // Check for long-pull (extended horizontal swipe)
                                                 if abs(value.translation.width) > LayoutConstants.swipeThreshold * 2 {
                                                     // Long horizontal pull - close stack and move to next
@@ -390,6 +421,7 @@ struct SwipePhotoView: View {
                                                 }
                                             } else if !isHorizontalSwipe && value.translation.height > LayoutConstants.swipeThreshold {
                                                 // Long pull down - move to next stack/photo
+                                                triggerPhotoTransition()
                                                 moveToNextStack()
                                             }
                                         }
@@ -411,13 +443,7 @@ struct SwipePhotoView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                         
-                        // Spacer to push thumbnails above toolbar
-                        Spacer()
-                    }
-                    
-                    // Bottom thumbnail area - positioned above toolbar
-                    VStack(spacing: 0) {
-                        // Thumbnail scroll view with stack separation
+                        // Thumbnail scroll view positioned right below the photo
                         ScrollViewReader { scrollProxy in
                             ScrollView(.horizontal, showsIndicators: false) {
                                 LazyHStack(spacing: 0) { // Remove default spacing
@@ -462,14 +488,19 @@ struct SwipePhotoView: View {
                             .frame(height: LayoutConstants.thumbnailHeight)
                             .onChange(of: currentIndex) { _, newIndex in
                                 guard newIndex >= 0 && newIndex < displayAssets.count else { return }
-                                withAnimation(.easeInOut(duration: 0.3)) {
+                                // Smooth scroll to new thumbnail with spring animation
+                                withAnimation(.interpolatingSpring(stiffness: 200, damping: 20)) {
                                     scrollProxy.scrollTo(displayAssets[newIndex].localIdentifier, anchor: .center)
                                 }
                             }
                         }
+                        .padding(.top, 20) // Space between photo and thumbnails
                         .padding(.bottom, LayoutConstants.contentToolbarGap)
+                        
+                        // Spacer to push content above toolbar
+                        Spacer()
                     }
-                    .padding(.bottom, LayoutConstants.totalToolbarHeight)
+                    
                 }
                 .ignoresSafeArea(.all)
                 
@@ -554,15 +585,21 @@ struct SwipePhotoView: View {
             updateQuickListStatus()
             updateFavoriteStatus()
             setupToolbar()
+            // Set initial current photo in service
+            selectedAssetService.setCurrentPhoto(currentAsset)
         }
         .onDisappear {
             // Don't hide the toolbar completely, let the parent view restore it
             print("🔧 SwipePhotoView: onDisappear - not hiding toolbar to allow restoration")
+            // Clear current photo from service
+            selectedAssetService.setCurrentPhoto(nil)
         }
         .onChange(of: currentIndex) { _, _ in
             updateQuickListStatus()
             updateFavoriteStatus()
             updateToolbar()
+            // Update current photo in service for ActionSheet integration
+            selectedAssetService.setCurrentPhoto(currentAsset)
         }
         .sheet(isPresented: $showingAddPin) {
             NavigationView {
@@ -904,10 +941,13 @@ struct ThumbnailView: View {
                         .frame(width: 60, height: 60)
                         .clipped()
                         .cornerRadius(8)
+                        .scaleEffect(isSelected ? 1.1 : 1.0) // Scale selected thumbnail
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(isSelected ? Color.white : Color.clear, lineWidth: 2)
+                                .stroke(isSelected ? Color.white : Color.clear, lineWidth: isSelected ? 3 : 0)
+                                .shadow(color: isSelected ? Color.white.opacity(0.5) : Color.clear, radius: isSelected ? 4 : 0)
                         )
+                        .animation(.easeInOut(duration: 0.2), value: isSelected)
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.3))

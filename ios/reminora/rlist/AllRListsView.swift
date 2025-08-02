@@ -32,6 +32,8 @@ struct AllRListsView: View {
     @State private var userLists: [RListData] = []
     @State private var isLoading = true
     @State private var refreshTrigger = UUID()
+    @State private var shouldAutoOpenQuickList = false
+    @State private var showingQuickList = false
     
     var body: some View {
         NavigationView {
@@ -52,6 +54,17 @@ struct AllRListsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RefreshLists"))) { _ in
             print("🔄 AllRListsView received RefreshLists notification")
+            Task {
+                await loadRListDatas()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AutoOpenQuickList"))) { _ in
+            print("🚀 AllRListsView received AutoOpenQuickList notification")
+            shouldAutoOpenQuickList = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("QuickListUpdated"))) { _ in
+            print("📝 AllRListsView received QuickListUpdated notification")
+            shouldAutoOpenQuickList = true
             Task {
                 await loadRListDatas()
             }
@@ -96,6 +109,23 @@ struct AllRListsView: View {
             ForEach(userLists, id: \.id) { userList in
                 listItemView(for: userList)
             }
+        }
+        .onChange(of: shouldAutoOpenQuickList) { _, shouldOpen in
+            if shouldOpen && !userLists.isEmpty {
+                // Auto-open Quick List
+                showingQuickList = true
+                shouldAutoOpenQuickList = false
+            }
+        }
+        .sheet(isPresented: $showingQuickList) {
+            QuickListView(
+                context: context,
+                userId: userId,
+                onPhotoTap: onPhotoTap ?? { _ in },
+                onPinTap: onPinTap ?? { _ in },
+                onPhotoStackTap: onPhotoStackTap ?? { _ in },
+                onLocationTap: nil
+            )
         }
     }
     

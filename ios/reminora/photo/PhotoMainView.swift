@@ -10,6 +10,7 @@ struct PhotoMainView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.toolbarManager) private var toolbarManager
     @Environment(\.selectedAssetService) private var selectedAssetService
+    @Environment(\.sheetStack) private var sheetStack
     @Binding var isSwipePhotoViewOpen: Bool
     @State private var photoAssets: [PHAsset] = []
     @State private var filteredPhotoStacks: [PhotoStack] = []
@@ -21,9 +22,6 @@ struct PhotoMainView: View {
     @State private var hasTriedInitialLoad = false
     @State private var showingQuickList = false
     @State private var showingSearch = false
-    @State private var showingSimilarPhotos = false
-    @State private var similarPhotoTarget: PHAsset?
-    @State private var showingDuplicatePhotos = false
     @State private var searchText = ""
     @State private var startDate: Date?
     @State private var endDate: Date?
@@ -148,22 +146,22 @@ struct PhotoMainView: View {
                 // Create a stack with just this photo and show it
                 let stack = PhotoStack(assets: [asset])
                 selectedStackIndex = 0
-                showingQuickList = false
+                sheetStack.pop() // Close current sheet
                 withAnimation(.easeInOut(duration: 0.2)) {
                     selectedStack = stack
                     isSwipePhotoViewOpen = true
                 }
             },
             onPinTap: { place in
-                // Handle pin tap - you might want to show pin detail
-                showingQuickList = false
+                // Handle pin tap - show pin detail
+                sheetStack.replace(with: .pinDetail(place: place, allPlaces: []))
                 print("📍 Pin tapped: \(place.post ?? "Unknown")")
             },
             onPhotoStackTap: { assets in
                 // Create a stack and show it
                 let stack = PhotoStack(assets: assets)
                 selectedStackIndex = 0
-                showingQuickList = false
+                sheetStack.pop() // Close current sheet
                 withAnimation(.easeInOut(duration: 0.2)) {
                     selectedStack = stack
                     isSwipePhotoViewOpen = true
@@ -183,7 +181,7 @@ struct PhotoMainView: View {
                 
                 // Search button
                 Button(action: {
-                    showingSearch = true
+                    sheetStack.push(.searchDialog)
                 }) {
                     Image(systemName: "magnifyingglass")
                         .font(.title2)
@@ -197,6 +195,16 @@ struct PhotoMainView: View {
                 }) {
                     Text(isSelectionMode ? "Cancel" : "Select")
                         .font(.body)
+                        .foregroundColor(.blue)
+                }
+                .padding(.trailing, 8)
+                
+                // Quick List button
+                Button(action: {
+                    sheetStack.push(.quickList)
+                }) {
+                    Image(systemName: "list.bullet.rectangle")
+                        .font(.title2)
                         .foregroundColor(.blue)
                 }
                 .padding(.trailing, 16)
@@ -343,8 +351,7 @@ struct PhotoMainView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindSimilarPhotos"))) { notification in
             if let asset = notification.object as? PHAsset {
                 print("📷 Finding similar photos for single asset: \(asset.localIdentifier)")
-                similarPhotoTarget = asset
-                showingSimilarPhotos = true
+                sheetStack.push(.similarPhotos(targetAsset: asset))
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindSimilarToSelected"))) { notification in
@@ -352,13 +359,19 @@ struct PhotoMainView: View {
                let firstId = identifiers.first,
                let targetAsset = allPhotoAssets.first(where: { $0.localIdentifier == firstId }) {
                 print("📷 Finding similar photos for selected assets, using first asset as target: \(targetAsset.localIdentifier)")
-                similarPhotoTarget = targetAsset
-                showingSimilarPhotos = true
+                sheetStack.push(.similarPhotos(targetAsset: targetAsset))
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindDuplicatePhotos"))) { _ in
             print("📷 Finding duplicate photos across entire library")
-            showingDuplicatePhotos = true
+            sheetStack.push(.duplicatePhotos)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ApplySearchFilter"))) { notification in
+            if let filterData = notification.object as? [String: Any] {
+                // Handle search filter application
+                print("🔍 Applying search filter: \(filterData)")
+                // You can implement the actual filter logic here
+            }
         }
         .onChange(of: isCoreDataReady) { _, isReady in
             if isReady && !hasTriedInitialLoad {
@@ -396,20 +409,6 @@ struct PhotoMainView: View {
         }
         .sheet(isPresented: $showingQuickList) {
             quickListView
-        }
-        .sheet(isPresented: $showingSearch) {
-            searchDialogView
-        }
-        .sheet(isPresented: $showingSimilarPhotos) {
-            if let targetAsset = similarPhotoTarget {
-                SimilarPhotosGridView(targetAsset: targetAsset)
-            }
-        }
-        .sheet(isPresented: $showingDuplicatePhotos) {
-            // Use first photo as target for duplicate detection - PhotoSimilarityView handles duplicates
-            if let firstAsset = allPhotoAssets.first {
-                PhotoSimilarityView(targetAsset: firstAsset)
-            }
         }
         .toolbar(.hidden, for: .navigationBar)
     }

@@ -21,9 +21,7 @@ struct ContentView: View {
     @State private var isSwipePhotoViewOpen = false
     @StateObject private var toolbarManager = ToolbarManager()
     @StateObject private var selectedAssetService = SelectedAssetService.shared
-    @State private var showingSimilarPhotos = false
-    @State private var similarPhotoTarget: PHAsset?
-    @State private var showingDuplicatePhotos = false
+    @StateObject private var sheetStack = SheetStack.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -75,6 +73,7 @@ struct ContentView: View {
         }
         .environment(\.toolbarManager, toolbarManager)
         .environment(\.selectedAssetService, selectedAssetService)
+        .environment(\.sheetStack, sheetStack)
         .sheet(isPresented: $toolbarManager.showActionSheet) {
             UniversalActionSheet(
                 selectedTab: selectedTab,
@@ -96,6 +95,10 @@ struct ContentView: View {
                 }
             )
             .presentationDetents([.height(400), .medium])
+        }
+        // Add SheetRouter for centralized sheet management
+        .overlay {
+            SheetRouter(sheetStack: sheetStack)
         }
         .overlay(alignment: .bottom) {
             // Custom dynamic toolbar (show when enabled, including when SwipePhotoView is open with its buttons)
@@ -152,29 +155,22 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindSimilarPhotos"))) { notification in
             if let asset = notification.object as? PHAsset {
                 print("📷 ContentView: Finding similar photos for single asset: \(asset.localIdentifier)")
-                similarPhotoTarget = asset
-                showingSimilarPhotos = true
+                sheetStack.push(.similarPhotos(targetAsset: asset))
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindSimilarToSelected"))) { notification in
-            if let identifiers = notification.object as? Set<String> {
-                // Find the first selected asset from all photo assets (we'll need to get these from Photos library)
+            if let identifiers = notification.object as? Set<String>, let firstId = identifiers.first {
                 print("📷 ContentView: Finding similar photos for selected assets: \(identifiers.count) selected")
-                // For now, we'll need to get the first asset from the identifiers
-                if let firstId = identifiers.first {
-                    // Get the asset from Photos library
-                    let fetchOptions = PHFetchOptions()
-                    let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [firstId], options: fetchOptions)
-                    if let targetAsset = fetchResult.firstObject {
-                        similarPhotoTarget = targetAsset
-                        showingSimilarPhotos = true
-                    }
+                let fetchOptions = PHFetchOptions()
+                let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [firstId], options: fetchOptions)
+                if let targetAsset = fetchResult.firstObject {
+                    sheetStack.push(.similarPhotos(targetAsset: targetAsset))
                 }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindDuplicatePhotos"))) { _ in
             print("📷 ContentView: Finding duplicate photos across entire library")
-            showingDuplicatePhotos = true
+            sheetStack.push(.duplicatePhotos)
         }
         .overlay {
             if showingSharedPlace, let place = sharedPlace {
@@ -190,20 +186,6 @@ struct ContentView: View {
                     insertion: .scale(scale: 0.1).combined(with: .opacity),
                     removal: .scale(scale: 0.1).combined(with: .opacity)
                 ))
-            }
-        }
-        .sheet(isPresented: $showingSimilarPhotos) {
-            if let targetAsset = similarPhotoTarget {
-                SimilarPhotosGridView(targetAsset: targetAsset)
-            }
-        }
-        .sheet(isPresented: $showingDuplicatePhotos) {
-            // Use a dummy asset for duplicate detection - PhotoSimilarityView will find all duplicates
-            let fetchOptions = PHFetchOptions()
-            fetchOptions.fetchLimit = 1
-            let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
-            if let firstAsset = fetchResult.firstObject {
-                PhotoSimilarityView(targetAsset: firstAsset)
             }
         }
     }

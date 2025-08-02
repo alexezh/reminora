@@ -376,6 +376,21 @@ struct PhotoMainView: View {
                 // You can implement the actual filter logic here
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECard"))) { notification in
+            if let asset = notification.object as? PHAsset {
+                print("🎨 Creating ECard for single asset: \(asset.localIdentifier)")
+                sheetStack.push(.eCardEditor(assets: [asset]))
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECardFromSelected"))) { notification in
+            if let identifiers = notification.object as? Set<String> {
+                let selectedAssets = allPhotoAssets.filter { identifiers.contains($0.localIdentifier) }
+                print("🎨 Creating ECard for \(selectedAssets.count) selected assets")
+                if !selectedAssets.isEmpty {
+                    sheetStack.push(.eCardEditor(assets: selectedAssets))
+                }
+            }
+        }
         .onChange(of: isCoreDataReady) { _, isReady in
             if isReady && !hasTriedInitialLoad {
                 hasTriedInitialLoad = true

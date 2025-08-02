@@ -27,6 +27,7 @@ enum SheetType: Identifiable, Equatable {
     case selectLocations(initialAddresses: [PlaceAddress], onSave: ([PlaceAddress]) -> Void)
     case comments(targetPhotoId: String)
     case editAddresses(initialAddresses: [PlaceAddress], onSave: ([PlaceAddress]) -> Void)
+    case eCardEditor(assets: [PHAsset])
     
     var id: String {
         switch self {
@@ -62,6 +63,8 @@ enum SheetType: Identifiable, Equatable {
             return "comments_\(targetPhotoId.hashValue)"
         case .editAddresses(_, _):
             return "editAddresses"
+        case .eCardEditor(let assets):
+            return "eCardEditor_\(assets.map { $0.localIdentifier }.joined(separator: "_"))"
         }
     }
     
@@ -125,6 +128,8 @@ extension SheetType {
             return .large
         case .comments:
             return .large
+        case .eCardEditor:
+            return .fullScreen
         }
     }
     

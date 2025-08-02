@@ -133,6 +133,14 @@ struct SheetRouter: View {
                     sheetStack.pop()
                 }
             )
+            
+        case .eCardEditor(let assets):
+            ECardEditorView(
+                initialAssets: assets,
+                onDismiss: {
+                    sheetStack.pop()
+                }
+            )
         }
     }
 }

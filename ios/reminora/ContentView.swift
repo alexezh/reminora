@@ -22,6 +22,7 @@ struct ContentView: View {
     @StateObject private var toolbarManager = ToolbarManager()
     @StateObject private var selectedAssetService = SelectedAssetService.shared
     @StateObject private var sheetStack = SheetStack.shared
+    @StateObject private var eCardTemplateService = ECardTemplateService.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -74,6 +75,7 @@ struct ContentView: View {
         .environment(\.toolbarManager, toolbarManager)
         .environment(\.selectedAssetService, selectedAssetService)
         .environment(\.sheetStack, sheetStack)
+        .environment(\.eCardTemplateService, eCardTemplateService)
         .sheet(isPresented: $toolbarManager.showActionSheet) {
             UniversalActionSheet(
                 selectedTab: selectedTab,
@@ -177,6 +179,23 @@ struct ContentView: View {
             let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
             if let firstAsset = fetchResult.firstObject {
                 sheetStack.push(.duplicatePhotos(targetAsset: firstAsset))
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECard"))) { notification in
+            if let asset = notification.object as? PHAsset {
+                print("🎨 ContentView: Creating ECard for single asset: \(asset.localIdentifier)")
+                sheetStack.push(.eCardEditor(assets: [asset]))
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECardFromSelected"))) { notification in
+            if let identifiers = notification.object as? Set<String> {
+                print("🎨 ContentView: Creating ECard for \(identifiers.count) selected assets")
+                let fetchOptions = PHFetchOptions()
+                let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: Array(identifiers), options: fetchOptions)
+                let assets = (0..<fetchResult.count).compactMap { fetchResult.object(at: $0) }
+                if !assets.isEmpty {
+                    sheetStack.push(.eCardEditor(assets: assets))
+                }
             }
         }
         .overlay {

@@ -19,6 +19,7 @@ struct ContentView: View {
     @State private var sharedPlace: PinData?
     @State private var isSwipePhotoViewOpen = false
     @StateObject private var toolbarManager = ToolbarManager()
+    @State private var hasPhotoSelection = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -72,6 +73,7 @@ struct ContentView: View {
         .sheet(isPresented: $toolbarManager.showActionSheet) {
             UniversalActionSheet(
                 selectedTab: selectedTab,
+                hasPhotoSelection: hasPhotoSelection,
                 onRefreshLists: {
                     // Trigger refresh on Lists tab
                     NotificationCenter.default.post(name: NSNotification.Name("RefreshLists"), object: nil)
@@ -89,7 +91,7 @@ struct ContentView: View {
                     NotificationCenter.default.post(name: NSNotification.Name("ToggleSort"), object: nil)
                 }
             )
-            .presentationDetents([.medium])
+            .presentationDetents([.height(400), .medium])
         }
         .overlay(alignment: .bottom) {
             // Custom dynamic toolbar (show when enabled, including when SwipePhotoView is open with its buttons)
@@ -141,6 +143,14 @@ struct ContentView: View {
             if let tabIndex = notification.object as? Int {
                 selectedTab = tabIndex
                 print("🔗 ContentView switched to tab: \(tabIndex)")
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSNotification.Name("PhotoSelectionChanged"))
+        ) { notification in
+            if let hasSelection = notification.object as? Bool {
+                hasPhotoSelection = hasSelection
+                print("📱 ContentView updated photo selection state: \(hasSelection)")
             }
         }
         .overlay {
@@ -290,187 +300,6 @@ struct ContentView: View {
         default:
             toolbarManager.setFABOnlyMode()
         }
-    }
-}
-
-// MARK: - Universal Action Sheet
-
-struct UniversalActionSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    let selectedTab: Int
-    let onRefreshLists: () -> Void
-    let onAddPin: () -> Void
-    let onAddOpenInvite: () -> Void
-    let onToggleSort: () -> Void
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Handle bar - closer to top
-            RoundedRectangle(cornerRadius: 2.5)
-                .fill(Color.secondary.opacity(0.3))
-                .frame(width: 36, height: 5)
-                .padding(.top, 6)
-                .padding(.bottom, 16)
-            
-            // Top section with Photo, Pin, List, Settings buttons
-            HStack(spacing: 20) {
-                QuickActionButton(
-                    icon: "photo",
-                    title: "Photo",
-                    color: .blue,
-                    action: {
-                        dismiss()
-                        // Navigate to photo tab
-                        NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 0)
-                    }
-                )
-                
-                QuickActionButton(
-                    icon: "mappin.and.ellipse",
-                    title: "Pin",
-                    color: .red,
-                    action: {
-                        dismiss()
-                        // Navigate to pin tab
-                        NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 2)
-                    }
-                )
-                
-                QuickActionButton(
-                    icon: "list.bullet.circle",
-                    title: "List",
-                    color: .orange,
-                    action: {
-                        dismiss()
-                        // Navigate to list tab
-                        NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 3)
-                    }
-                )
-                
-                // Show context-specific fourth button based on tab
-                if selectedTab == 3 {
-                    // Lists tab - show Refresh
-                    QuickActionButton(
-                        icon: "arrow.clockwise",
-                        title: "Refresh",
-                        color: .green,
-                        action: {
-                            dismiss()
-                            onRefreshLists()
-                        }
-                    )
-                } else if selectedTab == 2 {
-                    // Pins tab - show Sort
-                    QuickActionButton(
-                        icon: "arrow.up.arrow.down",
-                        title: "Sort",
-                        color: .green,
-                        action: {
-                            dismiss()
-                            onToggleSort()
-                        }
-                    )
-                } else {
-                    // Other tabs - show Settings
-                    QuickActionButton(
-                        icon: "gear",
-                        title: "Settings",
-                        color: .gray,
-                        action: {
-                            dismiss()
-                            print("Settings tapped")
-                        }
-                    )
-                }
-            }
-            .padding(.horizontal, 20)
-            
-            // Second row for Pins tab - Add Pin and Add Open Invite
-            if selectedTab == 2 {
-                HStack(spacing: 20) {
-                    QuickActionButton(
-                        icon: "plus.circle",
-                        title: "Add Pin",
-                        color: .orange,
-                        action: {
-                            dismiss()
-                            onAddPin()
-                        }
-                    )
-                    
-                    QuickActionButton(
-                        icon: "envelope.open",
-                        title: "Open Invite",
-                        color: .purple,
-                        action: {
-                            dismiss()
-                            onAddOpenInvite()
-                        }
-                    )
-                    
-                    // Empty spacers to maintain layout
-                    Spacer()
-                        .frame(width: 50, height: 50)
-                    Spacer()
-                        .frame(width: 50, height: 50)
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-            }
-        }
-        .padding(.bottom, 34)
-        .background(Color(.systemBackground))
-    }
-}
-
-struct QuickActionButton: View {
-    let icon: String
-    let title: String
-    let color: Color
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundColor(.white)
-                    .frame(width: 50, height: 50)
-                    .background(color)
-                    .clipShape(Circle())
-                
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.primary)
-            }
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-struct UniversalActionButton: View {
-    let icon: String
-    let title: String
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 16) {
-                Image(systemName: icon)
-                    .font(.title3)
-                    .foregroundColor(.blue)
-                    .frame(width: 24)
-                
-                Text(title)
-                    .font(.body)
-                    .foregroundColor(.primary)
-                
-                Spacer()
-            }
-            .padding(.vertical, 16)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(PlainButtonStyle())
     }
 }
 

@@ -326,7 +326,7 @@ struct PhotoMainView: View {
                 .padding()
             }
         }
-        .padding(.bottom, 72) // Account for toolbar space (60px + 12px safe area)
+        .padding(.bottom, LayoutConstants.totalToolbarHeight)
         .onAppear {
             initializeCoreData()
             requestPhotoAccess()
@@ -637,6 +637,7 @@ struct PhotoMainView: View {
                 selectedAssets.removeAll()
             }
             updateToolbar()
+            notifySelectionChanged()
         }
     }
     
@@ -646,7 +647,15 @@ struct PhotoMainView: View {
         } else {
             selectedAssets.insert(asset.localIdentifier)
         }
-        updateToolbar()
+        notifySelectionChanged()
+    }
+    
+    private func notifySelectionChanged() {
+        let hasSelection = isSelectionMode && !selectedAssets.isEmpty
+        NotificationCenter.default.post(
+            name: NSNotification.Name("PhotoSelectionChanged"), 
+            object: hasSelection
+        )
     }
     
     // MARK: - Batch Actions
@@ -751,6 +760,7 @@ struct PhotoMainView: View {
     }
 }
 
+/// Represents a group of related photos that can be displayed as a stack
 struct PhotoStack: Identifiable {
     let id = UUID()
     let assets: [PHAsset]

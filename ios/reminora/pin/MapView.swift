@@ -423,7 +423,7 @@ struct MapView: View {
                 }
             }
         }
-        .padding(.bottom, 72) // Account for toolbar space (60px + 12px safe area)
+        .padding(.bottom, LayoutConstants.totalToolbarHeight)
         .onAppear {
             // Load last saved map region and search cache
             loadLastMapRegion()

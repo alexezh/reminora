@@ -114,55 +114,65 @@ struct DynamicToolbar: View {
                                 alignment: position == .bottom ? .top : .bottom
                             )
                         
-                        // Button layout: left buttons - FAB (center) - right buttons
-                        // Position buttons at bottom of toolbar (top of safe area)
-                        VStack(spacing: 0) {
-                            Spacer() // Push buttons to bottom
-                            Spacer() // Extra spacer to push even lower like iOS Photos
-                            
-                            HStack {
-                                // Left side buttons
-                                HStack(spacing: 16) {
-                                    ForEach(regularButtons.prefix(2)) { button in
-                                        ToolbarButton(button: button)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.leading, 16)
+                        // Button layout with FAB positioned higher than regular buttons
+                        ZStack {
+                            // Regular buttons at bottom
+                            VStack(spacing: 0) {
+                                Spacer()
+                                Spacer()
                                 
-                                // Center FAB button
-                                if let fab = fabButton {
+                                HStack {
+                                    // Left side buttons
+                                    HStack(spacing: 16) {
+                                        ForEach(regularButtons.prefix(2)) { button in
+                                            ToolbarButton(button: button)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.leading, 16)
+                                    
+                                    // Center spacer for FAB
+                                    Spacer()
+                                        .frame(width: LayoutConstants.fabButtonSize + 16)
+                                    
+                                    // Right side buttons
+                                    HStack(spacing: 16) {
+                                        ForEach(regularButtons.suffix(from: min(2, regularButtons.count))) { button in
+                                            ToolbarButton(button: button)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                    .padding(.trailing, 16)
+                                }
+                                .padding(.bottom, LayoutConstants.buttonBottomPadding)
+                            }
+                            
+                            // FAB button positioned higher and centered
+                            if let fab = fabButton {
+                                VStack {
+                                    Spacer()
                                     Button(action: fab.action) {
                                         Image(systemName: fab.systemImage)
                                             .font(.title2)
                                             .fontWeight(.semibold)
                                             .foregroundColor(.white)
-                                            .frame(width: 56, height: 56)
+                                            .frame(width: LayoutConstants.fabButtonSize, height: LayoutConstants.fabButtonSize)
                                             .background(fab.isEnabled ? fab.color : Color.gray)
                                             .clipShape(Circle())
                                             .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
                                     }
                                     .disabled(!fab.isEnabled)
+                                    .padding(.bottom, LayoutConstants.fabBottomPadding)
                                 }
-                                
-                                // Right side buttons
-                                HStack(spacing: 16) {
-                                    ForEach(regularButtons.suffix(from: min(2, regularButtons.count))) { button in
-                                        ToolbarButton(button: button)
-                                    }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                                .padding(.trailing, 16)
                             }
-                            .padding(.bottom, 2) // Minimal padding - buttons almost at edge like iOS Photos
                         }
-                        .frame(height: 60)
+                        .frame(height: LayoutConstants.toolbarHeight)
                     }
                     
                     // Safe area extension - reduced height like iOS Photos
                     Rectangle()
                         .fill(backgroundColor)
-                        .frame(height: 12)
+                        .frame(height: LayoutConstants.toolbarSafeAreaHeight)
                 }
             }
         }
@@ -275,7 +285,7 @@ struct ToolbarButton: View {
                         .foregroundColor(button.isEnabled ? button.color : .gray)
                 }
             }
-            .frame(width: 44, height: 44) // Fixed button size
+            .frame(width: LayoutConstants.regularButtonSize, height: LayoutConstants.regularButtonSize)
         }
         .disabled(!button.isEnabled)
     }

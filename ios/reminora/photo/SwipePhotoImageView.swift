@@ -17,12 +17,19 @@ import CoreLocation
 struct SwipePhotoImageView: View {
     let asset: PHAsset
     @Binding var isLoading: Bool
+    let stackInfo: (stack: PhotoStack?, isStack: Bool, count: Int)?
     @State private var image: UIImage?
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
     @State private var loadError: Bool = false
+    
+    init(asset: PHAsset, isLoading: Binding<Bool>, stackInfo: (stack: PhotoStack?, isStack: Bool, count: Int)? = nil) {
+        self.asset = asset
+        self._isLoading = isLoading
+        self.stackInfo = stackInfo
+    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -109,6 +116,26 @@ struct SwipePhotoImageView: View {
                                 }
                             }
                         }
+                
+                // Stack count indicator overlay (top-right corner)
+                if let stackInfo = stackInfo, stackInfo.isStack, stackInfo.count > 1 {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            ZStack {
+                                Circle()
+                                    .fill(Color.black.opacity(0.8))
+                                    .frame(width: 32, height: 32)
+                                
+                                Text("\(stackInfo.count)")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(16)
+                }
                 } else if loadError {
                     VStack {
                         Image(systemName: "exclamationmark.triangle")

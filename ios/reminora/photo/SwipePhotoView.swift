@@ -14,13 +14,6 @@ import CoreData
 import MapKit
 import CoreLocation
 
-// Photo group info for stack display
-struct PhotoGroup {
-    let stackId: String
-    let assets: [PHAsset]
-    let isExpanded: Bool = false
-}
-
 // presented as overlay; takes whole screen
 struct SwipePhotoView: View {
     let allAssets: [PHAsset] // Full list of all photos
@@ -102,16 +95,245 @@ struct SwipePhotoView: View {
     private func expandStack(_ stack: PhotoStack?) {
         guard let stack = stack else { return }
         let stackId = stack.id.uuidString
+        
+        // Store current asset to maintain position
+        let currentAsset = displayAssets.count > currentIndex ? displayAssets[currentIndex] : nil
+        
         expandedStacks.insert(stackId)
         buildDisplayAssets()
+        
+        // Update currentIndex to maintain current photo position
+        if let currentAsset = currentAsset,
+           let newIndex = displayAssets.firstIndex(where: { $0.localIdentifier == currentAsset.localIdentifier }) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                currentIndex = newIndex
+            }
+        }
+        
+        print("Expanded stack \(stackId) - now showing \(displayAssets.count) assets")
     }
     
     // Collapse a stack
     private func collapseStack(_ stack: PhotoStack?) {
         guard let stack = stack else { return }
         let stackId = stack.id.uuidString
+        
+        // Store current asset to maintain position
+        let currentAsset = displayAssets.count > currentIndex ? displayAssets[currentIndex] : nil
+        
         expandedStacks.remove(stackId)
         buildDisplayAssets()
+        
+        // Update currentIndex - if current photo was part of collapsed stack, 
+        // move to stack's primary asset
+        if let currentAsset = currentAsset {
+            if let newIndex = displayAssets.firstIndex(where: { $0.localIdentifier == currentAsset.localIdentifier }) {
+                // Current photo still exists in display
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    currentIndex = newIndex
+                }
+            } else if stack.assets.contains(where: { $0.localIdentifier == currentAsset.localIdentifier }) {
+                // Current photo was part of collapsed stack - move to primary asset
+                if let primaryIndex = displayAssets.firstIndex(where: { $0.localIdentifier == stack.primaryAsset.localIdentifier }) {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        currentIndex = primaryIndex
+                    }
+                }
+            }
+        }
+        
+        print("Collapsed stack \(stackId) - now showing \(displayAssets.count) assets")
+    }
+    
+    // Get thumbnail spacing for visual stack separation
+    private func getThumbnailSpacing(for asset: PHAsset, at index: Int) -> (leading: CGFloat, trailing: CGFloat) {
+        let stackInfo = getStackInfo(for: asset)
+        
+        // Half photo width for separation (30px since thumbnail is 60px)
+        let halfPhotoSpacing: CGFloat = 30
+        let normalSpacing = LayoutConstants.thumbnailSpacing
+        
+        guard let stack = stackInfo.stack, stack.assets.count > 1 else {
+            // Single photo - use normal spacing
+            return (normalSpacing, normalSpacing)
+        }
+        
+        let stackId = stack.id.uuidString
+        let isExpanded = expandedStacks.contains(stackId)
+        
+        if !isExpanded {
+            // Collapsed stack - use normal spacing
+            return (normalSpacing, normalSpacing)
+        }
+        
+        // Expanded stack - add half-photo separation around the stack group
+        let isFirstInStack = asset.localIdentifier == stack.assets.first?.localIdentifier
+        let isLastInStack = asset.localIdentifier == stack.assets.last?.localIdentifier
+        
+        var leadingSpacing: CGFloat = normalSpacing
+        var trailingSpacing: CGFloat = normalSpacing
+        
+        if isFirstInStack {
+            // First photo in expanded stack - add half-photo spacing before
+            leadingSpacing = halfPhotoSpacing
+        }
+        
+        if isLastInStack {
+            // Last photo in expanded stack - add half-photo spacing after
+            trailingSpacing = halfPhotoSpacing
+        }
+        
+        return (leadingSpacing, trailingSpacing)
+    }
+    
+    // Handle swipe navigation with stack boundary respect
+    private func handleStackBoundarySwipe(_ translationWidth: CGFloat) {
+        let currentAsset = displayAssets[currentIndex]
+        let currentStackInfo = getStackInfo(for: currentAsset)
+        
+        withAnimation(.easeInOut(duration: 0.2)) {
+            if translationWidth > 0 {
+                // Swipe right (go to previous photo)
+                if currentIndex > 0 {
+                    let newIndex = currentIndex - 1
+                    
+                    // Check if we're in an expanded stack and hitting boundary
+                    if let stack = currentStackInfo.stack,
+                       expandedStacks.contains(stack.id.uuidString),
+                       let firstStackAsset = stack.assets.first,
+                       currentAsset.localIdentifier == firstStackAsset.localIdentifier {
+                        // At beginning of expanded stack - don't go further
+                        print("Blocked swipe: at beginning of expanded stack")
+                        return
+                    }
+                    
+                    currentIndex = newIndex
+                }
+            } else {
+                // Swipe left (go to next photo)
+                if currentIndex < displayAssets.count - 1 {
+                    let newIndex = currentIndex + 1
+                    
+                    // Check if we're in an expanded stack and hitting boundary
+                    if let stack = currentStackInfo.stack,
+                       expandedStacks.contains(stack.id.uuidString),
+                       let lastStackAsset = stack.assets.last,
+                       currentAsset.localIdentifier == lastStackAsset.localIdentifier {
+                        // At end of expanded stack - don't go further with regular swipe
+                        print("Blocked swipe: at end of expanded stack")
+                        return
+                    }
+                    
+                    currentIndex = newIndex
+                }
+            }
+        }
+    }
+    
+    // Handle long-pull navigation (closes stack and moves to next)
+    private func handleLongPullNavigation(_ translationWidth: CGFloat) {
+        let currentAsset = displayAssets[currentIndex]
+        let currentStackInfo = getStackInfo(for: currentAsset)
+        
+        // If we're in an expanded stack at the boundary, close it and move
+        if let stack = currentStackInfo.stack,
+           expandedStacks.contains(stack.id.uuidString) {
+            
+            if translationWidth < 0, // Left swipe
+               let lastStackAsset = stack.assets.last,
+               currentAsset.localIdentifier == lastStackAsset.localIdentifier {
+                // At end of expanded stack - close stack and move to next photo
+                print("Long pull: closing stack and moving to next photo")
+                collapseStack(stack)
+                
+                // Move to next photo after stack collapse
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    if self.currentIndex < self.displayAssets.count - 1 {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            self.currentIndex += 1
+                        }
+                    }
+                }
+                return
+            }
+            
+            if translationWidth > 0, // Right swipe
+               let firstStackAsset = stack.assets.first,
+               currentAsset.localIdentifier == firstStackAsset.localIdentifier {
+                // At beginning of expanded stack - close stack and move to previous photo
+                print("Long pull: closing stack and moving to previous photo")
+                collapseStack(stack)
+                
+                // Move to previous photo after stack collapse
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    if self.currentIndex > 0 {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            self.currentIndex -= 1
+                        }
+                    }
+                }
+                return
+            }
+        }
+        
+        // If not at stack boundary, use regular moveToNextStack logic
+        if translationWidth < 0 {
+            moveToNextStack()
+        } else {
+            moveToPreviousStack()
+        }
+    }
+    
+    // Move to previous stack or photo
+    private func moveToPreviousStack() {
+        let currentAsset = displayAssets[currentIndex]
+        let currentStackInfo = getStackInfo(for: currentAsset)
+        
+        // Find previous stack boundary
+        if let currentStack = currentStackInfo.stack {
+            // If in a stack, move to first photo before this stack
+            let stackAssets = currentStack.assets
+            if let firstStackAsset = stackAssets.first,
+               let firstStackIndex = displayAssets.firstIndex(where: { $0.localIdentifier == firstStackAsset.localIdentifier }),
+               firstStackIndex > 0 {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    currentIndex = firstStackIndex - 1
+                }
+            }
+        } else {
+            // If single photo, just move to previous photo
+            if currentIndex > 0 {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    currentIndex -= 1
+                }
+            }
+        }
+    }
+    
+    // Move to next stack or photo (long pull/press action)
+    private func moveToNextStack() {
+        let currentAsset = displayAssets[currentIndex]
+        let currentStackInfo = getStackInfo(for: currentAsset)
+        
+        // Find next stack boundary
+        if let currentStack = currentStackInfo.stack {
+            // If in a stack, move to first photo after this stack
+            let stackAssets = currentStack.assets
+            if let lastStackAsset = stackAssets.last,
+               let lastStackIndex = displayAssets.firstIndex(where: { $0.localIdentifier == lastStackAsset.localIdentifier }),
+               lastStackIndex + 1 < displayAssets.count {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    currentIndex = lastStackIndex + 1
+                }
+            }
+        } else {
+            // If single photo, just move to next photo
+            if currentIndex + 1 < displayAssets.count {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    currentIndex += 1
+                }
+            }
+        }
     }
     
     var body: some View {
@@ -126,19 +348,56 @@ struct SwipePhotoView: View {
                     VStack(spacing: 0) {
                         // Main photo area - single photo view
                         if !displayAssets.isEmpty && currentIndex < displayAssets.count {
-                            SwipePhotoImageView(asset: displayAssets[currentIndex], isLoading: $isLoading)
+                            let currentStackInfo = getStackInfo(for: displayAssets[currentIndex])
+                            SwipePhotoImageView(asset: displayAssets[currentIndex], isLoading: $isLoading, stackInfo: currentStackInfo)
+                                .scaleEffect(isLoading ? 0.95 : 1.0) // Swipe effect
+                                .animation(.easeInOut(duration: 0.2), value: isLoading)
                                 .gesture(
-                                    DragGesture()
+                                    // Combined gesture for tap, long press, and swipe
+                                    DragGesture(minimumDistance: 0)
+                                        .onChanged { value in
+                                            // Show swipe effect during drag
+                                            if abs(value.translation.width) > 20 {
+                                                isLoading = true
+                                            }
+                                        }
                                         .onEnded { value in
-                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                if value.translation.width > 100 && currentIndex > 0 {
-                                                    currentIndex -= 1
-                                                } else if value.translation.width < -100 && currentIndex < displayAssets.count - 1 {
-                                                    currentIndex += 1
+                                            isLoading = false
+                                            
+                                            // Handle different gesture types
+                                            let isHorizontalSwipe = abs(value.translation.width) > abs(value.translation.height)
+                                            let distance = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
+                                            
+                                            if distance < 10 {
+                                                // Tap gesture - check for stack
+                                                let stackInfo = getStackInfo(for: displayAssets[currentIndex])
+                                                if stackInfo.isStack && stackInfo.count > 1 {
+                                                    let stackId = stackInfo.stack!.id.uuidString
+                                                    if expandedStacks.contains(stackId) {
+                                                        collapseStack(stackInfo.stack)
+                                                    } else {
+                                                        expandStack(stackInfo.stack)
+                                                    }
                                                 }
+                                            } else if isHorizontalSwipe && abs(value.translation.width) > LayoutConstants.swipeThreshold {
+                                                // Check for long-pull (extended horizontal swipe)
+                                                if abs(value.translation.width) > LayoutConstants.swipeThreshold * 2 {
+                                                    // Long horizontal pull - close stack and move to next
+                                                    handleLongPullNavigation(value.translation.width)
+                                                } else {
+                                                    // Regular horizontal swipe - navigate photos with stack boundaries
+                                                    handleStackBoundarySwipe(value.translation.width)
+                                                }
+                                            } else if !isHorizontalSwipe && value.translation.height > LayoutConstants.swipeThreshold {
+                                                // Long pull down - move to next stack/photo
+                                                moveToNextStack()
                                             }
                                         }
                                 )
+                                .onLongPressGesture(minimumDuration: LayoutConstants.longPressThreshold) {
+                                    // Long press - move to next stack  
+                                    moveToNextStack()
+                                }
                         } else {
                             // Fallback when no display assets
                             VStack {
@@ -152,37 +411,66 @@ struct SwipePhotoView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                         
-                        // Bottom thumbnail area
-                        VStack(spacing: 8) {
-                            // Thumbnail scroll view
-                            ScrollViewReader { scrollProxy in
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    LazyHStack(spacing: 2) {
-                                        ForEach(Array(displayAssets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                        // Spacer to push thumbnails above toolbar
+                        Spacer()
+                    }
+                    
+                    // Bottom thumbnail area - positioned above toolbar
+                    VStack(spacing: 0) {
+                        // Thumbnail scroll view with stack separation
+                        ScrollViewReader { scrollProxy in
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                LazyHStack(spacing: 0) { // Remove default spacing
+                                    ForEach(Array(displayAssets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                                        let stackInfo = getStackInfo(for: asset)
+                                        let (leadingSpacing, trailingSpacing) = getThumbnailSpacing(for: asset, at: index)
+                                        
+                                        HStack(spacing: 0) {
+                                            // Leading spacing
+                                            if leadingSpacing > 0 {
+                                                Spacer()
+                                                    .frame(width: leadingSpacing)
+                                            }
+                                            
                                             ThumbnailView(
                                                 asset: asset,
                                                 isSelected: index == currentIndex,
-                                                stackInfo: getStackInfo(for: asset)
+                                                stackInfo: stackInfo
                                             ) {
+                                                // Handle tap - if it's a stack indicator, expand/collapse
+                                                if stackInfo.isStack && stackInfo.count > 1 {
+                                                    let stackId = stackInfo.stack!.id.uuidString
+                                                    if expandedStacks.contains(stackId) {
+                                                        collapseStack(stackInfo.stack)
+                                                    } else {
+                                                        expandStack(stackInfo.stack)
+                                                    }
+                                                }
                                                 currentIndex = index
+                                            }
+                                            
+                                            // Trailing spacing
+                                            if trailingSpacing > 0 {
+                                                Spacer()
+                                                    .frame(width: trailingSpacing)
                                             }
                                         }
                                     }
-                                    .padding(.horizontal, 16)
                                 }
-                                .frame(height: 60)
-                                .onChange(of: currentIndex) { _, newIndex in
-                                    guard newIndex >= 0 && newIndex < displayAssets.count else { return }
-                                    withAnimation(.easeInOut(duration: 0.3)) {
-                                        scrollProxy.scrollTo(displayAssets[newIndex].localIdentifier, anchor: .center)
-                                    }
+                                .padding(.horizontal, LayoutConstants.thumbnailPadding)
+                            }
+                            .frame(height: LayoutConstants.thumbnailHeight)
+                            .onChange(of: currentIndex) { _, newIndex in
+                                guard newIndex >= 0 && newIndex < displayAssets.count else { return }
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    scrollProxy.scrollTo(displayAssets[newIndex].localIdentifier, anchor: .center)
                                 }
                             }
                         }
-                        .padding(.bottom, 8) // Small gap above toolbar
+                        .padding(.bottom, LayoutConstants.contentToolbarGap)
                     }
+                    .padding(.bottom, LayoutConstants.totalToolbarHeight)
                 }
-                .padding(.bottom, 72) // Account for toolbar space (60px + 12px)
                 .ignoresSafeArea(.all)
                 
                 // Floating top navigation overlay

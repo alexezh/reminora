@@ -4,16 +4,15 @@ invented word combining reminisce + aurora (dawn of memory)
 click to favor should remove favorite.
 image - swipe up - show map and details. add show details to menu
 image - scale to fit area between title and tumbnails
-bucket photos by similarity. display all photos. 
 
-add pin menu does not work
-allow RList to create another RList. For search lists, remember search string and options. When displaying, 
 add option to refresh should shows delta. Remove - swipe right
-
 select - shows fav and archive
+move save button to actions as save search. 
 
 List - add swipe to delete. 
 Save search results does not work
+SwipePhotoView. swipe down to close the view
+
 
 Future place
 

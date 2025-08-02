@@ -16,8 +16,8 @@ enum SelectedAssetType {
 }
 
 // MARK: - Selected Asset Service
-class SelectedAssetService: ObservableObject {
-    static let shared = SelectedAssetService()
+class SelectionService: ObservableObject {
+    static let shared = SelectionService()
     
     @Published private var selectedPhotos: Set<String> = [] // Asset localIdentifiers
     @Published private var selectedPins: Set<String> = [] // Pin objectID strings
@@ -152,11 +152,11 @@ class SelectedAssetService: ObservableObject {
 
 // MARK: - Environment Integration
 private struct SelectedAssetServiceKey: EnvironmentKey {
-    static let defaultValue = SelectedAssetService.shared
+    static let defaultValue = SelectionService.shared
 }
 
 extension EnvironmentValues {
-    var selectedAssetService: SelectedAssetService {
+    var selectedAssetService: SelectionService {
         get { self[SelectedAssetServiceKey.self] }
         set { self[SelectedAssetServiceKey.self] = newValue }
     }

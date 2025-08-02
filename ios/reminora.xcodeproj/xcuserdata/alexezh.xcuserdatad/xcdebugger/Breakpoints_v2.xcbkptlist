@@ -512,8 +512,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "90"
             endingLineNumber = "90"
-            landmarkName = "findSimilarPhotos(to:in:threshold:limit:)"
-            landmarkType = "7">
+            landmarkName = "PhotoEmbeddingService"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy

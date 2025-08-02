@@ -20,7 +20,7 @@ struct ContentView: View {
     @State private var sharedPlace: PinData?
     @State private var isSwipePhotoViewOpen = false
     @StateObject private var toolbarManager = ToolbarManager()
-    @StateObject private var selectedAssetService = SelectedAssetService.shared
+    @StateObject private var selectedAssetService = SelectionService.shared
     @StateObject private var sheetStack = SheetStack.shared
     @StateObject private var eCardTemplateService = ECardTemplateService.shared
     @State private var isActionSheetScrolling = false

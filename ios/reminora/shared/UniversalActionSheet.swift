@@ -129,237 +129,15 @@ struct UniversalActionSheet: View {
                 
                 LazyVStack(spacing: 0) {
                     if selectedTab == 0 {
-                        // Photos tab actions
-                        ActionSectionHeader("Photo Actions")
-                        ActionListItem(icon: "archivebox", title: "Archive", isEnabled: selectedAssetService.hasPhotoSelection, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
-                                NotificationCenter.default.post(name: NSNotification.Name("ArchivePhoto"), object: currentPhoto)
-                            } else {
-                                NotificationCenter.default.post(name: NSNotification.Name("ArchiveSelectedPhotos"), object: selectedAssetService.selectedPhotoIdentifiers)
-                            }
-                        }
-                        ActionListItem(icon: "trash", title: "Delete", isEnabled: selectedAssetService.hasPhotoSelection, isDestructive: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
-                                NotificationCenter.default.post(name: NSNotification.Name("DeletePhoto"), object: currentPhoto)
-                            } else {
-                                NotificationCenter.default.post(name: NSNotification.Name("DeleteSelectedPhotos"), object: selectedAssetService.selectedPhotoIdentifiers)
-                            }
-                        }
-                        ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: selectedAssetService.hasPhotoSelection, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
-                                NotificationCenter.default.post(name: NSNotification.Name("DuplicatePhoto"), object: currentPhoto)
-                            } else {
-                                NotificationCenter.default.post(name: NSNotification.Name("DuplicateSelectedPhotos"), object: selectedAssetService.selectedPhotoIdentifiers)
-                            }
-                        }
-                        ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: selectedAssetService.hasPhotoSelection, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
-                                NotificationCenter.default.post(name: NSNotification.Name("AddPhotoToQuickList"), object: currentPhoto)
-                            } else {
-                                NotificationCenter.default.post(name: NSNotification.Name("AddSelectedPhotosToQuickList"), object: selectedAssetService.selectedPhotoIdentifiers)
-                            }
-                            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
-                        }
-                        ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: selectedAssetService.hasPhotoSelection, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
-                                NotificationCenter.default.post(name: NSNotification.Name("FindSimilarPhotos"), object: currentPhoto)
-                            } else {
-                                NotificationCenter.default.post(name: NSNotification.Name("FindSimilarToSelected"), object: selectedAssetService.selectedPhotoIdentifiers)
-                            }
-                        }
-                        ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            NotificationCenter.default.post(name: NSNotification.Name("FindDuplicatePhotos"), object: nil)
-                        }
-                        ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: selectedAssetService.hasPhotoSelection, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
-                                NotificationCenter.default.post(name: NSNotification.Name("MakeECard"), object: currentPhoto)
-                            } else {
-                                NotificationCenter.default.post(name: NSNotification.Name("MakeECardFromSelected"), object: selectedAssetService.selectedPhotoIdentifiers)
-                            }
-                        }
-                        ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: selectedAssetService.hasPhotoSelection, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            if let currentPhoto = selectedAssetService.getCurrentPhoto {
-                                NotificationCenter.default.post(name: NSNotification.Name("MakeCollage"), object: currentPhoto)
-                            } else {
-                                NotificationCenter.default.post(name: NSNotification.Name("MakeCollageFromSelected"), object: selectedAssetService.selectedPhotoIdentifiers)
-                            }
-                        }
+                        photosTabActions()
                     } else if selectedTab == 1 {
-                        // Map tab actions
-                        ActionSectionHeader("Photo Actions")
-                        ActionListItem(icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement archive
-                        }
-                        ActionListItem(icon: "trash", title: "Delete", isEnabled: true, isDestructive: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement delete
-                        }
-                        ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement duplicate
-                        }
-                        ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // Trigger add to quick list and mark for auto-open
-                            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
-                            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
-                        }
-                        ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement find similar
-                        }
-                        ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement find duplicates
-                        }
-                        ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement make ecard
-                        }
-                        ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement make collage
-                        }
+                        mapTabActions()
                     } else if selectedTab == 2 {
-                        // Pins tab actions
-                        ActionSectionHeader("Pin Actions")
-                        ActionListItem(icon: "plus.circle", title: "Add Pin", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            onAddPin()
-                        }
-                        ActionListItem(icon: "envelope.open", title: "Open Invite", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            onAddOpenInvite()
-                        }
-                        ActionListItem(icon: "arrow.up.arrow.down", title: "Sort", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            onToggleSort()
-                        }
-                        
-                        ActionSectionHeader("Photo Actions")
-                        ActionListItem(icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement archive
-                        }
-                        ActionListItem(icon: "trash", title: "Delete", isEnabled: true, isDestructive: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement delete
-                        }
-                        ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement duplicate
-                        }
-                        ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // Trigger add to quick list and mark for auto-open
-                            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
-                            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
-                        }
-                        ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement find similar
-                        }
-                        ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement find duplicates
-                        }
-                        ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement make ecard
-                        }
-                        ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement make collage
-                        }
+                        pinsTabActions()
                     } else if selectedTab == 3 {
-                        // Lists tab actions
-                        ActionSectionHeader("List Actions")
-                        ActionListItem(icon: "arrow.clockwise", title: "Refresh", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            onRefreshLists()
-                        }
-                        
-                        ActionSectionHeader("Photo Actions")
-                        ActionListItem(icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement archive
-                        }
-                        ActionListItem(icon: "trash", title: "Delete", isEnabled: true, isDestructive: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement delete
-                        }
-                        ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement duplicate
-                        }
-                        ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // Trigger add to quick list and mark for auto-open
-                            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
-                            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
-                        }
-                        ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement find similar
-                        }
-                        ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement find duplicates
-                        }
-                        ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement make ecard
-                        }
-                        ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement make collage
-                        }
+                        listsTabActions()
                     } else {
-                        // Profile/Settings tab
-                        ActionSectionHeader("Photo Actions")
-                        ActionListItem(icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement archive
-                        }
-                        ActionListItem(icon: "trash", title: "Delete", isEnabled: true, isDestructive: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement delete
-                        }
-                        ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement duplicate
-                        }
-                        ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // Trigger add to quick list and mark for auto-open
-                            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
-                            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
-                        }
-                        ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement find similar
-                        }
-                        ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement find duplicates
-                        }
-                        ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement make ecard
-                        }
-                        ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: true, hasScrolled: $hasScrolled) {
-                            dismiss()
-                            // TODO: Implement make collage
-                        }
+                        profileTabActions()
                     }
                 }
                 .padding(.top, 8)
@@ -400,6 +178,211 @@ struct UniversalActionSheet: View {
         }
         .padding(.bottom, 20)
         .background(Color(.systemBackground))
+    }
+    
+    // MARK: - Tab Action Functions
+    
+    @ViewBuilder
+    private func photosTabActions() -> some View {
+        ActionSectionHeader("Photo Actions")
+        ActionListItem(icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement archive
+        }
+        ActionListItem(icon: "trash", title: "Delete", isEnabled: true, isDestructive: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement delete
+        }
+        ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement duplicate
+        }
+        ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // Trigger add to quick list and mark for auto-open
+            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
+            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
+        }
+        ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement make ecard
+        }
+        ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement find similar
+        }
+        ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement find duplicates
+        }
+        ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement make collage
+        }
+    }
+    
+    @ViewBuilder
+    private func mapTabActions() -> some View {
+        ActionSectionHeader("Map Actions")
+        ActionListItem(icon: "plus.circle", title: "Add Pin", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            onAddPin()
+        }
+        ActionListItem(icon: "person.3", title: "Add Open Invite", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            onAddOpenInvite()
+        }
+        ActionListItem(icon: "arrow.up.arrow.down", title: "Toggle Sort", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            onToggleSort()
+        }
+        
+        ActionSectionHeader("Navigation")
+        ActionListItem(icon: "photo", title: "Photos", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 0)
+        }
+        ActionListItem(icon: "mappin.and.ellipse", title: "Pins", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 2)
+        }
+    }
+    
+    @ViewBuilder
+    private func pinsTabActions() -> some View {
+        ActionSectionHeader("Pin Actions")
+        ActionListItem(icon: "plus.circle", title: "Add Pin", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            onAddPin()
+        }
+        ActionListItem(icon: "person.3", title: "Add Open Invite", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            onAddOpenInvite()
+        }
+        ActionListItem(icon: "arrow.up.arrow.down", title: "Toggle Sort", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            onToggleSort()
+        }
+        
+        ActionSectionHeader("Photo Actions")
+        ActionListItem(icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement archive
+        }
+        ActionListItem(icon: "trash", title: "Delete", isEnabled: true, isDestructive: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement delete
+        }
+        ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement duplicate
+        }
+        ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // Trigger add to quick list and mark for auto-open
+            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
+            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
+        }
+        ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement find similar
+        }
+        ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement find duplicates
+        }
+        ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement make ecard
+        }
+        ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement make collage
+        }
+    }
+    
+    @ViewBuilder
+    private func listsTabActions() -> some View {
+        ActionSectionHeader("List Actions")
+        ActionListItem(icon: "arrow.clockwise", title: "Refresh", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            onRefreshLists()
+        }
+        
+        ActionSectionHeader("Photo Actions")
+        ActionListItem(icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement archive
+        }
+        ActionListItem(icon: "trash", title: "Delete", isEnabled: true, isDestructive: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement delete
+        }
+        ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement duplicate
+        }
+        ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // Trigger add to quick list and mark for auto-open
+            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
+            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
+        }
+        ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement find similar
+        }
+        ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement find duplicates
+        }
+        ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement make ecard
+        }
+        ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement make collage
+        }
+    }
+    
+    @ViewBuilder
+    private func profileTabActions() -> some View {
+        ActionSectionHeader("Photo Actions")
+        ActionListItem(icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement archive
+        }
+        ActionListItem(icon: "trash", title: "Delete", isEnabled: true, isDestructive: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement delete
+        }
+        ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement duplicate
+        }
+        ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // Trigger add to quick list and mark for auto-open
+            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
+            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
+        }
+        ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement find similar
+        }
+        ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement find duplicates
+        }
+        ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement make ecard
+        }
+        ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: true, hasScrolled: $hasScrolled) {
+            dismiss()
+            // TODO: Implement make collage
+        }
     }
 }
 

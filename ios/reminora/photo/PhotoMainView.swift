@@ -364,7 +364,10 @@ struct PhotoMainView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindDuplicatePhotos"))) { _ in
             print("📷 Finding duplicate photos across entire library")
-            sheetStack.push(.duplicatePhotos)
+            // Use first available photo as target for duplicate detection
+            if let firstAsset = allPhotoAssets.first {
+                sheetStack.push(.duplicatePhotos(targetAsset: firstAsset))
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ApplySearchFilter"))) { notification in
             if let filterData = notification.object as? [String: Any] {

@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct PhotoActionSheet: View {
+struct PhotoActionView: View {
     let isFavorite: Bool
     let isInQuickList: Bool
     let onShare: () -> Void

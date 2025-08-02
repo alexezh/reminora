@@ -622,7 +622,7 @@ struct SwipePhotoView: View {
             SimilarPhotosGridView(targetAsset: currentAsset)
         }
         .sheet(isPresented: $showingActionSheet) {
-            PhotoActionSheet(
+            PhotoActionView(
                 isFavorite: isFavorite,
                 isInQuickList: isInQuickList,
                 onShare: sharePhoto,

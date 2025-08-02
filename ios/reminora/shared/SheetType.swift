@@ -16,12 +16,11 @@ enum SheetType: Identifiable, Equatable {
     case pinDetail(place: PinData, allPlaces: [PinData])
     case userProfile(userId: String, userName: String, userHandle: String)
     case similarPhotos(targetAsset: PHAsset)
-    case duplicatePhotos
+    case duplicatePhotos(targetAsset: PHAsset)
     case photoSimilarity(targetAsset: PHAsset)
     case quickList
     case allLists
     case shareSheet(text: String, url: String)
-    case photoActionSheet(asset: PHAsset)
     case searchDialog
     case nearbyPhotos(centerLocation: CLLocationCoordinate2D)
     case nearbyLocations(searchLocation: CLLocationCoordinate2D, locationName: String)
@@ -41,8 +40,8 @@ enum SheetType: Identifiable, Equatable {
             return "userProfile_\(userId)"
         case .similarPhotos(let targetAsset):
             return "similarPhotos_\(targetAsset.localIdentifier)"
-        case .duplicatePhotos:
-            return "duplicatePhotos"
+        case .duplicatePhotos(let targetAsset):
+            return "duplicatePhotos_\(targetAsset.localIdentifier)"
         case .photoSimilarity(let targetAsset):
             return "photoSimilarity_\(targetAsset.localIdentifier)"
         case .quickList:
@@ -51,8 +50,6 @@ enum SheetType: Identifiable, Equatable {
             return "allLists"
         case .shareSheet(let text, let url):
             return "shareSheet_\(text.hashValue)_\(url.hashValue)"
-        case .photoActionSheet(let asset):
-            return "photoActionSheet_\(asset.localIdentifier)"
         case .searchDialog:
             return "searchDialog"
         case .nearbyPhotos(let centerLocation):
@@ -120,8 +117,6 @@ extension SheetType {
             return .large
         case .shareSheet:
             return .default
-        case .photoActionSheet:
-            return .compact
         case .searchDialog:
             return .large
         case .nearbyPhotos, .nearbyLocations:

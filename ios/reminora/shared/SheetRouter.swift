@@ -78,9 +78,8 @@ struct SheetRouter: View {
         case .similarPhotos(let targetAsset):
             SimilarPhotosGridView(targetAsset: targetAsset)
             
-        case .duplicatePhotos:
-            // Use a dummy asset for duplicate detection - PhotoSimilarityView will find all duplicates
-            DuplicatePhotosView()
+        case .duplicatePhotos(let targetAsset):
+            PhotoSimilarityView(targetAsset: targetAsset)
             
         case .photoSimilarity(let targetAsset):
             PhotoSimilarityView(targetAsset: targetAsset)
@@ -93,9 +92,6 @@ struct SheetRouter: View {
             
         case .shareSheet(let text, let url):
             ShareSheet(text: text, url: url)
-            
-        case .photoActionSheet(let asset):
-            PhotoActionSheetWrapper(asset: asset)
             
         case .searchDialog:
             SearchDialogWrapper()
@@ -143,47 +139,6 @@ struct SheetRouter: View {
 
 // MARK: - Wrapper Views for Complex Cases
 
-private struct DuplicatePhotosView: View {
-    var body: some View {
-        // Use first available photo as target for duplicate detection
-        PhotoLibraryFirstAssetWrapper { firstAsset in
-            if let asset = firstAsset {
-                PhotoSimilarityView(targetAsset: asset)
-            } else {
-                VStack {
-                    Image(systemName: "photo.stack")
-                        .font(.system(size: 60))
-                        .foregroundColor(.gray)
-                    Text("No Photos Available")
-                        .font(.title2)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-            }
-        }
-    }
-}
-
-private struct PhotoLibraryFirstAssetWrapper<Content: View>: View {
-    let content: (PHAsset?) -> Content
-    @State private var firstAsset: PHAsset?
-    
-    var body: some View {
-        content(firstAsset)
-            .onAppear {
-                loadFirstAsset()
-            }
-    }
-    
-    private func loadFirstAsset() {
-        let fetchOptions = PHFetchOptions()
-        fetchOptions.fetchLimit = 1
-        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-        
-        let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
-        firstAsset = fetchResult.firstObject
-    }
-}
 
 private struct QuickListWrapperView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -220,70 +175,6 @@ private struct AllListsWrapperView: View {
     }
 }
 
-private struct PhotoActionSheetWrapper: View {
-    let asset: PHAsset
-    @State private var isFavorite = false
-    @State private var isInQuickList = false
-    @Environment(\.managedObjectContext) private var viewContext
-    
-    var body: some View {
-        PhotoActionSheet(
-            isFavorite: isFavorite,
-            isInQuickList: isInQuickList,
-            onShare: {
-                PhotoSharingService.shared.sharePhoto(asset)
-                SheetStack.shared.pop()
-            },
-            onToggleFavorite: {
-                toggleFavorite()
-            },
-            onToggleQuickList: {
-                toggleQuickList()
-            },
-            onAddPin: {
-                SheetStack.shared.replace(with: .addPinFromPhoto(asset: asset))
-            },
-            onFindSimilar: {
-                SheetStack.shared.replace(with: .similarPhotos(targetAsset: asset))
-            }
-        )
-        .onAppear {
-            updateStates()
-        }
-    }
-    
-    private func updateStates() {
-        isFavorite = asset.isFavorite
-        let userId = AuthenticationService.shared.currentAccount?.id ?? ""
-        isInQuickList = RListService.shared.isPhotoInQuickList(asset, context: viewContext, userId: userId)
-    }
-    
-    private func toggleFavorite() {
-        PHPhotoLibrary.shared().performChanges({
-            let request = PHAssetChangeRequest(for: asset)
-            request.isFavorite = !asset.isFavorite
-        }) { success, error in
-            DispatchQueue.main.async {
-                if success {
-                    self.isFavorite = !self.isFavorite
-                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                    impactFeedback.impactOccurred()
-                }
-            }
-        }
-    }
-    
-    private func toggleQuickList() {
-        let userId = AuthenticationService.shared.currentAccount?.id ?? ""
-        let success = RListService.shared.togglePhotoInQuickList(asset, context: viewContext, userId: userId)
-        
-        if success {
-            isInQuickList = !isInQuickList
-            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-            impactFeedback.impactOccurred()
-        }
-    }
-}
 
 private struct SearchDialogWrapper: View {
     @State private var searchText = ""

@@ -170,7 +170,14 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindDuplicatePhotos"))) { _ in
             print("📷 ContentView: Finding duplicate photos across entire library")
-            sheetStack.push(.duplicatePhotos)
+            // Use first available photo as target for duplicate detection
+            let fetchOptions = PHFetchOptions()
+            fetchOptions.fetchLimit = 1
+            fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
+            let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
+            if let firstAsset = fetchResult.firstObject {
+                sheetStack.push(.duplicatePhotos(targetAsset: firstAsset))
+            }
         }
         .overlay {
             if showingSharedPlace, let place = sharedPlace {

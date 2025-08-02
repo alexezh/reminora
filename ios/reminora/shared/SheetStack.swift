@@ -137,7 +137,7 @@ class SheetStack: ObservableObject {
     func popAllPhotoSheets() {
         popAll { sheet in
             switch sheet {
-            case .addPinFromPhoto, .similarPhotos, .photoSimilarity, .photoActionSheet:
+            case .addPinFromPhoto, .similarPhotos, .duplicatePhotos, .photoSimilarity:
                 return true
             default:
                 return false

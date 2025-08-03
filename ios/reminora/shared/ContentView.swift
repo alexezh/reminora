@@ -253,6 +253,7 @@ struct ContentView: View {
         switch tabIndex {
         case 0: // Photos Tab - FAB only
             toolbarManager.setFABOnlyMode()
+            UniversalActionSheetModel.shared.setContext(.photos)
             
         case 1: // Map Tab - Full toolbar with navigation buttons
             let mapButtons = [
@@ -279,18 +280,23 @@ struct ContentView: View {
                 )
             ]
             toolbarManager.setCustomToolbar(buttons: mapButtons)
+            UniversalActionSheetModel.shared.setContext(.map)
             
         case 2: // Pins Tab - Show FAB only
             toolbarManager.setFABOnlyMode()
+            UniversalActionSheetModel.shared.setContext(.pins)
             
         case 3: // Lists Tab - Show FAB only
             toolbarManager.setFABOnlyMode()
+            UniversalActionSheetModel.shared.setContext(.lists)
             
         case 4: // Profile Tab - FAB only for now
             toolbarManager.setFABOnlyMode()
+            UniversalActionSheetModel.shared.setContext(.profile)
             
         default:
             toolbarManager.setFABOnlyMode()
+            UniversalActionSheetModel.shared.setContext(.lists)
         }
     }
 }

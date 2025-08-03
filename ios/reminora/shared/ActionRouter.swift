@@ -43,6 +43,11 @@ enum ActionType: Equatable {
     case showQuickList
     case showAllLists
     
+    // QuickList Actions
+    case emptyQuickList
+    case createListFromQuickList
+    case addQuickListToExistingList
+    
     // Map Actions
     case showNearbyPhotos(CLLocationCoordinate2D)
     case showNearbyLocations(CLLocationCoordinate2D, String)
@@ -75,6 +80,9 @@ enum ActionType: Equatable {
         case (.refreshLists, .refreshLists): return true
         case (.showQuickList, .showQuickList): return true
         case (.showAllLists, .showAllLists): return true
+        case (.emptyQuickList, .emptyQuickList): return true
+        case (.createListFromQuickList, .createListFromQuickList): return true
+        case (.addQuickListToExistingList, .addQuickListToExistingList): return true
         case (.showSearchDialog, .showSearchDialog): return true
         case (.custom(let a, _), .custom(let b, _)): return a == b
         default: return false
@@ -189,6 +197,16 @@ class ActionRouter: ObservableObject {
             
         case .showAllLists:
             handleShowAllLists()
+            
+        // QuickList Actions
+        case .emptyQuickList:
+            handleEmptyQuickList()
+            
+        case .createListFromQuickList:
+            handleCreateListFromQuickList()
+            
+        case .addQuickListToExistingList:
+            handleAddQuickListToExistingList()
             
         // Map Actions
         case .showNearbyPhotos(let location):
@@ -362,6 +380,18 @@ class ActionRouter: ObservableObject {
     
     private func handleShowSearchDialog() {
         sheetStack?.push(.searchDialog)
+    }
+    
+    private func handleEmptyQuickList() {
+        NotificationCenter.default.post(name: NSNotification.Name("EmptyQuickList"), object: nil)
+    }
+    
+    private func handleCreateListFromQuickList() {
+        NotificationCenter.default.post(name: NSNotification.Name("CreateListFromQuickList"), object: nil)
+    }
+    
+    private func handleAddQuickListToExistingList() {
+        NotificationCenter.default.post(name: NSNotification.Name("AddQuickListToExistingList"), object: nil)
     }
     
     // MARK: - Helper Methods

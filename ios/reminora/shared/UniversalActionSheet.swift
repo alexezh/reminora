@@ -10,10 +10,38 @@ import MapKit
 import PhotosUI
 import SwiftUI
 
+// MARK: - Action Sheet Context
+enum ActionSheetContext {
+    case photos
+    case map
+    case pins
+    case lists
+    case quickList
+    case profile
+    case swipePhoto
+    case pinDetail
+}
+
+// MARK: - Universal Action Sheet Model
+class UniversalActionSheetModel: ObservableObject {
+    @Published var context: ActionSheetContext = .lists
+    
+    static let shared = UniversalActionSheetModel()
+    
+    private init() {}
+    
+    func setContext(_ newContext: ActionSheetContext) {
+        DispatchQueue.main.async {
+            self.context = newContext
+        }
+    }
+}
+
 // MARK: - Universal Action Sheet
 struct UniversalActionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.selectedAssetService) private var selectedAssetService
+    @StateObject private var actionSheetModel = UniversalActionSheetModel.shared
     let selectedTab: Int
     let onRefreshLists: () -> Void
     let onAddPin: () -> Void
@@ -135,16 +163,23 @@ struct UniversalActionSheet: View {
                 .frame(height: 0)
 
                 LazyVStack(spacing: 0) {
-                    if selectedTab == 0 {
+                    switch actionSheetModel.context {
+                    case .photos:
                         photosTabActions()
-                    } else if selectedTab == 1 {
+                    case .map:
                         mapTabActions()
-                    } else if selectedTab == 2 {
+                    case .pins:
                         pinsTabActions()
-                    } else if selectedTab == 3 {
+                    case .lists:
                         listsTabActions()
-                    } else {
+                    case .quickList:
+                        quickListActions()
+                    case .profile:
                         profileTabActions()
+                    case .swipePhoto:
+                        swipePhotoActions()
+                    case .pinDetail:
+                        pinDetailActions()
                     }
                 }
                 .padding(.top, 8)
@@ -359,6 +394,31 @@ struct UniversalActionSheet: View {
     }
 
     @ViewBuilder
+    private func quickListActions() -> some View {
+        ActionListItem(
+            icon: "trash", title: "Empty Quick List", isEnabled: true, isDestructive: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.emptyQuickList)
+        }
+        ActionListItem(
+            icon: "plus.rectangle.on.folder", title: "Create List", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.createListFromQuickList)
+        }
+        ActionListItem(
+            icon: "folder.badge.plus", title: "Add to List", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.addQuickListToExistingList)
+        }
+    }
+
+    @ViewBuilder
     private func listsTabActions() -> some View {
         ActionListItem(
             icon: "arrow.clockwise", title: "Refresh", isEnabled: true, hasScrolled: $hasScrolled
@@ -419,6 +479,56 @@ struct UniversalActionSheet: View {
         ) {
             dismiss()
             ActionRouter.shared.execute(.makeCollage([]))
+        }
+    }
+
+    @ViewBuilder
+    private func swipePhotoActions() -> some View {
+        ActionListItem(
+            icon: "heart", title: "Favorite", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.toggleFavorite(nil))
+        }
+        ActionListItem(
+            icon: "square.and.arrow.up", title: "Share", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.sharePhoto(nil))
+        }
+        ActionListItem(
+            icon: "plus.square", title: "Add to Quick List", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.addToQuickList)
+        }
+        ActionListItem(
+            icon: "mappin.and.ellipse", title: "Add Pin", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.addPinFromPhoto(PHAsset()))
+        }
+    }
+
+    @ViewBuilder
+    private func pinDetailActions() -> some View {
+        ActionListItem(
+            icon: "square.and.arrow.up", title: "Share", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.sharePhoto(nil))
+        }
+        ActionListItem(
+            icon: "plus.square", title: "Add to Quick List", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.addToQuickList)
         }
     }
 

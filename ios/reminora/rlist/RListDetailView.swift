@@ -65,39 +65,6 @@ struct RListDetailView: View {
                     .fontWeight(.semibold)
                 
                 Spacer()
-                
-                // iOS 16 style menu for Quick List
-                if isQuickList {
-                    Menu {
-                        Button("Create List") {
-                            showingCreateList = true
-                        }
-                        Button("Add to List") {
-                            showingAddToList = true
-                        }
-                        Button("Clear Quick") {
-                            showingClearConfirmation = true
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.title3)
-                            .foregroundColor(.primary)
-                            .rotationEffect(.degrees(90))
-                    }
-                    .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
-                    .disabled(listItems.isEmpty)
-                } else {
-                    Button(action: {
-                        // Handle regular list menu action
-                        print("Menu tapped for regular list")
-                    }) {
-                        Image(systemName: "ellipsis")
-                            .font(.title3)
-                            .foregroundColor(.primary)
-                            .rotationEffect(.degrees(90))
-                    }
-                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -184,6 +151,33 @@ struct RListDetailView: View {
             }
         }
         .navigationBarHidden(true)
+        .onAppear {
+            // Set ActionSheet context based on list type
+            if isQuickList {
+                UniversalActionSheetModel.shared.setContext(.quickList)
+            } else {
+                UniversalActionSheetModel.shared.setContext(.lists)
+            }
+        }
+        .onDisappear {
+            // Reset to lists context when leaving
+            UniversalActionSheetModel.shared.setContext(.lists)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("EmptyQuickList"))) { _ in
+            if isQuickList {
+                showingClearConfirmation = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("CreateListFromQuickList"))) { _ in
+            if isQuickList {
+                showingCreateList = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AddQuickListToExistingList"))) { _ in
+            if isQuickList {
+                showingAddToList = true
+            }
+        }
         .alert("Create New List", isPresented: $showingCreateList) {
             TextField("List name", text: $newListName)
             Button("Create") {

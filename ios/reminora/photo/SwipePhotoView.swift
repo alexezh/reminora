@@ -586,6 +586,9 @@ struct SwipePhotoView: View {
             print("SwipePhotoView onAppear called with \(allAssets.count) total assets and \(photoStacks.count) stacks")
             isLoading = true
             
+            // Set ActionSheet context for SwipePhotoView
+            UniversalActionSheetModel.shared.setContext(.swipePhoto)
+            
             // Use allAssets directly to avoid expensive stack processing
             displayAssets = allAssets
             print("Using allAssets directly: \(displayAssets.count) assets - virtualized loading")
@@ -612,6 +615,7 @@ struct SwipePhotoView: View {
             print("🔧 SwipePhotoView: onDisappear - not hiding toolbar to allow restoration")
             // Clear current photo from service
             selectedAssetService.setCurrentPhoto(nil)
+            // Reset ActionSheet context - will be set by parent view
         }
         .onChange(of: currentIndex) { _, _ in
             updateQuickListStatus()

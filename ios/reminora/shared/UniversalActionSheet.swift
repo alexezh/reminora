@@ -105,17 +105,24 @@ struct UniversalActionSheet: View {
                 )
                 .frame(maxWidth: .infinity)
 
-                ModernToolbarButton(
-                    icon: "gear",
-                    title: "Settings",
-                    isSelected: selectedTab == 4,
-                    action: {
-                        dismiss()
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name("SwitchToTab"), object: 4)
-                    }
-                )
-                .frame(maxWidth: .infinity)
+                // Editor button - only shown when there's an active editor
+                if let currentEditor = actionSheetModel.currentEditor {
+                    ModernToolbarButton(
+                        icon: currentEditor.iconName,
+                        title: currentEditor.displayName,
+                        isSelected: false,
+                        action: {
+                            dismiss()
+                            NotificationCenter.default.post(
+                                name: NSNotification.Name("OpenCurrentEditor"), object: currentEditor)
+                        }
+                    )
+                    .frame(maxWidth: .infinity)
+                } else {
+                    // Spacer to maintain layout when no editor
+                    Spacer()
+                        .frame(maxWidth: .infinity)
+                }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 16)
@@ -196,6 +203,19 @@ struct UniversalActionSheet: View {
         .background(Color(.systemBackground))
     }
 
+    // MARK: - Common Actions
+    
+    @ViewBuilder
+    private func settingsAction() -> some View {
+        ActionListItem(
+            icon: "gear", title: "Settings", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 4)
+        }
+    }
+    
     // MARK: - Tab Action Functions
 
     @ViewBuilder
@@ -253,6 +273,8 @@ struct UniversalActionSheet: View {
             dismiss()
             ActionRouter.shared.execute(.makeCollage([]))
         }
+        
+        settingsAction()
     }
 
     @ViewBuilder
@@ -287,6 +309,8 @@ struct UniversalActionSheet: View {
             dismiss()
             ActionRouter.shared.execute(.switchToTab(2))
         }
+        
+        settingsAction()
     }
 
     @ViewBuilder
@@ -364,6 +388,8 @@ struct UniversalActionSheet: View {
             dismiss()
             ActionRouter.shared.execute(.makeCollage([]))
         }
+        
+        settingsAction()
     }
 
     @ViewBuilder
@@ -389,6 +415,8 @@ struct UniversalActionSheet: View {
             dismiss()
             ActionRouter.shared.execute(.addQuickListToExistingList)
         }
+        
+        settingsAction()
     }
 
     @ViewBuilder
@@ -453,6 +481,8 @@ struct UniversalActionSheet: View {
             dismiss()
             ActionRouter.shared.execute(.makeCollage([]))
         }
+        
+        settingsAction()
     }
 
     @ViewBuilder
@@ -479,12 +509,21 @@ struct UniversalActionSheet: View {
             ActionRouter.shared.execute(.addToQuickList)
         }
         ActionListItem(
+            icon: "rectangle.stack", title: "Make ECard", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.makeECard([]))
+        }
+        ActionListItem(
             icon: "mappin.and.ellipse", title: "Add Pin", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
             ActionRouter.shared.execute(.addPinFromPhoto(PHAsset()))
         }
+        
+        settingsAction()
     }
 
     @ViewBuilder
@@ -503,6 +542,8 @@ struct UniversalActionSheet: View {
             dismiss()
             ActionRouter.shared.execute(.addToQuickList)
         }
+        
+        settingsAction()
     }
 
     @ViewBuilder
@@ -560,6 +601,8 @@ struct UniversalActionSheet: View {
             dismiss()
             ActionRouter.shared.execute(.makeCollage([]))
         }
+        
+        settingsAction()
     }
 }
 

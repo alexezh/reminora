@@ -21,6 +21,8 @@ struct ContentView: View {
     @StateObject private var selectedAssetService = SelectionService.shared
     @StateObject private var sheetStack = SheetStack.shared
     @StateObject private var eCardTemplateService = ECardTemplateService.shared
+    @StateObject private var eCardEditor = ECardEditor.shared
+    @StateObject private var actionSheetModel = UniversalActionSheetModel.shared
     @State private var isActionSheetScrolling = false
 
     var body: some View {
@@ -75,6 +77,7 @@ struct ContentView: View {
         .environment(\.selectedAssetService, selectedAssetService)
         .environment(\.sheetStack, sheetStack)
         .environment(\.eCardTemplateService, eCardTemplateService)
+        .environment(\.eCardEditor, eCardEditor)
         .sheet(isPresented: $toolbarManager.showActionSheet) {
             UniversalActionSheet(
                 selectedTab: selectedTab,
@@ -104,6 +107,22 @@ struct ContentView: View {
         // Add SheetRouter for centralized sheet management
         .overlay {
             SheetRouter(sheetStack: sheetStack)
+        }
+        // ECardEditorView overlay - shows when editor is active
+        .overlay {
+            if actionSheetModel.currentEditor == .eCard && eCardEditor.hasActiveSession {
+                ECardEditorView(
+                    initialAssets: eCardEditor.getCurrentAssets(),
+                    onDismiss: {
+                        eCardEditor.endEditing()
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.1).combined(with: .opacity),
+                    removal: .scale(scale: 0.1).combined(with: .opacity)
+                ))
+                .zIndex(1000) // Above other overlays
+            }
         }
         .overlay(alignment: .bottom) {
             // Custom dynamic toolbar (show when enabled, including when SwipePhotoView is open with its buttons)
@@ -137,6 +156,19 @@ struct ContentView: View {
             // Restore toolbar when returning from SwipePhotoView or other overlay views
             print("🔧 ContentView: Restoring toolbar for current tab \(selectedTab)")
             setupToolbarForTab(selectedTab)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenCurrentEditor"))) { notification in
+            if let editorType = notification.object as? EditorType {
+                print("🎨 ContentView: Opening current editor: \(editorType.displayName)")
+                switch editorType {
+                case .eCard:
+                    // ECardEditorView will be shown automatically via overlay when editor is active
+                    break
+                case .collage, .videoEditor:
+                    // Future editor types can be handled here
+                    print("🎨 ContentView: Editor type \(editorType.displayName) not yet implemented")
+                }
+            }
         }
         .onReceive(
             NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToSharedPlace"))

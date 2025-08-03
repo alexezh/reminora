@@ -23,9 +23,32 @@ enum ActionSheetContext {
     case pinDetail
 }
 
+// MARK: - Editor Type
+enum EditorType: String, CaseIterable {
+    case eCard = "ECard"
+    case collage = "Collage"
+    case videoEditor = "Video Editor"
+    
+    var displayName: String {
+        return self.rawValue
+    }
+    
+    var iconName: String {
+        switch self {
+        case .eCard:
+            return "rectangle.stack"
+        case .collage:
+            return "square.grid.2x2"
+        case .videoEditor:
+            return "video"
+        }
+    }
+}
+
 // MARK: - Universal Action Sheet Model
 class UniversalActionSheetModel: ObservableObject {
     @Published var context: ActionSheetContext = .lists
+    @Published var currentEditor: EditorType? = nil
     
     static let shared = UniversalActionSheetModel()
     
@@ -34,6 +57,12 @@ class UniversalActionSheetModel: ObservableObject {
     func setContext(_ newContext: ActionSheetContext) {
         DispatchQueue.main.async {
             self.context = newContext
+        }
+    }
+    
+    func setCurrentEditor(_ editor: EditorType?) {
+        DispatchQueue.main.async {
+            self.currentEditor = editor
         }
     }
 }

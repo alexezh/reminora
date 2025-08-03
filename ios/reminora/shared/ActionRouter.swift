@@ -278,16 +278,23 @@ class ActionRouter: ObservableObject {
     }
     
     private func handleMakeECard(_ assets: [PHAsset]) {
+        let assetsToUse: [PHAsset]
+        
         if assets.isEmpty {
             // Use selected assets
             if let selectedAssets = getSelectedAssets(), !selectedAssets.isEmpty {
-                sheetStack?.push(.eCardEditor(assets: selectedAssets))
+                assetsToUse = selectedAssets
             } else {
                 print("🎯 ActionRouter: No assets available for ECard")
+                return
             }
         } else {
-            sheetStack?.push(.eCardEditor(assets: assets))
+            assetsToUse = assets
         }
+        
+        // Start ECard editing session
+        ECardEditor.shared.startEditing(with: assetsToUse)
+        print("🎯 ActionRouter: Started ECard editing with \(assetsToUse.count) assets")
     }
     
     private func handleMakeCollage(_ assets: [PHAsset]) {

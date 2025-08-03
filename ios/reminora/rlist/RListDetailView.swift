@@ -217,16 +217,25 @@ struct RListDetailView: View {
                 }
             )
         }
-        // Present SwipePhotoView when a photo is selected
-        .fullScreenCover(item: $selectedPhotoStack) { photoStack in
-            SwipePhotoView(
-                allAssets: photoStack.assets,
-                photoStacks: [photoStack], // Temporary single stack
-                initialAssetId: photoStack.primaryAsset.localIdentifier,
-                onDismiss: {
-                    selectedPhotoStack = nil
-                }
-            )
+        // Present SwipePhotoView when a photo is selected - MUST use overlay, not fullScreenCover
+        .overlay {
+            if let selectedPhotoStack = selectedPhotoStack {
+                SwipePhotoView(
+                    allAssets: selectedPhotoStack.assets,
+                    photoStacks: [selectedPhotoStack], // Temporary single stack
+                    initialAssetId: selectedPhotoStack.primaryAsset.localIdentifier,
+                    onDismiss: {
+                        self.selectedPhotoStack = nil
+                        // Restore toolbar after SwipePhotoView dismissal
+                        NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.1).combined(with: .opacity),
+                    removal: .scale(scale: 0.1).combined(with: .opacity)
+                ))
+                .zIndex(999)
+            }
         }
         // Present PinDetailView when a pin is selected
         .overlay {

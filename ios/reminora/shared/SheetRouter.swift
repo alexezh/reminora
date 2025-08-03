@@ -5,37 +5,39 @@
 //  Created by Claude on 8/2/25.
 //
 
-import SwiftUI
-import Photos
 import CoreData
 import MapKit
+import Photos
+import SwiftUI
 
 // MARK: - Sheet Router
 struct SheetRouter: View {
     @ObservedObject private var sheetStack: SheetStack
     @Environment(\.managedObjectContext) private var viewContext
-    
+
     init(sheetStack: SheetStack = SheetStack.shared) {
         self.sheetStack = sheetStack
     }
-    
+
     var body: some View {
         EmptyView()
-            .sheet(item: Binding<SheetType?>(
-                get: { sheetStack.currentSheet },
-                set: { newValue in
-                    if newValue == nil {
-                        sheetStack.pop()
+            .sheet(
+                item: Binding<SheetType?>(
+                    get: { sheetStack.currentSheet },
+                    set: { newValue in
+                        if newValue == nil {
+                            sheetStack.pop()
+                        }
                     }
-                }
-            )) { sheetType in
+                )
+            ) { sheetType in
                 sheetContent(for: sheetType)
                     .presentationDetents(Set(sheetType.configuration.presentationDetents))
                     .presentationDragIndicator(.visible)
                     .interactiveDismissDisabled(!sheetType.allowsBackgroundDismissal)
             }
     }
-    
+
     @ViewBuilder
     private func sheetContent(for sheetType: SheetType) -> some View {
         switch sheetType {
@@ -48,7 +50,7 @@ struct SheetRouter: View {
                     }
                 )
             }
-            
+
         case .addPinFromLocation(let location):
             NavigationView {
                 AddPinFromLocationView(
@@ -58,7 +60,7 @@ struct SheetRouter: View {
                     }
                 )
             }
-            
+
         case .pinDetail(let place, let allPlaces):
             PinDetailView(
                 place: place,
@@ -67,35 +69,35 @@ struct SheetRouter: View {
                     sheetStack.pop()
                 }
             )
-            
+
         case .userProfile(let userId, let userName, let userHandle):
             UserProfileView(
                 userId: userId,
                 userName: userName,
                 userHandle: userHandle
             )
-            
+
         case .similarPhotos(let targetAsset):
             SimilarPhotosGridView(targetAsset: targetAsset)
-            
+
         case .duplicatePhotos(let targetAsset):
             PhotoSimilarityView(targetAsset: targetAsset)
-            
+
         case .photoSimilarity(let targetAsset):
             PhotoSimilarityView(targetAsset: targetAsset)
-            
+
         case .quickList:
             QuickListWrapperView()
-            
+
         case .allLists:
             AllListsWrapperView()
-            
+
         case .shareSheet(let text, let url):
             ShareSheet(text: text, url: url)
-            
+
         case .searchDialog:
             SearchDialogWrapper()
-            
+
         case .nearbyPhotos(let centerLocation):
             NavigationView {
                 NearbyPhotosGridView(
@@ -106,13 +108,13 @@ struct SheetRouter: View {
                 )
                 .navigationBarTitleDisplayMode(.inline)
             }
-            
+
         case .nearbyLocations(let searchLocation, let locationName):
             NearbyLocationsView(
                 searchLocation: searchLocation,
                 locationName: locationName
             )
-            
+
         case .selectLocations(let initialAddresses, let onSave):
             SelectLocationsView(
                 initialAddresses: initialAddresses,
@@ -121,10 +123,10 @@ struct SheetRouter: View {
                     sheetStack.pop()
                 }
             )
-            
+
         case .comments(let targetPhotoId):
             SimpleCommentsView(targetPhotoId: targetPhotoId)
-            
+
         case .editAddresses(let initialAddresses, let onSave):
             SelectLocationsView(
                 initialAddresses: initialAddresses,
@@ -133,30 +135,32 @@ struct SheetRouter: View {
                     sheetStack.pop()
                 }
             )
-            
+
         case .eCardEditor(let assets):
-            ECardEditorView(
-                initialAssets: assets,
-                onDismiss: {
-                    sheetStack.pop()
-                }
-            )
+            NavigationView {
+
+                ECardEditorView(
+                    initialAssets: assets,
+                    onDismiss: {
+                        sheetStack.pop()
+                    }
+                )
+            }
         }
     }
 }
 
 // MARK: - Wrapper Views for Complex Cases
 
-
 private struct QuickListWrapperView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    
+
     var body: some View {
         RListService.createQuickListView(
             context: viewContext,
             userId: AuthenticationService.shared.currentAccount?.id ?? "",
             onPhotoTap: { asset in
-                SheetStack.shared.pop() // Close current sheet
+                SheetStack.shared.pop()  // Close current sheet
                 // Handle photo tap - you might want to show SwipePhotoView
                 print("📷 Quick List photo tapped: \(asset.localIdentifier)")
             },
@@ -164,7 +168,7 @@ private struct QuickListWrapperView: View {
                 SheetStack.shared.replace(with: .pinDetail(place: place, allPlaces: []))
             },
             onPhotoStackTap: { assets in
-                SheetStack.shared.pop() // Close current sheet
+                SheetStack.shared.pop()  // Close current sheet
                 // Handle photo stack tap
                 print("📷 Quick List photo stack tapped: \(assets.count) photos")
             }
@@ -174,7 +178,7 @@ private struct QuickListWrapperView: View {
 
 private struct AllListsWrapperView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    
+
     var body: some View {
         AllRListsView(
             context: viewContext,
@@ -183,13 +187,12 @@ private struct AllListsWrapperView: View {
     }
 }
 
-
 private struct SearchDialogWrapper: View {
     @State private var searchText = ""
     @State private var startDate: Date?
     @State private var endDate: Date?
     @State private var currentFilter: PhotoFilterType = .notDisliked
-    
+
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
@@ -200,36 +203,42 @@ private struct SearchDialogWrapper: View {
                     TextField("Enter search terms...", text: $searchText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                 }
-                
+
                 // Date range picker
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Date Range")
                         .font(.headline)
-                    
-                    DatePicker("Start Date", selection: Binding(
-                        get: { startDate ?? Date.distantPast },
-                        set: { startDate = $0 }
-                    ), displayedComponents: .date)
-                    
-                    DatePicker("End Date", selection: Binding(
-                        get: { endDate ?? Date() },
-                        set: { endDate = $0 }
-                    ), displayedComponents: .date)
-                    
+
+                    DatePicker(
+                        "Start Date",
+                        selection: Binding(
+                            get: { startDate ?? Date.distantPast },
+                            set: { startDate = $0 }
+                        ), displayedComponents: .date)
+
+                    DatePicker(
+                        "End Date",
+                        selection: Binding(
+                            get: { endDate ?? Date() },
+                            set: { endDate = $0 }
+                        ), displayedComponents: .date)
+
                     Button("Clear Dates") {
                         startDate = nil
                         endDate = nil
                     }
                     .foregroundColor(.blue)
                 }
-                
+
                 // Filter buttons
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Filters")
                         .font(.headline)
-                    
+
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                        ForEach([PhotoFilterType.notDisliked, .favorites, .dislikes, .all], id: \.self) { filter in
+                        ForEach(
+                            [PhotoFilterType.notDisliked, .favorites, .dislikes, .all], id: \.self
+                        ) { filter in
                             Button(action: {
                                 currentFilter = filter
                             }) {
@@ -256,7 +265,7 @@ private struct SearchDialogWrapper: View {
                         }
                     }
                 }
-                
+
                 Spacer()
             }
             .padding()
@@ -277,7 +286,7 @@ private struct SearchDialogWrapper: View {
                                 "searchText": searchText,
                                 "startDate": startDate as Any,
                                 "endDate": endDate as Any,
-                                "filter": currentFilter
+                                "filter": currentFilter,
                             ]
                         )
                         SheetStack.shared.pop()

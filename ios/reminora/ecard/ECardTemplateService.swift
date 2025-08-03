@@ -47,21 +47,36 @@ class ECardTemplateService: ObservableObject {
     // MARK: - Template Loading
     
     private func loadBuiltInTemplates() {
-        templates = [
+        print("🎨 ECardTemplateService: Loading built-in templates...")
+        
+        let templateDefinitions = [
             // Portrait templates
-            createTemplateFromFile("polaroid_classic", name: "Classic Polaroid", category: .polaroid),
-            createTemplateFromFile("modern_gradient", name: "Modern Gradient", category: .modern),
-            createTemplateFromFile("vintage_postcard", name: "Vintage Postcard", category: .vintage),
-            createTemplateFromFile("restaurant_dining", name: "Restaurant", category: .general),
-            createTemplateFromFile("vacation_paradise", name: "Vacation", category: .travel),
+            ("polaroid_classic", "Classic Polaroid", ECardCategory.polaroid),
+            ("modern_gradient", "Modern Gradient", ECardCategory.modern),
+            ("vintage_postcard", "Vintage Postcard", ECardCategory.vintage),
+            ("restaurant_dining", "Restaurant", ECardCategory.general),
+            ("vacation_paradise", "Vacation", ECardCategory.travel),
             
             // Landscape templates
-            createTemplateFromFile("polaroid_classic_landscape", name: "Classic Polaroid", category: .polaroid),
-            createTemplateFromFile("modern_gradient_landscape", name: "Modern Gradient", category: .modern),
-            createTemplateFromFile("vintage_postcard_landscape", name: "Vintage Postcard", category: .vintage),
-            createTemplateFromFile("restaurant_dining_landscape", name: "Restaurant", category: .general),
-            createTemplateFromFile("vacation_paradise_landscape", name: "Vacation", category: .travel)
-        ].compactMap { $0 }
+            ("polaroid_classic_landscape", "Classic Polaroid Landscape", ECardCategory.polaroid),
+            ("modern_gradient_landscape", "Modern Gradient Landscape", ECardCategory.modern),
+            ("vintage_postcard_landscape", "Vintage Postcard Landscape", ECardCategory.vintage),
+            ("restaurant_dining_landscape", "Restaurant Landscape", ECardCategory.general),
+            ("vacation_paradise_landscape", "Vacation Landscape", ECardCategory.travel)
+        ]
+        
+        templates = templateDefinitions.compactMap { (filename, name, category) in
+            print("🎨 Loading template: \(filename)")
+            let template = createTemplateFromFile(filename, name: name, category: category)
+            if template != nil {
+                print("✅ Successfully loaded: \(filename)")
+            } else {
+                print("❌ Failed to load: \(filename)")
+            }
+            return template
+        }
+        
+        print("🎨 ECardTemplateService: Loaded \(templates.count) templates")
     }
     
     private func createTemplateFromFile(_ filename: String, name: String, category: ECardCategory) -> ECardTemplate? {
@@ -176,6 +191,80 @@ class ECardTemplateService: ObservableObject {
         
         print("⚠️ Could not find SVG file: \(filename)")
         return nil
+    }
+    
+    private func getFallbackSVG(_ filename: String) -> String {
+        switch filename {
+        case "polaroid_classic":
+            return """
+            <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+                <rect x="20" y="20" width="360" height="460" rx="8" ry="8" fill="#ffffff" stroke="#e0e0e0" stroke-width="2"/>
+                <defs>
+                    <filter id="dropshadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#00000020"/>
+                    </filter>
+                </defs>
+                <rect x="20" y="20" width="360" height="460" rx="8" ry="8" fill="#ffffff" filter="url(#dropshadow)"/>
+                <rect x="40" y="40" width="320" height="320" rx="4" ry="4" fill="#f5f5f5" stroke="#d0d0d0" stroke-width="1"/>
+                <rect id="Image1" x="40" y="40" width="320" height="320" rx="4" ry="4" fill="#e8e8e8"/>
+                <rect x="40" y="380" width="320" height="80" fill="transparent"/>
+                <text id="Text1" x="200" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="normal" fill="#333333">Your text here</text>
+                <text id="Text2" x="200" y="435" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="normal" fill="#666666">Add a subtitle</text>
+                <circle cx="350" cy="50" r="3" fill="#ff6b6b" opacity="0.7"/>
+                <circle cx="350" cy="65" r="2" fill="#4ecdc4" opacity="0.7"/>
+                <circle cx="350" cy="78" r="2.5" fill="#45b7d1" opacity="0.7"/>
+            </svg>
+            """
+            
+        case "polaroid_classic_landscape":
+            return """
+            <svg viewBox="0 0 500 400" xmlns="http://www.w3.org/2000/svg">
+                <rect x="20" y="20" width="460" height="300" rx="8" ry="8" fill="#ffffff" stroke="#e0e0e0" stroke-width="2"/>
+                <defs>
+                    <filter id="dropshadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#00000020"/>
+                    </filter>
+                </defs>
+                <rect x="20" y="20" width="460" height="300" rx="8" ry="8" fill="#ffffff" filter="url(#dropshadow)"/>
+                <rect x="40" y="40" width="420" height="210" rx="4" ry="4" fill="#f5f5f5" stroke="#d0d0d0" stroke-width="1"/>
+                <rect id="Image1" x="40" y="40" width="420" height="210" rx="4" ry="4" fill="#e8e8e8"/>
+                <rect x="40" y="270" width="420" height="30" fill="transparent"/>
+                <text id="Text1" x="250" y="290" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="normal" fill="#333333">Your caption here</text>
+                <circle cx="450" cy="50" r="3" fill="#ff6b6b" opacity="0.7"/>
+                <circle cx="450" cy="65" r="2" fill="#4ecdc4" opacity="0.7"/>
+                <circle cx="450" cy="78" r="2.5" fill="#45b7d1" opacity="0.7"/>
+            </svg>
+            """
+            
+        case "modern_gradient":
+            return """
+            <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="modernGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                    </linearGradient>
+                    <filter id="modernShadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#00000030"/>
+                    </filter>
+                </defs>
+                <rect x="0" y="0" width="400" height="500" fill="url(#modernGradient)" filter="url(#modernShadow)"/>
+                <rect id="Image1" x="30" y="60" width="340" height="340" rx="12" ry="12" fill="#ffffff"/>
+                <rect x="30" y="420" width="340" height="60" fill="rgba(255,255,255,0.9)" rx="8" ry="8"/>
+                <text id="Text1" x="200" y="445" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="20" font-weight="bold" fill="#333333">Caption</text>
+                <text id="Text2" x="200" y="465" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="14" font-weight="normal" fill="#666666">Subtitle</text>
+            </svg>
+            """
+            
+        default:
+            return """
+            <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+                <rect x="0" y="0" width="400" height="500" fill="#f0f0f0"/>
+                <rect id="Image1" x="50" y="50" width="300" height="300" fill="#e0e0e0" rx="8"/>
+                <text id="Text1" x="200" y="400" text-anchor="middle" font-family="Arial" font-size="18" fill="#333">Template</text>
+            </svg>
+            """
+        }
     }
     
     

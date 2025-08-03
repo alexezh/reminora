@@ -14,7 +14,6 @@ struct ECardEditorView: View {
     let onDismiss: () -> Void
     
     @Environment(\.eCardTemplateService) private var templateService
-    @Environment(\.toolbarManager) private var toolbarManager
     @State private var selectedTemplate: ECardTemplate?
     @State private var currentECard: ECard?
     @State private var imageAssignments: [String: PHAsset] = [:]
@@ -26,26 +25,74 @@ struct ECardEditorView: View {
     @State private var showingActionSheet = false
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Preview and editing section
-            if let template = selectedTemplate {
-                previewSection(template: template)
-            } else {
-                emptyStateSection
+        ZStack {
+            // Black background for full-screen experience
+            Color.black.ignoresSafeArea(.all)
+            
+            VStack(spacing: 0) {
+                // Preview and editing section
+                if let template = selectedTemplate {
+                    previewSection(template: template)
+                } else {
+                    emptyStateSection
+                }
+                
+                Spacer()
+                
+                // Template selection section at bottom
+                templateSelectionSection
+            }
+            .padding(.top, 60) // Space for back button
+            .padding(.bottom, 100) // Space for FAB
+            
+            // Back button - top left
+            VStack {
+                HStack {
+                    Button(action: onDismiss) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.black.opacity(0.6))
+                                .frame(width: 44, height: 44)
+                            
+                            Image(systemName: "xmark")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .padding(.leading, 20)
+                    .padding(.top, 20)
+                    
+                    Spacer()
+                }
+                Spacer()
             }
             
-            Spacer()
-            
-            // Template selection section at bottom
-            templateSelectionSection
+            // FAB button - bottom right
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        showingActionSheet = true
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: 56, height: 56)
+                                .shadow(radius: 8)
+                            
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 34) // Safe area
+                }
+            }
         }
-        .padding(.bottom, LayoutConstants.totalToolbarHeight)
         .onAppear {
             setupInitialState()
-            setupToolbar()
-        }
-        .onDisappear {
-            restoreToolbar()
         }
         .navigationBarHidden(true)
         .sheet(isPresented: $showingImagePicker) {
@@ -103,7 +150,7 @@ struct ECardEditorView: View {
                 .padding(.bottom, 34) // Safe area padding
             }
             .background(Color(.systemBackground))
-            .presentationDetents([.medium])
+            .presentationDetents([.height(200)])
         }
     }
     
@@ -113,6 +160,7 @@ struct ECardEditorView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Templates")
                 .font(.headline)
+                .foregroundColor(.white)
                 .padding(.horizontal, 16)
             
             // Template list (all templates)
@@ -134,7 +182,9 @@ struct ECardEditorView: View {
             .frame(height: 120)
         }
         .padding(.vertical, 12)
-        .background(Color(.systemGray6))
+        .background(Color.black.opacity(0.8))
+        .cornerRadius(12)
+        .padding(.horizontal, 16)
     }
     
     // MARK: - Preview Section
@@ -229,16 +279,16 @@ struct ECardEditorView: View {
         VStack(spacing: 20) {
             Image(systemName: "rectangle.stack")
                 .font(.system(size: 60))
-                .foregroundColor(.gray)
+                .foregroundColor(.white.opacity(0.6))
             
             Text("Select a Template")
                 .font(.title2)
                 .fontWeight(.semibold)
-                .foregroundColor(.primary)
+                .foregroundColor(.white)
             
-            Text("Choose from our collection of beautiful ECard templates above")
+            Text("Choose from our collection of beautiful ECard templates below")
                 .font(.body)
-                .foregroundColor(.secondary)
+                .foregroundColor(.white.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
         }
@@ -416,27 +466,7 @@ struct ECardEditorView: View {
         }
     }
     
-    // MARK: - Toolbar Management
-    
-    private func setupToolbar() {
-        let actionsFABButton = ToolbarButtonConfig(
-            id: "actions",
-            title: "Actions",
-            systemImage: "ellipsis.circle",
-            action: {
-                self.showingActionSheet = true
-            },
-            color: .blue,
-            isFAB: true
-        )
-        
-        toolbarManager.setCustomToolbar(buttons: [actionsFABButton])
-    }
-    
-    private func restoreToolbar() {
-        // Restore to previous toolbar state
-        NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
-    }
+    // MARK: - Helper Methods - Continued
 }
 
 // MARK: - Text Editor View

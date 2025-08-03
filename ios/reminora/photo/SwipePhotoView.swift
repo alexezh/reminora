@@ -40,6 +40,14 @@ struct SwipePhotoView: View {
     @State private var displayAssets: [PHAsset] = [] // Assets to display (includes expanded stacks)
     @State private var verticalOffset: CGFloat = 0 // For swipe down to dismiss
     
+    // Two-image animation state
+    @State private var nextAsset: PHAsset? = nil
+    @State private var previousAsset: PHAsset? = nil
+    @State private var nextImageOffset: CGFloat = 0
+    @State private var previousImageOffset: CGFloat = 0
+    @State private var isAnimatingToNext = false
+    @State private var isAnimatingToPrevious = false
+    
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
     }
@@ -152,9 +160,16 @@ struct SwipePhotoView: View {
         // Half photo width for separation (30px since thumbnail is 60px)
         let halfPhotoSpacing: CGFloat = 30
         let normalSpacing = LayoutConstants.thumbnailSpacing
+        let selectedSpacing: CGFloat = 8 // Extra spacing for selected thumbnail (20% bigger)
+        
+        // Check if this is the selected thumbnail
+        let isSelected = index == currentIndex
         
         guard let stack = stackInfo.stack, stack.assets.count > 1 else {
-            // Single photo - use normal spacing
+            // Single photo - use normal spacing, add extra for selected
+            if isSelected {
+                return (normalSpacing + selectedSpacing, normalSpacing + selectedSpacing)
+            }
             return (normalSpacing, normalSpacing)
         }
         
@@ -162,7 +177,10 @@ struct SwipePhotoView: View {
         let isExpanded = expandedStacks.contains(stackId)
         
         if !isExpanded {
-            // Collapsed stack - use normal spacing
+            // Collapsed stack - use normal spacing, add extra for selected
+            if isSelected {
+                return (normalSpacing + selectedSpacing, normalSpacing + selectedSpacing)
+            }
             return (normalSpacing, normalSpacing)
         }
         
@@ -183,6 +201,12 @@ struct SwipePhotoView: View {
             trailingSpacing = halfPhotoSpacing
         }
         
+        // Add extra spacing for selected thumbnail
+        if isSelected {
+            leadingSpacing += selectedSpacing
+            trailingSpacing += selectedSpacing
+        }
+        
         return (leadingSpacing, trailingSpacing)
     }
     
@@ -200,46 +224,94 @@ struct SwipePhotoView: View {
         }
     }
     
+    // MARK: - Two-Image Animation Helpers
+    
+    private func prepareNextImage() {
+        guard currentIndex + 1 < displayAssets.count else { 
+            nextAsset = nil
+            return 
+        }
+        nextAsset = displayAssets[currentIndex + 1]
+        nextImageOffset = UIScreen.main.bounds.width // Start off-screen to the right
+    }
+    
+    private func preparePreviousImage() {
+        guard currentIndex > 0 else { 
+            previousAsset = nil
+            return 
+        }
+        previousAsset = displayAssets[currentIndex - 1]
+        previousImageOffset = -UIScreen.main.bounds.width // Start off-screen to the left
+    }
+    
+    private func animateToNextImage() {
+        guard nextAsset != nil else { return }
+        
+        isAnimatingToNext = true
+        nextImageOffset = 0 // Animate to center
+        
+        // Complete animation and update state
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            currentIndex += 1
+            isAnimatingToNext = false
+            nextAsset = nil
+            prepareNextImage() // Prepare for next transition
+            preparePreviousImage() // Update previous
+        }
+    }
+    
+    private func animateToPreviousImage() {
+        guard previousAsset != nil else { return }
+        
+        isAnimatingToPrevious = true
+        previousImageOffset = 0 // Animate to center
+        
+        // Complete animation and update state
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            currentIndex -= 1
+            isAnimatingToPrevious = false
+            previousAsset = nil
+            prepareNextImage() // Update next
+            preparePreviousImage() // Prepare for previous transition
+        }
+    }
+    
     // Handle swipe navigation with stack boundary respect
     private func handleStackBoundarySwipe(_ translationWidth: CGFloat) {
         let currentAsset = displayAssets[currentIndex]
         let currentStackInfo = getStackInfo(for: currentAsset)
         
-        withAnimation(.easeInOut(duration: 0.2)) {
-            if translationWidth > 0 {
-                // Swipe right (go to previous photo)
-                if currentIndex > 0 {
-                    let newIndex = currentIndex - 1
-                    
-                    // Check if we're in an expanded stack and hitting boundary
-                    if let stack = currentStackInfo.stack,
-                       expandedStacks.contains(stack.id.uuidString),
-                       let firstStackAsset = stack.assets.first,
-                       currentAsset.localIdentifier == firstStackAsset.localIdentifier {
-                        // At beginning of expanded stack - don't go further
-                        print("Blocked swipe: at beginning of expanded stack")
-                        return
-                    }
-                    
-                    currentIndex = newIndex
+        if translationWidth > 0 {
+            // Swipe right (go to previous photo)
+            if currentIndex > 0 {
+                // Check if we're in an expanded stack and hitting boundary
+                if let stack = currentStackInfo.stack,
+                   expandedStacks.contains(stack.id.uuidString),
+                   let firstStackAsset = stack.assets.first,
+                   currentAsset.localIdentifier == firstStackAsset.localIdentifier {
+                    // At beginning of expanded stack - don't go further
+                    print("Blocked swipe: at beginning of expanded stack")
+                    return
                 }
-            } else {
-                // Swipe left (go to next photo)
-                if currentIndex < displayAssets.count - 1 {
-                    let newIndex = currentIndex + 1
-                    
-                    // Check if we're in an expanded stack and hitting boundary
-                    if let stack = currentStackInfo.stack,
-                       expandedStacks.contains(stack.id.uuidString),
-                       let lastStackAsset = stack.assets.last,
-                       currentAsset.localIdentifier == lastStackAsset.localIdentifier {
-                        // At end of expanded stack - don't go further with regular swipe
-                        print("Blocked swipe: at end of expanded stack")
-                        return
-                    }
-                    
-                    currentIndex = newIndex
+                
+                // Use animation system for smooth transition
+                animateToPreviousImage()
+            }
+        } else {
+            // Swipe left (go to next photo)
+            if currentIndex < displayAssets.count - 1 {
+                // Check if we're in an expanded stack and hitting boundary
+                if let stack = currentStackInfo.stack,
+                   expandedStacks.contains(stack.id.uuidString),
+                   let lastStackAsset = stack.assets.last,
+                   currentAsset.localIdentifier == lastStackAsset.localIdentifier {
+                    // At end of expanded stack - don't go further with regular swipe
+                    print("Blocked swipe: at end of expanded stack")
+                    return
                 }
+                
+                // Use animation system for smooth transition
+                animateToNextImage()
             }
         }
     }
@@ -360,16 +432,37 @@ struct SwipePhotoView: View {
             if true {
                 GeometryReader { geometry in
                     VStack(spacing: 0) {
-                        // Main photo area - single photo view
+                        // Main photo area - two-image swipe animation system
                         if !displayAssets.isEmpty && currentIndex < displayAssets.count {
-                            let currentStackInfo = getStackInfo(for: displayAssets[currentIndex])
-                            SwipePhotoImageView(asset: displayAssets[currentIndex], isLoading: $isLoading, stackInfo: currentStackInfo)
-                                .scaleEffect(photoTransition ? 0.9 : 1.0) // Photo transition effect
-                                .offset(x: swipeOffset, y: verticalOffset) // Swipe offset for animation and dismiss
-                                .opacity(photoTransition ? 0.7 : 1.0) // Fade effect during transition
-                                .animation(.easeInOut(duration: 0.3), value: photoTransition)
-                                .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: swipeOffset)
-                                .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: verticalOffset)
+                            ZStack {
+                                // Current image
+                                let currentStackInfo = getStackInfo(for: displayAssets[currentIndex])
+                                SwipePhotoImageView(asset: displayAssets[currentIndex], isLoading: $isLoading, stackInfo: currentStackInfo)
+                                    .scaleEffect(photoTransition ? 0.9 : 1.0)
+                                    .offset(x: swipeOffset, y: verticalOffset)
+                                    .opacity(photoTransition ? 0.7 : (isAnimatingToNext || isAnimatingToPrevious ? 0.0 : 1.0))
+                                    .animation(.easeInOut(duration: 0.3), value: photoTransition)
+                                    .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: swipeOffset)
+                                    .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: verticalOffset)
+                                    .animation(.easeOut(duration: 0.2), value: isAnimatingToNext)
+                                    .animation(.easeOut(duration: 0.2), value: isAnimatingToPrevious)
+                                
+                                // Next image (slides in from right)
+                                if let nextAsset = nextAsset, isAnimatingToNext {
+                                    let nextStackInfo = getStackInfo(for: nextAsset)
+                                    SwipePhotoImageView(asset: nextAsset, isLoading: .constant(false), stackInfo: nextStackInfo)
+                                        .offset(x: nextImageOffset, y: 0)
+                                        .animation(.easeOut(duration: 0.25), value: nextImageOffset)
+                                }
+                                
+                                // Previous image (slides in from left)
+                                if let previousAsset = previousAsset, isAnimatingToPrevious {
+                                    let prevStackInfo = getStackInfo(for: previousAsset)
+                                    SwipePhotoImageView(asset: previousAsset, isLoading: .constant(false), stackInfo: prevStackInfo)
+                                        .offset(x: previousImageOffset, y: 0)
+                                        .animation(.easeOut(duration: 0.25), value: previousImageOffset)
+                                }
+                            }
                                 .gesture(
                                     // Combined gesture for tap, long press, and swipe
                                     DragGesture(minimumDistance: 0)
@@ -514,7 +607,7 @@ struct SwipePhotoView: View {
                             }
                         }
                         .padding(.top, 20) // Space between photo and thumbnails
-                        .padding(.bottom, LayoutConstants.contentToolbarGap)
+                        .padding(.bottom, LayoutConstants.totalToolbarHeight + 16) // Space above toolbar with extra margin
                         
                         // Spacer to push content above toolbar
                         Spacer()
@@ -609,6 +702,10 @@ struct SwipePhotoView: View {
             updateToolbar(false)
             // Set initial current photo in service
             selectedAssetService.setCurrentPhoto(currentAsset)
+            
+            // Initialize next/previous images for smooth transitions
+            prepareNextImage()
+            preparePreviousImage()
         }
         .onDisappear {
             // Don't hide the toolbar completely, let the parent view restore it
@@ -893,7 +990,7 @@ struct ThumbnailView: View {
                         .frame(width: 60, height: 60)
                         .clipped()
                         .cornerRadius(8)
-                        .scaleEffect(isSelected ? 1.1 : 1.0) // Scale selected thumbnail
+                        .scaleEffect(isSelected ? 1.2 : 1.0) // Scale selected thumbnail 20% bigger
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(isSelected ? Color.white : Color.clear, lineWidth: isSelected ? 3 : 0)

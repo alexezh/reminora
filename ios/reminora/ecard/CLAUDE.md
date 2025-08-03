@@ -26,10 +26,11 @@ ECard feature for creating decorative cards from photos using SVG templates with
 - **Real-time preview** updates as user makes changes
 
 ### Integration
-- **ActionSheet integration** - "Make ECard" action triggers editor
-- **SheetRouter managed** - Uses centralized sheet management system
-- **Photo selection aware** - Works with single photos or selected batches
-- **Environment services** - Properly injected across the app
+- **ActionRouter integration** - `.makeECard([PHAsset])` action type triggers editor
+- **UniversalActionSheet** - "Make ECard" appears in Photos, Pins, and SwipePhoto contexts
+- **SheetRouter managed** - Uses centralized sheet management via `.eCardEditor(assets:)` type
+- **SelectionService integration** - Automatic asset selection from multi-photo selection or current photo
+- **Environment services** - ECardTemplateService.shared injected via SwiftUI environment
 
 ## Template Structure
 

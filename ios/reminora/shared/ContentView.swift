@@ -16,8 +16,6 @@ struct ContentView: View {
     @EnvironmentObject private var authService: AuthenticationService
 
     @State private var selectedTab = UserDefaults.standard.integer(forKey: "selectedTab")
-    @State private var showingSharedPlace = false
-    @State private var sharedPlace: PinData?
     @State private var isSwipePhotoViewOpen = false
     @StateObject private var toolbarManager = ToolbarManager()
     @StateObject private var selectedAssetService = SelectionService.shared
@@ -148,12 +146,11 @@ struct ContentView: View {
             if let place = notification.object as? PinData {
                 print("🔗 ContentView navigating to shared place: \(place.post ?? "Unknown")")
 
-                // Switch to Pin tab and show the shared place
+                // Switch to Pin tab and show the shared place via SheetStack
                 selectedTab = 2
-                sharedPlace = place
-                showingSharedPlace = true
+                sheetStack.push(.pinDetail(place: place, allPlaces: []))
 
-                print("🔗 ContentView set selectedTab=1, showing shared place")
+                print("🔗 ContentView set selectedTab=2, showing shared place via SheetStack")
             } else {
                 print("🔗 ❌ ContentView: notification object is not a Place")
             }
@@ -208,22 +205,6 @@ struct ContentView: View {
                 if !assets.isEmpty {
                     sheetStack.push(.eCardEditor(assets: assets))
                 }
-            }
-        }
-        .overlay {
-            if showingSharedPlace, let place = sharedPlace {
-                PinDetailView(
-                    place: place,
-                    allPlaces: [],
-                    onBack: {
-                        showingSharedPlace = false
-                        sharedPlace = nil
-                    }
-                )
-                .transition(.asymmetric(
-                    insertion: .scale(scale: 0.1).combined(with: .opacity),
-                    removal: .scale(scale: 0.1).combined(with: .opacity)
-                ))
             }
         }
     }

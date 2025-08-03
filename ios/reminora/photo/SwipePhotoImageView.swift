@@ -165,6 +165,16 @@ struct SwipePhotoImageView: View {
                 loadImage()
             }
         }
+        .onChange(of: asset.localIdentifier) { _, _ in
+            // Reset state and load new image when asset changes
+            image = nil
+            scale = 1.0
+            lastScale = 1.0
+            offset = .zero
+            lastOffset = .zero
+            loadError = false
+            loadImage()
+        }
     }
     
     private func loadImage() {

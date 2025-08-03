@@ -23,6 +23,7 @@ struct ECardEditorView: View {
     @State private var showingImagePicker = false
     @State private var selectedImageSlot: ImageSlot?
     @State private var showingTextEditor = false
+    @State private var showingActionSheet = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -69,6 +70,40 @@ struct ECardEditorView: View {
                     showingTextEditor = false
                 }
             )
+        }
+        .sheet(isPresented: $showingActionSheet) {
+            VStack(spacing: 0) {
+                // Handle bar
+                RoundedRectangle(cornerRadius: 2.5)
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(width: 36, height: 5)
+                    .padding(.vertical, 12)
+                
+                // Action buttons
+                VStack(spacing: 0) {
+                    PinActionButton(
+                        icon: "textformat",
+                        title: "Edit Text",
+                        action: {
+                            showingActionSheet = false
+                            showingTextEditor = true
+                        }
+                    )
+                    
+                    PinActionButton(
+                        icon: "square.and.arrow.down",
+                        title: "Save ECard",
+                        action: {
+                            showingActionSheet = false
+                            saveECard()
+                        }
+                    )
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 34) // Safe area padding
+            }
+            .background(Color(.systemBackground))
+            .presentationDetents([.medium])
         }
     }
     
@@ -382,28 +417,18 @@ struct ECardEditorView: View {
     // MARK: - Toolbar Management
     
     private func setupToolbar() {
-        let editTextButton = ToolbarButtonConfig(
-            id: "edit-text",
-            title: "Edit Text",
-            systemImage: "textformat",
+        let actionsFABButton = ToolbarButtonConfig(
+            id: "actions",
+            title: "Actions",
+            systemImage: "ellipsis.circle",
             action: {
-                self.showingTextEditor = true
-            },
-            color: .blue
-        )
-        
-        let saveFABButton = ToolbarButtonConfig(
-            id: "save-ecard",
-            title: "Save",
-            systemImage: "square.and.arrow.down",
-            action: {
-                self.saveECard()
+                self.showingActionSheet = true
             },
             color: .blue,
             isFAB: true
         )
         
-        toolbarManager.setCustomToolbar(buttons: [editTextButton, saveFABButton])
+        toolbarManager.setCustomToolbar(buttons: [actionsFABButton])
     }
     
     private func restoreToolbar() {

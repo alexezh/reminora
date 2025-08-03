@@ -440,7 +440,7 @@ struct PinDetailView: View {
         .sheet(isPresented: $showingActionSheet) {
             PinActionSheet(
                 isInQuickCollection: isInQuickCollection,
-                onMap: { 
+                onNearbyPlaces: { 
                     showingActionSheet = false
                     showNearbyPlaces()
                 },
@@ -455,6 +455,10 @@ struct PinDetailView: View {
                 onEditLocations: {
                     showingActionSheet = false
                     showingEditAddresses = true
+                },
+                onShare: {
+                    showingActionSheet = false
+                    sharePlace()
                 }
             )
             .presentationDetents([.medium])
@@ -474,25 +478,12 @@ struct PinDetailView: View {
     private func setupToolbar() {
         let toolbarButtons = [
             ToolbarButtonConfig(
-                id: "share",
-                title: "Share",
-                systemImage: "square.and.arrow.up",
-                action: sharePlace,
-                color: .blue
-            ),
-            ToolbarButtonConfig(
-                id: "list",
-                title: "Quick",
-                systemImage: isInQuickCollection ? "checkmark.square.fill" : "plus.square",
-                action: toggleQuickList,
-                color: isInQuickCollection ? .green : .blue
-            ),
-            ToolbarButtonConfig(
                 id: "actions",
                 title: "Actions",
                 systemImage: "ellipsis.circle",
                 action: { showingActionSheet = true },
-                color: .blue
+                color: .blue,
+                isFAB: true
             )
         ]
         

@@ -2,10 +2,11 @@ import SwiftUI
 
 struct PinActionSheet: View {
     let isInQuickCollection: Bool
-    let onMap: () -> Void
+    let onNearbyPlaces: () -> Void
     let onPhotos: () -> Void
     let onToggleQuick: () -> Void
     let onEditLocations: () -> Void
+    let onShare: () -> Void
     
     var body: some View {
         VStack(spacing: 0) {
@@ -18,15 +19,21 @@ struct PinActionSheet: View {
             // Action buttons
             VStack(spacing: 0) {
                 PinActionButton(
-                    icon: "map",
-                    title: "Map",
-                    action: onMap
+                    icon: "location.2",
+                    title: "Nearby Places",
+                    action: onNearbyPlaces
                 )
                 
                 PinActionButton(
                     icon: "photo",
                     title: "Photos",
                     action: onPhotos
+                )
+                
+                PinActionButton(
+                    icon: "square.and.arrow.up",
+                    title: "Share",
+                    action: onShare
                 )
                 
                 PinActionButton(

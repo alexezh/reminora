@@ -793,28 +793,28 @@ struct SwipePhotoView: View {
                 id: "share",
                 title: "Share",
                 systemImage: "square.and.arrow.up",
-                action: sharePhoto,
+                actionType: .sharePhoto(currentAsset),
                 color: .blue
             ),
             ToolbarButtonConfig(
                 id: "favorite",
                 title: "Favorite",
                 systemImage: isFavorite ? "heart.fill" : "heart",
-                action: toggleFavorite,
+                actionType: .toggleFavorite(currentAsset),
                 color: isFavorite ? .red : .primary
             ),
             ToolbarButtonConfig(
                 id: "quick",
                 title: "Quick List",
                 systemImage: isInQuickList ? "plus.square.fill" : "plus.square",
-                action: toggleQuickList,
+                action: toggleQuickList, // Keep custom action for now since it updates local state
                 color: isInQuickList ? .orange : .primary
             ),
 //            ToolbarButtonConfig(
 //                id: "addpin",
 //                title: "Add Pin",
 //                systemImage: "mappin.and.ellipse",
-//                action: { showingAddPin = true },
+//                actionType: .addPinFromPhoto(currentAsset),
 //                color: .primary
 //            )
         ]

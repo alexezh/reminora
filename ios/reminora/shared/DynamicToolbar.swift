@@ -13,10 +13,22 @@ struct ToolbarButtonConfig: Identifiable, Equatable {
     let id: String
     let title: String
     let systemImage: String
-    let action: () -> Void
+    let actionType: ActionType?
+    let customAction: (() -> Void)?
     let isEnabled: Bool
     let color: Color
     let isFAB: Bool
+    
+    // Computed property for backward compatibility
+    var action: () -> Void {
+        if let actionType = actionType {
+            return ActionRouter.shared.createAction(actionType)
+        } else if let customAction = customAction {
+            return customAction
+        } else {
+            return {}
+        }
+    }
     
     static func == (lhs: ToolbarButtonConfig, rhs: ToolbarButtonConfig) -> Bool {
         return lhs.id == rhs.id &&
@@ -24,9 +36,31 @@ struct ToolbarButtonConfig: Identifiable, Equatable {
                lhs.systemImage == rhs.systemImage &&
                lhs.isEnabled == rhs.isEnabled &&
                lhs.color == rhs.color &&
-               lhs.isFAB == rhs.isFAB
+               lhs.isFAB == rhs.isFAB &&
+               lhs.actionType == rhs.actionType
     }
     
+    // Router-based initializer (preferred)
+    init(
+        id: String,
+        title: String,
+        systemImage: String,
+        actionType: ActionType,
+        isEnabled: Bool = true,
+        color: Color = .primary,
+        isFAB: Bool = false
+    ) {
+        self.id = id
+        self.title = title
+        self.systemImage = systemImage
+        self.actionType = actionType
+        self.customAction = nil
+        self.isEnabled = isEnabled
+        self.color = color
+        self.isFAB = isFAB
+    }
+    
+    // Legacy initializer for backward compatibility
     init(
         id: String,
         title: String,
@@ -39,7 +73,8 @@ struct ToolbarButtonConfig: Identifiable, Equatable {
         self.id = id
         self.title = title
         self.systemImage = systemImage
-        self.action = action
+        self.actionType = nil
+        self.customAction = action
         self.isEnabled = isEnabled
         self.color = color
         self.isFAB = isFAB
@@ -208,13 +243,17 @@ class ToolbarManager: ObservableObject {
     @Published var showActionSheet = false
     @Published var showOnlyFAB = false // Show only the FAB button, hide toolbar background and other buttons
     
+    init() {
+        // ActionRouter will be configured later in ContentView to avoid circular dependency
+    }
+    
     // Universal FAB button that appears on all toolbars
     private var universalFABButton: ToolbarButtonConfig {
         return ToolbarButtonConfig(
             id: "universal_fab",
             title: "",
             systemImage: "r.circle.fill",
-            action: { self.showActionSheet = true },
+            actionType: .showActionSheet,
             color: .blue,
             isFAB: true
         )

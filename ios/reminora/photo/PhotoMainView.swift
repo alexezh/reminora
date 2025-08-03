@@ -143,6 +143,8 @@ struct PhotoMainView: View {
             context: viewContext,
             userId: AuthenticationService.shared.currentAccount?.id ?? "",
             onPhotoTap: { asset in
+                // Set current photo in SelectionService before opening
+                selectedAssetService.setCurrentPhoto(asset)
                 // Create a stack with just this photo and show it
                 let stack = PhotoStack(assets: [asset])
                 selectedStackIndex = 0
@@ -158,6 +160,8 @@ struct PhotoMainView: View {
                 print("📍 Pin tapped: \(place.post ?? "Unknown")")
             },
             onPhotoStackTap: { assets in
+                // Set current photo in SelectionService before opening (first photo in stack)
+                selectedAssetService.setCurrentPhoto(assets.first)
                 // Create a stack and show it
                 let stack = PhotoStack(assets: assets)
                 selectedStackIndex = 0
@@ -274,6 +278,8 @@ struct PhotoMainView: View {
                             if isSelectionMode {
                                 toggleAssetSelection(asset)
                             } else {
+                                // Set current photo in SelectionService before opening
+                                selectedAssetService.setCurrentPhoto(asset)
                                 // Create a stack with just this photo and show it
                                 let stack = PhotoStack(assets: [asset])
                                 selectedStackIndex = 0
@@ -296,6 +302,8 @@ struct PhotoMainView: View {
                                 }
                                 updateToolbar()
                             } else {
+                                // Set current photo in SelectionService before opening (first photo in stack)
+                                selectedAssetService.setCurrentPhoto(assets.first)
                                 // Create a stack and show it
                                 let stack = PhotoStack(assets: assets)
                                 selectedStackIndex = 0

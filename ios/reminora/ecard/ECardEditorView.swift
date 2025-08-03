@@ -14,53 +14,39 @@ struct ECardEditorView: View {
     let onDismiss: () -> Void
     
     @Environment(\.eCardTemplateService) private var templateService
+    @Environment(\.toolbarManager) private var toolbarManager
     @State private var selectedTemplate: ECardTemplate?
     @State private var currentECard: ECard?
-    @State private var selectedCategory: ECardCategory = .polaroid
     @State private var imageAssignments: [String: PHAsset] = [:]
     @State private var textAssignments: [String: String] = [:]
     @State private var isLoading = false
     @State private var showingImagePicker = false
     @State private var selectedImageSlot: ImageSlot?
+    @State private var showingTextEditor = false
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Template selection section
-                templateSelectionSection
-                
-                Divider()
-                
-                // Preview and editing section
-                if let template = selectedTemplate {
-                    previewSection(template: template)
-                } else {
-                    emptyStateSection
-                }
-                
-                Spacer()
+        VStack(spacing: 0) {
+            // Preview and editing section
+            if let template = selectedTemplate {
+                previewSection(template: template)
+            } else {
+                emptyStateSection
             }
-            .navigationTitle("Create ECard")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        onDismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        saveECard()
-                    }
-                    .disabled(selectedTemplate == nil)
-                    .fontWeight(.semibold)
-                }
-            }
+            
+            Spacer()
+            
+            // Template selection section at bottom
+            templateSelectionSection
         }
+        .padding(.bottom, LayoutConstants.totalToolbarHeight)
         .onAppear {
             setupInitialState()
+            setupToolbar()
         }
+        .onDisappear {
+            restoreToolbar()
+        }
+        .navigationBarHidden(true)
         .sheet(isPresented: $showingImagePicker) {
             if let slot = selectedImageSlot {
                 ImagePickerView(
@@ -75,32 +61,29 @@ struct ECardEditorView: View {
                 )
             }
         }
+        .sheet(isPresented: $showingTextEditor) {
+            TextEditorView(
+                textAssignments: $textAssignments,
+                textSlots: selectedTemplate?.textSlots ?? [],
+                onDismiss: {
+                    showingTextEditor = false
+                }
+            )
+        }
     }
     
     // MARK: - Template Selection Section
     
     private var templateSelectionSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Category selector
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(ECardCategory.allCases, id: \.self) { category in
-                        CategoryButton(
-                            category: category,
-                            isSelected: selectedCategory == category,
-                            action: {
-                                selectedCategory = category
-                            }
-                        )
-                    }
-                }
+            Text("Templates")
+                .font(.headline)
                 .padding(.horizontal, 16)
-            }
             
-            // Template thumbnails
+            // Template list (all templates)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    ForEach(templateService.getTemplates(for: selectedCategory)) { template in
+                    ForEach(templateService.getAllTemplates()) { template in
                         TemplateCard(
                             template: template,
                             isSelected: selectedTemplate?.id == template.id,
@@ -149,16 +132,6 @@ struct ECardEditorView: View {
                         .background(Color.white.opacity(0.8))
                         .cornerRadius(8)
                 }
-            }
-            
-            // Image assignment section
-            if !template.imageSlots.isEmpty {
-                imageAssignmentSection(template: template)
-            }
-            
-            // Text editing section
-            if !template.textSlots.isEmpty {
-                textEditingSection(template: template)
             }
         }
         .padding(16)
@@ -241,7 +214,7 @@ struct ECardEditorView: View {
     
     private func setupInitialState() {
         // Auto-select first template
-        let templates = templateService.getTemplates(for: selectedCategory)
+        let templates = templateService.getAllTemplates()
         if let firstTemplate = templates.first {
             selectedTemplate = firstTemplate
             setupECard(with: firstTemplate)
@@ -256,7 +229,7 @@ struct ECardEditorView: View {
     }
     
     private func setupECard(with template: ECardTemplate) {
-        var initialImageAssignments: [String: String] = [:]
+        let initialImageAssignments: [String: String] = [:]
         var initialTextAssignments: [String: String] = [:]
         
         // Initialize text assignments with placeholders
@@ -283,7 +256,7 @@ struct ECardEditorView: View {
     }
     
     private func updateECard() {
-        guard let template = selectedTemplate else { return }
+        guard selectedTemplate != nil else { return }
         
         let imageIdentifiers = imageAssignments.mapValues { $0.localIdentifier }
         
@@ -296,49 +269,192 @@ struct ECardEditorView: View {
     }
     
     private func saveECard() {
-        guard let ecard = currentECard else { return }
+        guard let template = selectedTemplate else { return }
         
         isLoading = true
         
-        // TODO: Implement ECard persistence
-        // This could save to Core Data, Files, or cloud storage
+        // Generate ECard image and save as JPEG
+        generateECardImage(template: template) { result in
+            DispatchQueue.main.async {
+                self.isLoading = false
+                
+                switch result {
+                case .success(let image):
+                    self.saveImageToPhotoLibrary(image)
+                case .failure(let error):
+                    print("❌ Failed to generate ECard: \(error)")
+                }
+            }
+        }
+    }
+    
+    private func generateECardImage(template: ECardTemplate, completion: @escaping (Result<UIImage, Error>) -> Void) {
+        // For now, create a simple rendered image
+        // In a real implementation, you'd render the SVG with actual images and text
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            isLoading = false
-            onDismiss()
+        let size = CGSize(width: 800, height: 1000) // High quality size
+        let renderer = UIGraphicsImageRenderer(size: size)
+        
+        let image = renderer.image { context in
+            // White background
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            
+            // Draw template name
+            let titleRect = CGRect(x: 40, y: 40, width: size.width - 80, height: 60)
+            template.name.draw(in: titleRect, withAttributes: [
+                .font: UIFont.boldSystemFont(ofSize: 32),
+                .foregroundColor: UIColor.black
+            ])
+            
+            // Draw assigned images
+            var imageY: CGFloat = 120
+            for slot in template.imageSlots {
+                if let asset = imageAssignments[slot.id] {
+                    // Load and draw the actual image
+                    let imageManager = PHImageManager.default()
+                    let options = PHImageRequestOptions()
+                    options.isSynchronous = true
+                    options.deliveryMode = .highQualityFormat
+                    
+                    imageManager.requestImage(
+                        for: asset,
+                        targetSize: CGSize(width: 600, height: 400),
+                        contentMode: .aspectFill,
+                        options: options
+                    ) { loadedImage, _ in
+                        if let loadedImage = loadedImage {
+                            let imageRect = CGRect(x: 100, y: imageY, width: 600, height: 400)
+                            loadedImage.draw(in: imageRect)
+                        }
+                    }
+                    
+                    imageY += 420
+                }
+            }
+            
+            // Draw text
+            var textY = imageY + 40
+            for slot in template.textSlots {
+                let text = textAssignments[slot.id] ?? slot.placeholder
+                let textRect = CGRect(x: 40, y: textY, width: size.width - 80, height: 40)
+                text.draw(in: textRect, withAttributes: [
+                    .font: UIFont.systemFont(ofSize: CGFloat(slot.fontSize)),
+                    .foregroundColor: UIColor.black
+                ])
+                textY += 50
+            }
+        }
+        
+        completion(.success(image))
+    }
+    
+    private func saveImageToPhotoLibrary(_ image: UIImage) {
+        PHPhotoLibrary.requestAuthorization { status in
+            guard status == .authorized else {
+                print("❌ Photo library access denied")
+                return
+            }
+            
+            PHPhotoLibrary.shared().performChanges({
+                let creationRequest = PHAssetCreationRequest.forAsset()
+                
+                // Convert to high-quality JPEG data
+                guard let jpegData = image.jpegData(compressionQuality: 0.95) else {
+                    print("❌ Failed to convert image to JPEG")
+                    return
+                }
+                
+                creationRequest.addResource(with: .photo, data: jpegData, options: nil)
+            }) { success, error in
+                DispatchQueue.main.async {
+                    if success {
+                        print("✅ ECard saved to photo library")
+                        self.onDismiss()
+                    } else {
+                        print("❌ Failed to save ECard: \(error?.localizedDescription ?? "Unknown error")")
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Toolbar Management
+    
+    private func setupToolbar() {
+        let editTextButton = ToolbarButtonConfig(
+            id: "edit-text",
+            title: "Edit Text",
+            systemImage: "textformat",
+            action: {
+                self.showingTextEditor = true
+            },
+            color: .blue
+        )
+        
+        let saveFABButton = ToolbarButtonConfig(
+            id: "save-ecard",
+            title: "Save",
+            systemImage: "square.and.arrow.down",
+            action: {
+                self.saveECard()
+            },
+            color: .blue,
+            isFAB: true
+        )
+        
+        toolbarManager.setCustomToolbar(buttons: [editTextButton, saveFABButton])
+    }
+    
+    private func restoreToolbar() {
+        // Restore to previous toolbar state
+        NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
+    }
+}
+
+// MARK: - Text Editor View
+
+private struct TextEditorView: View {
+    @Binding var textAssignments: [String: String]
+    let textSlots: [TextSlot]
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                ForEach(textSlots) { slot in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(slot.id)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        TextField(slot.placeholder, text: Binding(
+                            get: { textAssignments[slot.id] ?? slot.placeholder },
+                            set: { textAssignments[slot.id] = $0 }
+                        ))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .font(.system(size: CGFloat(slot.fontSize)))
+                    }
+                }
+                
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Edit Text")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        onDismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
         }
     }
 }
 
 // MARK: - Supporting Views
-
-private struct CategoryButton: View {
-    let category: ECardCategory
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: category.icon)
-                    .font(.caption)
-                Text(category.displayName)
-                    .font(.caption)
-                    .fontWeight(.medium)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                isSelected ? Color.blue : Color(.systemGray5)
-            )
-            .foregroundColor(
-                isSelected ? .white : .primary
-            )
-            .cornerRadius(20)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
 
 private struct TemplateCard: View {
     let template: ECardTemplate

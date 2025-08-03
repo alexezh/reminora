@@ -122,6 +122,13 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            // Configure ActionRouter with services
+            ActionRouter.shared.configure(
+                sheetStack: sheetStack,
+                selectionService: selectedAssetService,
+                toolbarManager: toolbarManager
+            )
+            
             // Start background embedding computation for all photos
             startBackgroundEmbeddingComputation()
             
@@ -272,21 +279,21 @@ struct ContentView: View {
                     id: "photos",
                     title: "Photos",
                     systemImage: "photo",
-                    action: { self.selectedTab = 0 },
+                    actionType: .switchToTab(0),
                     color: .blue
                 ),
                 ToolbarButtonConfig(
                     id: "pins",
                     title: "Pins",
                     systemImage: "mappin.and.ellipse",
-                    action: { self.selectedTab = 2 },
+                    actionType: .switchToTab(2),
                     color: .red
                 ),
                 ToolbarButtonConfig(
                     id: "lists",
                     title: "Lists",
                     systemImage: "list.bullet.circle",
-                    action: { self.selectedTab = 3 },
+                    actionType: .switchToTab(3),
                     color: .purple
                 )
             ]

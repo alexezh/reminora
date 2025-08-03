@@ -38,7 +38,9 @@ class ECardTemplateService: ObservableObject {
         templates = [
             createPolaroidTemplate(),
             createModernFrameTemplate(),
-            createVintagePostcardTemplate()
+            createVintagePostcardTemplate(),
+            createRestaurantTemplate(),
+            createVacationTemplate()
         ]
     }
     
@@ -214,6 +216,163 @@ class ECardTemplateService: ObservableObject {
             imageSlots: imageSlots,
             textSlots: textSlots,
             category: .vintage
+        )
+    }
+    
+    private func createRestaurantTemplate() -> ECardTemplate {
+        let svgContent = """
+        <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+            <!-- Restaurant theme background -->
+            <rect x="0" y="0" width="400" height="500" fill="#f8f5f1"/>
+            
+            <!-- Main border with subtle pattern -->
+            <rect x="10" y="10" width="380" height="480" fill="transparent" stroke="#8b4513" stroke-width="2" rx="8"/>
+            
+            <!-- Photo area -->
+            <rect x="30" y="50" width="340" height="280" fill="#ffffff" stroke="#d4af37" stroke-width="3" rx="6"/>
+            <rect id="Image1" x="35" y="55" width="330" height="270" fill="#e8e8e8" rx="3"/>
+            
+            <!-- Decorative food icon in corner -->
+            <g transform="translate(340, 30)">
+                <!-- Plate -->
+                <circle cx="15" cy="15" r="12" fill="#ffffff" stroke="#d4af37" stroke-width="1.5"/>
+                <circle cx="15" cy="15" r="8" fill="transparent" stroke="#8b4513" stroke-width="0.5"/>
+                
+                <!-- Food items on plate -->
+                <circle cx="12" cy="12" r="2" fill="#ff6b6b"/>
+                <circle cx="18" cy="13" r="1.5" fill="#4ecdc4"/>
+                <circle cx="15" cy="17" r="1.8" fill="#ffd93d"/>
+                
+                <!-- Fork and knife -->
+                <line x1="5" y1="8" x2="5" y2="22" stroke="#8b4513" stroke-width="1"/>
+                <line x1="3" y1="10" x2="7" y2="10" stroke="#8b4513" stroke-width="0.5"/>
+                <line x1="3" y1="12" x2="7" y2="12" stroke="#8b4513" stroke-width="0.5"/>
+                
+                <line x1="25" y1="8" x2="25" y2="20" stroke="#8b4513" stroke-width="1"/>
+                <path d="M 23 8 L 27 8 L 25 12 Z" fill="#8b4513"/>
+            </g>
+            
+            <!-- Text area background -->
+            <rect x="30" y="350" width="340" height="120" fill="rgba(255,255,255,0.8)" stroke="#d4af37" stroke-width="1" rx="6"/>
+            
+            <!-- Restaurant text styling -->
+            <text id="Text1" x="200" y="380" text-anchor="middle" font-family="serif" font-size="22" font-weight="bold" fill="#8b4513">Restaurant Name</text>
+            <text id="Text2" x="200" y="405" text-anchor="middle" font-family="serif" font-size="16" font-style="italic" fill="#d4af37">Delicious Memories</text>
+            <text id="Text3" x="200" y="430" text-anchor="middle" font-family="serif" font-size="14" fill="#8b4513">Location & Date</text>
+            
+            <!-- Decorative elements -->
+            <line x1="60" y1="415" x2="120" y2="415" stroke="#d4af37" stroke-width="1" opacity="0.6"/>
+            <line x1="280" y1="415" x2="340" y2="415" stroke="#d4af37" stroke-width="1" opacity="0.6"/>
+            
+            <!-- Corner decorations -->
+            <circle cx="50" cy="470" r="3" fill="#d4af37" opacity="0.7"/>
+            <circle cx="350" cy="470" r="3" fill="#d4af37" opacity="0.7"/>
+        </svg>
+        """
+        
+        let imageSlots = [
+            ImageSlot(id: "Image1", x: 35, y: 55, width: 330, height: 270, cornerRadius: 3, preserveAspectRatio: true)
+        ]
+        
+        let textSlots = [
+            TextSlot(id: "Text1", x: 30, y: 370, width: 340, height: 25, fontSize: 22, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Restaurant Name"),
+            TextSlot(id: "Text2", x: 30, y: 395, width: 340, height: 20, fontSize: 16, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Delicious Memories"),
+            TextSlot(id: "Text3", x: 30, y: 420, width: 340, height: 18, fontSize: 14, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Location & Date")
+        ]
+        
+        return ECardTemplate(
+            id: "restaurant_dining",
+            name: "Restaurant",
+            svgContent: svgContent,
+            thumbnailName: "restaurant_dining_thumb",
+            imageSlots: imageSlots,
+            textSlots: textSlots,
+            category: .general
+        )
+    }
+    
+    private func createVacationTemplate() -> ECardTemplate {
+        let svgContent = """
+        <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
+            <!-- Vacation theme background with gradient -->
+            <defs>
+                <linearGradient id="vacationSky" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#87ceeb;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#e0f6ff;stop-opacity:1" />
+                </linearGradient>
+                <filter id="vacationShadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feDropShadow dx="2" dy="4" stdDeviation="6" flood-color="#00000020"/>
+                </filter>
+            </defs>
+            
+            <!-- Sky background -->
+            <rect x="0" y="0" width="400" height="500" fill="url(#vacationSky)"/>
+            
+            <!-- Main photo frame -->
+            <rect x="25" y="60" width="350" height="280" fill="#ffffff" stroke="#ffd700" stroke-width="4" rx="12" filter="url(#vacationShadow)"/>
+            <rect id="Image1" x="30" y="65" width="340" height="270" fill="#e8e8e8" rx="8"/>
+            
+            <!-- Palm tree in corner -->
+            <g transform="translate(320, 25)">
+                <!-- Palm tree trunk -->
+                <rect x="12" y="15" width="6" height="25" fill="#8b4513" rx="3"/>
+                
+                <!-- Palm fronds -->
+                <path d="M 8 15 Q 15 8 22 15" fill="transparent" stroke="#228b22" stroke-width="3" stroke-linecap="round"/>
+                <path d="M 8 18 Q 15 10 22 18" fill="transparent" stroke="#228b22" stroke-width="3" stroke-linecap="round"/>
+                <path d="M 10 20 Q 15 12 20 20" fill="transparent" stroke="#228b22" stroke-width="2" stroke-linecap="round"/>
+                
+                <!-- Coconuts -->
+                <circle cx="18" cy="16" r="2" fill="#8b4513"/>
+                <circle cx="20" cy="18" r="1.5" fill="#8b4513"/>
+            </g>
+            
+            <!-- Sun in corner -->
+            <g transform="translate(30, 25)">
+                <circle cx="15" cy="15" r="8" fill="#ffd700"/>
+                <!-- Sun rays -->
+                <line x1="15" y1="3" x2="15" y2="7" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                <line x1="15" y1="23" x2="15" y2="27" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                <line x1="3" y1="15" x2="7" y2="15" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                <line x1="23" y1="15" x2="27" y2="15" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                <line x1="8.5" y1="8.5" x2="10.5" y2="10.5" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                <line x1="19.5" y1="19.5" x2="21.5" y2="21.5" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                <line x1="21.5" y1="8.5" x2="19.5" y2="10.5" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                <line x1="10.5" y1="19.5" x2="8.5" y2="21.5" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+            </g>
+            
+            <!-- Text area -->
+            <rect x="25" y="360" width="350" height="110" fill="rgba(255,255,255,0.9)" stroke="#ffd700" stroke-width="2" rx="10"/>
+            
+            <!-- Vacation text -->
+            <text id="Text1" x="200" y="390" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#ff6347">Vacation Paradise</text>
+            <text id="Text2" x="200" y="415" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-style="italic" fill="#4682b4">Making memories under the sun</text>
+            <text id="Text3" x="200" y="440" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#2e8b57">Location & Date</text>
+            
+            <!-- Decorative waves at bottom -->
+            <path d="M 0 480 Q 100 470 200 480 T 400 480 L 400 500 L 0 500 Z" fill="#87ceeb" opacity="0.6"/>
+            <path d="M 0 485 Q 80 475 160 485 T 400 485 L 400 500 L 0 500 Z" fill="#b0e0e6" opacity="0.8"/>
+        </svg>
+        """
+        
+        let imageSlots = [
+            ImageSlot(id: "Image1", x: 30, y: 65, width: 340, height: 270, cornerRadius: 8, preserveAspectRatio: true)
+        ]
+        
+        let textSlots = [
+            TextSlot(id: "Text1", x: 25, y: 380, width: 350, height: 28, fontSize: 24, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Vacation Paradise"),
+            TextSlot(id: "Text2", x: 25, y: 405, width: 350, height: 20, fontSize: 16, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Making memories under the sun"),
+            TextSlot(id: "Text3", x: 25, y: 430, width: 350, height: 18, fontSize: 14, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Location & Date")
+        ]
+        
+        return ECardTemplate(
+            id: "vacation_paradise",
+            name: "Vacation",
+            svgContent: svgContent,
+            thumbnailName: "vacation_paradise_thumb",
+            imageSlots: imageSlots,
+            textSlots: textSlots,
+            category: .travel
         )
     }
     

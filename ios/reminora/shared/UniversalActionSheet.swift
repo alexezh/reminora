@@ -187,37 +187,35 @@ struct UniversalActionSheet: View {
         ActionSectionHeader("Photo Actions")
         ActionListItem(icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement archive
+            ActionRouter.shared.execute(.archive)
         }
         ActionListItem(icon: "trash", title: "Delete", isEnabled: true, isDestructive: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement delete
+            ActionRouter.shared.execute(.delete)
         }
         ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement duplicate
+            ActionRouter.shared.execute(.duplicate)
         }
         ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // Trigger add to quick list and mark for auto-open
-            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
-            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
+            ActionRouter.shared.execute(.addToQuickList)
         }
         ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement make ecard
+            ActionRouter.shared.execute(.makeECard([]))
         }
         ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement find similar
+            ActionRouter.shared.execute(.findSimilar(nil))
         }
         ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement find duplicates
+            ActionRouter.shared.execute(.findDuplicates(nil))
         }
         ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement make collage
+            ActionRouter.shared.execute(.makeCollage([]))
         }
     }
     
@@ -226,25 +224,25 @@ struct UniversalActionSheet: View {
         ActionSectionHeader("Map Actions")
         ActionListItem(icon: "plus.circle", title: "Add Pin", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            onAddPin()
+            ActionRouter.shared.execute(.addPin)
         }
         ActionListItem(icon: "person.3", title: "Add Open Invite", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            onAddOpenInvite()
+            ActionRouter.shared.execute(.addOpenInvite)
         }
         ActionListItem(icon: "arrow.up.arrow.down", title: "Toggle Sort", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            onToggleSort()
+            ActionRouter.shared.execute(.toggleSort)
         }
         
         ActionSectionHeader("Navigation")
         ActionListItem(icon: "photo", title: "Photos", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 0)
+            ActionRouter.shared.execute(.switchToTab(0))
         }
         ActionListItem(icon: "mappin.and.ellipse", title: "Pins", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 2)
+            ActionRouter.shared.execute(.switchToTab(2))
         }
     }
     
@@ -253,51 +251,49 @@ struct UniversalActionSheet: View {
         ActionSectionHeader("Pin Actions")
         ActionListItem(icon: "plus.circle", title: "Add Pin", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            onAddPin()
+            ActionRouter.shared.execute(.addPin)
         }
         ActionListItem(icon: "person.3", title: "Add Open Invite", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            onAddOpenInvite()
+            ActionRouter.shared.execute(.addOpenInvite)
         }
         ActionListItem(icon: "arrow.up.arrow.down", title: "Toggle Sort", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            onToggleSort()
+            ActionRouter.shared.execute(.toggleSort)
         }
         
         ActionSectionHeader("Photo Actions")
         ActionListItem(icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement archive
+            ActionRouter.shared.execute(.archive)
         }
         ActionListItem(icon: "trash", title: "Delete", isEnabled: true, isDestructive: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement delete
+            ActionRouter.shared.execute(.delete)
         }
         ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement duplicate
+            ActionRouter.shared.execute(.duplicate)
         }
         ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // Trigger add to quick list and mark for auto-open
-            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
-            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
+            ActionRouter.shared.execute(.addToQuickList)
         }
         ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement find similar
+            ActionRouter.shared.execute(.findSimilar(nil))
         }
         ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement find duplicates
+            ActionRouter.shared.execute(.findDuplicates(nil))
         }
         ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement make ecard
+            ActionRouter.shared.execute(.makeECard([]))
         }
         ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement make collage
+            ActionRouter.shared.execute(.makeCollage([]))
         }
     }
     
@@ -306,43 +302,41 @@ struct UniversalActionSheet: View {
         ActionSectionHeader("List Actions")
         ActionListItem(icon: "arrow.clockwise", title: "Refresh", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            onRefreshLists()
+            ActionRouter.shared.execute(.refreshLists)
         }
         
         ActionSectionHeader("Photo Actions")
         ActionListItem(icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement archive
+            ActionRouter.shared.execute(.archive)
         }
         ActionListItem(icon: "trash", title: "Delete", isEnabled: true, isDestructive: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement delete
+            ActionRouter.shared.execute(.delete)
         }
         ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement duplicate
+            ActionRouter.shared.execute(.duplicate)
         }
         ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // Trigger add to quick list and mark for auto-open
-            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
-            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
+            ActionRouter.shared.execute(.addToQuickList)
         }
         ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement find similar
+            ActionRouter.shared.execute(.findSimilar(nil))
         }
         ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement find duplicates
+            ActionRouter.shared.execute(.findDuplicates(nil))
         }
         ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement make ecard
+            ActionRouter.shared.execute(.makeECard([]))
         }
         ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement make collage
+            ActionRouter.shared.execute(.makeCollage([]))
         }
     }
     
@@ -351,37 +345,35 @@ struct UniversalActionSheet: View {
         ActionSectionHeader("Photo Actions")
         ActionListItem(icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement archive
+            ActionRouter.shared.execute(.archive)
         }
         ActionListItem(icon: "trash", title: "Delete", isEnabled: true, isDestructive: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement delete
+            ActionRouter.shared.execute(.delete)
         }
         ActionListItem(icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement duplicate
+            ActionRouter.shared.execute(.duplicate)
         }
         ActionListItem(icon: "plus.square", title: "Add to Quick List", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // Trigger add to quick list and mark for auto-open
-            NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
-            NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
+            ActionRouter.shared.execute(.addToQuickList)
         }
         ActionListItem(icon: "magnifyingglass", title: "Find Similar", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement find similar
+            ActionRouter.shared.execute(.findSimilar(nil))
         }
         ActionListItem(icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement find duplicates
+            ActionRouter.shared.execute(.findDuplicates(nil))
         }
         ActionListItem(icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement make ecard
+            ActionRouter.shared.execute(.makeECard([]))
         }
         ActionListItem(icon: "square.grid.2x2", title: "Make Collage", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            // TODO: Implement make collage
+            ActionRouter.shared.execute(.makeCollage([]))
         }
     }
 }

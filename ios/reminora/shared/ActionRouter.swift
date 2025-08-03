@@ -48,6 +48,11 @@ enum ActionType: Equatable {
     case createListFromQuickList
     case addQuickListToExistingList
     
+    // ECard Actions
+    case editCaption
+    case selectImage
+    case savePhoto
+    
     // Map Actions
     case showNearbyPhotos(CLLocationCoordinate2D)
     case showNearbyLocations(CLLocationCoordinate2D, String)
@@ -83,6 +88,9 @@ enum ActionType: Equatable {
         case (.emptyQuickList, .emptyQuickList): return true
         case (.createListFromQuickList, .createListFromQuickList): return true
         case (.addQuickListToExistingList, .addQuickListToExistingList): return true
+        case (.editCaption, .editCaption): return true
+        case (.selectImage, .selectImage): return true
+        case (.savePhoto, .savePhoto): return true
         case (.showSearchDialog, .showSearchDialog): return true
         case (.custom(let a, _), .custom(let b, _)): return a == b
         default: return false
@@ -207,6 +215,16 @@ class ActionRouter: ObservableObject {
             
         case .addQuickListToExistingList:
             handleAddQuickListToExistingList()
+            
+        // ECard Actions
+        case .editCaption:
+            handleEditCaption()
+            
+        case .selectImage:
+            handleSelectImage()
+            
+        case .savePhoto:
+            handleSavePhoto()
             
         // Map Actions
         case .showNearbyPhotos(let location):
@@ -399,6 +417,18 @@ class ActionRouter: ObservableObject {
     
     private func handleAddQuickListToExistingList() {
         NotificationCenter.default.post(name: NSNotification.Name("AddQuickListToExistingList"), object: nil)
+    }
+    
+    private func handleEditCaption() {
+        ECardEditor.shared.editCaption()
+    }
+    
+    private func handleSelectImage() {
+        ECardEditor.shared.selectImage()
+    }
+    
+    private func handleSavePhoto() {
+        ECardEditor.shared.savePhoto()
     }
     
     // MARK: - Helper Methods

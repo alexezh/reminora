@@ -21,6 +21,7 @@ enum ActionSheetContext {
     case profile
     case swipePhoto
     case pinDetail
+    case ecard
 }
 
 // MARK: - Editor Type

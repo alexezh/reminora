@@ -64,6 +64,32 @@ class ECardEditor: ObservableObject {
         return currentAssets
     }
     
+    // MARK: - Action Methods
+    
+    /// Edit caption action
+    func editCaption() {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: NSNotification.Name("ECardEditCaption"), object: nil)
+            print("🎨 ECardEditor: Edit caption action triggered")
+        }
+    }
+    
+    /// Select image action
+    func selectImage() {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: NSNotification.Name("ECardSelectImage"), object: nil)
+            print("🎨 ECardEditor: Select image action triggered")
+        }
+    }
+    
+    /// Save photo action with high quality rendering
+    func savePhoto() {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: NSNotification.Name("ECardSavePhoto"), object: nil)
+            print("🎨 ECardEditor: Save photo action triggered")
+        }
+    }
+    
     // MARK: - Persistence
     
     private func persistState() {

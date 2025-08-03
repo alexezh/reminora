@@ -160,6 +160,8 @@ struct UniversalActionSheet: View {
                         swipePhotoActions()
                     case .pinDetail:
                         pinDetailActions()
+                    case .ecard:
+                        ecardActions()
                     }
                 }
                 .padding(.top, 8)
@@ -541,6 +543,33 @@ struct UniversalActionSheet: View {
         ) {
             dismiss()
             ActionRouter.shared.execute(.addToQuickList)
+        }
+        
+        settingsAction()
+    }
+
+    @ViewBuilder
+    private func ecardActions() -> some View {
+        ActionListItem(
+            icon: "textformat", title: "Edit Caption", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.editCaption)
+        }
+        ActionListItem(
+            icon: "photo", title: "Select Image", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.selectImage)
+        }
+        ActionListItem(
+            icon: "square.and.arrow.down", title: "Save Photo", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.savePhoto)
         }
         
         settingsAction()

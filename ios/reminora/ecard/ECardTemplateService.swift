@@ -65,8 +65,10 @@ class ECardTemplateService: ObservableObject {
     }
     
     private func createTemplateFromFile(_ filename: String, name: String, category: ECardCategory) -> ECardTemplate? {
-        guard let svgContent = loadSVGFromFile(filename) else {
-            print("⚠️ Failed to load SVG file: \(filename)")
+        let svgContent = loadSVGFromFile(filename) ?? getFallbackSVG(filename)
+        
+        guard !svgContent.isEmpty else {
+            print("⚠️ Failed to load SVG file and no fallback available: \(filename)")
             return nil
         }
         

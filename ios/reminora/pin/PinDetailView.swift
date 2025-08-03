@@ -451,6 +451,10 @@ struct PinDetailView: View {
                 onToggleQuick: {
                     showingActionSheet = false
                     toggleQuickList()
+                },
+                onEditLocations: {
+                    showingActionSheet = false
+                    showingEditAddresses = true
                 }
             )
             .presentationDetents([.medium])
@@ -482,6 +486,13 @@ struct PinDetailView: View {
                 systemImage: isInQuickCollection ? "checkmark.square.fill" : "plus.square",
                 action: toggleQuickList,
                 color: isInQuickCollection ? .green : .blue
+            ),
+            ToolbarButtonConfig(
+                id: "actions",
+                title: "Actions",
+                systemImage: "ellipsis.circle",
+                action: { showingActionSheet = true },
+                color: .blue
             )
         ]
         

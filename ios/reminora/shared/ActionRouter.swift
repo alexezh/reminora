@@ -35,6 +35,7 @@ enum ActionType: Equatable {
     case addOpenInvite
     case toggleSort
     case addPinFromPhoto(PHAsset)
+    case addPinFromLocation(LocationInfo)
     case showPinDetail(PinData, [PinData])
     
     // List Actions
@@ -70,6 +71,7 @@ enum ActionType: Equatable {
         case (.addOpenInvite, .addOpenInvite): return true
         case (.toggleSort, .toggleSort): return true
         case (.addPinFromPhoto(let a), .addPinFromPhoto(let b)): return a.localIdentifier == b.localIdentifier
+        case (.addPinFromLocation(let a), .addPinFromLocation(let b)): return a.id == b.id
         case (.refreshLists, .refreshLists): return true
         case (.showQuickList, .showQuickList): return true
         case (.showAllLists, .showAllLists): return true
@@ -172,6 +174,9 @@ class ActionRouter: ObservableObject {
         case .addPinFromPhoto(let asset):
             handleAddPinFromPhoto(asset)
             
+        case .addPinFromLocation(let location):
+            handleAddPinFromLocation(location)
+            
         case .showPinDetail(let place, let allPlaces):
             handleShowPinDetail(place, allPlaces)
             
@@ -255,16 +260,21 @@ class ActionRouter: ObservableObject {
     }
     
     private func handleMakeECard(_ assets: [PHAsset]) {
+        let finalAssets: [PHAsset]
         if assets.isEmpty {
             // Use selected assets
             if let selectedAssets = getSelectedAssets(), !selectedAssets.isEmpty {
-                sheetStack?.push(.eCardEditor(assets: selectedAssets))
+                finalAssets = selectedAssets
             } else {
                 print("🎯 ActionRouter: No assets available for ECard")
+                return
             }
         } else {
-            sheetStack?.push(.eCardEditor(assets: assets))
+            finalAssets = assets
         }
+        
+        // Post notification to show ECard editor as full-screen view
+        NotificationCenter.default.post(name: NSNotification.Name("ShowECardEditor"), object: finalAssets)
     }
     
     private func handleMakeCollage(_ assets: [PHAsset]) {
@@ -325,6 +335,10 @@ class ActionRouter: ObservableObject {
     
     private func handleAddPinFromPhoto(_ asset: PHAsset) {
         sheetStack?.push(.addPinFromPhoto(asset: asset))
+    }
+    
+    private func handleAddPinFromLocation(_ location: LocationInfo) {
+        sheetStack?.push(.addPinFromLocation(location: location))
     }
     
     private func handleShowPinDetail(_ place: PinData, _ allPlaces: [PinData]) {

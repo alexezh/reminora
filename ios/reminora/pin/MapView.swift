@@ -8,21 +8,20 @@ struct MapView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.presentationMode) var presentationMode
     @Environment(\.toolbarManager) private var toolbarManager
+    @StateObject private var actionRouter = ActionRouter.shared
     
     @State private var searchText = ""
     @State private var nearbyPlaces: [LocationInfo] = []
     @State private var isLoading = false
     @State private var userLocation: CLLocationCoordinate2D?
-    @State private var showingSearch = false
     @State private var selectedCategory = "All"
     @State private var searchSuggestions: [String] = []
     @State private var showingSuggestions = false
     @State private var mapRegion = MKCoordinateRegion()
-    @State private var selectedMapLocation: LocationInfo?
     @State private var selectedCardLocation: LocationInfo?
-    @State private var showingAddPinDialog = false
     @State private var navigatingToLocation: LocationInfo?
     @State private var showingSaveDialog = false
+    @State private var showingActionSheet = false
     @State private var saveDialogCity = ""
     @State private var saveDialogSearchString = ""
     @StateObject private var locationManager = LocationManager()
@@ -164,21 +163,13 @@ struct MapView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header with title and save button
+            // Header with title
             HStack {
                 Text("Map")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                 
                 Spacer()
-                
-                // Save button
-                Button("Save") {
-                    showSaveDialog()
-                }
-                .font(.headline)
-                .foregroundColor(.blue)
-                .disabled(nearbyPlaces.isEmpty)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
@@ -245,8 +236,9 @@ struct MapView: View {
                                     )
                                     .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                                     .onTapGesture {
-                                        selectedMapLocation = annotation.location
-                                        showingAddPinDialog = true
+                                        if let location = annotation.location {
+                                            actionRouter.execute(.addPinFromLocation(location))
+                                        }
                                     }
                             } else {
                                 // Circle for unselected locations
@@ -259,8 +251,9 @@ struct MapView: View {
                                         .frame(width: 16, height: 16)
                                 }
                                 .onTapGesture {
-                                    selectedMapLocation = annotation.location
-                                    showingAddPinDialog = true
+                                    if let location = annotation.location {
+                                        actionRouter.execute(.addPinFromLocation(location))
+                                    }
                                 }
                             }
                         }
@@ -407,8 +400,7 @@ struct MapView: View {
                                 isSelected: selectedCardLocation?.id == place.id,
                                 onShareTap: { sharePlace(place) },
                                 onPinTap: { 
-                                    selectedMapLocation = place
-                                    showingAddPinDialog = true
+                                    actionRouter.execute(.addPinFromLocation(place))
                                 },
                                 onLocationTap: { 
                                     selectedCardLocation = place
@@ -425,6 +417,7 @@ struct MapView: View {
         }
         .padding(.bottom, LayoutConstants.totalToolbarHeight)
         .onAppear {
+            setupToolbar()
             // Load last saved map region and search cache
             loadLastMapRegion()
             loadSearchCache()
@@ -459,16 +452,6 @@ struct MapView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingAddPinDialog) {
-            if let selectedLocation = selectedMapLocation {
-                NavigationView {
-                    AddPinFromLocationView(location: selectedLocation) {
-                        showingAddPinDialog = false
-                        selectedMapLocation = nil
-                    }
-                }
-            }
-        }
         .sheet(isPresented: $showingSaveDialog) {
             NavigationView {
                 SaveSearchDialog(
@@ -483,6 +466,33 @@ struct MapView: View {
                     }
                 )
             }
+        }
+        .sheet(isPresented: $showingActionSheet) {
+            VStack(spacing: 0) {
+                // Handle bar
+                RoundedRectangle(cornerRadius: 2.5)
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(width: 36, height: 5)
+                    .padding(.vertical, 12)
+                
+                // Action buttons
+                VStack(spacing: 0) {
+                    PinActionButton(
+                        icon: "square.and.arrow.down",
+                        title: "Save Search",
+                        action: {
+                            showingActionSheet = false
+                            showSaveDialog()
+                        }
+                    )
+                    .disabled(nearbyPlaces.isEmpty)
+                    .opacity(nearbyPlaces.isEmpty ? 0.5 : 1.0)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 34) // Safe area padding
+            }
+            .background(Color(.systemBackground))
+            .presentationDetents([.medium])
         }
     }
     
@@ -977,38 +987,12 @@ struct MapView: View {
     private func setupToolbar() {
         let toolbarButtons = [
             ToolbarButtonConfig(
-                id: "photos",
-                title: "Photos",
-                systemImage: "photo",
-                action: { 
-                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 0)
-                },
-                color: .blue
-            ),
-            ToolbarButtonConfig(
-                id: "pins",
-                title: "Pins",
-                systemImage: "mappin.and.ellipse",
-                action: { 
-                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 2)
-                },
-                color: .red
-            ),
-            ToolbarButtonConfig(
-                id: "search",
-                title: "Search",
-                systemImage: "magnifyingglass",
-                action: { showingSearch = true },
-                color: .green
-            ),
-            ToolbarButtonConfig(
-                id: "lists",
-                title: "Lists",
-                systemImage: "list.bullet.circle",
-                action: { 
-                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 3)
-                },
-                color: .purple
+                id: "actions",
+                title: "Actions",
+                systemImage: "ellipsis.circle",
+                action: { showingActionSheet = true },
+                color: .blue,
+                isFAB: true
             )
         ]
         
@@ -1028,6 +1012,7 @@ struct MapAnnotationItem: Identifiable {
         self.location = location
     }
 }
+
 
 
 

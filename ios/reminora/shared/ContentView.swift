@@ -19,6 +19,8 @@ struct ContentView: View {
     @State private var showingSharedPlace = false
     @State private var sharedPlace: PinData?
     @State private var isSwipePhotoViewOpen = false
+    @State private var showingECardEditor = false
+    @State private var eCardAssets: [PHAsset] = []
     @StateObject private var toolbarManager = ToolbarManager()
     @StateObject private var selectedAssetService = SelectionService.shared
     @StateObject private var sheetStack = SheetStack.shared
@@ -196,7 +198,8 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECard"))) { notification in
             if let asset = notification.object as? PHAsset {
                 print("🎨 ContentView: Creating ECard for single asset: \(asset.localIdentifier)")
-                sheetStack.push(.eCardEditor(assets: [asset]))
+                eCardAssets = [asset]
+                showingECardEditor = true
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECardFromSelected"))) { notification in
@@ -206,8 +209,16 @@ struct ContentView: View {
                 let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: Array(identifiers), options: fetchOptions)
                 let assets = (0..<fetchResult.count).compactMap { fetchResult.object(at: $0) }
                 if !assets.isEmpty {
-                    sheetStack.push(.eCardEditor(assets: assets))
+                    eCardAssets = assets
+                    showingECardEditor = true
                 }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ShowECardEditor"))) { notification in
+            if let assets = notification.object as? [PHAsset] {
+                print("🎨 ContentView: Showing ECard editor for \(assets.count) assets")
+                eCardAssets = assets
+                showingECardEditor = true
             }
         }
         .overlay {
@@ -223,6 +234,21 @@ struct ContentView: View {
                 .transition(.asymmetric(
                     insertion: .scale(scale: 0.1).combined(with: .opacity),
                     removal: .scale(scale: 0.1).combined(with: .opacity)
+                ))
+            }
+        }
+        .overlay {
+            if showingECardEditor && !eCardAssets.isEmpty {
+                ECardEditorView(
+                    initialAssets: eCardAssets,
+                    onDismiss: {
+                        showingECardEditor = false
+                        eCardAssets = []
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom),
+                    removal: .move(edge: .bottom)
                 ))
             }
         }

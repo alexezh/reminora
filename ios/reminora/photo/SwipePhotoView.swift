@@ -38,6 +38,7 @@ struct SwipePhotoView: View {
     @State private var isFavorite = false
     @State private var showingActionSheet = false
     @State private var displayAssets: [PHAsset] = [] // Assets to display (includes expanded stacks)
+    @State private var verticalOffset: CGFloat = 0 // For swipe down to dismiss
     
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
@@ -364,33 +365,59 @@ struct SwipePhotoView: View {
                             let currentStackInfo = getStackInfo(for: displayAssets[currentIndex])
                             SwipePhotoImageView(asset: displayAssets[currentIndex], isLoading: $isLoading, stackInfo: currentStackInfo)
                                 .scaleEffect(photoTransition ? 0.9 : 1.0) // Photo transition effect
-                                .offset(x: swipeOffset) // Swipe offset for animation
+                                .offset(x: swipeOffset, y: verticalOffset) // Swipe offset for animation and dismiss
                                 .opacity(photoTransition ? 0.7 : 1.0) // Fade effect during transition
                                 .animation(.easeInOut(duration: 0.3), value: photoTransition)
                                 .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: swipeOffset)
+                                .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: verticalOffset)
                                 .gesture(
                                     // Combined gesture for tap, long press, and swipe
                                     DragGesture(minimumDistance: 0)
                                         .onChanged { value in
                                             // Show swipe effect during drag
-                                            let translation = value.translation.width
-                                            swipeOffset = translation * 0.3 // Damped swipe offset
+                                            let translationX = value.translation.width
+                                            let translationY = value.translation.height
                                             
-                                            if abs(translation) > 20 {
+                                            // Handle horizontal swipe for navigation
+                                            swipeOffset = translationX * 0.3 // Damped swipe offset
+                                            
+                                            // Handle vertical swipe for dismiss (only down)
+                                            if translationY > 0 {
+                                                verticalOffset = translationY * 0.8 // More responsive for dismiss
+                                            }
+                                            
+                                            if abs(translationX) > 20 || abs(translationY) > 20 {
                                                 isLoading = true
                                             }
                                         }
                                         .onEnded { value in
                                             isLoading = false
                                             
-                                            // Reset swipe offset with spring animation
+                                            // Check for swipe down to dismiss first
+                                            let translationY = value.translation.height
+                                            let translationX = value.translation.width
+                                            let isVerticalSwipe = abs(translationY) > abs(translationX)
+                                            
+                                            if isVerticalSwipe && translationY > 150 { // Swipe down threshold
+                                                // Dismiss with animation
+                                                withAnimation(.easeOut(duration: 0.3)) {
+                                                    verticalOffset = UIScreen.main.bounds.height
+                                                }
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                                    onDismiss()
+                                                }
+                                                return
+                                            }
+                                            
+                                            // Reset both offsets with spring animation
                                             withAnimation(.interpolatingSpring(stiffness: 300, damping: 25)) {
                                                 swipeOffset = 0
+                                                verticalOffset = 0
                                             }
                                             
                                             // Handle different gesture types
-                                            let isHorizontalSwipe = abs(value.translation.width) > abs(value.translation.height)
-                                            let distance = sqrt(pow(value.translation.width, 2) + pow(value.translation.height, 2))
+                                            let isHorizontalSwipe = abs(translationX) > abs(translationY)
+                                            let distance = sqrt(pow(translationX, 2) + pow(translationY, 2))
                                             
                                             if distance < 10 {
                                                 // Tap gesture - check for stack
@@ -403,22 +430,18 @@ struct SwipePhotoView: View {
                                                         expandStack(stackInfo.stack)
                                                     }
                                                 }
-                                            } else if isHorizontalSwipe && abs(value.translation.width) > LayoutConstants.swipeThreshold {
+                                            } else if isHorizontalSwipe && abs(translationX) > LayoutConstants.swipeThreshold {
                                                 // Trigger photo transition animation
                                                 triggerPhotoTransition()
                                                 
                                                 // Check for long-pull (extended horizontal swipe)
-                                                if abs(value.translation.width) > LayoutConstants.swipeThreshold * 2 {
+                                                if abs(translationX) > LayoutConstants.swipeThreshold * 2 {
                                                     // Long horizontal pull - close stack and move to next
-                                                    handleLongPullNavigation(value.translation.width)
+                                                    handleLongPullNavigation(translationX)
                                                 } else {
                                                     // Regular horizontal swipe - navigate photos with stack boundaries
-                                                    handleStackBoundarySwipe(value.translation.width)
+                                                    handleStackBoundarySwipe(translationX)
                                                 }
-                                            } else if !isHorizontalSwipe && value.translation.height > LayoutConstants.swipeThreshold {
-                                                // Long pull down - move to next stack/photo
-                                                triggerPhotoTransition()
-                                                moveToNextStack()
                                             }
                                         }
                                 )

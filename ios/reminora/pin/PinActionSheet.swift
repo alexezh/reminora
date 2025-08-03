@@ -5,6 +5,7 @@ struct PinActionSheet: View {
     let onMap: () -> Void
     let onPhotos: () -> Void
     let onToggleQuick: () -> Void
+    let onEditLocations: () -> Void
     
     var body: some View {
         VStack(spacing: 0) {
@@ -32,6 +33,12 @@ struct PinActionSheet: View {
                     icon: isInQuickCollection ? "checkmark.square.fill" : "plus.square",
                     title: isInQuickCollection ? "Remove from Quick" : "Add to Quick",
                     action: onToggleQuick
+                )
+                
+                PinActionButton(
+                    icon: "location.circle",
+                    title: "Edit Locations",
+                    action: onEditLocations
                 )
             }
             .padding(.horizontal, 20)

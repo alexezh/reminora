@@ -11,9 +11,6 @@ move save button to actions as save search.
 
 List - add swipe to delete. 
 Save search results does not work
-SwipePhotoView. swipe down to close the view
-PinDetailsView. add edit locations to action list. 
-MapView - pin is not functional, invoke addPinFromLocation through router. Remove photos, pins, lists button from toolbar. Hide toolbar except for FAB button. Move save search to action menu
 
 
 Future place

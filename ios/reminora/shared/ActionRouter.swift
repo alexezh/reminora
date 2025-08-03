@@ -15,7 +15,7 @@ import CoreLocation
 // MARK: - Action Types
 enum ActionType: Equatable {
     // Navigation Actions
-    case switchToTab(Int)
+    case switchToTab(String)
     case showActionSheet
     
     // Photo Actions
@@ -140,8 +140,8 @@ class ActionRouter: ObservableObject {
         
         switch action {
         // Navigation Actions
-        case .switchToTab(let tabIndex):
-            handleSwitchToTab(tabIndex)
+        case .switchToTab(let tabName):
+            handleSwitchToTab(tabName)
             
         case .showActionSheet:
             handleShowActionSheet()
@@ -246,8 +246,8 @@ class ActionRouter: ObservableObject {
     
     // MARK: - Action Handlers
     
-    private func handleSwitchToTab(_ tabIndex: Int) {
-        NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: tabIndex)
+    private func handleSwitchToTab(_ tabName: String) {
+        NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: tabName)
     }
     
     private func handleShowActionSheet() {
@@ -312,6 +312,8 @@ class ActionRouter: ObservableObject {
         
         // Start ECard editing session
         ECardEditor.shared.startEditing(with: assetsToUse)
+        // Switch to Editor tab
+        NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: "Editor")
         print("🎯 ActionRouter: Started ECard editing with \(assetsToUse.count) assets")
     }
     

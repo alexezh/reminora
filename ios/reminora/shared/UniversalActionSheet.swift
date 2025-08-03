@@ -15,7 +15,7 @@ struct UniversalActionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.selectedAssetService) private var selectedAssetService
     @StateObject private var actionSheetModel = UniversalActionSheetModel.shared
-    let selectedTab: Int
+    let selectedTab: String
     let onRefreshLists: () -> Void
     let onAddPin: () -> Void
     let onAddOpenInvite: () -> Void
@@ -28,7 +28,7 @@ struct UniversalActionSheet: View {
     @State private var scrollEndTimer: Timer?
 
     init(
-        selectedTab: Int,
+        selectedTab: String,
         onRefreshLists: @escaping () -> Void,
         onAddPin: @escaping () -> Void,
         onAddOpenInvite: @escaping () -> Void,
@@ -57,11 +57,11 @@ struct UniversalActionSheet: View {
                 ModernToolbarButton(
                     icon: "photo",
                     title: "Photos",
-                    isSelected: selectedTab == 0,
+                    isSelected: selectedTab == "Photo",
                     action: {
                         dismiss()
                         NotificationCenter.default.post(
-                            name: NSNotification.Name("SwitchToTab"), object: 0)
+                            name: NSNotification.Name("SwitchToTab"), object: "Photo")
                     }
                 )
                 .frame(maxWidth: .infinity)
@@ -69,11 +69,11 @@ struct UniversalActionSheet: View {
                 ModernToolbarButton(
                     icon: "map",
                     title: "Map",
-                    isSelected: selectedTab == 1,
+                    isSelected: selectedTab == "Map",
                     action: {
                         dismiss()
                         NotificationCenter.default.post(
-                            name: NSNotification.Name("SwitchToTab"), object: 1)
+                            name: NSNotification.Name("SwitchToTab"), object: "Map")
                     }
                 )
                 .frame(maxWidth: .infinity)
@@ -81,11 +81,11 @@ struct UniversalActionSheet: View {
                 ModernToolbarButton(
                     icon: "mappin.and.ellipse",
                     title: "Pins",
-                    isSelected: selectedTab == 2,
+                    isSelected: selectedTab == "Pin",
                     action: {
                         dismiss()
                         NotificationCenter.default.post(
-                            name: NSNotification.Name("SwitchToTab"), object: 2)
+                            name: NSNotification.Name("SwitchToTab"), object: "Pin")
                     }
                 )
                 .frame(maxWidth: .infinity)
@@ -93,12 +93,12 @@ struct UniversalActionSheet: View {
                 ModernToolbarButton(
                     icon: "list.bullet.circle",
                     title: "Lists",
-                    isSelected: selectedTab == 3,
+                    isSelected: selectedTab == "Lists",
                     action: {
                         dismiss()
                         // Post notification to auto-open quick list
                         NotificationCenter.default.post(
-                            name: NSNotification.Name("SwitchToTab"), object: 3)
+                            name: NSNotification.Name("SwitchToTab"), object: "Lists")
                         NotificationCenter.default.post(
                             name: NSNotification.Name("AutoOpenQuickList"), object: nil)
                     }
@@ -214,7 +214,7 @@ struct UniversalActionSheet: View {
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 4)
+            NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: "Profile")
         }
     }
     
@@ -303,13 +303,13 @@ struct UniversalActionSheet: View {
 
         ActionListItem(icon: "photo", title: "Photos", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            ActionRouter.shared.execute(.switchToTab(0))
+            ActionRouter.shared.execute(.switchToTab("Photo"))
         }
         ActionListItem(
             icon: "mappin.and.ellipse", title: "Pins", isEnabled: true, hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.switchToTab(2))
+            ActionRouter.shared.execute(.switchToTab("Pin"))
         }
         
         settingsAction()

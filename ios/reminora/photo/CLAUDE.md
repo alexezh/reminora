@@ -19,7 +19,7 @@ Photo library access, viewing, management, and photo-related AI features.
 
 ### AI Features
 - **ImageEmbeddingService.swift** - Generate image embeddings for similarity
-- **PhotoEmbeddingService.swift** - Photo-specific embedding operations
+- **PhotoEmbeddingService.swift** - Thread-safe photo embedding operations with failure tracking
 - **PhotoSimilarityView.swift** - Find similar photos interface
 - **SimilarPhotosGridView.swift** - Display grid of similar photos
 
@@ -32,6 +32,7 @@ Photo library access, viewing, management, and photo-related AI features.
 - Photo sharing capabilities
 - Image downsampling for storage
 - Machine learning embeddings for photo analysis
+- Thread-safe embedding computation with failure tracking and retry logic
 
 ## UI/UX Guidelines
 

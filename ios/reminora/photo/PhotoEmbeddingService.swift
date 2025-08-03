@@ -13,6 +13,7 @@ class PhotoEmbeddingService {
     private var failedAssets: Set<String> = []
     private let maxRetryAttempts = 3
     private var retryAttempts: [String: Int] = [:]
+    private let dataLock = NSLock() // Thread safety for failedAssets and retryAttempts
     
     private init() {}
     
@@ -41,31 +42,42 @@ class PhotoEmbeddingService {
             return false
         }
         
-        // Check if this asset has failed too many times
+        // Check if this asset has failed too many times - thread-safe
         let assetId = asset.localIdentifier
-        let currentAttempts = retryAttempts[assetId] ?? 0
+        let (currentAttempts, shouldSkip) = dataLock.withLock {
+            let attempts = retryAttempts[assetId] ?? 0
+            let skip = failedAssets.contains(assetId) || attempts >= maxRetryAttempts
+            return (attempts, skip)
+        }
         
-        if failedAssets.contains(assetId) || currentAttempts >= maxRetryAttempts {
+        if shouldSkip {
             print("⏭️ Skipping asset \(assetId) - failed \(currentAttempts) times, marked as permanently failed")
             return false
         }
         
         // Compute embedding
         guard let embedding = await ImageEmbeddingService.shared.computeBasicEmbedding(for: image) else {
-            // Track the failure
-            retryAttempts[assetId] = currentAttempts + 1
+            // Track the failure - thread-safe
+            let newAttemptCount = currentAttempts + 1
+            dataLock.withLock {
+                retryAttempts[assetId] = newAttemptCount
+                if newAttemptCount >= maxRetryAttempts {
+                    failedAssets.insert(assetId)
+                }
+            }
             
-            if retryAttempts[assetId]! >= maxRetryAttempts {
-                failedAssets.insert(assetId)
+            if newAttemptCount >= maxRetryAttempts {
                 print("❌ Asset \(assetId) failed \(maxRetryAttempts) times, marking as permanently failed")
             } else {
-                print("⚠️ Failed to compute embedding for asset: \(assetId) (attempt \(retryAttempts[assetId]!)/\(maxRetryAttempts))")
+                print("⚠️ Failed to compute embedding for asset: \(assetId) (attempt \(newAttemptCount)/\(maxRetryAttempts))")
             }
             return false
         }
         
-        // Clear retry attempts on success
-        retryAttempts.removeValue(forKey: assetId)
+        // Clear retry attempts on success - thread-safe
+        dataLock.withLock {
+            retryAttempts.removeValue(forKey: assetId)
+        }
         
         // Store in Core Data
         await MainActor.run {
@@ -235,8 +247,8 @@ class PhotoEmbeddingService {
                 continue
             }
             
-            // Skip if asset has permanently failed
-            if failedAssets.contains(asset.localIdentifier) {
+            // Skip if asset has permanently failed - thread-safe
+            if dataLock.withLock { failedAssets.contains(asset.localIdentifier) } {
                 print("📊 Skipping \(asset.localIdentifier) - permanently failed")
                 processedCount += 1
                 latestProcessedDate = asset.creationDate ?? latestProcessedDate
@@ -281,9 +293,12 @@ class PhotoEmbeddingService {
         print("📊 Total batch time: \(String(format: "%.3f", totalBatchTime)) seconds")
         print("📊 Photos processed: \(processedCount)/\(totalCount)")
         print("📊 Embeddings computed: \(actualComputeCount)")
-        print("📊 Permanently failed assets: \(failedAssets.count)")
-        if !failedAssets.isEmpty {
-            print("📊 Failed asset IDs: \(Array(failedAssets).prefix(5).joined(separator: ", "))...")
+        let (failedCount, failedIds) = dataLock.withLock {
+            (failedAssets.count, Array(failedAssets).prefix(5))
+        }
+        print("📊 Permanently failed assets: \(failedCount)")
+        if failedCount > 0 {
+            print("📊 Failed asset IDs: \(failedIds.joined(separator: ", "))...")
         }
         
         if actualComputeCount > 0 {
@@ -516,14 +531,16 @@ class PhotoEmbeddingService {
     
     /// Clear all failure tracking to allow retry of previously failed assets
     func clearFailureTracking() {
-        failedAssets.removeAll()
-        retryAttempts.removeAll()
+        dataLock.withLock {
+            failedAssets.removeAll()
+            retryAttempts.removeAll()
+        }
         print("📊 Cleared all failure tracking - previously failed assets can be retried")
     }
     
     /// Get count of permanently failed assets
     func getFailedAssetsCount() -> Int {
-        return failedAssets.count
+        return dataLock.withLock { failedAssets.count }
     }
 }
 

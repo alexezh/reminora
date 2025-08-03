@@ -8,6 +8,7 @@ ECard feature for creating decorative cards from photos using SVG templates with
 ### Core Components
 - **ECardModels.swift** - Data models for templates, cards, and configuration
 - **ECardTemplateService.swift** - Service managing SVG templates and built-in designs
+- **ECardEditor.swift** - State management and image generation service for ECard editing
 - **ECardEditorView.swift** - Main editor interface for creating and customizing ECards
 
 ## Key Features
@@ -27,10 +28,19 @@ ECard feature for creating decorative cards from photos using SVG templates with
 
 ### Integration
 - **ActionRouter integration** - `.makeECard([PHAsset])` action type triggers editor
-- **UniversalActionSheet** - "Make ECard" appears in Photos, Pins, and SwipePhoto contexts
-- **SheetRouter managed** - Uses centralized sheet management via `.eCardEditor(assets:)` type
+- **UniversalActionSheet** - "Make ECard" appears in Photos, Pins, and SwipePhoto contexts with context-specific actions
+- **ECardEditor state management** - Centralized session management with persistence and asset handling
+- **Tab integration** - Automatically switches to "Editor" tab when ECard editing begins
 - **SelectionService integration** - Automatic asset selection from multi-photo selection or current photo
-- **Environment services** - ECardTemplateService.shared injected via SwiftUI environment
+- **Environment services** - ECardTemplateService.shared and ECardEditor.shared injected via SwiftUI environment
+
+### ECard Generation
+- **High-quality rendering** - 800x1000 pixel output with full-resolution photo integration
+- **Asynchronous image loading** - Pre-loads all assigned photos before rendering final ECard
+- **Aspect-fill cropping** - Maintains photo aspect ratios with intelligent cropping
+- **Corner radius support** - Template-defined rounded corners for photo slots
+- **Text rendering** - Center-aligned text with configurable fonts and sizes
+- **Photo library saving** - Direct save to photo library with 95% JPEG quality
 
 ## Template Structure
 
@@ -68,6 +78,31 @@ sheetStack.push(.eCardEditor(assets: [asset]))
 
 // Multi-photo ECard (from selection)
 sheetStack.push(.eCardEditor(assets: selectedAssets))
+```
+
+### ECard Editor Service
+```swift
+// Start editing session
+ECardEditor.shared.startEditing(with: selectedAssets)
+
+// Generate ECard image
+ECardEditor.shared.generateECardImage(
+    template: selectedTemplate,
+    imageAssignments: imageAssignments,
+    textAssignments: textAssignments
+) { result in
+    switch result {
+    case .success(let image):
+        // Handle generated image
+    case .failure(let error):
+        // Handle error
+    }
+}
+
+// Save to photo library
+ECardEditor.shared.saveECardToPhotoLibrary(image) { result in
+    // Handle save result
+}
 ```
 
 ### Template Service

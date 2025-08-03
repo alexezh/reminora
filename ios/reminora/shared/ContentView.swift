@@ -15,7 +15,7 @@ struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject private var authService: AuthenticationService
 
-    @State private var selectedTab = UserDefaults.standard.integer(forKey: "selectedTab")
+    @State private var selectedTab = UserDefaults.standard.string(forKey: "selectedTab") ?? "Photo"
     @State private var isSwipePhotoViewOpen = false
     @StateObject private var toolbarManager = ToolbarManager()
     @StateObject private var selectedAssetService = SelectionService.shared
@@ -29,7 +29,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             ZStack {
                 // Photos Tab
-                if selectedTab == 0 {
+                if selectedTab == "Photo" {
                     NavigationView {
                         PhotoMainView(isSwipePhotoViewOpen: $isSwipePhotoViewOpen)
                     }
@@ -37,7 +37,7 @@ struct ContentView: View {
                 }
                 
                 // Map Tab
-                if selectedTab == 1 {
+                if selectedTab == "Map" {
                     NavigationView {
                         MapView()
                     }
@@ -45,7 +45,7 @@ struct ContentView: View {
                 }
                 
                 // Pins Tab
-                if selectedTab == 2 {
+                if selectedTab == "Pin" {
                     NavigationView {
                         PinMainView()
                     }
@@ -53,7 +53,7 @@ struct ContentView: View {
                 }
                 
                 // Lists Tab
-                if selectedTab == 3 {
+                if selectedTab == "Lists" {
                     AllRListsView(
                         context: viewContext,
                         userId: authService.currentAccount?.id ?? ""
@@ -61,8 +61,18 @@ struct ContentView: View {
                 }
                 
                 // Profile Tab
-                if selectedTab == 4 {
+                if selectedTab == "Profile" {
                     ProfileView()
+                }
+                
+                // ECard Editor Tab
+                if selectedTab == "Editor" {
+                    ECardEditorView(
+                        initialAssets: eCardEditor.getCurrentAssets(),
+                        onDismiss: {
+                            eCardEditor.endEditing()
+                        }
+                    )
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -108,22 +118,6 @@ struct ContentView: View {
         .overlay {
             SheetRouter(sheetStack: sheetStack)
         }
-        // ECardEditorView overlay - shows when editor is active
-        .overlay {
-            if actionSheetModel.currentEditor == .eCard && eCardEditor.hasActiveSession {
-                ECardEditorView(
-                    initialAssets: eCardEditor.getCurrentAssets(),
-                    onDismiss: {
-                        eCardEditor.endEditing()
-                    }
-                )
-                .transition(.asymmetric(
-                    insertion: .scale(scale: 0.1).combined(with: .opacity),
-                    removal: .scale(scale: 0.1).combined(with: .opacity)
-                ))
-                .zIndex(1000) // Above other overlays
-            }
-        }
         .overlay(alignment: .bottom) {
             // Custom dynamic toolbar (show when enabled, including when SwipePhotoView is open with its buttons)
             if toolbarManager.showCustomToolbar {
@@ -162,7 +156,7 @@ struct ContentView: View {
                 print("🎨 ContentView: Opening current editor: \(editorType.displayName)")
                 switch editorType {
                 case .eCard:
-                    // ECardEditorView will be shown automatically via overlay when editor is active
+                    selectedTab = "Editor"
                     break
                 case .collage, .videoEditor:
                     // Future editor types can be handled here
@@ -179,10 +173,10 @@ struct ContentView: View {
                 print("🔗 ContentView navigating to shared place: \(place.post ?? "Unknown")")
 
                 // Switch to Pin tab and show the shared place via SheetStack
-                selectedTab = 2
+                selectedTab = "Pin"
                 sheetStack.push(.pinDetail(place: place, allPlaces: []))
 
-                print("🔗 ContentView set selectedTab=2, showing shared place via SheetStack")
+                print("🔗 ContentView set selectedTab=Pin, showing shared place via SheetStack")
             } else {
                 print("🔗 ❌ ContentView: notification object is not a Place")
             }
@@ -190,9 +184,14 @@ struct ContentView: View {
         .onReceive(
             NotificationCenter.default.publisher(for: NSNotification.Name("SwitchToTab"))
         ) { notification in
-            if let tabIndex = notification.object as? Int {
-                selectedTab = tabIndex
-                print("🔗 ContentView switched to tab: \(tabIndex)")
+            if let tabName = notification.object as? String {
+                selectedTab = tabName
+                print("🔗 ContentView switched to tab: \(tabName)")
+            } else if let tabIndex = notification.object as? Int {
+                // Legacy support for integer tab indices
+                let tabName = tabIndexToString(tabIndex)
+                selectedTab = tabName
+                print("🔗 ContentView switched to tab: \(tabName) (from legacy index \(tabIndex))")
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindSimilarPhotos"))) { notification in
@@ -225,7 +224,8 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECard"))) { notification in
             if let asset = notification.object as? PHAsset {
                 print("🎨 ContentView: Creating ECard for single asset: \(asset.localIdentifier)")
-                sheetStack.push(.eCardEditor(assets: [asset]))
+                eCardEditor.startEditing(with: [asset])
+                selectedTab = "Editor"
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECardFromSelected"))) { notification in
@@ -235,7 +235,8 @@ struct ContentView: View {
                 let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: Array(identifiers), options: fetchOptions)
                 let assets = (0..<fetchResult.count).compactMap { fetchResult.object(at: $0) }
                 if !assets.isEmpty {
-                    sheetStack.push(.eCardEditor(assets: assets))
+                    eCardEditor.startEditing(with: assets)
+                    selectedTab = "Editor"
                 }
             }
         }
@@ -279,56 +280,73 @@ struct ContentView: View {
     
     // MARK: - Toolbar Management
     
-    private func setupToolbarForTab(_ tabIndex: Int) {
-        print("🔧 ContentView: Setting up toolbar for tab \(tabIndex)")
+    private func setupToolbarForTab(_ tabName: String) {
+        print("🔧 ContentView: Setting up toolbar for tab \(tabName)")
         
-        switch tabIndex {
-        case 0: // Photos Tab - FAB only
+        switch tabName {
+        case "Photo": // Photos Tab - FAB only
             toolbarManager.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.photos)
             
-        case 1: // Map Tab - Full toolbar with navigation buttons
+        case "Map": // Map Tab - Full toolbar with navigation buttons
             let mapButtons = [
                 ToolbarButtonConfig(
                     id: "photos",
                     title: "Photos",
                     systemImage: "photo",
-                    actionType: .switchToTab(0),
+                    actionType: .switchToTab("Photo"),
                     color: .blue
                 ),
                 ToolbarButtonConfig(
                     id: "pins",
                     title: "Pins",
                     systemImage: "mappin.and.ellipse",
-                    actionType: .switchToTab(2),
+                    actionType: .switchToTab("Pin"),
                     color: .red
                 ),
                 ToolbarButtonConfig(
                     id: "lists",
                     title: "Lists",
                     systemImage: "list.bullet.circle",
-                    actionType: .switchToTab(3),
+                    actionType: .switchToTab("Lists"),
                     color: .purple
                 )
             ]
             toolbarManager.setCustomToolbar(buttons: mapButtons)
             UniversalActionSheetModel.shared.setContext(.map)
             
-        case 2: // Pins Tab - Show FAB only
+        case "Pin": // Pins Tab - Show FAB only
             toolbarManager.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.pins)
             
-        case 3: // Lists Tab - Show FAB only
+        case "Lists": // Lists Tab - Show FAB only
             toolbarManager.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.lists)
             
-        case 4: // Profile Tab - FAB only for now
+        case "Profile": // Profile Tab - FAB only for now
             toolbarManager.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.profile)
+            
+        case "Editor": // Editor Tab - FAB only for now
+            toolbarManager.setFABOnlyMode()
+            UniversalActionSheetModel.shared.setContext(.ecard)
             
         default:
             toolbarManager.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.lists)
+        }
+    }
+    
+    // MARK: - Helper Functions
+    
+    private func tabIndexToString(_ index: Int) -> String {
+        switch index {
+        case 0: return "Photo"
+        case 1: return "Map"
+        case 2: return "Pin"
+        case 3: return "Lists"
+        case 4: return "Profile"
+        default: return "Photo"
         }
     }
 }

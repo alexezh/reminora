@@ -333,8 +333,12 @@ struct ECardEditorView: View {
         
         isLoading = true
         
-        // Generate high-quality ECard image (2x resolution for better quality)
-        generateHighQualityECardImage(template: template) { result in
+        // Use ECardEditor to generate the image
+        ECardEditor.shared.generateECardImage(
+            template: template,
+            imageAssignments: imageAssignments,
+            textAssignments: textAssignments
+        ) { result in
             DispatchQueue.main.async {
                 self.isLoading = false
                 
@@ -350,39 +354,9 @@ struct ECardEditorView: View {
                         }
                     }
                 case .failure(let error):
-                    print("❌ Failed to generate high-quality ECard: \(error)")
+                    print("❌ Failed to generate ECard: \(error)")
                 }
             }
-        }
-    }
-    
-    private func generateHighQualityECardImage(template: ECardTemplate, completion: @escaping (Result<UIImage, Error>) -> Void) {
-        // Generate at 2x resolution for high quality
-        let scale: CGFloat = 2.0
-        let size = CGSize(width: 300 * scale, height: 375 * scale)
-        
-        UIGraphicsBeginImageContextWithOptions(size, false, 0)
-        
-        defer {
-            UIGraphicsEndImageContext()
-        }
-        
-        guard let context = UIGraphicsGetCurrentContext() else {
-            completion(.failure(NSError(domain: "ECardError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to create graphics context"])))
-            return
-        }
-        
-        // Fill white background
-        context.setFillColor(UIColor.white.cgColor)
-        context.fill(CGRect(origin: .zero, size: size))
-        
-        // Generate high-quality image based on template
-        // This is a simplified implementation - you would need to render the SVG at high resolution
-        // For now, we'll create a placeholder high-quality image
-        if let image = UIGraphicsGetImageFromCurrentImageContext() {
-            completion(.success(image))
-        } else {
-            completion(.failure(NSError(domain: "ECardError", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to generate image"])))
         }
     }
     
@@ -396,92 +370,14 @@ struct ECardEditorView: View {
         completion(true)
     }
     
-    private func generateECardImage(template: ECardTemplate, completion: @escaping (Result<UIImage, Error>) -> Void) {
-        // For now, create a simple rendered image
-        // In a real implementation, you'd render the SVG with actual images and text
-        
-        let size = CGSize(width: 800, height: 1000) // High quality size
-        let renderer = UIGraphicsImageRenderer(size: size)
-        
-        let image = renderer.image { context in
-            // White background
-            UIColor.white.setFill()
-            context.fill(CGRect(origin: .zero, size: size))
-            
-            // Draw template name
-            let titleRect = CGRect(x: 40, y: 40, width: size.width - 80, height: 60)
-            template.name.draw(in: titleRect, withAttributes: [
-                .font: UIFont.boldSystemFont(ofSize: 32),
-                .foregroundColor: UIColor.black
-            ])
-            
-            // Draw assigned images
-            var imageY: CGFloat = 120
-            for slot in template.imageSlots {
-                if let asset = imageAssignments[slot.id] {
-                    // Load and draw the actual image
-                    let imageManager = PHImageManager.default()
-                    let options = PHImageRequestOptions()
-                    options.isSynchronous = true
-                    options.deliveryMode = .highQualityFormat
-                    
-                    imageManager.requestImage(
-                        for: asset,
-                        targetSize: CGSize(width: 600, height: 400),
-                        contentMode: .aspectFill,
-                        options: options
-                    ) { loadedImage, _ in
-                        if let loadedImage = loadedImage {
-                            let imageRect = CGRect(x: 100, y: imageY, width: 600, height: 400)
-                            loadedImage.draw(in: imageRect)
-                        }
-                    }
-                    
-                    imageY += 420
-                }
-            }
-            
-            // Draw text
-            var textY = imageY + 40
-            for slot in template.textSlots {
-                let text = textAssignments[slot.id] ?? slot.placeholder
-                let textRect = CGRect(x: 40, y: textY, width: size.width - 80, height: 40)
-                text.draw(in: textRect, withAttributes: [
-                    .font: UIFont.systemFont(ofSize: CGFloat(slot.fontSize)),
-                    .foregroundColor: UIColor.black
-                ])
-                textY += 50
-            }
-        }
-        
-        completion(.success(image))
-    }
-    
     private func saveImageToPhotoLibrary(_ image: UIImage) {
-        PHPhotoLibrary.requestAuthorization { status in
-            guard status == .authorized else {
-                print("❌ Photo library access denied")
-                return
-            }
-            
-            PHPhotoLibrary.shared().performChanges({
-                let creationRequest = PHAssetCreationRequest.forAsset()
-                
-                // Convert to high-quality JPEG data
-                guard let jpegData = image.jpegData(compressionQuality: 0.95) else {
-                    print("❌ Failed to convert image to JPEG")
-                    return
-                }
-                
-                creationRequest.addResource(with: .photo, data: jpegData, options: nil)
-            }) { success, error in
-                DispatchQueue.main.async {
-                    if success {
-                        print("✅ ECard saved to photo library")
-                        self.onDismiss()
-                    } else {
-                        print("❌ Failed to save ECard: \(error?.localizedDescription ?? "Unknown error")")
-                    }
+        ECardEditor.shared.saveECardToPhotoLibrary(image) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self.onDismiss()
+                case .failure(let error):
+                    print("❌ Failed to save ECard: \(error.localizedDescription)")
                 }
             }
         }

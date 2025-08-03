@@ -1,0 +1,42 @@
+<svg viewBox="0 0 500 400" xmlns="http://www.w3.org/2000/svg">
+    <!-- Vintage postcard background -->
+    <rect x="0" y="0" width="500" height="400" fill="#f4e9d9"/>
+    
+    <!-- Aged paper texture -->
+    <rect x="0" y="0" width="500" height="400" fill="url(#vintageTexture)" opacity="0.3"/>
+    
+    <defs>
+        <pattern id="vintageTexture" patternUnits="userSpaceOnUse" width="20" height="20">
+            <rect width="20" height="20" fill="#e8dcc0"/>
+            <circle cx="5" cy="5" r="1" fill="#d4c4a8" opacity="0.5"/>
+            <circle cx="15" cy="15" r="0.5" fill="#c9b892" opacity="0.3"/>
+        </pattern>
+        
+        <filter id="vintageShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="2" dy="2" stdDeviation="4" flood-color="#8b4513" flood-opacity="0.3"/>
+        </filter>
+    </defs>
+    
+    <!-- Postcard border -->
+    <rect x="15" y="15" width="470" height="290" fill="transparent" stroke="#8b4513" stroke-width="3" stroke-dasharray="5,5"/>
+    
+    <!-- Photo area with vintage frame -->
+    <rect x="35" y="35" width="430" height="200" fill="#ffffff" stroke="#8b4513" stroke-width="2"/>
+    <rect id="Image1" x="40" y="40" width="420" height="190" fill="#e8e8e8"/>
+    
+    <!-- Decorative corner elements -->
+    <polygon points="35,35 55,35 35,55" fill="#8b4513" opacity="0.7"/>
+    <polygon points="465,35 445,35 465,55" fill="#8b4513" opacity="0.7"/>
+    <polygon points="35,235 55,235 35,215" fill="#8b4513" opacity="0.7"/>
+    <polygon points="465,235 445,235 465,215" fill="#8b4513" opacity="0.7"/>
+    
+    <!-- Address line -->
+    <line x1="50" y1="260" x2="350" y2="260" stroke="#8b4513" stroke-width="1" opacity="0.5"/>
+    
+    <!-- Text areas -->
+    <text id="Text1" x="200" y="275" text-anchor="middle" font-family="serif" font-size="16" font-weight="bold" fill="#8b4513">Memory</text>
+    
+    <!-- Vintage stamp area -->
+    <rect x="400" y="250" width="50" height="60" fill="transparent" stroke="#8b4513" stroke-width="2" stroke-dasharray="3,2"/>
+    <text x="425" y="285" text-anchor="middle" font-family="serif" font-size="8" fill="#8b4513">STAMP</text>
+</svg>

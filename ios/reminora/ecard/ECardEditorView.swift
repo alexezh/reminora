@@ -248,9 +248,11 @@ struct ECardEditorView: View {
     // MARK: - Helper Methods
     
     private func setupInitialState() {
-        // Auto-select first template
-        let templates = templateService.getAllTemplates()
-        if let firstTemplate = templates.first {
+        // Auto-select template based on image orientation
+        if let orientedTemplate = templateService.getTemplateForAssets(initialAssets) {
+            selectedTemplate = orientedTemplate
+            setupECard(with: orientedTemplate)
+        } else if let firstTemplate = templateService.getAllTemplates().first {
             selectedTemplate = firstTemplate
             setupECard(with: firstTemplate)
         }

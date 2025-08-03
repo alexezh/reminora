@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import Photos
 
 // MARK: - ECard Template Service
 class ECardTemplateService: ObservableObject {
@@ -32,349 +33,149 @@ class ECardTemplateService: ObservableObject {
         return templates.filter { $0.category == category }
     }
     
+    func getTemplateForAssets(_ assets: [PHAsset]) -> ECardTemplate? {
+        guard let firstAsset = assets.first else { return templates.first }
+        
+        let isLandscape = firstAsset.pixelWidth > firstAsset.pixelHeight
+        let templateSuffix = isLandscape ? "_landscape" : ""
+        
+        // Try to find orientation-specific template, fallback to default
+        let preferredId = "polaroid_classic\(templateSuffix)"
+        return getTemplate(id: preferredId) ?? templates.first
+    }
+    
     // MARK: - Template Loading
     
     private func loadBuiltInTemplates() {
         templates = [
-            createPolaroidTemplate(),
-            createModernFrameTemplate(),
-            createVintagePostcardTemplate(),
-            createRestaurantTemplate(),
-            createVacationTemplate()
-        ]
+            // Portrait templates
+            createTemplateFromFile("polaroid_classic", name: "Classic Polaroid", category: .polaroid),
+            createTemplateFromFile("modern_gradient", name: "Modern Gradient", category: .modern),
+            createTemplateFromFile("vintage_postcard", name: "Vintage Postcard", category: .vintage),
+            createTemplateFromFile("restaurant_dining", name: "Restaurant", category: .general),
+            createTemplateFromFile("vacation_paradise", name: "Vacation", category: .travel),
+            
+            // Landscape templates
+            createTemplateFromFile("polaroid_classic_landscape", name: "Classic Polaroid", category: .polaroid),
+            createTemplateFromFile("modern_gradient_landscape", name: "Modern Gradient", category: .modern),
+            createTemplateFromFile("vintage_postcard_landscape", name: "Vintage Postcard", category: .vintage),
+            createTemplateFromFile("restaurant_dining_landscape", name: "Restaurant", category: .general),
+            createTemplateFromFile("vacation_paradise_landscape", name: "Vacation", category: .travel)
+        ].compactMap { $0 }
     }
     
-    // MARK: - Built-in Templates
-    
-    private func createPolaroidTemplate() -> ECardTemplate {
-        let svgContent = """
-        <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
-            <!-- Polaroid frame background -->
-            <rect x="20" y="20" width="360" height="460" rx="8" ry="8" fill="#ffffff" stroke="#e0e0e0" stroke-width="2"/>
-            
-            <!-- Drop shadow -->
-            <defs>
-                <filter id="dropshadow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#00000020"/>
-                </filter>
-            </defs>
-            
-            <!-- Apply shadow to frame -->
-            <rect x="20" y="20" width="360" height="460" rx="8" ry="8" fill="#ffffff" filter="url(#dropshadow)"/>
-            
-            <!-- Photo area background -->
-            <rect x="40" y="40" width="320" height="320" rx="4" ry="4" fill="#f5f5f5" stroke="#d0d0d0" stroke-width="1"/>
-            
-            <!-- Image placeholder -->
-            <rect id="Image1" x="40" y="40" width="320" height="320" rx="4" ry="4" fill="#e8e8e8"/>
-            
-            <!-- Text area background -->
-            <rect x="40" y="380" width="320" height="80" fill="transparent"/>
-            
-            <!-- Text placeholder -->
-            <text id="Text1" x="200" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="normal" fill="#333333">Your text here</text>
-            <text id="Text2" x="200" y="435" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="normal" fill="#666666">Add a subtitle</text>
-            
-            <!-- Decorative elements -->
-            <circle cx="350" cy="50" r="3" fill="#ff6b6b" opacity="0.7"/>
-            <circle cx="350" cy="65" r="2" fill="#4ecdc4" opacity="0.7"/>
-            <circle cx="350" cy="78" r="2.5" fill="#45b7d1" opacity="0.7"/>
-        </svg>
-        """
+    private func createTemplateFromFile(_ filename: String, name: String, category: ECardCategory) -> ECardTemplate? {
+        guard let svgContent = loadSVGFromFile(filename) else {
+            print("⚠️ Failed to load SVG file: \(filename)")
+            return nil
+        }
         
-        let imageSlots = [
-            ImageSlot(id: "Image1", x: 40, y: 40, width: 320, height: 320, cornerRadius: 4, preserveAspectRatio: true)
-        ]
+        let imageSlots: [ImageSlot]
+        let textSlots: [TextSlot]
         
-        let textSlots = [
-            TextSlot(id: "Text1", x: 40, y: 400, width: 320, height: 25, fontSize: 18, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Your text here"),
-            TextSlot(id: "Text2", x: 40, y: 425, width: 320, height: 20, fontSize: 14, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Add a subtitle")
-        ]
+        // Configure slots based on template type and orientation
+        let isLandscape = filename.contains("_landscape")
+        
+        switch filename {
+        case let x where x.contains("polaroid_classic"):
+            if isLandscape {
+                imageSlots = [ImageSlot(id: "Image1", x: 40, y: 40, width: 420, height: 210, cornerRadius: 4, preserveAspectRatio: true)]
+                textSlots = [TextSlot(id: "Text1", x: 40, y: 280, width: 420, height: 25, fontSize: 16, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Your caption here")]
+            } else {
+                imageSlots = [ImageSlot(id: "Image1", x: 40, y: 40, width: 320, height: 320, cornerRadius: 4, preserveAspectRatio: true)]
+                textSlots = [
+                    TextSlot(id: "Text1", x: 40, y: 400, width: 320, height: 25, fontSize: 18, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Your text here"),
+                    TextSlot(id: "Text2", x: 40, y: 425, width: 320, height: 20, fontSize: 14, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Add a subtitle")
+                ]
+            }
+            
+        case let x where x.contains("modern_gradient"):
+            if isLandscape {
+                imageSlots = [ImageSlot(id: "Image1", x: 30, y: 30, width: 440, height: 280, cornerRadius: 12, preserveAspectRatio: true)]
+                textSlots = [TextSlot(id: "Text1", x: 30, y: 345, width: 440, height: 25, fontSize: 18, fontFamily: "Helvetica", textAlign: .center, maxLines: 1, placeholder: "Caption")]
+            } else {
+                imageSlots = [ImageSlot(id: "Image1", x: 30, y: 60, width: 340, height: 340, cornerRadius: 12, preserveAspectRatio: true)]
+                textSlots = [
+                    TextSlot(id: "Text1", x: 30, y: 435, width: 340, height: 25, fontSize: 20, fontFamily: "Helvetica", textAlign: .center, maxLines: 1, placeholder: "Caption"),
+                    TextSlot(id: "Text2", x: 30, y: 455, width: 340, height: 20, fontSize: 14, fontFamily: "Helvetica", textAlign: .center, maxLines: 1, placeholder: "Subtitle")
+                ]
+            }
+            
+        case let x where x.contains("vintage_postcard"):
+            if isLandscape {
+                imageSlots = [ImageSlot(id: "Image1", x: 40, y: 40, width: 420, height: 190, cornerRadius: 0, preserveAspectRatio: true)]
+                textSlots = [TextSlot(id: "Text1", x: 50, y: 265, width: 300, height: 20, fontSize: 16, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Memory")]
+            } else {
+                imageSlots = [ImageSlot(id: "Image1", x: 40, y: 40, width: 320, height: 270, cornerRadius: 0, preserveAspectRatio: true)]
+                textSlots = [
+                    TextSlot(id: "Text1", x: 50, y: 335, width: 300, height: 25, fontSize: 18, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Memory"),
+                    TextSlot(id: "Text2", x: 50, y: 365, width: 250, height: 20, fontSize: 14, fontFamily: "serif", textAlign: .left, maxLines: 1, placeholder: "Dear friend...")
+                ]
+            }
+            
+        case let x where x.contains("restaurant_dining"):
+            if isLandscape {
+                imageSlots = [ImageSlot(id: "Image1", x: 35, y: 35, width: 430, height: 210, cornerRadius: 3, preserveAspectRatio: true)]
+                textSlots = [TextSlot(id: "Text1", x: 30, y: 295, width: 440, height: 22, fontSize: 18, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Dining Experience")]
+            } else {
+                imageSlots = [ImageSlot(id: "Image1", x: 35, y: 55, width: 330, height: 270, cornerRadius: 3, preserveAspectRatio: true)]
+                textSlots = [
+                    TextSlot(id: "Text1", x: 30, y: 370, width: 340, height: 25, fontSize: 20, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Dining Experience"),
+                    TextSlot(id: "Text2", x: 30, y: 395, width: 340, height: 20, fontSize: 14, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Delicious memories")
+                ]
+            }
+            
+        case let x where x.contains("vacation_paradise"):
+            if isLandscape {
+                imageSlots = [ImageSlot(id: "Image1", x: 30, y: 35, width: 440, height: 230, cornerRadius: 8, preserveAspectRatio: true)]
+                textSlots = [TextSlot(id: "Text1", x: 25, y: 315, width: 450, height: 25, fontSize: 20, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Paradise Memories")]
+            } else {
+                imageSlots = [ImageSlot(id: "Image1", x: 30, y: 65, width: 340, height: 270, cornerRadius: 8, preserveAspectRatio: true)]
+                textSlots = [
+                    TextSlot(id: "Text1", x: 25, y: 380, width: 350, height: 28, fontSize: 22, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Paradise Memories"),
+                    TextSlot(id: "Text2", x: 25, y: 405, width: 350, height: 20, fontSize: 14, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Under the sun")
+                ]
+            }
+            
+        default:
+            imageSlots = [ImageSlot(id: "Image1", x: 30, y: 30, width: 340, height: 280, cornerRadius: 8, preserveAspectRatio: true)]
+            textSlots = [TextSlot(id: "Text1", x: 30, y: 330, width: 340, height: 25, fontSize: 18, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Caption")]
+        }
         
         return ECardTemplate(
-            id: "polaroid_classic",
-            name: "Classic Polaroid",
+            id: filename,
+            name: name,
             svgContent: svgContent,
-            thumbnailName: "polaroid_classic_thumb",
+            thumbnailName: "\(filename)_thumb",
             imageSlots: imageSlots,
             textSlots: textSlots,
-            category: .polaroid
+            category: category
         )
     }
     
-    private func createModernFrameTemplate() -> ECardTemplate {
-        let svgContent = """
-        <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
-            <!-- Modern frame with gradient background -->
-            <defs>
-                <linearGradient id="modernGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
-                </linearGradient>
-                <filter id="modernShadow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#00000030"/>
-                </filter>
-            </defs>
-            
-            <!-- Background -->
-            <rect x="0" y="0" width="400" height="500" fill="url(#modernGradient)" filter="url(#modernShadow)"/>
-            
-            <!-- Main photo area -->
-            <rect id="Image1" x="30" y="60" width="340" height="340" rx="12" ry="12" fill="#ffffff"/>
-            
-            <!-- Text area -->
-            <rect x="30" y="420" width="340" height="60" fill="rgba(255,255,255,0.9)" rx="8" ry="8"/>
-            
-            <!-- Text content -->
-            <text id="Text1" x="200" y="445" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="20" font-weight="bold" fill="#333333">Modern Title</text>
-            <text id="Text2" x="200" y="465" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="14" font-weight="normal" fill="#666666">Elegant subtitle</text>
-        </svg>
-        """
+    private func loadSVGFromFile(_ filename: String) -> String? {
+        // Try loading from bundle first
+        if let path = Bundle.main.path(forResource: filename, ofType: "svg"),
+           let svgContent = try? String(contentsOfFile: path) {
+            return svgContent
+        }
         
-        let imageSlots = [
-            ImageSlot(id: "Image1", x: 30, y: 60, width: 340, height: 340, cornerRadius: 12, preserveAspectRatio: true)
-        ]
+        // Try loading from ecard subdirectory
+        if let path = Bundle.main.path(forResource: filename, ofType: "svg", inDirectory: "ecard"),
+           let svgContent = try? String(contentsOfFile: path) {
+            return svgContent
+        }
         
-        let textSlots = [
-            TextSlot(id: "Text1", x: 30, y: 435, width: 340, height: 25, fontSize: 20, fontFamily: "Helvetica", textAlign: .center, maxLines: 1, placeholder: "Modern Title"),
-            TextSlot(id: "Text2", x: 30, y: 455, width: 340, height: 20, fontSize: 14, fontFamily: "Helvetica", textAlign: .center, maxLines: 1, placeholder: "Elegant subtitle")
-        ]
+        // Try loading directly from filesystem (development)
+        let projectPath = "/Users/alexezh/prj/wahi/ios/reminora/ecard/\(filename).svg"
+        if let svgContent = try? String(contentsOfFile: projectPath) {
+            return svgContent
+        }
         
-        return ECardTemplate(
-            id: "modern_gradient",
-            name: "Modern Gradient",
-            svgContent: svgContent,
-            thumbnailName: "modern_gradient_thumb",
-            imageSlots: imageSlots,
-            textSlots: textSlots,
-            category: .modern
-        )
+        print("⚠️ Could not find SVG file: \(filename)")
+        return nil
     }
     
-    private func createVintagePostcardTemplate() -> ECardTemplate {
-        let svgContent = """
-        <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
-            <!-- Vintage postcard background -->
-            <rect x="0" y="0" width="400" height="500" fill="#f4e9d9"/>
-            
-            <!-- Aged paper texture -->
-            <rect x="0" y="0" width="400" height="500" fill="url(#vintageTexture)" opacity="0.3"/>
-            
-            <defs>
-                <pattern id="vintageTexture" patternUnits="userSpaceOnUse" width="20" height="20">
-                    <rect width="20" height="20" fill="#e8dcc0"/>
-                    <circle cx="5" cy="5" r="1" fill="#d4c4a8" opacity="0.5"/>
-                    <circle cx="15" cy="15" r="0.5" fill="#c9b892" opacity="0.3"/>
-                </pattern>
-                
-                <filter id="vintageShadow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="2" dy="2" stdDeviation="4" flood-color="#8b4513" flood-opacity="0.3"/>
-                </filter>
-            </defs>
-            
-            <!-- Postcard border -->
-            <rect x="15" y="15" width="370" height="470" fill="transparent" stroke="#8b4513" stroke-width="3" stroke-dasharray="5,5"/>
-            
-            <!-- Photo area with vintage frame -->
-            <rect x="35" y="35" width="330" height="280" fill="#ffffff" stroke="#8b4513" stroke-width="2"/>
-            <rect id="Image1" x="40" y="40" width="320" height="270" fill="#e8e8e8"/>
-            
-            <!-- Decorative corner elements -->
-            <polygon points="35,35 55,35 35,55" fill="#8b4513" opacity="0.7"/>
-            <polygon points="365,35 345,35 365,55" fill="#8b4513" opacity="0.7"/>
-            <polygon points="35,315 55,315 35,295" fill="#8b4513" opacity="0.7"/>
-            <polygon points="365,315 345,315 365,295" fill="#8b4513" opacity="0.7"/>
-            
-            <!-- Address line -->
-            <line x1="50" y1="360" x2="350" y2="360" stroke="#8b4513" stroke-width="1" opacity="0.5"/>
-            <line x1="50" y1="385" x2="350" y2="385" stroke="#8b4513" stroke-width="1" opacity="0.5"/>
-            
-            <!-- Text areas -->
-            <text id="Text1" x="200" y="345" text-anchor="middle" font-family="serif" font-size="18" font-weight="bold" fill="#8b4513">Vintage Memory</text>
-            <text id="Text2" x="60" y="375" text-anchor="start" font-family="serif" font-size="14" font-style="italic" fill="#8b4513">Dear friend...</text>
-            
-            <!-- Vintage stamp area -->
-            <rect x="320" y="400" width="60" height="80" fill="transparent" stroke="#8b4513" stroke-width="2" stroke-dasharray="3,2"/>
-            <text x="350" y="445" text-anchor="middle" font-family="serif" font-size="10" fill="#8b4513">STAMP</text>
-        </svg>
-        """
-        
-        let imageSlots = [
-            ImageSlot(id: "Image1", x: 40, y: 40, width: 320, height: 270, cornerRadius: 0, preserveAspectRatio: true)
-        ]
-        
-        let textSlots = [
-            TextSlot(id: "Text1", x: 50, y: 335, width: 300, height: 25, fontSize: 18, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Vintage Memory"),
-            TextSlot(id: "Text2", x: 50, y: 365, width: 250, height: 20, fontSize: 14, fontFamily: "serif", textAlign: .left, maxLines: 1, placeholder: "Dear friend...")
-        ]
-        
-        return ECardTemplate(
-            id: "vintage_postcard",
-            name: "Vintage Postcard",
-            svgContent: svgContent,
-            thumbnailName: "vintage_postcard_thumb",
-            imageSlots: imageSlots,
-            textSlots: textSlots,
-            category: .vintage
-        )
-    }
-    
-    private func createRestaurantTemplate() -> ECardTemplate {
-        let svgContent = """
-        <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
-            <!-- Restaurant theme background -->
-            <rect x="0" y="0" width="400" height="500" fill="#f8f5f1"/>
-            
-            <!-- Main border with subtle pattern -->
-            <rect x="10" y="10" width="380" height="480" fill="transparent" stroke="#8b4513" stroke-width="2" rx="8"/>
-            
-            <!-- Photo area -->
-            <rect x="30" y="50" width="340" height="280" fill="#ffffff" stroke="#d4af37" stroke-width="3" rx="6"/>
-            <rect id="Image1" x="35" y="55" width="330" height="270" fill="#e8e8e8" rx="3"/>
-            
-            <!-- Decorative food icon in corner -->
-            <g transform="translate(340, 30)">
-                <!-- Plate -->
-                <circle cx="15" cy="15" r="12" fill="#ffffff" stroke="#d4af37" stroke-width="1.5"/>
-                <circle cx="15" cy="15" r="8" fill="transparent" stroke="#8b4513" stroke-width="0.5"/>
-                
-                <!-- Food items on plate -->
-                <circle cx="12" cy="12" r="2" fill="#ff6b6b"/>
-                <circle cx="18" cy="13" r="1.5" fill="#4ecdc4"/>
-                <circle cx="15" cy="17" r="1.8" fill="#ffd93d"/>
-                
-                <!-- Fork and knife -->
-                <line x1="5" y1="8" x2="5" y2="22" stroke="#8b4513" stroke-width="1"/>
-                <line x1="3" y1="10" x2="7" y2="10" stroke="#8b4513" stroke-width="0.5"/>
-                <line x1="3" y1="12" x2="7" y2="12" stroke="#8b4513" stroke-width="0.5"/>
-                
-                <line x1="25" y1="8" x2="25" y2="20" stroke="#8b4513" stroke-width="1"/>
-                <path d="M 23 8 L 27 8 L 25 12 Z" fill="#8b4513"/>
-            </g>
-            
-            <!-- Text area background -->
-            <rect x="30" y="350" width="340" height="120" fill="rgba(255,255,255,0.8)" stroke="#d4af37" stroke-width="1" rx="6"/>
-            
-            <!-- Restaurant text styling -->
-            <text id="Text1" x="200" y="380" text-anchor="middle" font-family="serif" font-size="22" font-weight="bold" fill="#8b4513">Restaurant Name</text>
-            <text id="Text2" x="200" y="405" text-anchor="middle" font-family="serif" font-size="16" font-style="italic" fill="#d4af37">Delicious Memories</text>
-            <text id="Text3" x="200" y="430" text-anchor="middle" font-family="serif" font-size="14" fill="#8b4513">Location & Date</text>
-            
-            <!-- Decorative elements -->
-            <line x1="60" y1="415" x2="120" y2="415" stroke="#d4af37" stroke-width="1" opacity="0.6"/>
-            <line x1="280" y1="415" x2="340" y2="415" stroke="#d4af37" stroke-width="1" opacity="0.6"/>
-            
-            <!-- Corner decorations -->
-            <circle cx="50" cy="470" r="3" fill="#d4af37" opacity="0.7"/>
-            <circle cx="350" cy="470" r="3" fill="#d4af37" opacity="0.7"/>
-        </svg>
-        """
-        
-        let imageSlots = [
-            ImageSlot(id: "Image1", x: 35, y: 55, width: 330, height: 270, cornerRadius: 3, preserveAspectRatio: true)
-        ]
-        
-        let textSlots = [
-            TextSlot(id: "Text1", x: 30, y: 370, width: 340, height: 25, fontSize: 22, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Restaurant Name"),
-            TextSlot(id: "Text2", x: 30, y: 395, width: 340, height: 20, fontSize: 16, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Delicious Memories"),
-            TextSlot(id: "Text3", x: 30, y: 420, width: 340, height: 18, fontSize: 14, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Location & Date")
-        ]
-        
-        return ECardTemplate(
-            id: "restaurant_dining",
-            name: "Restaurant",
-            svgContent: svgContent,
-            thumbnailName: "restaurant_dining_thumb",
-            imageSlots: imageSlots,
-            textSlots: textSlots,
-            category: .general
-        )
-    }
-    
-    private func createVacationTemplate() -> ECardTemplate {
-        let svgContent = """
-        <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
-            <!-- Vacation theme background with gradient -->
-            <defs>
-                <linearGradient id="vacationSky" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style="stop-color:#87ceeb;stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#e0f6ff;stop-opacity:1" />
-                </linearGradient>
-                <filter id="vacationShadow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feDropShadow dx="2" dy="4" stdDeviation="6" flood-color="#00000020"/>
-                </filter>
-            </defs>
-            
-            <!-- Sky background -->
-            <rect x="0" y="0" width="400" height="500" fill="url(#vacationSky)"/>
-            
-            <!-- Main photo frame -->
-            <rect x="25" y="60" width="350" height="280" fill="#ffffff" stroke="#ffd700" stroke-width="4" rx="12" filter="url(#vacationShadow)"/>
-            <rect id="Image1" x="30" y="65" width="340" height="270" fill="#e8e8e8" rx="8"/>
-            
-            <!-- Palm tree in corner -->
-            <g transform="translate(320, 25)">
-                <!-- Palm tree trunk -->
-                <rect x="12" y="15" width="6" height="25" fill="#8b4513" rx="3"/>
-                
-                <!-- Palm fronds -->
-                <path d="M 8 15 Q 15 8 22 15" fill="transparent" stroke="#228b22" stroke-width="3" stroke-linecap="round"/>
-                <path d="M 8 18 Q 15 10 22 18" fill="transparent" stroke="#228b22" stroke-width="3" stroke-linecap="round"/>
-                <path d="M 10 20 Q 15 12 20 20" fill="transparent" stroke="#228b22" stroke-width="2" stroke-linecap="round"/>
-                
-                <!-- Coconuts -->
-                <circle cx="18" cy="16" r="2" fill="#8b4513"/>
-                <circle cx="20" cy="18" r="1.5" fill="#8b4513"/>
-            </g>
-            
-            <!-- Sun in corner -->
-            <g transform="translate(30, 25)">
-                <circle cx="15" cy="15" r="8" fill="#ffd700"/>
-                <!-- Sun rays -->
-                <line x1="15" y1="3" x2="15" y2="7" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
-                <line x1="15" y1="23" x2="15" y2="27" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
-                <line x1="3" y1="15" x2="7" y2="15" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
-                <line x1="23" y1="15" x2="27" y2="15" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
-                <line x1="8.5" y1="8.5" x2="10.5" y2="10.5" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
-                <line x1="19.5" y1="19.5" x2="21.5" y2="21.5" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
-                <line x1="21.5" y1="8.5" x2="19.5" y2="10.5" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
-                <line x1="10.5" y1="19.5" x2="8.5" y2="21.5" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
-            </g>
-            
-            <!-- Text area -->
-            <rect x="25" y="360" width="350" height="110" fill="rgba(255,255,255,0.9)" stroke="#ffd700" stroke-width="2" rx="10"/>
-            
-            <!-- Vacation text -->
-            <text id="Text1" x="200" y="390" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#ff6347">Vacation Paradise</text>
-            <text id="Text2" x="200" y="415" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-style="italic" fill="#4682b4">Making memories under the sun</text>
-            <text id="Text3" x="200" y="440" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#2e8b57">Location & Date</text>
-            
-            <!-- Decorative waves at bottom -->
-            <path d="M 0 480 Q 100 470 200 480 T 400 480 L 400 500 L 0 500 Z" fill="#87ceeb" opacity="0.6"/>
-            <path d="M 0 485 Q 80 475 160 485 T 400 485 L 400 500 L 0 500 Z" fill="#b0e0e6" opacity="0.8"/>
-        </svg>
-        """
-        
-        let imageSlots = [
-            ImageSlot(id: "Image1", x: 30, y: 65, width: 340, height: 270, cornerRadius: 8, preserveAspectRatio: true)
-        ]
-        
-        let textSlots = [
-            TextSlot(id: "Text1", x: 25, y: 380, width: 350, height: 28, fontSize: 24, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Vacation Paradise"),
-            TextSlot(id: "Text2", x: 25, y: 405, width: 350, height: 20, fontSize: 16, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Making memories under the sun"),
-            TextSlot(id: "Text3", x: 25, y: 430, width: 350, height: 18, fontSize: 14, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Location & Date")
-        ]
-        
-        return ECardTemplate(
-            id: "vacation_paradise",
-            name: "Vacation",
-            svgContent: svgContent,
-            thumbnailName: "vacation_paradise_thumb",
-            imageSlots: imageSlots,
-            textSlots: textSlots,
-            category: .travel
-        )
-    }
     
     // MARK: - Custom Templates
     

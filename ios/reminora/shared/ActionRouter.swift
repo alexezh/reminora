@@ -260,21 +260,16 @@ class ActionRouter: ObservableObject {
     }
     
     private func handleMakeECard(_ assets: [PHAsset]) {
-        let finalAssets: [PHAsset]
         if assets.isEmpty {
             // Use selected assets
             if let selectedAssets = getSelectedAssets(), !selectedAssets.isEmpty {
-                finalAssets = selectedAssets
+                sheetStack?.push(.eCardEditor(assets: selectedAssets))
             } else {
                 print("🎯 ActionRouter: No assets available for ECard")
-                return
             }
         } else {
-            finalAssets = assets
+            sheetStack?.push(.eCardEditor(assets: assets))
         }
-        
-        // Post notification to show ECard editor as full-screen view
-        NotificationCenter.default.post(name: NSNotification.Name("ShowECardEditor"), object: finalAssets)
     }
     
     private func handleMakeCollage(_ assets: [PHAsset]) {

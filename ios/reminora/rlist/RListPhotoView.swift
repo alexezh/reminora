@@ -14,20 +14,17 @@ struct RListPhotoView: View {
     let isSelectionMode: Bool
     let selectedAssets: Set<String>
     let onTap: () -> Void
-    let onAspectRatioCalculated: ((CGFloat) -> Void)?
     
     init(
         photoStack: RPhotoStack,
         isSelectionMode: Bool = false,
         selectedAssets: Set<String> = [],
-        onTap: @escaping () -> Void,
-        onAspectRatioCalculated: ((CGFloat) -> Void)? = nil
+        onTap: @escaping () -> Void
     ) {
         self.photoStack = photoStack
         self.isSelectionMode = isSelectionMode
         self.selectedAssets = selectedAssets
         self.onTap = onTap
-        self.onAspectRatioCalculated = onAspectRatioCalculated
     }
     
     var body: some View {
@@ -55,10 +52,6 @@ struct RListPhotoView: View {
         .buttonStyle(PlainButtonStyle())
         .onAppear {
             setupView()
-        }
-        .onAppear {
-            // Report aspect ratio
-            onAspectRatioCalculated?(photoStack.primaryAspectRatio)
         }
     }
     

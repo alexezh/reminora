@@ -37,6 +37,11 @@ class RPhotoStack: ObservableObject, Identifiable {
         return CGFloat(asset.pixelWidth) / CGFloat(asset.pixelHeight)
     }
     
+    /// Convenience property for aspect ratio (same as primaryAspectRatio)
+    var aspectRatio: CGFloat {
+        return primaryAspectRatio
+    }
+    
     /// Returns the total count of photos in this stack
     var count: Int {
         return assets.count

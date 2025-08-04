@@ -384,6 +384,8 @@ struct RListRowView: View {
     let onDeleteItem: ((any RListViewItem) -> Void)?
     let onUserTap: ((String, String) -> Void)?
     
+    @State private var photoAspectRatios: [String: CGFloat] = [:]
+    
     var body: some View {
         switch row.type {
         case .photoRow:
@@ -391,25 +393,36 @@ struct RListRowView: View {
                 let spacing: CGFloat = 4
                 let totalSpacing = spacing * CGFloat(max(0, row.items.count - 1))
                 let availableWidth = geometry.size.width - totalSpacing
-                let itemWidth = availableWidth / CGFloat(row.items.count)
+                let maxRowHeight: CGFloat = 200 // Maximum allowed height for any row
+                
+                // Calculate optimal height for this specific row
+                let rowHeight = calculateOptimalRowHeight(availableWidth: availableWidth, maxHeight: maxRowHeight)
+                
+                // Calculate widths based on aspect ratios
+                let widths = calculatePhotoWidths(availableWidth: availableWidth, rowHeight: rowHeight)
                 
                 HStack(spacing: spacing) {
-                    ForEach(Array(row.items.enumerated()), id: \.offset) { _, item in
+                    ForEach(Array(row.items.enumerated()), id: \.offset) { index, item in
+                        let width = widths.indices.contains(index) ? widths[index] : rowHeight
+                        
                         RListPhotoGridItemView(
                             item: item,
                             isSelectionMode: isSelectionMode,
                             selectedAssets: selectedAssets,
                             onPhotoTap: onPhotoTap,
-                            onPhotoStackTap: onPhotoStackTap
+                            onPhotoStackTap: onPhotoStackTap,
+                            onAspectRatioCalculated: { itemId, aspectRatio in
+                                photoAspectRatios[itemId] = aspectRatio
+                            }
                         )
-                        .frame(width: itemWidth, height: itemWidth)
+                        .frame(width: width, height: rowHeight)
                         .clipped()
                     }
                     
                     Spacer(minLength: 0)
                 }
             }
-            .aspectRatio(CGFloat(row.items.count), contentMode: .fit) // Maintain aspect ratio based on item count
+            .frame(height: calculateOptimalRowHeight(availableWidth: UIScreen.main.bounds.width - 32, maxHeight: 200)) // Dynamic height per row
             
         case .pinRow:
             ForEach(row.items, id: \.id) { item in
@@ -427,6 +440,60 @@ struct RListRowView: View {
             }
         }
     }
+    
+    private func calculatePhotoWidths(availableWidth: CGFloat, rowHeight: CGFloat) -> [CGFloat] {
+        var widths: [CGFloat] = []
+        var totalAspectRatio: CGFloat = 0
+        
+        // Calculate total aspect ratio
+        for item in row.items {
+            let aspectRatio = photoAspectRatios[item.id] ?? 1.0
+            totalAspectRatio += aspectRatio
+        }
+        
+        // If no aspect ratios calculated yet, use equal widths
+        guard totalAspectRatio > 0 else {
+            let equalWidth = availableWidth / CGFloat(row.items.count)
+            return Array(repeating: equalWidth, count: row.items.count)
+        }
+        
+        // Calculate individual widths based on aspect ratios
+        for item in row.items {
+            let aspectRatio = photoAspectRatios[item.id] ?? 1.0
+            let proportionalWidth = (aspectRatio / totalAspectRatio) * availableWidth
+            widths.append(proportionalWidth)
+        }
+        
+        return widths
+    }
+    
+    private func calculateOptimalRowHeight(availableWidth: CGFloat, maxHeight: CGFloat) -> CGFloat {
+        // If no aspect ratios calculated yet, use default height
+        guard !photoAspectRatios.isEmpty else {
+            return min(120, maxHeight)
+        }
+        
+        // Calculate total aspect ratio for photos in this row
+        var totalAspectRatio: CGFloat = 0
+        for item in row.items {
+            let aspectRatio = photoAspectRatios[item.id] ?? 1.0
+            totalAspectRatio += aspectRatio
+        }
+        
+        // If no valid aspect ratios, use default
+        guard totalAspectRatio > 0 else {
+            return min(120, maxHeight)
+        }
+        
+        // Calculate height that would make all photos fit the available width
+        let calculatedHeight = availableWidth / totalAspectRatio
+        
+        // Apply min/max constraints
+        let minHeight: CGFloat = 80  // Minimum readable height
+        let constrainedHeight = min(max(calculatedHeight, minHeight), maxHeight)
+        
+        return constrainedHeight
+    }
 }
 
 // MARK: - RListPhotoGridItemView
@@ -436,6 +503,7 @@ struct RListPhotoGridItemView: View {
     let selectedAssets: Set<String>
     let onPhotoTap: (PHAsset) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
+    let onAspectRatioCalculated: (String, CGFloat) -> Void
     
     var body: some View {
         switch item.itemType {
@@ -444,14 +512,20 @@ struct RListPhotoGridItemView: View {
                 asset: asset, 
                 isSelectionMode: isSelectionMode,
                 isSelected: selectedAssets.contains(asset.localIdentifier),
-                onTap: { onPhotoTap(asset) }
+                onTap: { onPhotoTap(asset) },
+                onAspectRatioCalculated: { aspectRatio in
+                    onAspectRatioCalculated(item.id, aspectRatio)
+                }
             )
         case .photoStack(let assets):
             RListPhotoStackGridView(
                 assets: assets, 
                 isSelectionMode: isSelectionMode,
                 isSelected: assets.allSatisfy { selectedAssets.contains($0.localIdentifier) },
-                onTap: { onPhotoStackTap(assets) }
+                onTap: { onPhotoStackTap(assets) },
+                onAspectRatioCalculated: { aspectRatio in
+                    onAspectRatioCalculated(item.id, aspectRatio)
+                }
             )
         case .pin(_), .location(_):
             // This shouldn't happen in photo rows, but handle gracefully
@@ -544,12 +618,14 @@ struct RListPhotoGridView: View {
     let isSelectionMode: Bool
     let isSelected: Bool
     let onTap: () -> Void
+    let onAspectRatioCalculated: (CGFloat) -> Void
     
-    init(asset: PHAsset, isSelectionMode: Bool = false, isSelected: Bool = false, onTap: @escaping () -> Void) {
+    init(asset: PHAsset, isSelectionMode: Bool = false, isSelected: Bool = false, onTap: @escaping () -> Void, onAspectRatioCalculated: @escaping (CGFloat) -> Void) {
         self.asset = asset
         self.isSelectionMode = isSelectionMode
         self.isSelected = isSelected
         self.onTap = onTap
+        self.onAspectRatioCalculated = onAspectRatioCalculated
     }
     
     @State private var image: UIImage?
@@ -560,46 +636,56 @@ struct RListPhotoGridView: View {
                 if let image = image {
                     Image(uiImage: image)
                         .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-                    .cornerRadius(8)
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .cornerRadius(8)
-                    .overlay(
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
-                            .scaleEffect(0.7)
-                    )
-            }
-            
-            // Selection mode overlay
-            if isSelectionMode {
-                VStack {
-                    HStack {
-                        ZStack {
-                            Circle()
-                                .fill(Color.black.opacity(0.7))
-                                .frame(width: 24, height: 24)
-                            
-                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                .font(.caption)
-                                .foregroundColor(isSelected ? .blue : .white)
+                        .aspectRatio(contentMode: .fill)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+                        .cornerRadius(8)
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .cornerRadius(8)
+                        .overlay(
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                                .scaleEffect(0.7)
+                        )
+                }
+                
+                // Selection mode overlay with improved visibility
+                if isSelectionMode {
+                    VStack {
+                        HStack {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.white.opacity(0.9))
+                                    .frame(width: 28, height: 28)
+                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                                
+                                Circle()
+                                    .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                                    .frame(width: 28, height: 28)
+                                
+                                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundColor(isSelected ? .blue : .gray)
+                            }
+                            .padding(8)
+                            Spacer()
                         }
-                        .padding(6)
                         Spacer()
                     }
-                    Spacer()
                 }
-            }
             }
         }
         .buttonStyle(PlainButtonStyle())
         .task {
             await loadImage()
+        }
+        .onAppear {
+            // Calculate and report aspect ratio
+            let aspectRatio = CGFloat(asset.pixelWidth) / CGFloat(asset.pixelHeight)
+            onAspectRatioCalculated(aspectRatio)
         }
     }
     
@@ -634,8 +720,6 @@ struct RListPhotoGridView: View {
         }
     }
 }
-
-
 
 // MARK: - Empty State View
 struct EmptyStateView: View {

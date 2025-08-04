@@ -50,8 +50,7 @@
     <rect x="25" y="360" width="350" height="110" fill="rgba(255,255,255,0.9)" stroke="#ffd700" stroke-width="2" rx="10"/>
     
     <!-- Vacation text -->
-    <text id="Text1" x="200" y="390" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#ff6347">Paradise Memories</text>
-    <text id="Text2" x="200" y="415" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-style="italic" fill="#4682b4">Under the sun</text>
+    <text id="Text1" x="200" y="400" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#ff6347">Paradise Memories</text>
     
     <!-- Decorative waves at bottom -->
     <path d="M 0 480 Q 100 470 200 480 T 400 480 L 400 500 L 0 500 Z" fill="#87ceeb" opacity="0.6"/>

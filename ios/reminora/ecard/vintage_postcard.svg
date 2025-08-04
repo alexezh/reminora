@@ -36,7 +36,6 @@
     
     <!-- Text areas -->
     <text id="Text1" x="200" y="345" text-anchor="middle" font-family="serif" font-size="18" font-weight="bold" fill="#8b4513">Memory</text>
-    <text id="Text2" x="60" y="375" text-anchor="start" font-family="serif" font-size="14" font-style="italic" fill="#8b4513">Dear friend...</text>
     
     <!-- Vintage stamp area -->
     <rect x="320" y="400" width="60" height="80" fill="transparent" stroke="#8b4513" stroke-width="2" stroke-dasharray="3,2"/>

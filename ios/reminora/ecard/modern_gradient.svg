@@ -20,6 +20,5 @@
     <rect x="30" y="420" width="340" height="60" fill="rgba(255,255,255,0.9)" rx="8" ry="8"/>
     
     <!-- Text content -->
-    <text id="Text1" x="200" y="445" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="20" font-weight="bold" fill="#333333">Caption</text>
-    <text id="Text2" x="200" y="465" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="14" font-weight="normal" fill="#666666">Subtitle</text>
+    <text id="Text1" x="200" y="450" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="20" font-weight="bold" fill="#333333">Caption</text>
 </svg>

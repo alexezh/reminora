@@ -14,12 +14,18 @@ import UIKit
 class ECardEditor: ObservableObject {
     @Published var isActive: Bool = false
     @Published var currentAssets: [PHAsset] = []
+    @Published var currentTemplate: ECardTemplate?
+    @Published var imageAssignments: [String: PHAsset] = [:]
+    @Published var textAssignments: [String: String] = [:]
     
     static let shared = ECardEditor()
     
     private let userDefaults = UserDefaults.standard
     private let currentAssetIdsKey = "ECardEditor.currentAssetIds"
     private let isActiveKey = "ECardEditor.isActive"
+    private let currentTemplateIdKey = "ECardEditor.currentTemplateId"
+    private let imageAssignmentsKey = "ECardEditor.imageAssignments"
+    private let textAssignmentsKey = "ECardEditor.textAssignments"
     
     private init() {
         loadPersistedState()
@@ -32,6 +38,14 @@ class ECardEditor: ObservableObject {
         DispatchQueue.main.async {
             self.currentAssets = assets
             self.isActive = true
+            
+            // Auto-assign first asset to first image slot if template is available
+            if let template = self.currentTemplate,
+               let firstAsset = assets.first,
+               let firstImageSlot = template.imageSlots.first {
+                self.imageAssignments[firstImageSlot.id] = firstAsset
+            }
+            
             self.persistState()
             
             // Set the current editor in ActionSheet model
@@ -45,6 +59,9 @@ class ECardEditor: ObservableObject {
     func endEditing() {
         DispatchQueue.main.async {
             self.currentAssets = []
+            self.currentTemplate = nil
+            self.imageAssignments = [:]
+            self.textAssignments = [:]
             self.isActive = false
             self.clearPersistedState()
             
@@ -63,6 +80,49 @@ class ECardEditor: ObservableObject {
     /// Get current editing assets
     func getCurrentAssets() -> [PHAsset] {
         return currentAssets
+    }
+    
+    /// Set current template and persist state
+    func setCurrentTemplate(_ template: ECardTemplate) {
+        DispatchQueue.main.async {
+            self.currentTemplate = template
+            
+            // Auto-assign first asset to first image slot if available
+            if let firstAsset = self.currentAssets.first,
+               let firstImageSlot = template.imageSlots.first {
+                self.imageAssignments[firstImageSlot.id] = firstAsset
+            }
+            
+            // Initialize text assignments with placeholders
+            for textSlot in template.textSlots {
+                if self.textAssignments[textSlot.id] == nil {
+                    self.textAssignments[textSlot.id] = textSlot.placeholder
+                }
+            }
+            
+            self.persistState()
+            print("🎨 ECardEditor: Set template \(template.name) with \(self.imageAssignments.count) image assignments")
+        }
+    }
+    
+    /// Update image assignment
+    func setImageAssignment(assetId: String, for slotId: String) {
+        DispatchQueue.main.async {
+            if let asset = self.currentAssets.first(where: { $0.localIdentifier == assetId }) {
+                self.imageAssignments[slotId] = asset
+                self.persistState()
+                print("🎨 ECardEditor: Assigned asset \(assetId) to slot \(slotId)")
+            }
+        }
+    }
+    
+    /// Update text assignment
+    func setTextAssignment(text: String, for slotId: String) {
+        DispatchQueue.main.async {
+            self.textAssignments[slotId] = text
+            self.persistState()
+            print("🎨 ECardEditor: Set text for slot \(slotId)")
+        }
     }
     
     // MARK: - Action Methods
@@ -160,13 +220,6 @@ class ECardEditor: ObservableObject {
             cgContext.setFillColor(UIColor.white.cgColor)
             cgContext.fill(CGRect(origin: .zero, size: size))
             
-            // Draw template name at top
-            let titleRect = CGRect(x: 40, y: 40, width: size.width - 80, height: 60)
-            template.name.draw(in: titleRect, withAttributes: [
-                .font: UIFont.boldSystemFont(ofSize: 32),
-                .foregroundColor: UIColor.black
-            ])
-            
             // Draw assigned images based on template layout
             for (index, slot) in template.imageSlots.enumerated() {
                 if let loadedImage = loadedImages[slot.id] {
@@ -174,7 +227,7 @@ class ECardEditor: ObservableObject {
                     let imageWidth: CGFloat = 600
                     let imageHeight: CGFloat = 400
                     let x: CGFloat = (size.width - imageWidth) / 2 // Center horizontally
-                    let y: CGFloat = 120 + CGFloat(index) * 420
+                    let y: CGFloat = 60 + CGFloat(index) * 420
                     
                     let imageRect = CGRect(x: x, y: y, width: imageWidth, height: imageHeight)
                     
@@ -208,7 +261,7 @@ class ECardEditor: ObservableObject {
             
             // Draw text slots
             let imageCount = template.imageSlots.count
-            var textY: CGFloat = 120 + CGFloat(imageCount) * 420 + 40
+            var textY: CGFloat = 60 + CGFloat(imageCount) * 420 + 40
             
             for slot in template.textSlots {
                 let text = textAssignments[slot.id] ?? slot.placeholder
@@ -274,7 +327,21 @@ class ECardEditor: ObservableObject {
         userDefaults.set(assetIds, forKey: currentAssetIdsKey)
         userDefaults.set(isActive, forKey: isActiveKey)
         
-        print("🎨 ECardEditor: Persisted state - \(assetIds.count) assets, active: \(isActive)")
+        // Persist template
+        if let template = currentTemplate {
+            userDefaults.set(template.id, forKey: currentTemplateIdKey)
+        } else {
+            userDefaults.removeObject(forKey: currentTemplateIdKey)
+        }
+        
+        // Persist image assignments (as asset IDs)
+        let imageAssignmentIds = imageAssignments.mapValues { $0.localIdentifier }
+        userDefaults.set(imageAssignmentIds, forKey: imageAssignmentsKey)
+        
+        // Persist text assignments
+        userDefaults.set(textAssignments, forKey: textAssignmentsKey)
+        
+        print("🎨 ECardEditor: Persisted state - \(assetIds.count) assets, template: \(currentTemplate?.name ?? "none"), \(imageAssignments.count) image assignments")
     }
     
     private func loadPersistedState() {
@@ -299,10 +366,40 @@ class ECardEditor: ObservableObject {
                 self.currentAssets = restoredAssets
                 self.isActive = true
                 
+                // Restore template
+                if let templateId = self.userDefaults.string(forKey: self.currentTemplateIdKey) {
+                    self.currentTemplate = ECardTemplateService.shared.getTemplate(id: templateId)
+                }
+                
+                // Restore text assignments
+                if let persistedTextAssignments = self.userDefaults.dictionary(forKey: self.textAssignmentsKey) as? [String: String] {
+                    self.textAssignments = persistedTextAssignments
+                }
+                
+                // Restore image assignments
+                if let persistedImageAssignmentIds = self.userDefaults.dictionary(forKey: self.imageAssignmentsKey) as? [String: String] {
+                    // Convert asset IDs back to PHAssets
+                    let allAssetIds = Array(persistedImageAssignmentIds.values)
+                    let fetchOptions = PHFetchOptions()
+                    let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: allAssetIds, options: fetchOptions)
+                    var assetDict: [String: PHAsset] = [:]
+                    (0..<fetchResult.count).forEach { index in
+                        let asset = fetchResult.object(at: index)
+                        assetDict[asset.localIdentifier] = asset
+                    }
+                    
+                    // Rebuild imageAssignments dictionary
+                    for (slotId, assetId) in persistedImageAssignmentIds {
+                        if let asset = assetDict[assetId] {
+                            self.imageAssignments[slotId] = asset
+                        }
+                    }
+                }
+                
                 // Restore editor state in ActionSheet model
                 UniversalActionSheetModel.shared.setCurrentEditor(.eCard)
                 
-                print("🎨 ECardEditor: Restored editing session with \(restoredAssets.count) assets")
+                print("🎨 ECardEditor: Restored editing session with \(restoredAssets.count) assets, template: \(self.currentTemplate?.name ?? "none"), \(self.imageAssignments.count) image assignments")
             }
         } else {
             // Assets no longer exist, clear state
@@ -313,6 +410,9 @@ class ECardEditor: ObservableObject {
     private func clearPersistedState() {
         userDefaults.removeObject(forKey: currentAssetIdsKey)
         userDefaults.removeObject(forKey: isActiveKey)
+        userDefaults.removeObject(forKey: currentTemplateIdKey)
+        userDefaults.removeObject(forKey: imageAssignmentsKey)
+        userDefaults.removeObject(forKey: textAssignmentsKey)
         
         print("🎨 ECardEditor: Cleared persisted state")
     }

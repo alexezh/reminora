@@ -33,8 +33,7 @@
     <rect x="30" y="350" width="340" height="120" fill="rgba(255,255,255,0.8)" stroke="#d4af37" stroke-width="1" rx="6"/>
     
     <!-- Restaurant text styling -->
-    <text id="Text1" x="200" y="380" text-anchor="middle" font-family="serif" font-size="20" font-weight="bold" fill="#8b4513">Dining Experience</text>
-    <text id="Text2" x="200" y="405" text-anchor="middle" font-family="serif" font-size="14" font-style="italic" fill="#d4af37">Delicious memories</text>
+    <text id="Text1" x="200" y="390" text-anchor="middle" font-family="serif" font-size="20" font-weight="bold" fill="#8b4513">Dining Experience</text>
     
     <!-- Decorative elements -->
     <line x1="60" y1="415" x2="120" y2="415" stroke="#d4af37" stroke-width="1" opacity="0.6"/>

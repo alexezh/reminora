@@ -8,6 +8,36 @@
 import Foundation
 import SwiftUI
 import Photos
+import UIKit
+
+// MARK: - UIColor Extension for Hex Colors
+extension UIColor {
+    convenience init?(hex: String) {
+        let r, g, b, a: CGFloat
+        
+        if hex.hasPrefix("#") {
+            let start = hex.index(hex.startIndex, offsetBy: 1)
+            let hexColor = String(hex[start...])
+            
+            if hexColor.count == 6 {
+                let scanner = Scanner(string: hexColor)
+                var hexNumber: UInt64 = 0
+                
+                if scanner.scanHexInt64(&hexNumber) {
+                    r = CGFloat((hexNumber & 0xff0000) >> 16) / 255
+                    g = CGFloat((hexNumber & 0x00ff00) >> 8) / 255
+                    b = CGFloat(hexNumber & 0x0000ff) / 255
+                    a = 1.0
+                    
+                    self.init(red: r, green: g, blue: b, alpha: a)
+                    return
+                }
+            }
+        }
+        
+        return nil
+    }
+}
 
 // MARK: - ECard Template Service
 class ECardTemplateService: ObservableObject {
@@ -87,77 +117,11 @@ class ECardTemplateService: ObservableObject {
             return nil
         }
         
-        let imageSlots: [ImageSlot]
-        let textSlots: [TextSlot]
+        // Parse image and text slots from SVG content
+        let imageSlots = parseImageSlots(from: svgContent)
+        let textSlots = parseTextSlots(from: svgContent)
         
-        // Configure slots based on template type and orientation
-        let isLandscape = filename.contains("_landscape")
-        
-        switch filename {
-        case let x where x.contains("polaroid_classic"):
-            if isLandscape {
-                imageSlots = [ImageSlot(id: "Image1", x: 40, y: 40, width: 420, height: 210, cornerRadius: 4, preserveAspectRatio: true)]
-                textSlots = [TextSlot(id: "Text1", x: 40, y: 280, width: 420, height: 25, fontSize: 16, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Your caption here")]
-            } else {
-                imageSlots = [ImageSlot(id: "Image1", x: 40, y: 40, width: 320, height: 320, cornerRadius: 4, preserveAspectRatio: true)]
-                textSlots = [
-                    TextSlot(id: "Text1", x: 40, y: 400, width: 320, height: 25, fontSize: 18, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Your text here"),
-                    TextSlot(id: "Text2", x: 40, y: 425, width: 320, height: 20, fontSize: 14, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Add a subtitle")
-                ]
-            }
-            
-        case let x where x.contains("modern_gradient"):
-            if isLandscape {
-                imageSlots = [ImageSlot(id: "Image1", x: 30, y: 30, width: 440, height: 280, cornerRadius: 12, preserveAspectRatio: true)]
-                textSlots = [TextSlot(id: "Text1", x: 30, y: 345, width: 440, height: 25, fontSize: 18, fontFamily: "Helvetica", textAlign: .center, maxLines: 1, placeholder: "Caption")]
-            } else {
-                imageSlots = [ImageSlot(id: "Image1", x: 30, y: 60, width: 340, height: 340, cornerRadius: 12, preserveAspectRatio: true)]
-                textSlots = [
-                    TextSlot(id: "Text1", x: 30, y: 435, width: 340, height: 25, fontSize: 20, fontFamily: "Helvetica", textAlign: .center, maxLines: 1, placeholder: "Caption"),
-                    TextSlot(id: "Text2", x: 30, y: 455, width: 340, height: 20, fontSize: 14, fontFamily: "Helvetica", textAlign: .center, maxLines: 1, placeholder: "Subtitle")
-                ]
-            }
-            
-        case let x where x.contains("vintage_postcard"):
-            if isLandscape {
-                imageSlots = [ImageSlot(id: "Image1", x: 40, y: 40, width: 420, height: 190, cornerRadius: 0, preserveAspectRatio: true)]
-                textSlots = [TextSlot(id: "Text1", x: 50, y: 265, width: 300, height: 20, fontSize: 16, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Memory")]
-            } else {
-                imageSlots = [ImageSlot(id: "Image1", x: 40, y: 40, width: 320, height: 270, cornerRadius: 0, preserveAspectRatio: true)]
-                textSlots = [
-                    TextSlot(id: "Text1", x: 50, y: 335, width: 300, height: 25, fontSize: 18, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Memory"),
-                    TextSlot(id: "Text2", x: 50, y: 365, width: 250, height: 20, fontSize: 14, fontFamily: "serif", textAlign: .left, maxLines: 1, placeholder: "Dear friend...")
-                ]
-            }
-            
-        case let x where x.contains("restaurant_dining"):
-            if isLandscape {
-                imageSlots = [ImageSlot(id: "Image1", x: 35, y: 35, width: 430, height: 210, cornerRadius: 3, preserveAspectRatio: true)]
-                textSlots = [TextSlot(id: "Text1", x: 30, y: 295, width: 440, height: 22, fontSize: 18, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Dining Experience")]
-            } else {
-                imageSlots = [ImageSlot(id: "Image1", x: 35, y: 55, width: 330, height: 270, cornerRadius: 3, preserveAspectRatio: true)]
-                textSlots = [
-                    TextSlot(id: "Text1", x: 30, y: 370, width: 340, height: 25, fontSize: 20, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Dining Experience"),
-                    TextSlot(id: "Text2", x: 30, y: 395, width: 340, height: 20, fontSize: 14, fontFamily: "serif", textAlign: .center, maxLines: 1, placeholder: "Delicious memories")
-                ]
-            }
-            
-        case let x where x.contains("vacation_paradise"):
-            if isLandscape {
-                imageSlots = [ImageSlot(id: "Image1", x: 30, y: 35, width: 440, height: 230, cornerRadius: 8, preserveAspectRatio: true)]
-                textSlots = [TextSlot(id: "Text1", x: 25, y: 315, width: 450, height: 25, fontSize: 20, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Paradise Memories")]
-            } else {
-                imageSlots = [ImageSlot(id: "Image1", x: 30, y: 65, width: 340, height: 270, cornerRadius: 8, preserveAspectRatio: true)]
-                textSlots = [
-                    TextSlot(id: "Text1", x: 25, y: 380, width: 350, height: 28, fontSize: 22, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Paradise Memories"),
-                    TextSlot(id: "Text2", x: 25, y: 405, width: 350, height: 20, fontSize: 14, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Under the sun")
-                ]
-            }
-            
-        default:
-            imageSlots = [ImageSlot(id: "Image1", x: 30, y: 30, width: 340, height: 280, cornerRadius: 8, preserveAspectRatio: true)]
-            textSlots = [TextSlot(id: "Text1", x: 30, y: 330, width: 340, height: 25, fontSize: 18, fontFamily: "Arial", textAlign: .center, maxLines: 1, placeholder: "Caption")]
-        }
+        print("🎨 Parsed \(imageSlots.count) image slots and \(textSlots.count) text slots from \(filename)")
         
         return ECardTemplate(
             id: filename,
@@ -169,6 +133,83 @@ class ECardTemplateService: ObservableObject {
             category: category
         )
     }
+    
+    // MARK: - SVG Parsing
+    
+    private func parseImageSlots(from svgContent: String) -> [ImageSlot] {
+        var imageSlots: [ImageSlot] = []
+        
+        // Parse rect elements with id starting with "Image"
+        let imagePattern = #"<rect\s+id="(Image\d+)"\s+x="(\d+)"\s+y="(\d+)"\s+width="(\d+)"\s+height="(\d+)"(?:\s+rx="(\d+)")?"#
+        
+        let regex = try? NSRegularExpression(pattern: imagePattern, options: [])
+        let nsString = svgContent as NSString
+        let results = regex?.matches(in: svgContent, options: [], range: NSRange(location: 0, length: nsString.length)) ?? []
+        
+        for result in results {
+            if result.numberOfRanges >= 6 {
+                let id = nsString.substring(with: result.range(at: 1))
+                let x = Double(nsString.substring(with: result.range(at: 2))) ?? 0
+                let y = Double(nsString.substring(with: result.range(at: 3))) ?? 0
+                let width = Double(nsString.substring(with: result.range(at: 4))) ?? 0
+                let height = Double(nsString.substring(with: result.range(at: 5))) ?? 0
+                let cornerRadius = result.numberOfRanges > 6 && result.range(at: 6).location != NSNotFound 
+                    ? Double(nsString.substring(with: result.range(at: 6))) ?? 0 
+                    : 0
+                
+                let imageSlot = ImageSlot(
+                    id: id,
+                    x: x, y: y,
+                    width: width, height: height,
+                    cornerRadius: cornerRadius,
+                    preserveAspectRatio: true
+                )
+                imageSlots.append(imageSlot)
+            }
+        }
+        
+        return imageSlots
+    }
+    
+    private func parseTextSlots(from svgContent: String) -> [TextSlot] {
+        var textSlots: [TextSlot] = []
+        
+        // Parse text elements with id starting with "Text"
+        let textPattern = #"<text\s+id="(Text\d+)"\s+x="(\d+)"\s+y="(\d+)"[^>]*font-size="(\d+)"[^>]*>([^<]+)</text>"#
+        
+        let regex = try? NSRegularExpression(pattern: textPattern, options: [])
+        let nsString = svgContent as NSString
+        let results = regex?.matches(in: svgContent, options: [], range: NSRange(location: 0, length: nsString.length)) ?? []
+        
+        for result in results {
+            if result.numberOfRanges >= 6 {
+                let id = nsString.substring(with: result.range(at: 1))
+                let x = Double(nsString.substring(with: result.range(at: 2))) ?? 0
+                let y = Double(nsString.substring(with: result.range(at: 3))) ?? 0
+                let fontSize = Int(nsString.substring(with: result.range(at: 4))) ?? 16
+                let placeholder = nsString.substring(with: result.range(at: 5))
+                
+                // Estimate text dimensions based on font size
+                let width = Double(fontSize * placeholder.count + 50)
+                let height = Double(fontSize + 10)
+                
+                let textSlot = TextSlot(
+                    id: id,
+                    x: x - width/2, y: y - Double(fontSize), // Adjust for text-anchor="middle"
+                    width: width, height: height,
+                    fontSize: Double(fontSize),
+                    fontFamily: "Arial", // Default fallback
+                    textAlign: .center,
+                    maxLines: 1,
+                    placeholder: placeholder
+                )
+                textSlots.append(textSlot)
+            }
+        }
+        
+        return textSlots
+    }
+    
     
     private func loadSVGFromFile(_ filename: String) -> String? {
         // Try loading from bundle first
@@ -194,76 +235,141 @@ class ECardTemplateService: ObservableObject {
     }
     
     private func getFallbackSVG(_ filename: String) -> String {
-        switch filename {
-        case "polaroid_classic":
-            return """
-            <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
-                <rect x="20" y="20" width="360" height="460" rx="8" ry="8" fill="#ffffff" stroke="#e0e0e0" stroke-width="2"/>
-                <defs>
-                    <filter id="dropshadow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#00000020"/>
-                    </filter>
-                </defs>
-                <rect x="20" y="20" width="360" height="460" rx="8" ry="8" fill="#ffffff" filter="url(#dropshadow)"/>
-                <rect x="40" y="40" width="320" height="320" rx="4" ry="4" fill="#f5f5f5" stroke="#d0d0d0" stroke-width="1"/>
-                <rect id="Image1" x="40" y="40" width="320" height="320" rx="4" ry="4" fill="#e8e8e8"/>
-                <rect x="40" y="380" width="320" height="80" fill="transparent"/>
-                <text id="Text1" x="200" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="normal" fill="#333333">Your text here</text>
-                <text id="Text2" x="200" y="435" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="normal" fill="#666666">Add a subtitle</text>
-                <circle cx="350" cy="50" r="3" fill="#ff6b6b" opacity="0.7"/>
-                <circle cx="350" cy="65" r="2" fill="#4ecdc4" opacity="0.7"/>
-                <circle cx="350" cy="78" r="2.5" fill="#45b7d1" opacity="0.7"/>
-            </svg>
-            """
+        // Return empty string - we should always load from actual SVG files
+        print("⚠️ Using fallback SVG for \(filename) - this should not happen in production")
+        return ""
+    }
+    
+    // MARK: - SVG Thumbnail Generation
+    
+    func generateThumbnail(for template: ECardTemplate, size: CGSize = CGSize(width: 120, height: 150)) -> UIImage? {
+        return renderSVGToImage(svgContent: template.svgContent, size: size)
+    }
+    
+    private func renderSVGToImage(svgContent: String, size: CGSize) -> UIImage? {
+        // Create a simple renderer using UIGraphicsImageRenderer
+        let renderer = UIGraphicsImageRenderer(size: size)
+        
+        return renderer.image { context in
+            let cgContext = context.cgContext
             
-        case "polaroid_classic_landscape":
-            return """
-            <svg viewBox="0 0 500 400" xmlns="http://www.w3.org/2000/svg">
-                <rect x="20" y="20" width="460" height="300" rx="8" ry="8" fill="#ffffff" stroke="#e0e0e0" stroke-width="2"/>
-                <defs>
-                    <filter id="dropshadow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="#00000020"/>
-                    </filter>
-                </defs>
-                <rect x="20" y="20" width="460" height="300" rx="8" ry="8" fill="#ffffff" filter="url(#dropshadow)"/>
-                <rect x="40" y="40" width="420" height="210" rx="4" ry="4" fill="#f5f5f5" stroke="#d0d0d0" stroke-width="1"/>
-                <rect id="Image1" x="40" y="40" width="420" height="210" rx="4" ry="4" fill="#e8e8e8"/>
-                <rect x="40" y="270" width="420" height="30" fill="transparent"/>
-                <text id="Text1" x="250" y="290" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="normal" fill="#333333">Your caption here</text>
-                <circle cx="450" cy="50" r="3" fill="#ff6b6b" opacity="0.7"/>
-                <circle cx="450" cy="65" r="2" fill="#4ecdc4" opacity="0.7"/>
-                <circle cx="450" cy="78" r="2.5" fill="#45b7d1" opacity="0.7"/>
-            </svg>
-            """
+            // Set background color
+            cgContext.setFillColor(UIColor.systemBackground.cgColor)
+            cgContext.fill(CGRect(origin: .zero, size: size))
             
-        case "modern_gradient":
-            return """
-            <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                    <linearGradient id="modernGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
-                    </linearGradient>
-                    <filter id="modernShadow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#00000030"/>
-                    </filter>
-                </defs>
-                <rect x="0" y="0" width="400" height="500" fill="url(#modernGradient)" filter="url(#modernShadow)"/>
-                <rect id="Image1" x="30" y="60" width="340" height="340" rx="12" ry="12" fill="#ffffff"/>
-                <rect x="30" y="420" width="340" height="60" fill="rgba(255,255,255,0.9)" rx="8" ry="8"/>
-                <text id="Text1" x="200" y="445" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="20" font-weight="bold" fill="#333333">Caption</text>
-                <text id="Text2" x="200" y="465" text-anchor="middle" font-family="Helvetica, sans-serif" font-size="14" font-weight="normal" fill="#666666">Subtitle</text>
-            </svg>
-            """
+            // Parse basic SVG elements and render them
+            renderBasicSVGElements(svgContent: svgContent, context: cgContext, targetSize: size)
+        }
+    }
+    
+    private func renderBasicSVGElements(svgContent: String, context: CGContext, targetSize: CGSize) {
+        // Extract viewBox to calculate scale
+        let viewBoxPattern = #"viewBox="([^"]+)""#
+        if let viewBoxMatch = svgContent.range(of: viewBoxPattern, options: .regularExpression) {
+            let viewBoxString = String(svgContent[viewBoxMatch])
+            let values = viewBoxString.replacingOccurrences(of: "viewBox=\"", with: "")
+                .replacingOccurrences(of: "\"", with: "")
+                .split(separator: " ")
+                .compactMap { Double($0) }
             
-        default:
-            return """
-            <svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
-                <rect x="0" y="0" width="400" height="500" fill="#f0f0f0"/>
-                <rect id="Image1" x="50" y="50" width="300" height="300" fill="#e0e0e0" rx="8"/>
-                <text id="Text1" x="200" y="400" text-anchor="middle" font-family="Arial" font-size="18" fill="#333">Template</text>
-            </svg>
-            """
+            if values.count >= 4 {
+                let svgWidth = values[2]
+                let svgHeight = values[3]
+                let scaleX = targetSize.width / svgWidth
+                let scaleY = targetSize.height / svgHeight
+                let scale = min(scaleX, scaleY)
+                
+                context.scaleBy(x: scale, y: scale)
+            }
+        }
+        
+        // Render rectangles (background, frames, image placeholders)
+        renderSVGRectangles(svgContent: svgContent, context: context)
+        
+        // Render circles (decorative elements)
+        renderSVGCircles(svgContent: svgContent, context: context)
+        
+        // Render gradients and filters (simplified)
+        renderSVGGradients(svgContent: svgContent, context: context)
+    }
+    
+    private func renderSVGRectangles(svgContent: String, context: CGContext) {
+        let rectPattern = #"<rect[^>]*x="(\d+)"[^>]*y="(\d+)"[^>]*width="(\d+)"[^>]*height="(\d+)"[^>]*fill="([^"]*)"[^>]*/?>"#
+        
+        let regex = try? NSRegularExpression(pattern: rectPattern, options: [])
+        let results = regex?.matches(in: svgContent, options: [], range: NSRange(location: 0, length: svgContent.count)) ?? []
+        
+        for result in results {
+            if result.numberOfRanges >= 6 {
+                let nsString = svgContent as NSString
+                let x = Double(nsString.substring(with: result.range(at: 1))) ?? 0
+                let y = Double(nsString.substring(with: result.range(at: 2))) ?? 0
+                let width = Double(nsString.substring(with: result.range(at: 3))) ?? 0
+                let height = Double(nsString.substring(with: result.range(at: 4))) ?? 0
+                let fillColor = nsString.substring(with: result.range(at: 5))
+                
+                let rect = CGRect(x: x, y: y, width: width, height: height)
+                
+                if let color = parseColor(fillColor) {
+                    context.setFillColor(color)
+                    context.fill(rect)
+                }
+            }
+        }
+    }
+    
+    private func renderSVGCircles(svgContent: String, context: CGContext) {
+        let circlePattern = #"<circle[^>]*cx="(\d+)"[^>]*cy="(\d+)"[^>]*r="([^"]*)"[^>]*fill="([^"]*)"[^>]*/?>"#
+        
+        let regex = try? NSRegularExpression(pattern: circlePattern, options: [])
+        let results = regex?.matches(in: svgContent, options: [], range: NSRange(location: 0, length: svgContent.count)) ?? []
+        
+        for result in results {
+            if result.numberOfRanges >= 5 {
+                let nsString = svgContent as NSString
+                let cx = Double(nsString.substring(with: result.range(at: 1))) ?? 0
+                let cy = Double(nsString.substring(with: result.range(at: 2))) ?? 0
+                let r = Double(nsString.substring(with: result.range(at: 3))) ?? 0
+                let fillColor = nsString.substring(with: result.range(at: 4))
+                
+                let rect = CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)
+                
+                if let color = parseColor(fillColor) {
+                    context.setFillColor(color)
+                    context.fillEllipse(in: rect)
+                }
+            }
+        }
+    }
+    
+    private func renderSVGGradients(svgContent: String, context: CGContext) {
+        // Simplified gradient rendering - just render as solid colors for thumbnails
+        if svgContent.contains("linearGradient") {
+            // For modern gradient template, use a simple blue background
+            context.setFillColor(UIColor.systemBlue.cgColor)
+            context.fill(CGRect(x: 0, y: 0, width: 400, height: 500))
+        }
+    }
+    
+    private func parseColor(_ colorString: String) -> CGColor? {
+        if colorString.hasPrefix("#") {
+            return UIColor(hex: colorString)?.cgColor
+        } else if colorString == "transparent" {
+            return UIColor.clear.cgColor
+        } else {
+            // Handle named colors
+            switch colorString {
+            case "#ffffff", "white": return UIColor.white.cgColor
+            case "#000000", "black": return UIColor.black.cgColor
+            case "#e8e8e8": return UIColor.systemGray5.cgColor
+            case "#f5f5f5": return UIColor.systemGray6.cgColor
+            case "#8b4513": return UIColor.brown.cgColor
+            case "#ff6b6b": return UIColor.systemRed.cgColor
+            case "#4ecdc4": return UIColor.systemTeal.cgColor
+            case "#45b7d1": return UIColor.systemBlue.cgColor
+            case "#ffd700": return UIColor.systemYellow.cgColor
+            default: return UIColor.gray.cgColor
+            }
         }
     }
     

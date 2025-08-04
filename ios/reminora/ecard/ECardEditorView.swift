@@ -14,10 +14,8 @@ struct ECardEditorView: View {
     let onDismiss: () -> Void
     
     @Environment(\.eCardTemplateService) private var templateService
-    @State private var selectedTemplate: ECardTemplate?
+    @Environment(\.eCardEditor) private var eCardEditor
     @State private var currentECard: ECard?
-    @State private var imageAssignments: [String: PHAsset] = [:]
-    @State private var textAssignments: [String: String] = [:]
     @State private var isLoading = false
     @State private var showingImagePicker = false
     @State private var selectedImageSlot: ImageSlot?
@@ -32,7 +30,7 @@ struct ECardEditorView: View {
             
             VStack(spacing: 0) {
                 // Preview and editing section
-                if let template = selectedTemplate {
+                if let template = eCardEditor.currentTemplate {
                     previewSection(template: template)
                 } else {
                     emptyStateSection
@@ -84,7 +82,7 @@ struct ECardEditorView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ECardSelectImage"))) { _ in
             // Find first image slot and open image picker
-            if let template = selectedTemplate,
+            if let template = eCardEditor.currentTemplate,
                let firstImageSlot = template.imageSlots.first {
                 selectedImageSlot = firstImageSlot
                 showingImagePicker = true
@@ -123,8 +121,11 @@ struct ECardEditorView: View {
         }
         .sheet(isPresented: $showingTextEditor) {
             TextEditorView(
-                textAssignments: $textAssignments,
-                textSlots: selectedTemplate?.textSlots ?? [],
+                textAssignments: Binding(
+                    get: { eCardEditor.textAssignments },
+                    set: { eCardEditor.textAssignments = $0 }
+                ),
+                textSlots: eCardEditor.currentTemplate?.textSlots ?? [],
                 onDismiss: {
                     showingTextEditor = false
                 }
@@ -142,9 +143,9 @@ struct ECardEditorView: View {
                     ForEach(templateService.getAllTemplates()) { template in
                         TemplateCard(
                             template: template,
-                            isSelected: selectedTemplate?.id == template.id,
+                            isSelected: eCardEditor.currentTemplate?.id == template.id,
                             action: {
-                                selectedTemplate = template
+                                eCardEditor.setCurrentTemplate(template)
                                 setupECard(with: template)
                             }
                         )
@@ -168,8 +169,8 @@ struct ECardEditorView: View {
             ZStack {
                 SVGPreviewView(
                     template: template,
-                    imageAssignments: imageAssignments,
-                    textAssignments: textAssignments,
+                    imageAssignments: eCardEditor.imageAssignments,
+                    textAssignments: eCardEditor.textAssignments,
                     onImageSlotTapped: { slot in
                         selectedImageSlot = slot
                         showingImagePicker = true
@@ -208,7 +209,7 @@ struct ECardEditorView: View {
                     ForEach(template.imageSlots) { slot in
                         ImageSlotCard(
                             slot: slot,
-                            assignedAsset: imageAssignments[slot.id],
+                            assignedAsset: eCardEditor.imageAssignments[slot.id],
                             onTap: {
                                 selectedImageSlot = slot
                                 showingImagePicker = true
@@ -236,8 +237,8 @@ struct ECardEditorView: View {
                         .foregroundColor(.secondary)
                     
                     TextField(slot.placeholder, text: Binding(
-                        get: { textAssignments[slot.id] ?? slot.placeholder },
-                        set: { textAssignments[slot.id] = $0 }
+                        get: { eCardEditor.textAssignments[slot.id] ?? slot.placeholder },
+                        set: { eCardEditor.textAssignments[slot.id] = $0 }
                     ))
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                 }
@@ -271,20 +272,16 @@ struct ECardEditorView: View {
     // MARK: - Helper Methods
     
     private func setupInitialState() {
-        // Auto-select template based on image orientation
-        if let orientedTemplate = templateService.getTemplateForAssets(initialAssets) {
-            selectedTemplate = orientedTemplate
-            setupECard(with: orientedTemplate)
-        } else if let firstTemplate = templateService.getAllTemplates().first {
-            selectedTemplate = firstTemplate
-            setupECard(with: firstTemplate)
-        }
-        
-        // Auto-assign first image if available
-        if let firstAsset = initialAssets.first,
-           let template = selectedTemplate,
-           let firstImageSlot = template.imageSlots.first {
-            imageAssignments[firstImageSlot.id] = firstAsset
+        // Only set up template if not already set (to handle persistence)
+        if eCardEditor.currentTemplate == nil {
+            // Auto-select template based on image orientation
+            if let orientedTemplate = templateService.getTemplateForAssets(initialAssets) {
+                eCardEditor.setCurrentTemplate(orientedTemplate)
+                setupECard(with: orientedTemplate)
+            } else if let firstTemplate = templateService.getAllTemplates().first {
+                eCardEditor.setCurrentTemplate(firstTemplate)
+                setupECard(with: firstTemplate)
+            }
         }
     }
     
@@ -305,7 +302,7 @@ struct ECardEditorView: View {
     }
     
     private func assignImage(asset: PHAsset, to slot: ImageSlot) {
-        imageAssignments[slot.id] = asset
+        eCardEditor.setImageAssignment(assetId: asset.localIdentifier, for: slot.id)
         updateECard()
     }
     
@@ -316,28 +313,28 @@ struct ECardEditorView: View {
     }
     
     private func updateECard() {
-        guard selectedTemplate != nil else { return }
+        guard eCardEditor.currentTemplate != nil else { return }
         
-        let imageIdentifiers = imageAssignments.mapValues { $0.localIdentifier }
+        let imageIdentifiers = eCardEditor.imageAssignments.mapValues { $0.localIdentifier }
         
         if let ecard = currentECard {
             currentECard = ecard.updated(
                 imageAssignments: imageIdentifiers,
-                textAssignments: textAssignments
+                textAssignments: eCardEditor.textAssignments
             )
         }
     }
     
     private func saveECard() {
-        guard let template = selectedTemplate else { return }
+        guard let template = eCardEditor.currentTemplate else { return }
         
         isLoading = true
         
         // Use ECardEditor to generate the image
         ECardEditor.shared.generateECardImage(
             template: template,
-            imageAssignments: imageAssignments,
-            textAssignments: textAssignments
+            imageAssignments: eCardEditor.imageAssignments,
+            textAssignments: eCardEditor.textAssignments
         ) { result in
             DispatchQueue.main.async {
                 self.isLoading = false
@@ -435,27 +432,39 @@ private struct TemplateCard: View {
     let isSelected: Bool
     let action: () -> Void
     
+    @Environment(\.eCardTemplateService) private var templateService
+    @State private var thumbnailImage: UIImage?
+    
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
-                // Template preview (simplified)
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(.systemGray4))
-                    .frame(width: 80, height: 100)
-                    .overlay(
+                // SVG Template preview
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(.systemGray6))
+                        .frame(width: 80, height: 100)
+                    
+                    if let thumbnail = thumbnailImage {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 78, height: 98)
+                            .clipShape(RoundedRectangle(cornerRadius: 7))
+                    } else {
                         VStack {
                             Image(systemName: "photo")
                                 .font(.title2)
                                 .foregroundColor(.gray)
-                            Text("Preview")
+                            Text("Loading...")
                                 .font(.caption2)
                                 .foregroundColor(.gray)
                         }
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
-                    )
+                    }
+                }
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+                )
                 
                 Text(template.name)
                     .font(.caption)
@@ -464,6 +473,18 @@ private struct TemplateCard: View {
             }
         }
         .buttonStyle(PlainButtonStyle())
+        .onAppear {
+            generateThumbnail()
+        }
+    }
+    
+    private func generateThumbnail() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let thumbnail = templateService.generateThumbnail(for: template, size: CGSize(width: 80, height: 100))
+            DispatchQueue.main.async {
+                self.thumbnailImage = thumbnail
+            }
+        }
     }
 }
 

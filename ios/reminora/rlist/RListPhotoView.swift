@@ -2,455 +2,219 @@
 //  RListPhotoView.swift
 //  reminora
 //
-//  Created by alexezh on 7/29/25.
+//  Created by Claude on 8/4/25.
 //
-
 
 import SwiftUI
 import Photos
-import CoreData
-import CoreLocation
-import MapKit
 
-// MARK: - Grid-specific Photo Views
-struct RListPhotoGridView: View {
-    let asset: PHAsset
+// MARK: - RListPhotoView
+struct RListPhotoView: View {
+    @ObservedObject var photoStack: RPhotoStack
     let isSelectionMode: Bool
-    let isSelected: Bool
+    let selectedAssets: Set<String>
     let onTap: () -> Void
-    let onAspectRatioCalculated: (CGFloat) -> Void
+    let onAspectRatioCalculated: ((CGFloat) -> Void)?
     
-    init(asset: PHAsset, isSelectionMode: Bool = false, isSelected: Bool = false, onTap: @escaping () -> Void, onAspectRatioCalculated: @escaping (CGFloat) -> Void) {
-        self.asset = asset
+    init(
+        photoStack: RPhotoStack,
+        isSelectionMode: Bool = false,
+        selectedAssets: Set<String> = [],
+        onTap: @escaping () -> Void,
+        onAspectRatioCalculated: ((CGFloat) -> Void)? = nil
+    ) {
+        self.photoStack = photoStack
         self.isSelectionMode = isSelectionMode
-        self.isSelected = isSelected
+        self.selectedAssets = selectedAssets
         self.onTap = onTap
         self.onAspectRatioCalculated = onAspectRatioCalculated
     }
     
-    @State private var image: UIImage?
-    
     var body: some View {
         Button(action: onTap) {
             ZStack {
-                if let image = image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
-                        .cornerRadius(8)
-                } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .cornerRadius(8)
-                        .overlay(
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
-                                .scaleEffect(0.7)
-                        )
-                }
-                
-                // Selection mode overlay with improved visibility
-                if isSelectionMode {
-                    VStack {
-                        HStack {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white.opacity(0.9))
-                                    .frame(width: 28, height: 28)
-                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-                                
-                                Circle()
-                                    .stroke(Color.black.opacity(0.2), lineWidth: 1)
-                                    .frame(width: 28, height: 28)
-                                
-                                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundColor(isSelected ? .blue : .gray)
-                            }
-                            .padding(8)
-                            Spacer()
-                        }
-                        Spacer()
-                    }
-                }
-            }
-        }
-        .buttonStyle(PlainButtonStyle())
-        .task {
-            await loadImage()
-        }
-        .onAppear {
-            // Calculate and report aspect ratio
-            let aspectRatio = CGFloat(asset.pixelWidth) / CGFloat(asset.pixelHeight)
-            onAspectRatioCalculated(aspectRatio)
-        }
-    }
-    
-    private func loadImage() async {
-        let options = PHImageRequestOptions()
-        options.deliveryMode = .opportunistic
-        options.resizeMode = .fast
-        options.isNetworkAccessAllowed = true
-        
-        await withCheckedContinuation { continuation in
-            var hasResumed = false
-            
-            PHImageManager.default().requestImage(
-                for: asset,
-                targetSize: CGSize(width: 200, height: 200),
-                contentMode: .aspectFill,
-                options: options
-            ) { image, info in
-                guard !hasResumed else { return }
-                
-                let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
-                
-                if !isDegraded {
-                    hasResumed = true
-                    self.image = image
-                    continuation.resume()
-                } else if image == nil {
-                    hasResumed = true
-                    continuation.resume()
-                }
-            }
-        }
-    }
-}
-
-// MARK: - RListPhotoGridItemView
-struct RListPhotoGridItemView: View {
-    let item: any RListViewItem
-    let isSelectionMode: Bool
-    let selectedAssets: Set<String>
-    let onPhotoTap: (PHAsset) -> Void
-    let onPhotoStackTap: ([PHAsset]) -> Void
-    let onAspectRatioCalculated: (String, CGFloat) -> Void
-    
-    var body: some View {
-        switch item.itemType {
-        case .photo(let asset):
-            RListPhotoGridView(
-                asset: asset,
-                isSelectionMode: isSelectionMode,
-                isSelected: selectedAssets.contains(asset.localIdentifier),
-                onTap: { onPhotoTap(asset) },
-                onAspectRatioCalculated: { aspectRatio in
-                    onAspectRatioCalculated(item.id, aspectRatio)
-                }
-            )
-        case .photoStack(let assets):
-            RListPhotoStackGridView(
-                assets: assets,
-                isSelectionMode: isSelectionMode,
-                isSelected: assets.allSatisfy { selectedAssets.contains($0.localIdentifier) },
-                onTap: { onPhotoStackTap(assets) },
-                onAspectRatioCalculated: { aspectRatio in
-                    onAspectRatioCalculated(item.id, aspectRatio)
-                }
-            )
-        case .pin(_), .location(_):
-            // This shouldn't happen in photo rows, but handle gracefully
-            EmptyView()
-        }
-    }
-}
-
-struct RListPhotoStackView: View {
-    let assets: [PHAsset]
-    let onTap: () -> Void
-    
-    @State private var images: [UIImage?] = []
-    
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 4) {
-                ForEach(Array(assets.prefix(3).enumerated()), id: \.offset) { index, asset in
-                    if index < images.count, let image = images[index] {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(height: 120)
-                            .clipped()
-                            .cornerRadius(8)
-                    } else {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(height: 120)
-                            .cornerRadius(8)
-                            .overlay(
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle())
-                                    .scaleEffect(0.7)
-                            )
-                    }
-                }
-                if assets.count > 3 {
-                    Rectangle()
-                        .fill(Color.black.opacity(0.7))
-                        .frame(height: 120)
-                        .cornerRadius(8)
-                        .overlay(
-                            Text("+\(assets.count - 3)")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                        )
-                }
-            }
-        }
-        .buttonStyle(PlainButtonStyle())
-        .task {
-            await loadImages()
-        }
-    }
-    
-    private func loadImages() async {
-        images = Array(repeating: nil, count: min(assets.count, 3))
-        
-        let options = PHImageRequestOptions()
-        options.deliveryMode = .opportunistic
-        options.resizeMode = .fast
-        options.isNetworkAccessAllowed = true
-        
-        for (index, asset) in assets.prefix(3).enumerated() {
-            await withCheckedContinuation { continuation in
-                var hasResumed = false
-                
-                PHImageManager.default().requestImage(
-                    for: asset,
-                    targetSize: CGSize(width: 200, height: 200),
-                    contentMode: .aspectFill,
-                    options: options
-                ) { image, info in
-                    guard !hasResumed else { return }
-                    
-                    let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
-                    
-                    if !isDegraded {
-                        hasResumed = true
-                        DispatchQueue.main.async {
-                            if index < self.images.count {
-                                self.images[index] = image
-                            }
-                        }
-                        continuation.resume()
-                    } else if image == nil {
-                        hasResumed = true
-                        continuation.resume()
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Photo Stack Grid View
-struct RListPhotoStackGridView: View {
-    let assets: [PHAsset]
-    let isSelectionMode: Bool
-    let isSelected: Bool
-    let onTap: () -> Void
-    let onAspectRatioCalculated: (CGFloat) -> Void
-    
-    @State private var primaryImage: UIImage?
-    
-    var body: some View {
-        Button(action: onTap) {
-            ZStack {
-                // Background photos (offset for stack effect)
-                if assets.count > 1 {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .cornerRadius(8)
-                        .offset(x: 2, y: 2)
-                }
-                
-                if assets.count > 2 {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .cornerRadius(8)
-                        .offset(x: 4, y: 4)
+                // Background stack layers for multi-photo stacks
+                if !photoStack.isSinglePhoto {
+                    stackBackgroundLayers
                 }
                 
                 // Primary photo
-                if let image = primaryImage {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .clipped()
-                        .cornerRadius(8)
-                } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .cornerRadius(8)
-                        .overlay(
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
-                                .scaleEffect(0.7)
-                        )
+                primaryPhotoView
+                
+                // Stack count indicator for multi-photo stacks
+                if !photoStack.isSinglePhoto {
+                    stackCountIndicator
                 }
                 
-                // Stack count indicator
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        ZStack {
-                            Circle()
-                                .fill(Color.black.opacity(0.7))
-                                .frame(width: 24, height: 24)
-                            
-                            Text("\(assets.count)")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                        }
-                        .padding(6)
-                    }
-                }
-                
-                // Selection mode overlay with improved visibility
+                // Selection indicator
                 if isSelectionMode {
-                    VStack {
-                        HStack {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white.opacity(0.9))
-                                    .frame(width: 28, height: 28)
-                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-                                
-                                Circle()
-                                    .stroke(Color.black.opacity(0.2), lineWidth: 1)
-                                    .frame(width: 28, height: 28)
-                                
-                                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundColor(isSelected ? .blue : .gray)
-                            }
-                            .padding(8)
-                            Spacer()
-                        }
-                        Spacer()
-                    }
+                    selectionIndicator
                 }
             }
         }
         .buttonStyle(PlainButtonStyle())
-        .task {
-            await loadPrimaryImage()
+        .onAppear {
+            setupView()
         }
         .onAppear {
-            // Calculate and report aspect ratio for primary asset
-            if let primaryAsset = assets.first {
-                let aspectRatio = CGFloat(primaryAsset.pixelWidth) / CGFloat(primaryAsset.pixelHeight)
-                onAspectRatioCalculated(aspectRatio)
-            }
+            // Report aspect ratio
+            onAspectRatioCalculated?(photoStack.primaryAspectRatio)
         }
     }
     
-    private func loadPrimaryImage() async {
-        guard let primaryAsset = assets.first else { return }
-        
-        let options = PHImageRequestOptions()
-        options.deliveryMode = .opportunistic
-        options.resizeMode = .fast
-        options.isNetworkAccessAllowed = true
-        
-        await withCheckedContinuation { continuation in
-            var hasResumed = false
-            
-            PHImageManager.default().requestImage(
-                for: primaryAsset,
-                targetSize: CGSize(width: 200, height: 200),
-                contentMode: .aspectFill,
-                options: options
-            ) { image, info in
-                guard !hasResumed else { return }
-                
-                let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
-                
-                if !isDegraded {
-                    hasResumed = true
-                    self.primaryImage = image
-                    continuation.resume()
-                } else if image == nil {
-                    hasResumed = true
-                    continuation.resume()
-                }
-            }
-        }
-    }
-}
-
-
-struct RListPhotoView: View {
-    let asset: PHAsset
-    let onTap: () -> Void
+    // MARK: - View Components
     
-    @State private var image: UIImage?
-    
-    var body: some View {
-        Button(action: onTap) {
-            if let image = image {
-                Image(uiImage: image)
+    private var primaryPhotoView: some View {
+        Group {
+            if let primaryImage = photoStack.primaryImage {
+                Image(uiImage: primaryImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(height: 200)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipped()
-                    .cornerRadius(12)
+                    .cornerRadius(8)
             } else {
                 Rectangle()
                     .fill(Color.gray.opacity(0.3))
-                    .frame(height: 200)
-                    .cornerRadius(12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .cornerRadius(8)
                     .overlay(
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
+                        Group {
+                            if photoStack.isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle())
+                                    .scaleEffect(0.7)
+                            } else {
+                                Image(systemName: "photo")
+                                    .font(.title2)
+                                    .foregroundColor(.gray)
+                            }
+                        }
                     )
             }
         }
-        .buttonStyle(PlainButtonStyle())
-        .task {
-            await loadImage()
-        }
     }
     
-    private func loadImage() async {
-        let options = PHImageRequestOptions()
-        options.deliveryMode = .opportunistic
-        options.resizeMode = .fast
-        options.isNetworkAccessAllowed = true
-        
-        await withCheckedContinuation { continuation in
-            var hasResumed = false
+    private var stackBackgroundLayers: some View {
+        Group {
+            // Second layer
+            if photoStack.count > 1 {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .cornerRadius(8)
+                    .offset(x: 2, y: 2)
+            }
             
-            PHImageManager.default().requestImage(
-                for: asset,
-                targetSize: CGSize(width: 400, height: 400),
-                contentMode: .aspectFill,
-                options: options
-            ) { image, info in
-                guard !hasResumed else { return }
-                
-                let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
-                
-                if !isDegraded {
-                    hasResumed = true
-                    self.image = image
-                    continuation.resume()
-                } else if image == nil {
-                    hasResumed = true
-                    continuation.resume()
-                }
+            // Third layer
+            if photoStack.count > 2 {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .cornerRadius(8)
+                    .offset(x: 4, y: 4)
             }
         }
     }
+    
+    private var stackCountIndicator: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                ZStack {
+                    Circle()
+                        .fill(Color.black.opacity(0.7))
+                        .frame(width: 24, height: 24)
+                    
+                    Text("\(photoStack.count)")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                }
+                .padding(6)
+            }
+        }
+    }
+    
+    private var selectionIndicator: some View {
+        VStack {
+            HStack {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.9))
+                        .frame(width: 28, height: 28)
+                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                    
+                    Circle()
+                        .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                        .frame(width: 28, height: 28)
+                    
+                    Image(systemName: selectionIconName)
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(selectionColor)
+                }
+                .padding(8)
+                Spacer()
+            }
+            Spacer()
+        }
+    }
+    
+    // MARK: - Computed Properties
+    
+    private var isSelected: Bool {
+        if photoStack.isSinglePhoto {
+            return selectedAssets.contains(photoStack.primaryAsset.localIdentifier)
+        } else {
+            return photoStack.isFullySelected(selectedAssets: selectedAssets)
+        }
+    }
+    
+    private var isPartiallySelected: Bool {
+        return !photoStack.isSinglePhoto && photoStack.isPartiallySelected(selectedAssets: selectedAssets)
+    }
+    
+    private var selectionIconName: String {
+        if isSelected {
+            return "checkmark.circle.fill"
+        } else if isPartiallySelected {
+            return "minus.circle.fill"
+        } else {
+            return "circle"
+        }
+    }
+    
+    private var selectionColor: Color {
+        if isSelected {
+            return .blue
+        } else if isPartiallySelected {
+            return .orange
+        } else {
+            return .gray
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func setupView() {
+        // Load images if not already loaded
+        if photoStack.images.allSatisfy({ $0 == nil }) && !photoStack.isLoading {
+            photoStack.loadImages()
+        }
+    }
 }
+
+// MARK: - Preview Support
+#if DEBUG
+struct RListPhotoView_Previews: PreviewProvider {
+    static var previews: some View {
+        // This would need actual PHAssets for a real preview
+        // For now, just show the structure
+        VStack {
+            Text("RListPhotoView Preview")
+            // RListPhotoView(photoStack: RPhotoStack(asset: sampleAsset), onTap: {})
+        }
+    }
+}
+#endif

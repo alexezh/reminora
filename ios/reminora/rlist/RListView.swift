@@ -12,34 +12,21 @@ protocol RListViewItem: Identifiable {
 }
 
 enum RRListItemDataType {
-    case photo(PHAsset)
-    case photoStack([PHAsset])
+    case photoStack(RPhotoStack)
     case pin(PinData)
     case location(LocationInfo)
 }
 
 // MARK: - RListView Item Implementations
-struct RListPhotoItem: RListViewItem {
-    let id: String
-    let date: Date
-    let itemType: RRListItemDataType
-    
-    init(asset: PHAsset) {
-        self.id = asset.localIdentifier
-        self.date = asset.creationDate ?? Date()
-        self.itemType = .photo(asset)
-    }
-}
-
 struct RListPhotoStackItem: RListViewItem {
     let id: String
     let date: Date
     let itemType: RRListItemDataType
     
-    init(assets: [PHAsset]) {
-        self.id = assets.map { $0.localIdentifier }.joined(separator: "-")
-        self.date = assets.first?.creationDate ?? Date()
-        self.itemType = .photoStack(assets)
+    init(photoStack: RPhotoStack) {
+        self.id = photoStack.id
+        self.date = photoStack.creationDate
+        self.itemType = .photoStack(photoStack)
     }
 }
 
@@ -222,47 +209,13 @@ struct RListView: View {
     }
     
     private func processPhotoAssets(_ assets: [PHAsset]) async -> [any RListViewItem] {
-        // Sort assets by creation date
-        let sortedAssets = assets.sorted { 
-            ($0.creationDate ?? Date.distantPast) > ($1.creationDate ?? Date.distantPast)
+        // Use RPhotoStack to create photo stacks
+        let photoStacks = RPhotoStack.createStacks(from: assets, stackingInterval: stackingInterval, maxStackSize: 3)
+        
+        // Convert to RListViewItem
+        return photoStacks.map { photoStack in
+            RListPhotoStackItem(photoStack: photoStack)
         }
-        
-        var items: [any RListViewItem] = []
-        var currentStack: [PHAsset] = []
-        
-        for asset in sortedAssets {
-            let assetDate = asset.creationDate ?? Date()
-            
-            if let lastAsset = currentStack.last,
-               let lastDate = lastAsset.creationDate {
-                let timeDifference = abs(assetDate.timeIntervalSince(lastDate))
-                
-                if timeDifference <= stackingInterval && currentStack.count < 3 {
-                    // Add to current stack
-                    currentStack.append(asset)
-                } else {
-                    // Finalize current stack and start new one
-                    if currentStack.count == 1 {
-                        items.append(RListPhotoItem(asset: currentStack[0]))
-                    } else if currentStack.count > 1 {
-                        items.append(RListPhotoStackItem(assets: currentStack))
-                    }
-                    currentStack = [asset]
-                }
-            } else {
-                // First asset or no date
-                currentStack = [asset]
-            }
-        }
-        
-        // Handle remaining stack
-        if currentStack.count == 1 {
-            items.append(RListPhotoItem(asset: currentStack[0]))
-        } else if currentStack.count > 1 {
-            items.append(RListPhotoStackItem(assets: currentStack))
-        }
-        
-        return items
     }
     
     private func groupItemsByDate(_ items: [any RListViewItem]) -> [RListDateSection] {
@@ -330,11 +283,11 @@ struct RListSectionView: View {
         
         for item in section.items {
             switch item.itemType {
-            case .photo(_), .photoStack(_):
-                // Add photo to current row
+            case .photoStack(_):
+                // Add photo stack to current row
                 currentPhotoRow.append(item)
                 
-                // If we have 3 photos, create a row
+                // If we have 3 photo stacks, create a row
                 if currentPhotoRow.count == 3 {
                     rows.append(RListRow(items: currentPhotoRow, type: .photoRow))
                     currentPhotoRow = []
@@ -405,18 +358,25 @@ struct RListRowView: View {
                     ForEach(Array(row.items.enumerated()), id: \.offset) { index, item in
                         let width = widths.indices.contains(index) ? widths[index] : rowHeight
                         
-                        RListPhotoGridItemView(
-                            item: item,
-                            isSelectionMode: isSelectionMode,
-                            selectedAssets: selectedAssets,
-                            onPhotoTap: onPhotoTap,
-                            onPhotoStackTap: onPhotoStackTap,
-                            onAspectRatioCalculated: { itemId, aspectRatio in
-                                photoAspectRatios[itemId] = aspectRatio
-                            }
-                        )
-                        .frame(width: width, height: rowHeight)
-                        .clipped()
+                        if case .photoStack(let photoStack) = item.itemType {
+                            RListPhotoView(
+                                photoStack: photoStack,
+                                isSelectionMode: isSelectionMode,
+                                selectedAssets: selectedAssets,
+                                onTap: {
+                                    if photoStack.isSinglePhoto {
+                                        onPhotoTap(photoStack.primaryAsset)
+                                    } else {
+                                        onPhotoStackTap(photoStack.assets)
+                                    }
+                                },
+                                onAspectRatioCalculated: { aspectRatio in
+                                    photoAspectRatios[item.id] = aspectRatio
+                                }
+                            )
+                            .frame(width: width, height: rowHeight)
+                            .clipped()
+                        }
                     }
                     
                     Spacer(minLength: 0)
@@ -447,8 +407,11 @@ struct RListRowView: View {
         
         // Calculate total aspect ratio
         for item in row.items {
-            let aspectRatio = photoAspectRatios[item.id] ?? 1.0
-            totalAspectRatio += aspectRatio
+            if case .photoStack(let photoStack) = item.itemType {
+                totalAspectRatio += photoStack.primaryAspectRatio
+            } else {
+                totalAspectRatio += 1.0 // Default aspect ratio for non-photo items
+            }
         }
         
         // If no aspect ratios calculated yet, use equal widths
@@ -459,7 +422,12 @@ struct RListRowView: View {
         
         // Calculate individual widths based on aspect ratios
         for item in row.items {
-            let aspectRatio = photoAspectRatios[item.id] ?? 1.0
+            let aspectRatio: CGFloat
+            if case .photoStack(let photoStack) = item.itemType {
+                aspectRatio = photoStack.primaryAspectRatio
+            } else {
+                aspectRatio = 1.0 // Default aspect ratio for non-photo items
+            }
             let proportionalWidth = (aspectRatio / totalAspectRatio) * availableWidth
             widths.append(proportionalWidth)
         }
@@ -468,16 +436,15 @@ struct RListRowView: View {
     }
     
     private func calculateOptimalRowHeight(availableWidth: CGFloat, maxHeight: CGFloat) -> CGFloat {
-        // If no aspect ratios calculated yet, use default height
-        guard !photoAspectRatios.isEmpty else {
-            return min(120, maxHeight)
-        }
-        
-        // Calculate total aspect ratio for photos in this row
+        // Calculate total aspect ratio for photo stacks in this row
         var totalAspectRatio: CGFloat = 0
         for item in row.items {
-            let aspectRatio = photoAspectRatios[item.id] ?? 1.0
-            totalAspectRatio += aspectRatio
+            if case .photoStack(let photoStack) = item.itemType {
+                totalAspectRatio += photoStack.primaryAspectRatio
+            } else {
+                // For non-photo items, use square aspect ratio
+                totalAspectRatio += 1.0
+            }
         }
         
         // If no valid aspect ratios, use default
@@ -495,6 +462,7 @@ struct RListRowView: View {
         return constrainedHeight
     }
 }
+
 
 // MARK: - RRListItemDataView
 struct RRListItemDataView: View {
@@ -532,10 +500,19 @@ struct RRListItemDataView: View {
     
     var body: some View {
         switch item.itemType {
-        case .photo(let asset):
-            RListPhotoView(asset: asset, onTap: { onPhotoTap(asset) })
-        case .photoStack(let assets):
-            RListPhotoStackView(assets: assets, onTap: { onPhotoStackTap(assets) })
+        case .photoStack(let photoStack):
+            RListPhotoView(
+                photoStack: photoStack,
+                isSelectionMode: isSelectionMode,
+                selectedAssets: selectedAssets,
+                onTap: {
+                    if photoStack.isSinglePhoto {
+                        onPhotoTap(photoStack.primaryAsset)
+                    } else {
+                        onPhotoStackTap(photoStack.assets)
+                    }
+                }
+            )
         case .pin(let place):
             VStack(spacing: 0) {
                 PinCardView(

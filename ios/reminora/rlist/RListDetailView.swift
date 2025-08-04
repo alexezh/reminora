@@ -343,7 +343,7 @@ struct RListDetailView: View {
                 // Extract the photo identifier and try to get the asset
                 let photoId = String(url.dropFirst(8)) // Remove "photo://" prefix
                 if let asset = getAssetFromId(photoId) {
-                    mixedItems.append(RListPhotoItem(asset: asset))
+                    mixedItems.append(RListPhotoStackItem(photoStack: RPhotoStack(asset: asset)))
                 } else {
                     // Photo no longer exists, but show as pin anyway
                     mixedItems.append(RListPinItem(place: place))
@@ -400,10 +400,8 @@ struct RListDetailView: View {
             switch item.itemType {
             case .pin(let pinData):
                 return listItem.placeId == pinData.objectID.uriRepresentation().absoluteString
-            case .photo(let asset):
-                return listItem.placeId?.contains(asset.localIdentifier) == true
-            case .photoStack(let assets):
-                return assets.allSatisfy { asset in
+            case .photoStack(let photoStack):
+                return photoStack.assets.allSatisfy { asset in
                     listItem.placeId?.contains(asset.localIdentifier) == true
                 }
             case .location(_):

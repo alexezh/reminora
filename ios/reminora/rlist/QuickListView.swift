@@ -80,9 +80,16 @@ struct QuickListView: View {
     private func deleteItemFromQuickList(_ item: any RListViewItem) {
         Task {
             switch item.itemType {
-            case .photo(let asset):
-                let success = RListService.shared.togglePhotoInQuickList(asset, context: context, userId: userId)
-                if success {
+            case .photoStack(let photoStack):
+                // For photo stacks, process each individual photo
+                var allSuccess = true
+                for asset in photoStack.assets {
+                    let success = RListService.shared.togglePhotoInQuickList(asset, context: context, userId: userId)
+                    if !success {
+                        allSuccess = false
+                    }
+                }
+                if allSuccess {
                     await MainActor.run {
                         items.removeAll { $0.id == item.id }
                     }
@@ -92,19 +99,8 @@ struct QuickListView: View {
                 // This assumes RListService has a method to remove pins from Quick List
                 // You may need to implement this in RListService
                 print("TODO: Implement pin deletion from Quick List")
-            case .photoStack(let assets):
-                // Remove all photos in the stack
-                var allRemoved = true
-                for asset in assets {
-                    let success = RListService.shared.togglePhotoInQuickList(asset, context: context, userId: userId)
-                    if !success {
-                        allRemoved = false
-                    }
-                }
-                if allRemoved {
-                    await MainActor.run {
-                        items.removeAll { $0.id == item.id }
-                    }
+                await MainActor.run {
+                    items.removeAll { $0.id == item.id }
                 }
             case .location(_):
                 print("Location deletion not yet implemented")

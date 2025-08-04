@@ -164,7 +164,7 @@ class RListService: ObservableObject {
                         // Extract the photo identifier and try to get the asset
                         let photoId = String(url.dropFirst(8)) // Remove "photo://" prefix
                         if let asset = getAssetFromId(photoId) {
-                            result.append(RListPhotoItem(asset: asset))
+                            result.append(RListPhotoStackItem(photoStack: RPhotoStack(asset: asset)))
                         } else {
                             // Photo no longer exists, but show as pin anyway
                             result.append(RListPinItem(place: place))
@@ -287,7 +287,7 @@ class RListService: ObservableObject {
                     print("🔍 Direct photo reference - extracting photo ID: \(photoId)")
                     if let asset = getAssetFromId(photoId) {
                         print("🔍 Found asset for photo ID: \(photoId)")
-                        result.append(RListPhotoItem(asset: asset))
+                        result.append(RListPhotoStackItem(photoStack: RPhotoStack(asset: asset)))
                     } else {
                         print("🔍 ❌ Asset not found for photo ID: \(photoId) - removing from list")
                         // Photo no longer exists, clean up the orphaned list item

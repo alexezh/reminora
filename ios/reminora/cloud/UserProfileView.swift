@@ -440,7 +440,7 @@ struct UserProfileView: View {
             }
             
             // Load user's comments from local Core Data
-            let commentFetchRequest: NSFetchRequest<Comment> = Comment.fetchRequest()
+            let commentFetchRequest: NSFetchRequest<PinComment> = PinComment.fetchRequest()
             commentFetchRequest.predicate = NSPredicate(format: "fromUserId == %@", userId)
             commentFetchRequest.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: false)]
             commentFetchRequest.fetchLimit = 20 // Limit for comments
@@ -477,7 +477,7 @@ struct UserProfileView: View {
     
     
     // Create a virtual place for comment display in RListView
-    private func createVirtualPlaceForComment(_ comment: Comment, in context: NSManagedObjectContext) -> PinData {
+    private func createVirtualPlaceForComment(_ comment: PinComment, in context: NSManagedObjectContext) -> PinData {
         // Note: This is an in-memory only object, not saved to Core Data
         let virtualPlace = PinData(context: context)
         virtualPlace.post = comment.commentText ?? "Comment"
@@ -583,7 +583,7 @@ struct PinThumbnailView: View {
 
 // MARK: - Comment Preview View
 struct CommentPreviewView: View {
-    let comment: Comment
+    let comment: PinComment
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {

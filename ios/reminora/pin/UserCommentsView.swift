@@ -26,10 +26,10 @@ struct UserCommentsView: View {
     }
     
     // Fetch comments received by this user
-    @FetchRequest private var receivedComments: FetchedResults<Comment>
+    @FetchRequest private var receivedComments: FetchedResults<PinComment>
     
     // Fetch comments sent by this user
-    @FetchRequest private var sentComments: FetchedResults<Comment>
+    @FetchRequest private var sentComments: FetchedResults<PinComment>
     
     init(userId: String, userName: String, userHandle: String) {
         self.userId = userId
@@ -37,21 +37,21 @@ struct UserCommentsView: View {
         self.userHandle = userHandle
         
         // Comments TO this user
-        self._receivedComments = FetchRequest<Comment>(
-            sortDescriptors: [NSSortDescriptor(keyPath: \Comment.createdAt, ascending: false)],
+        self._receivedComments = FetchRequest<PinComment>(
+            sortDescriptors: [NSSortDescriptor(keyPath: \PinComment.createdAt, ascending: false)],
             predicate: NSPredicate(format: "toUserId == %@", userId),
             animation: .default
         )
         
         // Comments FROM this user
-        self._sentComments = FetchRequest<Comment>(
-            sortDescriptors: [NSSortDescriptor(keyPath: \Comment.createdAt, ascending: false)],
+        self._sentComments = FetchRequest<PinComment>(
+            sortDescriptors: [NSSortDescriptor(keyPath: \PinComment.createdAt, ascending: false)],
             predicate: NSPredicate(format: "fromUserId == %@", userId),
             animation: .default
         )
     }
     
-    private var currentComments: [Comment] {
+    private var currentComments: [PinComment] {
         switch selectedTab {
         case .received:
             return Array(receivedComments)
@@ -206,7 +206,7 @@ struct UserCommentsView: View {
 }
 
 struct UserCommentCard: View {
-    let comment: Comment
+    let comment: PinComment
     let isReceivedView: Bool
     
     var body: some View {

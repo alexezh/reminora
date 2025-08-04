@@ -14,7 +14,7 @@ struct SimpleCommentsView: View {
     @State private var showingAuthentication = false
     @FocusState private var isCommentFieldFocused: Bool
     
-    @FetchRequest private var comments: FetchedResults<Comment>
+    @FetchRequest private var comments: FetchedResults<PinComment>
     
     init(targetUserId: String? = nil, targetPhotoId: String? = nil) {
         self.targetUserId = targetUserId
@@ -30,14 +30,14 @@ struct SimpleCommentsView: View {
             predicate = NSPredicate(value: false) // No results if no target
         }
         
-        self._comments = FetchRequest<Comment>(
-            sortDescriptors: [NSSortDescriptor(keyPath: \Comment.createdAt, ascending: true)],
+        self._comments = FetchRequest<PinComment>(
+            sortDescriptors: [NSSortDescriptor(keyPath: \PinComment.createdAt, ascending: true)],
             predicate: predicate,
             animation: .default
         )
     }
     
-    private var displayedComments: [Comment] {
+    private var displayedComments: [PinComment] {
         let allComments = Array(comments)
         if showAllComments || allComments.count <= 3 {
             return allComments
@@ -157,7 +157,7 @@ struct SimpleCommentsView: View {
         
         isLoading = true
         
-        let comment = Comment(context: viewContext)
+        let comment = PinComment(context: viewContext)
         comment.id = UUID().uuidString
         comment.commentText = newCommentText.trimmingCharacters(in: .whitespacesAndNewlines)
         comment.createdAt = Date()
@@ -189,7 +189,7 @@ struct SimpleCommentsView: View {
 }
 
 struct SimpleCommentRowView: View {
-    let comment: Comment
+    let comment: PinComment
     @State private var showingUserProfile = false
     
     var body: some View {

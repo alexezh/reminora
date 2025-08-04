@@ -1,45 +1,51 @@
-<svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
-    <!-- Restaurant theme background -->
-    <rect x="0" y="0" width="400" height="500" fill="#f8f5f1"/>
-    
-    <!-- Main border with subtle pattern -->
-    <rect x="10" y="10" width="380" height="480" fill="transparent" stroke="#8b4513" stroke-width="2" rx="8"/>
-    
-    <!-- Photo area -->
-    <rect x="30" y="50" width="340" height="280" fill="#ffffff" stroke="#d4af37" stroke-width="3" rx="6"/>
-    <rect id="Image1" x="35" y="55" width="330" height="270" fill="#e8e8e8" rx="3"/>
-    
-    <!-- Decorative food icon in corner -->
-    <g transform="translate(340, 30)">
-        <!-- Plate -->
-        <circle cx="15" cy="15" r="12" fill="#ffffff" stroke="#d4af37" stroke-width="1.5"/>
-        <circle cx="15" cy="15" r="8" fill="transparent" stroke="#8b4513" stroke-width="0.5"/>
-        
-        <!-- Food items on plate -->
-        <circle cx="12" cy="12" r="2" fill="#ff6b6b"/>
-        <circle cx="18" cy="13" r="1.5" fill="#4ecdc4"/>
-        <circle cx="15" cy="17" r="1.8" fill="#ffd93d"/>
-        
-        <!-- Fork and knife -->
-        <line x1="5" y1="8" x2="5" y2="22" stroke="#8b4513" stroke-width="1"/>
-        <line x1="3" y1="10" x2="7" y2="10" stroke="#8b4513" stroke-width="0.5"/>
-        <line x1="3" y1="12" x2="7" y2="12" stroke="#8b4513" stroke-width="0.5"/>
-        
-        <line x1="25" y1="8" x2="25" y2="20" stroke="#8b4513" stroke-width="1"/>
-        <path d="M 23 8 L 27 8 L 25 12 Z" fill="#8b4513"/>
-    </g>
-    
-    <!-- Text area background -->
-    <rect x="30" y="350" width="340" height="120" fill="rgba(255,255,255,0.8)" stroke="#d4af37" stroke-width="1" rx="6"/>
-    
-    <!-- Restaurant text styling -->
-    <text id="Text1" x="200" y="390" text-anchor="middle" font-family="serif" font-size="20" font-weight="bold" fill="#8b4513">Dining Experience</text>
-    
-    <!-- Decorative elements -->
-    <line x1="60" y1="415" x2="120" y2="415" stroke="#d4af37" stroke-width="1" opacity="0.6"/>
-    <line x1="280" y1="415" x2="340" y2="415" stroke="#d4af37" stroke-width="1" opacity="0.6"/>
-    
-    <!-- Corner decorations -->
-    <circle cx="50" cy="470" r="3" fill="#d4af37" opacity="0.7"/>
-    <circle cx="350" cy="470" r="3" fill="#d4af37" opacity="0.7"/>
+<svg viewBox="0 0 100 100" width="400" height="500" xmlns="http://www.w3.org/2000/svg">
+  <!-- Warm restaurant background -->
+  <rect x="0" y="0" width="100" height="100" fill="#f8f5f1"/>
+  
+  <!-- Main border -->
+  <rect x="5" y="5" width="90" height="90" fill="transparent" stroke="#8b4513" stroke-width="0.4" rx="2"/>
+  
+  <!-- Photo area with golden frame -->
+  <rect x="12" y="15" width="76" height="55" fill="white" stroke="#d4af37" stroke-width="0.6" rx="1"/>
+  <image
+    id="Image1"
+    href="https://via.placeholder.com/150"
+    x="14"
+    y="17"
+    width="72"
+    height="51"
+    preserveAspectRatio="xMidYMid slice"
+  />
+
+  <!-- Decorative plate icon -->
+  <circle cx="85" cy="12" r="3" fill="white" stroke="#d4af37" stroke-width="0.3"/>
+  <circle cx="85" cy="12" r="2" fill="transparent" stroke="#8b4513" stroke-width="0.2"/>
+  <circle cx="84" cy="11" r="0.4" fill="#ff6b6b"/>
+  <circle cx="86" cy="12" r="0.3" fill="#4ecdc4"/>
+  
+  <!-- Fork and knife -->
+  <line x1="78" y1="10" x2="78" y2="14" stroke="#8b4513" stroke-width="0.2"/>
+  <line x1="77" y1="11" x2="79" y2="11" stroke="#8b4513" stroke-width="0.1"/>
+  <line x1="92" y1="10" x2="92" y2="13" stroke="#8b4513" stroke-width="0.2"/>
+  
+  <!-- Text area with subtle background -->
+  <rect x="12" y="75" width="76" height="18" fill="rgba(255,255,255,0.8)" stroke="#d4af37" stroke-width="0.2" rx="1"/>
+  
+  <text
+    id="Text1"
+    x="50"
+    y="84"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-size="5"
+    font-family="serif"
+    font-weight="bold"
+    fill="#8b4513"
+  >
+    Dining experience
+  </text>
+  
+  <!-- Decorative lines -->
+  <line x1="20" y1="87" x2="30" y2="87" stroke="#d4af37" stroke-width="0.2" opacity="0.6"/>
+  <line x1="70" y1="87" x2="80" y2="87" stroke="#d4af37" stroke-width="0.2" opacity="0.6"/>
 </svg>

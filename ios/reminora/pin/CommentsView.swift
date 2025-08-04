@@ -14,7 +14,7 @@ struct CommentsView: View {
     @State private var showingAuthentication = false
     @FocusState private var isCommentFieldFocused: Bool
     
-    @FetchRequest private var comments: FetchedResults<Comment>
+    @FetchRequest private var comments: FetchedResults<PinComment>
     
     init(targetUserId: String? = nil, targetPhotoId: String? = nil) {
         self.targetUserId = targetUserId
@@ -30,14 +30,14 @@ struct CommentsView: View {
             predicate = NSPredicate(value: false) // No results if no target
         }
         
-        self._comments = FetchRequest<Comment>(
-            sortDescriptors: [NSSortDescriptor(keyPath: \Comment.createdAt, ascending: true)],
+        self._comments = FetchRequest<PinComment>(
+            sortDescriptors: [NSSortDescriptor(keyPath: \PinComment.createdAt, ascending: true)],
             predicate: predicate,
             animation: .default
         )
     }
     
-    private var displayedComments: [Comment] {
+    private var displayedComments: [PinComment] {
         let allComments = Array(comments)
         if showAllComments || allComments.count <= 5 {
             return allComments
@@ -225,7 +225,7 @@ struct CommentsView: View {
             do {
                 // Create local comment
                 await MainActor.run {
-                    let comment = Comment(context: viewContext)
+                    let comment = PinComment(context: viewContext)
                     comment.id = UUID().uuidString
                     comment.fromUserId = currentUser.id
                     comment.fromUserName = currentUser.display_name
@@ -265,7 +265,7 @@ struct CommentsView: View {
 }
 
 struct CommentRowView: View {
-    let comment: Comment
+    let comment: PinComment
     @State private var showingUserProfile = false
     
     var body: some View {

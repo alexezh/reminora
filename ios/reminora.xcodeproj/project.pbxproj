@@ -11,6 +11,8 @@
 		491FBCBE2E232B9F000C36A4 /* app_icon.png in Resources */ = {isa = PBXBuildFile; fileRef = 491FBCBD2E232B9F000C36A4 /* app_icon.png */; };
 		49540DC62E1C70A100886A08 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49540DC42E1C70A100886A08 /* ShareViewController.swift */; };
 		49540DC72E1C70A100886A08 /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 49540DC22E1C70A100886A08 /* MainInterface.storyboard */; };
+		499C9E4F2E40848600E424D7 /* SVGKit in Frameworks */ = {isa = PBXBuildFile; productRef = 499C9E4E2E40848600E424D7 /* SVGKit */; };
+		499C9E512E40848600E424D7 /* SVGKitSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 499C9E502E40848600E424D7 /* SVGKitSwift */; };
 		49D0F5732E1DE50F004BABB0 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 49D0F5722E1DE50F004BABB0 /* GoogleSignIn */; };
 		49F151FC2DE4BF3200573F48 /* Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49F151FB2DE4BF3200573F48 /* Persistence.swift */; };
 		49F1522F2DE4C42400573F48 /* ReminoraShareExt.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 49F152252DE4C42400573F48 /* ReminoraShareExt.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -126,6 +128,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				499C9E512E40848600E424D7 /* SVGKitSwift in Frameworks */,
+				499C9E4F2E40848600E424D7 /* SVGKit in Frameworks */,
 				49F152442DE4F3CA00573F48 /* CoreData.framework in Frameworks */,
 				49D0F5732E1DE50F004BABB0 /* GoogleSignIn in Frameworks */,
 				49FB00032E2FFBBB004BABB0 /* FacebookLogin in Frameworks */,
@@ -237,6 +241,8 @@
 				49D0F5722E1DE50F004BABB0 /* GoogleSignIn */,
 				49FB00022E2FFBBB004BABB0 /* FacebookLogin */,
 				49FB00042E2FFBBB004BABB0 /* FacebookCore */,
+				499C9E4E2E40848600E424D7 /* SVGKit */,
+				499C9E502E40848600E424D7 /* SVGKitSwift */,
 			);
 			productName = reminora;
 			productReference = 49F151EF2DE4BF3100573F48 /* reminora.app */;
@@ -345,6 +351,7 @@
 			packageReferences = (
 				49D0F56C2E1D5B6D004BABB0 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				49FB00012E2FFBBB004BABB0 /* XCRemoteSwiftPackageReference "facebook-ios-sdk" */,
+				499C9E4D2E40848600E424D7 /* XCRemoteSwiftPackageReference "SVGKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 49F151F02DE4BF3100573F48 /* Products */;
@@ -819,6 +826,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		499C9E4D2E40848600E424D7 /* XCRemoteSwiftPackageReference "SVGKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/SVGKit/SVGKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.0;
+			};
+		};
 		49D0F56C2E1D5B6D004BABB0 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
@@ -838,6 +853,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		499C9E4E2E40848600E424D7 /* SVGKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 499C9E4D2E40848600E424D7 /* XCRemoteSwiftPackageReference "SVGKit" */;
+			productName = SVGKit;
+		};
+		499C9E502E40848600E424D7 /* SVGKitSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 499C9E4D2E40848600E424D7 /* XCRemoteSwiftPackageReference "SVGKit" */;
+			productName = SVGKitSwift;
+		};
 		49D0F5722E1DE50F004BABB0 /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 49D0F56C2E1D5B6D004BABB0 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;

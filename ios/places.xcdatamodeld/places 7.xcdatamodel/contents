@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23788.4" systemVersion="24F74" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
-    <entity name="Comment" representedClassName="Comment" syncable="YES" codeGenerationType="class">
+    <entity name="PinComment" representedClassName="PinComment" syncable="YES" codeGenerationType="class">
         <attribute name="cloudId" optional="YES" attributeType="String"/>
         <attribute name="commentText" attributeType="String"/>
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>

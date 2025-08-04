@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 import Photos
 import UIKit
+import SVGKit
 
 // MARK: - UIColor Extension for Hex Colors
 extension UIColor {
@@ -44,55 +45,52 @@ class ECardTemplateService: ObservableObject {
     static let shared = ECardTemplateService()
     
     @Published private var templates: [ECardTemplate] = []
+    private var templatesLoaded = false
     
     private init() {
-        loadBuiltInTemplates()
+        // Templates will be loaded lazily on first access
     }
     
     // MARK: - Public Interface
     
     func getAllTemplates() -> [ECardTemplate] {
+        loadTemplatesIfNeeded()
         return templates
     }
     
     func getTemplate(id: String) -> ECardTemplate? {
+        loadTemplatesIfNeeded()
         return templates.first { $0.id == id }
     }
     
     func getTemplates(for category: ECardCategory) -> [ECardTemplate] {
+        loadTemplatesIfNeeded()
         return templates.filter { $0.category == category }
     }
     
     func getTemplateForAssets(_ assets: [PHAsset]) -> ECardTemplate? {
-        guard let firstAsset = assets.first else { return templates.first }
-        
-        let isLandscape = firstAsset.pixelWidth > firstAsset.pixelHeight
-        let templateSuffix = isLandscape ? "_landscape" : ""
-        
-        // Try to find orientation-specific template, fallback to default
-        let preferredId = "polaroid_classic\(templateSuffix)"
-        return getTemplate(id: preferredId) ?? templates.first
+        loadTemplatesIfNeeded()
+        // Return default template since all templates now handle both orientations
+        return getTemplate(id: "polaroid_classic") ?? templates.first
     }
     
     // MARK: - Template Loading
+    
+    private func loadTemplatesIfNeeded() {
+        guard !templatesLoaded else { return }
+        loadBuiltInTemplates()
+        templatesLoaded = true
+    }
     
     private func loadBuiltInTemplates() {
         print("🎨 ECardTemplateService: Loading built-in templates...")
         
         let templateDefinitions = [
-            // Portrait templates
             ("polaroid_classic", "Classic Polaroid", ECardCategory.polaroid),
             ("modern_gradient", "Modern Gradient", ECardCategory.modern),
             ("vintage_postcard", "Vintage Postcard", ECardCategory.vintage),
             ("restaurant_dining", "Restaurant", ECardCategory.general),
-            ("vacation_paradise", "Vacation", ECardCategory.travel),
-            
-            // Landscape templates
-            ("polaroid_classic_landscape", "Classic Polaroid Landscape", ECardCategory.polaroid),
-            ("modern_gradient_landscape", "Modern Gradient Landscape", ECardCategory.modern),
-            ("vintage_postcard_landscape", "Vintage Postcard Landscape", ECardCategory.vintage),
-            ("restaurant_dining_landscape", "Restaurant Landscape", ECardCategory.general),
-            ("vacation_paradise_landscape", "Vacation Landscape", ECardCategory.travel)
+            ("vacation_paradise", "Vacation", ECardCategory.travel)
         ]
         
         templates = templateDefinitions.compactMap { (filename, name, category) in
@@ -139,32 +137,32 @@ class ECardTemplateService: ObservableObject {
     private func parseImageSlots(from svgContent: String) -> [ImageSlot] {
         var imageSlots: [ImageSlot] = []
         
-        // Parse rect elements with id starting with "Image"
-        let imagePattern = #"<rect\s+id="(Image\d+)"\s+x="(\d+)"\s+y="(\d+)"\s+width="(\d+)"\s+height="(\d+)"(?:\s+rx="(\d+)")?"#
+        // Use SVGKit's DOM to find image elements
+        guard let svgImage = SVGKImage(data: svgContent.data(using: .utf8)),
+              let domDocument = svgImage.domDocument else {
+            print("⚠️ Failed to create SVGKImage or get DOM document")
+            return imageSlots
+        }
         
-        let regex = try? NSRegularExpression(pattern: imagePattern, options: [])
-        let nsString = svgContent as NSString
-        let results = regex?.matches(in: svgContent, options: [], range: NSRange(location: 0, length: nsString.length)) ?? []
-        
-        for result in results {
-            if result.numberOfRanges >= 6 {
-                let id = nsString.substring(with: result.range(at: 1))
-                let x = Double(nsString.substring(with: result.range(at: 2))) ?? 0
-                let y = Double(nsString.substring(with: result.range(at: 3))) ?? 0
-                let width = Double(nsString.substring(with: result.range(at: 4))) ?? 0
-                let height = Double(nsString.substring(with: result.range(at: 5))) ?? 0
-                let cornerRadius = result.numberOfRanges > 6 && result.range(at: 6).location != NSNotFound 
-                    ? Double(nsString.substring(with: result.range(at: 6))) ?? 0 
-                    : 0
+        // Look for image elements with IDs starting with "Image"
+        for i in 1...10 { // Support up to 10 image slots
+            let imageId = "Image\(i)"
+            if let imageElement = domDocument.getElementById(imageId) {
+                // Get attributes using string access - more reliable with SVGKit
+                let x = Double(imageElement.getAttribute("x") ?? "0") ?? 0
+                let y = Double(imageElement.getAttribute("y") ?? "0") ?? 0
+                let width = Double(imageElement.getAttribute("width") ?? "0") ?? 0
+                let height = Double(imageElement.getAttribute("height") ?? "0") ?? 0
                 
                 let imageSlot = ImageSlot(
-                    id: id,
+                    id: imageId,
                     x: x, y: y,
                     width: width, height: height,
-                    cornerRadius: cornerRadius,
+                    cornerRadius: 0, // Image elements don't have corner radius in SVG
                     preserveAspectRatio: true
                 )
                 imageSlots.append(imageSlot)
+                print("📍 Found image slot: \(imageId) at (\(x), \(y)) size \(width)x\(height)")
             }
         }
         
@@ -174,40 +172,122 @@ class ECardTemplateService: ObservableObject {
     private func parseTextSlots(from svgContent: String) -> [TextSlot] {
         var textSlots: [TextSlot] = []
         
-        // Parse text elements with id starting with "Text"
-        let textPattern = #"<text\s+id="(Text\d+)"\s+x="(\d+)"\s+y="(\d+)"[^>]*font-size="(\d+)"[^>]*>([^<]+)</text>"#
+        // Use SVGKit's DOM to find text elements
+        guard let svgImage = SVGKImage(data: svgContent.data(using: .utf8)),
+              let domDocument = svgImage.domDocument else {
+            print("⚠️ Failed to create SVGKImage or get DOM document")
+            return textSlots
+        }
         
-        let regex = try? NSRegularExpression(pattern: textPattern, options: [])
-        let nsString = svgContent as NSString
-        let results = regex?.matches(in: svgContent, options: [], range: NSRange(location: 0, length: nsString.length)) ?? []
-        
-        for result in results {
-            if result.numberOfRanges >= 6 {
-                let id = nsString.substring(with: result.range(at: 1))
-                let x = Double(nsString.substring(with: result.range(at: 2))) ?? 0
-                let y = Double(nsString.substring(with: result.range(at: 3))) ?? 0
-                let fontSize = Int(nsString.substring(with: result.range(at: 4))) ?? 16
-                let placeholder = nsString.substring(with: result.range(at: 5))
+        // Look for text elements with IDs starting with "Text"
+        for i in 1...10 { // Support up to 10 text slots
+            let textId = "Text\(i)"
+            if let textElement = domDocument.getElementById(textId) {
+                // Get coordinate attributes - SVGKit may have different API
+                let x = Double(textElement.getAttribute("x") ?? "0") ?? 0
+                let y = Double(textElement.getAttribute("y") ?? "0") ?? 0
+                let fontSize = Double(textElement.getAttribute("font-size") ?? "16") ?? 16
+                let placeholder = textElement.textContent ?? "Text here"
                 
                 // Estimate text dimensions based on font size
-                let width = Double(fontSize * placeholder.count + 50)
+                let charWidth = fontSize * 0.6
+                let estimatedWidth = charWidth * Double((placeholder as String).count) + 20
+                let width = estimatedWidth
                 let height = Double(fontSize + 10)
                 
                 let textSlot = TextSlot(
-                    id: id,
-                    x: x - width/2, y: y - Double(fontSize), // Adjust for text-anchor="middle"
+                    id: textId,
+                    x: x - width/2, y: y - fontSize, // Adjust for text-anchor="middle"
                     width: width, height: height,
-                    fontSize: Double(fontSize),
-                    fontFamily: "Arial", // Default fallback
+                    fontSize: fontSize,
+                    fontFamily: textElement.getAttribute("font-family") ?? "Arial",
                     textAlign: .center,
                     maxLines: 1,
-                    placeholder: placeholder
+                    placeholder: placeholder as String
                 )
                 textSlots.append(textSlot)
+                print("📝 Found text slot: \(textId) at (\(x), \(y)) text: '\(placeholder)'")
             }
         }
         
         return textSlots
+    }
+    
+    // MARK: - SVG DOM Manipulation
+    
+    func updateSVGWithImages(_ svgContent: String, imageAssignments: [String: UIImage]) -> String? {
+        guard let svgImage = SVGKImage(data: svgContent.data(using: .utf8)),
+              let domDocument = svgImage.domDocument else {
+            print("⚠️ Failed to create SVGKImage or get DOM document for image updates")
+            return svgContent
+        }
+        
+        // TODO: Implement proper DOM image updates
+        print("📝 Image assignments received: \(imageAssignments.keys)")
+        // for (slotId, image) in imageAssignments {
+        //     if let imageElement = domDocument.getElementById(slotId) {
+        //         // Convert UIImage to base64 data URL
+        //         if let imageData = image.jpegData(compressionQuality: 0.8) {
+        //             let base64String = imageData.base64EncodedString()
+        //             let dataURL = "data:image/jpeg;base64,\(base64String)"
+        //             
+        //             // Update the image element's href attribute
+        //             imageElement.setAttribute("href", value: dataURL)
+        //             print("🖼️ Updated image slot \(slotId) with base64 image data")
+        //         }
+        //     }
+        // }
+        
+        // Return the updated SVG content
+        // For now, return the original content since DOM manipulation is complex
+        // TODO: Implement proper SVG string generation from DOM
+        return svgContent
+    }
+    
+    func updateSVGWithText(_ svgContent: String, textAssignments: [String: String]) -> String? {
+        guard let svgImage = SVGKImage(data: svgContent.data(using: .utf8)),
+              let domDocument = svgImage.domDocument else {
+            print("⚠️ Failed to create SVGKImage or get DOM document for text updates")
+            return svgContent
+        }
+        
+        // TODO: Implement proper DOM text updates
+        print("📝 Text assignments received: \(textAssignments)")
+        // for (slotId, text) in textAssignments {
+        //     if let textElement = domDocument.getElementById(slotId) {
+        //         // Update text using setAttribute since textContent is read-only
+        //         if let firstChild = textElement.firstChild {
+        //             firstChild.nodeValue = text
+        //         } else {
+        //             // Create a new text node if none exists
+        //             let textNode = domDocument.createTextNode(text)
+        //             textElement.appendChild(textNode)
+        //         }
+        //         print("📝 Updated text slot \(slotId) with text: '\(text)'")
+        //     }
+        // }
+        
+        // Return the updated SVG content
+        // For now, return the original content since DOM manipulation is complex
+        // TODO: Implement proper SVG string generation from DOM
+        return svgContent
+    }
+    
+    func generateECardWithDOMUpdates(template: ECardTemplate, imageAssignments: [String: UIImage], textAssignments: [String: String], size: CGSize = CGSize(width: 800, height: 1000)) -> UIImage? {
+        var updatedSVGContent = template.svgContent
+        
+        // Update images using DOM manipulation
+        if !imageAssignments.isEmpty {
+            updatedSVGContent = updateSVGWithImages(updatedSVGContent, imageAssignments: imageAssignments) ?? updatedSVGContent
+        }
+        
+        // Update text using DOM manipulation
+        if !textAssignments.isEmpty {
+            updatedSVGContent = updateSVGWithText(updatedSVGContent, textAssignments: textAssignments) ?? updatedSVGContent
+        }
+        
+        // Render the final SVG to image
+        return renderSVGWithSVGKit(svgContent: updatedSVGContent, size: size)
     }
     
     
@@ -243,10 +323,29 @@ class ECardTemplateService: ObservableObject {
     // MARK: - SVG Thumbnail Generation
     
     func generateThumbnail(for template: ECardTemplate, size: CGSize = CGSize(width: 120, height: 150)) -> UIImage? {
-        return renderSVGToImage(svgContent: template.svgContent, size: size)
+        return renderSVGToImageWithWebView(svgContent: template.svgContent, size: size)
     }
     
-    private func renderSVGToImage(svgContent: String, size: CGSize) -> UIImage? {
+    private func renderSVGToImageWithWebView(svgContent: String, size: CGSize) -> UIImage? {
+        // Use SVGKit for proper SVG rendering
+        return renderSVGWithSVGKit(svgContent: svgContent, size: size)
+    }
+    
+    private func renderSVGWithSVGKit(svgContent: String, size: CGSize) -> UIImage? {
+        // Create SVGKImage from SVG content
+        guard let svgkImage = SVGKImage(data: svgContent.data(using: .utf8)) else {
+            print("⚠️ Failed to create SVGKImage from content")
+            return renderSVGToImageBasic(svgContent: svgContent, size: size)
+        }
+        
+        // Set the desired size
+        svgkImage.size = size
+        
+        // Get the UIImage
+        return svgkImage.uiImage
+    }
+    
+    private func renderSVGToImageBasic(svgContent: String, size: CGSize) -> UIImage? {
         // Create a simple renderer using UIGraphicsImageRenderer
         let renderer = UIGraphicsImageRenderer(size: size)
         

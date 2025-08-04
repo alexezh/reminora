@@ -1,43 +1,51 @@
-<svg viewBox="0 0 400 500" xmlns="http://www.w3.org/2000/svg">
-    <!-- Vintage postcard background -->
-    <rect x="0" y="0" width="400" height="500" fill="#f4e9d9"/>
-    
-    <!-- Aged paper texture -->
-    <rect x="0" y="0" width="400" height="500" fill="url(#vintageTexture)" opacity="0.3"/>
-    
-    <defs>
-        <pattern id="vintageTexture" patternUnits="userSpaceOnUse" width="20" height="20">
-            <rect width="20" height="20" fill="#e8dcc0"/>
-            <circle cx="5" cy="5" r="1" fill="#d4c4a8" opacity="0.5"/>
-            <circle cx="15" cy="15" r="0.5" fill="#c9b892" opacity="0.3"/>
-        </pattern>
-        
-        <filter id="vintageShadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="2" dy="2" stdDeviation="4" flood-color="#8b4513" flood-opacity="0.3"/>
-        </filter>
-    </defs>
-    
-    <!-- Postcard border -->
-    <rect x="15" y="15" width="370" height="470" fill="transparent" stroke="#8b4513" stroke-width="3" stroke-dasharray="5,5"/>
-    
-    <!-- Photo area with vintage frame -->
-    <rect x="35" y="35" width="330" height="280" fill="#ffffff" stroke="#8b4513" stroke-width="2"/>
-    <rect id="Image1" x="40" y="40" width="320" height="270" fill="#e8e8e8"/>
-    
-    <!-- Decorative corner elements -->
-    <polygon points="35,35 55,35 35,55" fill="#8b4513" opacity="0.7"/>
-    <polygon points="365,35 345,35 365,55" fill="#8b4513" opacity="0.7"/>
-    <polygon points="35,315 55,315 35,295" fill="#8b4513" opacity="0.7"/>
-    <polygon points="365,315 345,315 365,295" fill="#8b4513" opacity="0.7"/>
-    
-    <!-- Address line -->
-    <line x1="50" y1="360" x2="350" y2="360" stroke="#8b4513" stroke-width="1" opacity="0.5"/>
-    <line x1="50" y1="385" x2="350" y2="385" stroke="#8b4513" stroke-width="1" opacity="0.5"/>
-    
-    <!-- Text areas -->
-    <text id="Text1" x="200" y="345" text-anchor="middle" font-family="serif" font-size="18" font-weight="bold" fill="#8b4513">Memory</text>
-    
-    <!-- Vintage stamp area -->
-    <rect x="320" y="400" width="60" height="80" fill="transparent" stroke="#8b4513" stroke-width="2" stroke-dasharray="3,2"/>
-    <text x="350" y="445" text-anchor="middle" font-family="serif" font-size="10" fill="#8b4513">STAMP</text>
+<svg viewBox="0 0 100 100" width="400" height="500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="vintageTexture" patternUnits="userSpaceOnUse" width="4" height="4">
+      <rect width="4" height="4" fill="#f4e9d9"/>
+      <circle cx="1" cy="1" r="0.2" fill="#d4c4a8" opacity="0.5"/>
+    </pattern>
+  </defs>
+  
+  <!-- Aged paper background -->
+  <rect x="0" y="0" width="100" height="100" fill="url(#vintageTexture)"/>
+  
+  <!-- Postcard border -->
+  <rect x="3" y="3" width="94" height="94" fill="transparent" stroke="#8b4513" stroke-width="0.6" stroke-dasharray="1,1"/>
+  
+  <!-- Photo area with vintage frame -->
+  <rect x="8" y="8" width="84" height="60" fill="white" stroke="#8b4513" stroke-width="0.4"/>
+  <image
+    id="Image1"
+    href="https://via.placeholder.com/150"
+    x="10"
+    y="10"
+    width="80"
+    height="56"
+    preserveAspectRatio="xMidYMid slice"
+  />
+
+  <!-- Address lines -->
+  <line x1="10" y1="75" x2="90" y2="75" stroke="#8b4513" stroke-width="0.2" opacity="0.6"/>
+  <line x1="10" y1="80" x2="90" y2="80" stroke="#8b4513" stroke-width="0.2" opacity="0.6"/>
+  
+  <!-- Text area -->
+  <text
+    id="Text1"
+    x="50"
+    y="87"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-size="5"
+    font-family="serif"
+    fill="#8b4513"
+  >
+    Vintage memory
+  </text>
+  
+  <!-- Corner decorations -->
+  <polygon points="8,8 12,8 8,12" fill="#8b4513" opacity="0.4"/>
+  <polygon points="92,8 88,8 92,12" fill="#8b4513" opacity="0.4"/>
+  
+  <!-- Stamp area -->
+  <rect x="80" y="75" width="12" height="15" fill="transparent" stroke="#8b4513" stroke-width="0.3" stroke-dasharray="0.5,0.3"/>
 </svg>

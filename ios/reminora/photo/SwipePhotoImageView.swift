@@ -14,6 +14,7 @@ import CoreData
 import MapKit
 import CoreLocation
 
+// main image in swipe photo view
 struct SwipePhotoImageView: View {
     let asset: PHAsset
     @Binding var isLoading: Bool

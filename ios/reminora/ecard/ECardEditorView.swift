@@ -180,7 +180,7 @@ struct ECardEditorView: View {
                         editText(for: slot)
                     }
                 )
-                .frame(width: 300, height: 375) // Maintain aspect ratio
+                .frame(width: 320, height: 400) // 4:5 aspect ratio to match SVG (400x500)
                 .background(Color.white)
                 .cornerRadius(12)
                 .shadow(radius: 8)
@@ -392,25 +392,27 @@ private struct TextEditorView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                ForEach(textSlots) { slot in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(slot.id)
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        
-                        TextField(slot.placeholder, text: Binding(
-                            get: { textAssignments[slot.id] ?? slot.placeholder },
-                            set: { textAssignments[slot.id] = $0 }
-                        ))
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .font(.system(size: CGFloat(slot.fontSize)))
+            ScrollView {
+                VStack(spacing: 16) {
+                    ForEach(textSlots) { slot in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(slot.id.capitalized)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.primary)
+                            
+                            TextField(slot.placeholder, text: Binding(
+                                get: { textAssignments[slot.id] ?? slot.placeholder },
+                                set: { textAssignments[slot.id] = $0 }
+                            ))
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .font(.system(size: max(16, CGFloat(slot.fontSize) * 1.5))) // Larger, more readable font
+                        }
+                        .padding(.horizontal, 4)
                     }
                 }
-                
-                Spacer()
+                .padding()
             }
-            .padding()
             .navigationTitle("Edit Text")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -422,6 +424,8 @@ private struct TextEditorView: View {
                 }
             }
         }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
 

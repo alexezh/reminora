@@ -139,7 +139,7 @@ class ECardTemplateService: ObservableObject {
         
         // Use SVGKit's DOM to find image elements
         guard let svgImage = SVGKImage(data: svgContent.data(using: .utf8)),
-              let domDocument = svgImage.domDocument else {
+              let _ = svgImage.domDocument else {
             print("⚠️ Failed to create SVGKImage or get DOM document")
             return imageSlots
         }
@@ -174,7 +174,7 @@ class ECardTemplateService: ObservableObject {
         
         // Use SVGKit's DOM to find text elements
         guard let svgImage = SVGKImage(data: svgContent.data(using: .utf8)),
-              let domDocument = svgImage.domDocument else {
+              let _ = svgImage.domDocument else {
             print("⚠️ Failed to create SVGKImage or get DOM document")
             return textSlots
         }
@@ -217,7 +217,7 @@ class ECardTemplateService: ObservableObject {
     
     func updateSVGWithImages(_ svgContent: String, imageAssignments: [String: UIImage]) -> String? {
         guard let svgImage = SVGKImage(data: svgContent.data(using: .utf8)),
-              let domDocument = svgImage.domDocument else {
+              let _ = svgImage.domDocument else {
             print("⚠️ Failed to create SVGKImage or get DOM document for image updates")
             return svgContent
         }
@@ -246,7 +246,7 @@ class ECardTemplateService: ObservableObject {
     
     func updateSVGWithText(_ svgContent: String, textAssignments: [String: String]) -> String? {
         guard let svgImage = SVGKImage(data: svgContent.data(using: .utf8)),
-              let domDocument = svgImage.domDocument else {
+              let _ = svgImage.domDocument else {
             print("⚠️ Failed to create SVGKImage or get DOM document for text updates")
             return svgContent
         }
@@ -294,19 +294,19 @@ class ECardTemplateService: ObservableObject {
     private func loadSVGFromFile(_ filename: String) -> String? {
         // Try loading from bundle first
         if let path = Bundle.main.path(forResource: filename, ofType: "svg"),
-           let svgContent = try? String(contentsOfFile: path) {
+           let svgContent = try? String(contentsOfFile: path, encoding: .utf8) {
             return svgContent
         }
         
         // Try loading from ecard subdirectory
         if let path = Bundle.main.path(forResource: filename, ofType: "svg", inDirectory: "ecard"),
-           let svgContent = try? String(contentsOfFile: path) {
+           let svgContent = try? String(contentsOfFile: path, encoding: .utf8) {
             return svgContent
         }
         
         // Try loading directly from filesystem (development)
         let projectPath = "/Users/alexezh/prj/wahi/ios/reminora/ecard/\(filename).svg"
-        if let svgContent = try? String(contentsOfFile: projectPath) {
+        if let svgContent = try? String(contentsOfFile: projectPath, encoding: .utf8) {
             return svgContent
         }
         
@@ -341,7 +341,29 @@ class ECardTemplateService: ObservableObject {
         // Set the desired size
         svgkImage.size = size
         
-        // Get the UIImage
+        // Force SVGKit to use our custom PPI
+        if let caLayer = svgkImage.caLayerTree {
+            // Create a bitmap context with proper scale
+            let scale = UIScreen.main.scale
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = scale
+            format.opaque = false
+            
+            let renderer = UIGraphicsImageRenderer(size: size, format: format)
+            return renderer.image { context in
+                let cgContext = context.cgContext
+                
+                // Clear background to white for better visibility
+                cgContext.setFillColor(UIColor.white.cgColor)
+                cgContext.fill(CGRect(origin: .zero, size: size))
+                
+                // Scale the layer to fit the target size
+                caLayer.frame = CGRect(origin: .zero, size: size)
+                caLayer.render(in: cgContext)
+            }
+        }
+        
+        // Fallback to standard rendering
         return svgkImage.uiImage
     }
     

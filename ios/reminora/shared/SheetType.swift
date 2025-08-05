@@ -17,7 +17,7 @@ enum SheetType: Identifiable, Equatable {
     case userProfile(userId: String, userName: String, userHandle: String)
     case similarPhotos(targetAsset: PHAsset)
     case duplicatePhotos(targetAsset: PHAsset)
-    case photoSimilarity(targetAsset: PHAsset)
+    //case photoSimilarity(targetAsset: PHAsset)
     case quickList
     case allLists
     case shareSheet(text: String, url: String)
@@ -28,7 +28,7 @@ enum SheetType: Identifiable, Equatable {
     case comments(targetPhotoId: String)
     case editAddresses(initialAddresses: [PlaceAddress], onSave: ([PlaceAddress]) -> Void)
     case eCardEditor(assets: [PHAsset])
-    
+
     var id: String {
         switch self {
         case .addPinFromPhoto(let asset):
@@ -43,8 +43,8 @@ enum SheetType: Identifiable, Equatable {
             return "similarPhotos_\(targetAsset.localIdentifier)"
         case .duplicatePhotos(let targetAsset):
             return "duplicatePhotos_\(targetAsset.localIdentifier)"
-        case .photoSimilarity(let targetAsset):
-            return "photoSimilarity_\(targetAsset.localIdentifier)"
+        // case .photoSimilarity(let targetAsset):
+        //     return "photoSimilarity_\(targetAsset.localIdentifier)"
         case .quickList:
             return "quickList"
         case .allLists:
@@ -67,7 +67,7 @@ enum SheetType: Identifiable, Equatable {
             return "eCardEditor_\(assets.map { $0.localIdentifier }.joined(separator: "_"))"
         }
     }
-    
+
     static func == (lhs: SheetType, rhs: SheetType) -> Bool {
         return lhs.id == rhs.id
     }
@@ -78,25 +78,25 @@ struct SheetConfiguration {
     let presentationDetents: [PresentationDetent]
     let dismissible: Bool
     let backgroundInteraction: Bool
-    
+
     static let `default` = SheetConfiguration(
         presentationDetents: [.medium, .large],
         dismissible: true,
         backgroundInteraction: false
     )
-    
+
     static let fullScreen = SheetConfiguration(
         presentationDetents: [.large],
         dismissible: true,
         backgroundInteraction: false
     )
-    
+
     static let compact = SheetConfiguration(
         presentationDetents: [.height(400), .medium],
         dismissible: true,
         backgroundInteraction: false
     )
-    
+
     static let large = SheetConfiguration(
         presentationDetents: [.medium, .large],
         dismissible: true,
@@ -114,7 +114,7 @@ extension SheetType {
             return .fullScreen
         case .userProfile:
             return .fullScreen
-        case .similarPhotos, .duplicatePhotos, .photoSimilarity:
+        case .similarPhotos, .duplicatePhotos:  //, .photoSimilarity:
             return .fullScreen
         case .quickList, .allLists:
             return .large
@@ -132,11 +132,11 @@ extension SheetType {
             return .fullScreen
         }
     }
-    
+
     var allowsBackgroundDismissal: Bool {
         switch self {
         case .addPinFromPhoto, .addPinFromLocation, .editAddresses, .selectLocations:
-            return false // Don't allow accidental dismissal for forms
+            return false  // Don't allow accidental dismissal for forms
         default:
             return true
         }

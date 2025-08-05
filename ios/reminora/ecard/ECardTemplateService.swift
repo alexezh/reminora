@@ -139,7 +139,7 @@ class ECardTemplateService: ObservableObject {
         
         // Use SVGKit's DOM to find image elements
         guard let svgImage = SVGKImage(data: svgContent.data(using: .utf8)),
-              let _ = svgImage.domDocument else {
+              let domDocument = svgImage.domDocument else {
             print("⚠️ Failed to create SVGKImage or get DOM document")
             return imageSlots
         }
@@ -174,7 +174,7 @@ class ECardTemplateService: ObservableObject {
         
         // Use SVGKit's DOM to find text elements
         guard let svgImage = SVGKImage(data: svgContent.data(using: .utf8)),
-              let _ = svgImage.domDocument else {
+              let domDocument = svgImage.domDocument else {
             print("⚠️ Failed to create SVGKImage or get DOM document")
             return textSlots
         }

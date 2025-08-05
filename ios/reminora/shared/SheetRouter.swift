@@ -83,8 +83,8 @@ struct SheetRouter: View {
         case .duplicatePhotos(let targetAsset):
             PhotoSimilarityView(targetAsset: targetAsset)
 
-        case .photoSimilarity(let targetAsset):
-            PhotoSimilarityView(targetAsset: targetAsset)
+        // case .photoSimilarity(let targetAsset):
+        //     PhotoSimilarityView(targetAsset: targetAsset)
 
         case .quickList:
             QuickListWrapperView()

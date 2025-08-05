@@ -474,9 +474,9 @@ struct SwipePhotoView: View {
                                             // Handle horizontal swipe for navigation
                                             swipeOffset = translationX * 0.3 // Damped swipe offset
                                             
-                                            // Handle vertical swipe for dismiss (only down)
+                                            // Handle vertical swipe for dismiss (only down) - provide visual feedback
                                             if translationY > 0 {
-                                                verticalOffset = translationY * 0.8 // More responsive for dismiss
+                                                verticalOffset = min(translationY * 0.5, 200) // Damped feedback with max limit
                                             }
                                             
                                             if abs(translationX) > 20 || abs(translationY) > 20 {
@@ -489,16 +489,12 @@ struct SwipePhotoView: View {
                                             // Check for swipe down to dismiss first
                                             let translationY = value.translation.height
                                             let translationX = value.translation.width
+                                            let velocityY = value.velocity.height
                                             let isVerticalSwipe = abs(translationY) > abs(translationX)
                                             
-                                            if isVerticalSwipe && translationY > 150 { // Swipe down threshold
-                                                // Dismiss with animation
-                                                withAnimation(.easeOut(duration: 0.3)) {
-                                                    verticalOffset = UIScreen.main.bounds.height
-                                                }
-                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                                    onDismiss()
-                                                }
+                                            if isVerticalSwipe && (translationY > 150 || velocityY > 800) { // Distance or velocity threshold
+                                                // Dismiss immediately - let parent handle animation
+                                                onDismiss()
                                                 return
                                             }
                                             
@@ -715,11 +711,15 @@ struct SwipePhotoView: View {
             // Reset ActionSheet context - will be set by parent view
         }
         .onChange(of: currentIndex) { _, _ in
-            updateQuickListStatus()
-            updateFavoriteStatus()
-            updateToolbar(true)
-            // Update current photo in service for ActionSheet integration
+            // Update current photo immediately for gesture responsiveness
             selectedAssetService.setCurrentPhoto(currentAsset)
+            
+            // Debounce expensive operations to improve performance
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                updateQuickListStatus()
+                updateFavoriteStatus()
+                updateToolbar(true)
+            }
         }
         .navigationBarHidden(true)
     }
@@ -928,12 +928,19 @@ struct SwipePhotoView: View {
                 color: isFavorite ? .red : .primary
             ),
             ToolbarButtonConfig(
+                id: "similar",
+                title: "Find Similar",
+                systemImage: "photo.stack",
+                actionType: .findSimilar(currentAsset),
+                color: .green
+            ),
+            ToolbarButtonConfig(
                 id: "quick",
                 title: "Quick List",
                 systemImage: isInQuickList ? "plus.square.fill" : "plus.square",
                 action: toggleQuickList, // Keep custom action for now since it updates local state
                 color: isInQuickList ? .orange : .primary
-            ),
+            )
 //            ToolbarButtonConfig(
 //                id: "addpin",
 //                title: "Add Pin",

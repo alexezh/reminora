@@ -562,44 +562,95 @@ private struct SVGPreviewView: View {
     let onImageSlotTapped: (ImageSlot) -> Void
     let onTextSlotTapped: (TextSlot) -> Void
     
+    @State private var renderedImage: UIImage?
+    @State private var isLoading = false
+    
     var body: some View {
         ZStack {
-            // For now, show a simplified preview
-            // In a real implementation, you'd render the SVG with actual images
-            Rectangle()
-                .fill(Color.white)
-                .overlay(
-                    VStack {
-                        Text("SVG Preview")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        
-                        Text(template.name)
-                            .font(.headline)
-                            .padding()
-                        
-                        // Show image slots
-                        ForEach(template.imageSlots) { slot in
-                            ImageSlotPreview(
-                                slot: slot,
-                                assignedAsset: imageAssignments[slot.id],
-                                onTap: { onImageSlotTapped(slot) }
-                            )
-                        }
-                        
-                        Spacer()
-                        
-                        // Show text content
-                        ForEach(template.textSlots) { slot in
-                            Text(textAssignments[slot.id] ?? slot.placeholder)
-                                .font(.system(size: CGFloat(slot.fontSize)))
-                                .multilineTextAlignment(.center)
-                                .onTapGesture {
-                                    onTextSlotTapped(slot)
-                                }
-                        }
+            if let renderedImage = renderedImage {
+                // Show the actual rendered SVG
+                Image(uiImage: renderedImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .onTapGesture { coordinate in
+                        handleTap(at: coordinate)
                     }
-                )
+            } else {
+                // Loading state
+                Rectangle()
+                    .fill(Color.white)
+                    .overlay(
+                        VStack {
+                            if isLoading {
+                                ProgressView()
+                                    .scaleEffect(1.2)
+                                Text("Rendering...")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .padding(.top, 8)
+                            } else {
+                                Text(template.name)
+                                    .font(.headline)
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                    )
+            }
+        }
+        .onAppear {
+            renderPreview()
+        }
+        .onChange(of: template.id) { _, _ in
+            renderPreview()
+        }
+        .onChange(of: imageAssignments) { _, _ in
+            renderPreview()
+        }
+        .onChange(of: textAssignments) { _, _ in
+            renderPreview()
+        }
+    }
+    
+    private func renderPreview() {
+        isLoading = true
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            // Generate preview using ECardEditor's image generation logic
+            ECardEditor.shared.generateECardImage(
+                template: template,
+                imageAssignments: imageAssignments,
+                textAssignments: textAssignments
+            ) { result in
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    switch result {
+                    case .success(let image):
+                        self.renderedImage = image
+                    case .failure(let error):
+                        print("❌ Failed to render SVG preview: \(error)")
+                        // Keep existing image or show error
+                    }
+                }
+            }
+        }
+    }
+    
+    private func handleTap(at location: CGPoint) {
+        // Convert tap coordinates to SVG coordinates and find the appropriate slot
+        // This is a simplified implementation - in a real app you'd need proper coordinate transformation
+        
+        // For now, just trigger the first image slot when tapped in the upper area
+        // and text slot when tapped in the lower area
+        let normalizedY = location.y / 375.0 // Assuming 375 height
+        
+        if normalizedY < 0.7 { // Upper area - image slots
+            if let firstImageSlot = template.imageSlots.first {
+                onImageSlotTapped(firstImageSlot)
+            }
+        } else { // Lower area - text slots
+            if let firstTextSlot = template.textSlots.first {
+                onTextSlotTapped(firstTextSlot)
+            }
         }
     }
 }

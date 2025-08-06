@@ -239,7 +239,6 @@ struct PhotoMainView: View {
                     RListView(
                         dataSource: .photoLibrary(photoAssets),
                         isSelectionMode: isSelectionMode,
-                        selectedAssets: selectedAssetService.selectedPhotoIdentifiers,
                         onPhotoTap: { asset in
                             if isSelectionMode {
                                 toggleAssetSelection(asset)

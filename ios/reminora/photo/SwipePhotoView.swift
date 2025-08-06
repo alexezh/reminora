@@ -431,8 +431,8 @@ struct SwipePhotoView: View {
             // Show the main content immediately
             if true {
                 GeometryReader { geometry in
-                    VStack(spacing: 0) {
-                        // Main photo area - two-image swipe animation system
+                    ZStack {
+                        // Main photo area - takes available space minus thumbnail and toolbar area
                         if !displayAssets.isEmpty && currentIndex < displayAssets.count {
                             ZStack {
                                 // Current image
@@ -463,6 +463,7 @@ struct SwipePhotoView: View {
                                         .animation(.easeOut(duration: 0.25), value: previousImageOffset)
                                 }
                             }
+                            .padding(.bottom, LayoutConstants.thumbnailHeight + 20 + LayoutConstants.totalToolbarHeight + 16) // Reserve space for thumbnails + toolbar
                                 .gesture(
                                     // Combined gesture for tap, long press, and swipe
                                     DragGesture(minimumDistance: 0)
@@ -551,9 +552,12 @@ struct SwipePhotoView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                         
-                        // Thumbnail scroll view positioned right below the photo
-                        ScrollViewReader { scrollProxy in
-                            ScrollView(.horizontal, showsIndicators: false) {
+                        // Thumbnail area positioned at bottom of screen
+                        VStack {
+                            Spacer() // Push thumbnails to bottom
+                            
+                            ScrollViewReader { scrollProxy in
+                                ScrollView(.horizontal, showsIndicators: false) {
                                 LazyHStack(spacing: 0) { // Remove default spacing
                                     ForEach(Array(displayAssets.enumerated()), id: \.element.localIdentifier) { index, asset in
                                         let stackInfo = getStackInfo(for: asset)
@@ -602,11 +606,8 @@ struct SwipePhotoView: View {
                                 }
                             }
                         }
-                        .padding(.top, 20) // Space between photo and thumbnails
-                        .padding(.bottom, LayoutConstants.totalToolbarHeight + 16) // Space above toolbar with extra margin
-                        
-                        // Spacer to push content above toolbar
-                        Spacer()
+                        .padding(.bottom, LayoutConstants.totalToolbarHeight + 16) // Reserve space for toolbar
+                        }
                     }
                     
                 }
@@ -978,100 +979,4 @@ struct PhotoMapAnnotationItem: Identifiable {
     let coordinate: CLLocationCoordinate2D
 }
 
-// MARK: - ThumbnailView
-struct ThumbnailView: View {
-    let asset: PHAsset
-    let isSelected: Bool
-    let stackInfo: (stack: PhotoStack?, isStack: Bool, count: Int)
-    let onTap: () -> Void
-    
-    @State private var image: UIImage?
-    
-    var body: some View {
-        Button(action: onTap) {
-            ZStack {
-                if let image = image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 60, height: 60)
-                        .clipped()
-                        .cornerRadius(8)
-                        .scaleEffect(isSelected ? 1.2 : 1.0) // Scale selected thumbnail 20% bigger
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(isSelected ? Color.white : Color.clear, lineWidth: isSelected ? 3 : 0)
-                                .shadow(color: isSelected ? Color.white.opacity(0.5) : Color.clear, radius: isSelected ? 4 : 0)
-                        )
-                        .animation(.easeInOut(duration: 0.2), value: isSelected)
-                } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 60, height: 60)
-                        .cornerRadius(8)
-                        .overlay(
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(0.5)
-                        )
-                }
-                
-                // Stack indicator
-                if stackInfo.isStack {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            ZStack {
-                                Circle()
-                                    .fill(Color.black.opacity(0.8))
-                                    .frame(width: 16, height: 16)
-                                
-                                Text("\(stackInfo.count)")
-                                    .font(.caption2)
-                                    .fontWeight(.medium)
-                                    .foregroundColor(.white)
-                            }
-                        }
-                        Spacer()
-                    }
-                    .padding(2)
-                }
-            }
-        }
-        .buttonStyle(PlainButtonStyle())
-        .task {
-            await loadThumbnail()
-        }
-    }
-    
-    private func loadThumbnail() async {
-        let options = PHImageRequestOptions()
-        options.deliveryMode = .opportunistic
-        options.resizeMode = .fast
-        options.isNetworkAccessAllowed = true
-        
-        await withCheckedContinuation { continuation in
-            var hasResumed = false
-            
-            PHImageManager.default().requestImage(
-                for: asset,
-                targetSize: CGSize(width: 120, height: 120),
-                contentMode: .aspectFill,
-                options: options
-            ) { image, info in
-                guard !hasResumed else { return }
-                
-                let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
-                
-                if !isDegraded {
-                    hasResumed = true
-                    self.image = image
-                    continuation.resume()
-                } else if image == nil {
-                    hasResumed = true
-                    continuation.resume()
-                }
-            }
-        }
-    }
-}
+

@@ -12,18 +12,17 @@ import Photos
 struct RListPhotoView: View {
     @ObservedObject var photoStack: RPhotoStack
     let isSelectionMode: Bool
-    let selectedAssets: Set<String>
     let onTap: () -> Void
+    
+    @Environment(\.selectedAssetService) private var selectedAssetService
     
     init(
         photoStack: RPhotoStack,
         isSelectionMode: Bool = false,
-        selectedAssets: Set<String> = [],
         onTap: @escaping () -> Void
     ) {
         self.photoStack = photoStack
         self.isSelectionMode = isSelectionMode
-        self.selectedAssets = selectedAssets
         self.onTap = onTap
     }
     
@@ -158,14 +157,14 @@ struct RListPhotoView: View {
     
     private var isSelected: Bool {
         if photoStack.isSinglePhoto {
-            return selectedAssets.contains(photoStack.primaryAsset.localIdentifier)
+            return selectedAssetService.isPhotoSelected(photoStack.primaryAsset.localIdentifier)
         } else {
-            return photoStack.isFullySelected(selectedAssets: selectedAssets)
+            return photoStack.isFullySelected(selectedAssets: selectedAssetService.selectedPhotoIdentifiers)
         }
     }
     
     private var isPartiallySelected: Bool {
-        return !photoStack.isSinglePhoto && photoStack.isPartiallySelected(selectedAssets: selectedAssets)
+        return !photoStack.isSinglePhoto && photoStack.isPartiallySelected(selectedAssets: selectedAssetService.selectedPhotoIdentifiers)
     }
     
     private var selectionIconName: String {

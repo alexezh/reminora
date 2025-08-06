@@ -16,7 +16,6 @@ import MapKit
 struct RListRowView: View {
     let row: RListRow
     let isSelectionMode: Bool
-    let selectedAssets: Set<String>
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (PinData) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
@@ -34,7 +33,6 @@ struct RListRowView: View {
                     RListPhotoView(
                         photoStack: photoStack,
                         isSelectionMode: isSelectionMode,
-                        selectedAssets: selectedAssets,
                         onTap: {
                             if photoStack.isSinglePhoto {
                                 onPhotoTap(photoStack.primaryAsset)
@@ -68,7 +66,6 @@ struct RListRowView: View {
                                 RListPhotoView(
                                     photoStack: photoStack,
                                     isSelectionMode: isSelectionMode,
-                                    selectedAssets: selectedAssets,
                                     onTap: {
                                         if photoStack.isSinglePhoto {
                                             onPhotoTap(photoStack.primaryAsset)

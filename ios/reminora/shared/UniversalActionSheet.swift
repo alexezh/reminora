@@ -27,6 +27,11 @@ struct UniversalActionSheet: View {
     @State private var isActivelyScrolling: Bool = false
     @State private var scrollEndTimer: Timer?
 
+    // Helper computed properties
+    private var hasSelectedAssets: Bool {
+        return selectedAssetService.selectedPhotoCount > 0
+    }
+
     init(
         selectedTab: String,
         onRefreshLists: @escaping () -> Void,
@@ -223,39 +228,39 @@ struct UniversalActionSheet: View {
     @ViewBuilder
     private func photosTabActions() -> some View {
         ActionListItem(
-            icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled
+            icon: "archivebox", title: "Archive", isEnabled: hasSelectedAssets, hasScrolled: $hasScrolled
         ) {
             dismiss()
             ActionRouter.shared.execute(.archive)
         }
         ActionListItem(
-            icon: "trash", title: "Delete", isEnabled: true, isDestructive: true,
+            icon: "trash", title: "Delete", isEnabled: hasSelectedAssets, isDestructive: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
             ActionRouter.shared.execute(.delete)
         }
         ActionListItem(
-            icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled
+            icon: "doc.on.doc", title: "Duplicate", isEnabled: hasSelectedAssets, hasScrolled: $hasScrolled
         ) {
             dismiss()
             ActionRouter.shared.execute(.duplicate)
         }
         ActionListItem(
-            icon: "plus.square", title: "Add to Quick List", isEnabled: true,
+            icon: "plus.square", title: "Add to Quick List", isEnabled: hasSelectedAssets,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
             ActionRouter.shared.execute(.addToQuickList)
         }
         ActionListItem(
-            icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled
+            icon: "rectangle.stack", title: "Make ECard", isEnabled: hasSelectedAssets, hasScrolled: $hasScrolled
         ) {
             dismiss()
             ActionRouter.shared.execute(.makeECard([]))
         }
         ActionListItem(
-            icon: "magnifyingglass", title: "Find Similar", isEnabled: true,
+            icon: "magnifyingglass", title: "Find Similar", isEnabled: hasSelectedAssets,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
@@ -516,6 +521,13 @@ struct UniversalActionSheet: View {
         ) {
             dismiss()
             ActionRouter.shared.execute(.makeECard([]))
+        }
+        ActionListItem(
+            icon: "magnifyingglass", title: "Find Similar", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.findSimilar(nil))
         }
         ActionListItem(
             icon: "mappin.and.ellipse", title: "Add Pin", isEnabled: true,

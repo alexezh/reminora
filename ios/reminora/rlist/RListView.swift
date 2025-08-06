@@ -114,12 +114,11 @@ struct RListView: View {
     
     // Selection mode support
     let isSelectionMode: Bool
-    let selectedAssets: Set<String>
+    @Environment(\.selectedAssetService) private var selectedAssetService
     
     init(
         dataSource: RListDataSource,
         isSelectionMode: Bool = false,
-        selectedAssets: Set<String> = [],
         onPhotoTap: @escaping (PHAsset) -> Void,
         onPinTap: @escaping (PinData) -> Void,
         onPhotoStackTap: @escaping ([PHAsset]) -> Void,
@@ -129,7 +128,6 @@ struct RListView: View {
     ) {
         self.dataSource = dataSource
         self.isSelectionMode = isSelectionMode
-        self.selectedAssets = selectedAssets
         self.onPhotoTap = onPhotoTap
         self.onPinTap = onPinTap
         self.onPhotoStackTap = onPhotoStackTap
@@ -160,7 +158,6 @@ struct RListView: View {
                         RListSectionView(
                             section: section,
                             isSelectionMode: isSelectionMode,
-                            selectedAssets: selectedAssets,
                             onPhotoTap: onPhotoTap,
                             onPinTap: onPinTap,
                             onPhotoStackTap: onPhotoStackTap,
@@ -234,7 +231,6 @@ struct RListView: View {
 struct RListSectionView: View {
     let section: RListDateSection
     let isSelectionMode: Bool
-    let selectedAssets: Set<String>
     let onPhotoTap: (PHAsset) -> Void
     let onPinTap: (PinData) -> Void
     let onPhotoStackTap: ([PHAsset]) -> Void
@@ -262,7 +258,6 @@ struct RListSectionView: View {
                     RListRowView(
                         row: row,
                         isSelectionMode: isSelectionMode,
-                        selectedAssets: selectedAssets,
                         onPhotoTap: onPhotoTap,
                         onPinTap: onPinTap,
                         onPhotoStackTap: onPhotoStackTap,

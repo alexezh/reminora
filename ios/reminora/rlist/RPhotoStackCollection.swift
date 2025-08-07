@@ -251,6 +251,16 @@ class RPhotoStackCollection: ObservableObject, RandomAccessCollection {
         }
     }
     
+    /// Get stack information for an asset - returns stack details and metadata
+    func getStackInfo(for asset: PHAsset) -> (stack: RPhotoStack?, isStack: Bool, count: Int) {
+        for stack in stacks {
+            if stack.assets.contains(where: { $0.localIdentifier == asset.localIdentifier }) {
+                return (stack: stack, isStack: stack.assets.count > 1, count: stack.assets.count)
+            }
+        }
+        return (stack: nil, isStack: false, count: 1)
+    }
+    
     /// Filter stacks based on a predicate
     func filteredStacks(_ predicate: (RPhotoStack) -> Bool) -> [RPhotoStack] {
         return stacks.filter(predicate)
@@ -261,6 +271,25 @@ class RPhotoStackCollection: ObservableObject, RandomAccessCollection {
     /// Get all individual photos as a flat array
     func allAssets() -> [PHAsset] {
         return stacks.flatMap { $0.assets }
+    }
+    
+    /// Build display assets array considering expanded stacks
+    /// Expanded stacks show individual photos, collapsed stacks show primary asset only
+    func buildDisplayAssets() -> [PHAsset] {
+        var assets: [PHAsset] = []
+        
+        for stack in stacks {
+            let stackId = stack.id
+            if stack.assets.count > 1 && expandedStackIds.contains(stackId) {
+                // Expanded stack - add all photos
+                assets.append(contentsOf: stack.assets)
+            } else {
+                // Single photo or collapsed stack - add primary asset only
+                assets.append(stack.primaryAsset)
+            }
+        }
+        
+        return assets
     }
     
     /// Get stacks that contain multiple photos (actual stacks)

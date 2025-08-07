@@ -28,6 +28,34 @@ struct ECardTemplate: Identifiable, Codable {
         self.textSlots = textSlots
         self.category = category
     }
+    
+    /// Calculate aspect ratio from SVG viewBox
+    var aspectRatio: Double {
+        return svgDimensions.width / svgDimensions.height
+    }
+    
+    /// Calculate SVG dimensions based on photo dimensions with padding
+    /// +10% on sides and top, +20% on bottom
+    var svgDimensions: CGSize {
+        // Get the main photo dimensions from the first image slot
+        guard let firstImageSlot = imageSlots.first else {
+            // Fallback to standard 4:5 aspect ratio
+            return CGSize(width: 400, height: 500)
+        }
+        
+        let photoWidth = firstImageSlot.width
+        let photoHeight = firstImageSlot.height
+        
+        // Calculate ECard dimensions with padding
+        let sidePadding = photoWidth * 0.1  // 10% padding on each side
+        let topPadding = photoHeight * 0.1  // 10% padding on top
+        let bottomPadding = photoHeight * 0.2  // 20% padding on bottom
+        
+        let ecardWidth = photoWidth + (sidePadding * 2)  // Photo width + padding on both sides
+        let ecardHeight = photoHeight + topPadding + bottomPadding  // Photo height + top and bottom padding
+        
+        return CGSize(width: ecardWidth, height: ecardHeight)
+    }
 }
 
 // MARK: - Image Slot

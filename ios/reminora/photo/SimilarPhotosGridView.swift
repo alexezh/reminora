@@ -102,11 +102,11 @@ struct SimilarPhotosGridView: View {
         .overlay(
             Group {
                 if showingSwipeView, let photo = selectedPhoto {
-                    // Create a temporary RPhotoStack for single photo display  
+                    // Create a temporary RPhotoStackCollection for single photo display  
                     let singlePhotoStack = RPhotoStack(assets: [photo])
+                    let tempCollection = RPhotoStackCollection(stacks: [singlePhotoStack])
                     SwipePhotoView(
-                        allAssets: [photo],
-                        photoStacks: [singlePhotoStack],
+                        photoStackCollection: tempCollection,
                         initialAssetId: photo.localIdentifier,
                         onDismiss: {
                             withAnimation(.easeInOut(duration: 0.2)) {

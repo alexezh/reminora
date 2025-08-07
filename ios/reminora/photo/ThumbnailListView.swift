@@ -10,9 +10,7 @@ import Photos
 
 /// A horizontal scrollable list of photo thumbnails with stack expansion support
 struct ThumbnailListView: View {
-    let displayAssets: [PHAsset]
-    let photoStacks: [RPhotoStack]
-    let expandedStacks: Set<String>
+    @ObservedObject var photoStackCollection: RPhotoStackCollection
     @Binding var currentIndex: Int
     
     let onThumbnailTap: (Int) -> Void
@@ -23,8 +21,8 @@ struct ThumbnailListView: View {
         ScrollViewReader { scrollProxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 0) { // Remove default spacing
-                    ForEach(Array(displayAssets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                        let stackInfo = getStackInfo(for: asset)
+                    ForEach(Array(photoStackCollection.allAssets().enumerated()), id: \.element.localIdentifier) { index, asset in
+                        let stackInfo = photoStackCollection.getStackInfo(for: asset)
                         let (leadingSpacing, trailingSpacing) = getThumbnailSpacing(for: asset, at: index)
                         
                         HStack(spacing: 0) {
@@ -54,10 +52,11 @@ struct ThumbnailListView: View {
             }
             .frame(height: LayoutConstants.thumbnailHeight)
             .onChange(of: currentIndex) { _, newIndex in
-                guard newIndex >= 0 && newIndex < displayAssets.count else { return }
+                let allAssets = photoStackCollection.allAssets()
+                guard newIndex >= 0 && newIndex < allAssets.count else { return }
                 // Smooth scroll to new thumbnail with spring animation
                 withAnimation(.interpolatingSpring(stiffness: 200, damping: 20)) {
-                    scrollProxy.scrollTo(displayAssets[newIndex].localIdentifier, anchor: .center)
+                    scrollProxy.scrollTo(allAssets[newIndex].localIdentifier, anchor: .center)
                 }
             }
         }
@@ -68,27 +67,18 @@ struct ThumbnailListView: View {
     private func handleThumbnailTap(index: Int, stackInfo: (stack: RPhotoStack?, isStack: Bool, count: Int)) {
         // Handle tap - if it's a stack indicator, expand/collapse
         if stackInfo.isStack && stackInfo.count > 1 {
-            let stackId = stackInfo.stack!.id
-            if expandedStacks.contains(stackId) {
-                onStackCollapse(stackInfo.stack)
-            } else {
+            // Toggle stack expansion - collection handles the logic internally
+            if photoStackCollection.toggleStackExpansion(stackInfo.stack!.id) {
                 onStackExpand(stackInfo.stack)
+            } else {
+                onStackCollapse(stackInfo.stack)
             }
         }
         onThumbnailTap(index)
     }
     
-    private func getStackInfo(for asset: PHAsset) -> (stack: RPhotoStack?, isStack: Bool, count: Int) {
-        for stack in photoStacks {
-            if stack.assets.contains(where: { $0.localIdentifier == asset.localIdentifier }) {
-                return (stack: stack, isStack: stack.assets.count > 1, count: stack.assets.count)
-            }
-        }
-        return (stack: nil, isStack: false, count: 1)
-    }
-    
     private func getThumbnailSpacing(for asset: PHAsset, at index: Int) -> (leading: CGFloat, trailing: CGFloat) {
-        let stackInfo = getStackInfo(for: asset)
+        let stackInfo = photoStackCollection.getStackInfo(for: asset)
         
         // Half photo width for separation (30px since thumbnail is 60px)
         let halfPhotoSpacing: CGFloat = 30
@@ -107,7 +97,7 @@ struct ThumbnailListView: View {
         }
         
         let stackId = stack.id
-        let isExpanded = expandedStacks.contains(stackId)
+        let isExpanded = photoStackCollection.isStackExpanded(stackId)
         
         if !isExpanded {
             // Collapsed stack - use normal spacing, add extra for selected
@@ -149,9 +139,7 @@ struct ThumbnailListView: View {
 struct ThumbnailListView_Previews: PreviewProvider {
     static var previews: some View {
         ThumbnailListView(
-            displayAssets: [],
-            photoStacks: [],
-            expandedStacks: Set<String>(),
+            photoStackCollection: RPhotoStackCollection(),
             currentIndex: .constant(0),
             onThumbnailTap: { _ in },
             onStackExpand: { _ in },

@@ -41,7 +41,7 @@ struct ECardEditorView: View {
                 // Template selection section at bottom
                 templateSelectionSection
             }
-            .padding(.top, 60) // Space for back button
+            .padding(.top, 20) // Reduced space for back button
             .padding(.bottom, 100) // Space for FAB
             
             // Back button - top left
@@ -180,7 +180,9 @@ struct ECardEditorView: View {
                         editText(for: slot)
                     }
                 )
-                .frame(width: 320, height: 400) // 4:5 aspect ratio to match SVG (400x500)
+                .aspectRatio(template.aspectRatio, contentMode: .fit)
+                .frame(maxWidth: 320, maxHeight: 400)
+                .clipped()
                 .background(Color.white)
                 .cornerRadius(12)
                 .shadow(radius: 8)
@@ -194,32 +196,6 @@ struct ECardEditorView: View {
             }
         }
         .padding(16)
-    }
-    
-    // MARK: - Image Assignment Section
-    
-    private func imageAssignmentSection(template: ECardTemplate) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Images")
-                .font(.headline)
-                .foregroundColor(.primary)
-            
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(template.imageSlots) { slot in
-                        ImageSlotCard(
-                            slot: slot,
-                            assignedAsset: eCardEditor.imageAssignments[slot.id],
-                            onTap: {
-                                selectedImageSlot = slot
-                                showingImagePicker = true
-                            }
-                        )
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-        }
     }
     
     // MARK: - Text Editing Section
@@ -484,242 +460,55 @@ private struct TemplateCard: View {
     
     private func generateThumbnail() {
         DispatchQueue.global(qos: .userInitiated).async {
-            let thumbnail = templateService.generateThumbnail(for: template, size: CGSize(width: 80, height: 100))
+            let thumbnailSize = CGSize(width: 80, height: 100)
+            
+            // Generate a simple thumbnail showing the template structure
+            let renderer = UIGraphicsImageRenderer(size: thumbnailSize)
+            let thumbnail = renderer.image { context in
+                let cgContext = context.cgContext
+                
+                // Light gray background
+                cgContext.setFillColor(UIColor.systemGray6.cgColor)
+                cgContext.fill(CGRect(origin: .zero, size: thumbnailSize))
+                
+                // Calculate scale factor from template dimensions to thumbnail size
+                let templateSize = self.template.svgDimensions
+                let scaleX = thumbnailSize.width / templateSize.width
+                let scaleY = thumbnailSize.height / templateSize.height
+                let scale = min(scaleX, scaleY)
+                
+                // Center the content
+                let scaledWidth = templateSize.width * scale
+                let scaledHeight = templateSize.height * scale
+                let offsetX = (thumbnailSize.width - scaledWidth) / 2
+                let offsetY = (thumbnailSize.height - scaledHeight) / 2
+                
+                cgContext.translateBy(x: offsetX, y: offsetY)
+                cgContext.scaleBy(x: scale, y: scale)
+                
+                // Draw image slot placeholders
+                cgContext.setFillColor(UIColor.systemGray4.cgColor)
+                for slot in self.template.imageSlots {
+                    let rect = CGRect(x: slot.x, y: slot.y, width: slot.width, height: slot.height)
+                    if slot.cornerRadius > 0 {
+                        let path = UIBezierPath(roundedRect: rect, cornerRadius: slot.cornerRadius)
+                        cgContext.addPath(path.cgPath)
+                        cgContext.fillPath()
+                    } else {
+                        cgContext.fill(rect)
+                    }
+                }
+                
+                // Draw text slot indicators
+                cgContext.setFillColor(UIColor.systemGray3.cgColor)
+                for slot in self.template.textSlots {
+                    let rect = CGRect(x: slot.x, y: slot.y, width: slot.width, height: 4)
+                    cgContext.fill(rect)
+                }
+            }
+            
             DispatchQueue.main.async {
                 self.thumbnailImage = thumbnail
-            }
-        }
-    }
-}
-
-private struct ImageSlotCard: View {
-    let slot: ImageSlot
-    let assignedAsset: PHAsset?
-    let onTap: () -> Void
-    
-    @State private var thumbnailImage: UIImage?
-    
-    var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 4) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(.systemGray5))
-                        .frame(width: 60, height: 60)
-                    
-                    if let image = thumbnailImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 60, height: 60)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                    } else {
-                        Image(systemName: "photo")
-                            .foregroundColor(.gray)
-                    }
-                }
-                
-                Text(slot.id)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .buttonStyle(PlainButtonStyle())
-        .onAppear {
-            loadThumbnail()
-        }
-        .onChange(of: assignedAsset) { _, _ in
-            loadThumbnail()
-        }
-    }
-    
-    private func loadThumbnail() {
-        guard let asset = assignedAsset else {
-            thumbnailImage = nil
-            return
-        }
-        
-        let imageManager = PHImageManager.default()
-        let options = PHImageRequestOptions()
-        options.isSynchronous = false
-        options.deliveryMode = .opportunistic
-        
-        imageManager.requestImage(
-            for: asset,
-            targetSize: CGSize(width: 120, height: 120),
-            contentMode: .aspectFill,
-            options: options
-        ) { image, _ in
-            DispatchQueue.main.async {
-                self.thumbnailImage = image
-            }
-        }
-    }
-}
-
-// MARK: - SVG Preview View
-
-private struct SVGPreviewView: View {
-    let template: ECardTemplate
-    let imageAssignments: [String: PHAsset]
-    let textAssignments: [String: String]
-    let onImageSlotTapped: (ImageSlot) -> Void
-    let onTextSlotTapped: (TextSlot) -> Void
-    
-    @State private var renderedImage: UIImage?
-    @State private var isLoading = false
-    
-    var body: some View {
-        ZStack {
-            if let renderedImage = renderedImage {
-                // Show the actual rendered SVG
-                Image(uiImage: renderedImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .onTapGesture { coordinate in
-                        handleTap(at: coordinate)
-                    }
-            } else {
-                // Loading state
-                Rectangle()
-                    .fill(Color.white)
-                    .overlay(
-                        VStack {
-                            if isLoading {
-                                ProgressView()
-                                    .scaleEffect(1.2)
-                                Text("Rendering...")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .padding(.top, 8)
-                            } else {
-                                Text(template.name)
-                                    .font(.headline)
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                    )
-            }
-        }
-        .onAppear {
-            renderPreview()
-        }
-        .onChange(of: template.id) { _, _ in
-            renderPreview()
-        }
-        .onChange(of: imageAssignments) { _, _ in
-            renderPreview()
-        }
-        .onChange(of: textAssignments) { _, _ in
-            renderPreview()
-        }
-    }
-    
-    private func renderPreview() {
-        isLoading = true
-        
-        DispatchQueue.global(qos: .userInitiated).async {
-            // Generate preview using ECardEditor's image generation logic
-            ECardEditor.shared.generateECardImage(
-                template: template,
-                imageAssignments: imageAssignments,
-                textAssignments: textAssignments
-            ) { result in
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    switch result {
-                    case .success(let image):
-                        self.renderedImage = image
-                    case .failure(let error):
-                        print("❌ Failed to render SVG preview: \(error)")
-                        // Keep existing image or show error
-                    }
-                }
-            }
-        }
-    }
-    
-    private func handleTap(at location: CGPoint) {
-        // Convert tap coordinates to SVG coordinates and find the appropriate slot
-        // This is a simplified implementation - in a real app you'd need proper coordinate transformation
-        
-        // For now, just trigger the first image slot when tapped in the upper area
-        // and text slot when tapped in the lower area
-        let normalizedY = location.y / 375.0 // Assuming 375 height
-        
-        if normalizedY < 0.7 { // Upper area - image slots
-            if let firstImageSlot = template.imageSlots.first {
-                onImageSlotTapped(firstImageSlot)
-            }
-        } else { // Lower area - text slots
-            if let firstTextSlot = template.textSlots.first {
-                onTextSlotTapped(firstTextSlot)
-            }
-        }
-    }
-}
-
-private struct ImageSlotPreview: View {
-    let slot: ImageSlot
-    let assignedAsset: PHAsset?
-    let onTap: () -> Void
-    
-    @State private var image: UIImage?
-    
-    var body: some View {
-        Button(action: onTap) {
-            ZStack {
-                Rectangle()
-                    .fill(Color(.systemGray5))
-                    .frame(width: 200, height: 150)
-                
-                if let image = image {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 200, height: 150)
-                        .clipped()
-                } else {
-                    VStack {
-                        Image(systemName: "photo")
-                            .font(.title)
-                            .foregroundColor(.gray)
-                        Text("Tap to add photo")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
-                }
-            }
-            .cornerRadius(CGFloat(slot.cornerRadius))
-        }
-        .buttonStyle(PlainButtonStyle())
-        .onAppear {
-            loadImage()
-        }
-        .onChange(of: assignedAsset) { _, _ in
-            loadImage()
-        }
-    }
-    
-    private func loadImage() {
-        guard let asset = assignedAsset else {
-            image = nil
-            return
-        }
-        
-        let imageManager = PHImageManager.default()
-        let options = PHImageRequestOptions()
-        options.isSynchronous = false
-        options.deliveryMode = .highQualityFormat
-        
-        imageManager.requestImage(
-            for: asset,
-            targetSize: CGSize(width: 400, height: 300),
-            contentMode: .aspectFill,
-            options: options
-        ) { loadedImage, _ in
-            DispatchQueue.main.async {
-                self.image = loadedImage
             }
         }
     }

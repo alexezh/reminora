@@ -12,8 +12,7 @@ struct PhotoMainView: View {
     @Environment(\.selectedAssetService) private var selectedAssetService
     @Environment(\.sheetStack) private var sheetStack
     @Binding var isSwipePhotoViewOpen: Bool
-    @State private var photoAssets: [PHAsset] = []
-    @State private var filteredPhotoStacks: [RPhotoStack] = []
+    @StateObject private var photoStackCollection = RPhotoStackCollection()
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
     @State private var selectedStack: RPhotoStack?
     @State private var selectedStackIndex = 0
@@ -205,7 +204,7 @@ struct PhotoMainView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if authorizationStatus == .authorized || authorizationStatus == .limited {
 
-                if filteredPhotoStacks.isEmpty && isCoreDataReady {
+                if photoStackCollection.isEmpty && isCoreDataReady {
                     // Show empty state with retry option
                     VStack(spacing: 20) {
                         Image(systemName: "photo.stack")
@@ -235,9 +234,9 @@ struct PhotoMainView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding()
                 } else {
-                    // Use RListView to display photos with date separators
+                    // Use RListView to display photos with date separators  
                     RListView(
-                        dataSource: .photoLibrary(photoAssets),
+                        dataSource: .photoLibrary(photoStackCollection.allAssets()),
                         isSelectionMode: isSelectionMode,
                         onPhotoTap: { asset in
                             if isSelectionMode {
@@ -394,8 +393,7 @@ struct PhotoMainView: View {
         .overlay {
             if let selectedStack = selectedStack {
                 SwipePhotoView(
-                    allAssets: photoAssets,
-                    photoStacks: filteredPhotoStacks,
+                    photoStackCollection: photoStackCollection,
                     initialAssetId: selectedStack.primaryAsset.localIdentifier,
                     onDismiss: {
                         print("SwipePhotoView dismissed")
@@ -474,7 +472,6 @@ struct PhotoMainView: View {
 
         DispatchQueue.main.async {
             allPhotoAssets = assets
-            photoAssets = assets
             applyFilter()
         }
     }
@@ -507,10 +504,9 @@ struct PhotoMainView: View {
             print("Search text: '\(searchText)' - would implement metadata search here")
         }
 
-        // Apply preferences filter and update photoAssets
+        // Apply preferences filter
         let preferenceFilteredAssets = preferenceManager.getFilteredAssets(
             from: filteredAssets, filter: currentFilter)
-        photoAssets = preferenceFilteredAssets
 
         // Create photo stacks for empty state check
         createPhotoStacks(from: preferenceFilteredAssets)
@@ -526,9 +522,6 @@ struct PhotoMainView: View {
             from: allPhotoAssets, filter: currentFilter)
         print("Filtered to \(filteredAssets.count) assets")
 
-        // Update photoAssets with filtered results - RListView will handle stacking internally
-        photoAssets = filteredAssets
-
         // Create photo stacks for empty state check
         createPhotoStacks(from: filteredAssets)
     }
@@ -539,7 +532,7 @@ struct PhotoMainView: View {
         Task {
             let stacks = await createSimilarityBasedStacks(from: assets)
             await MainActor.run {
-                self.filteredPhotoStacks = stacks
+                self.photoStackCollection.setStacks(stacks)
                 print("Created \(stacks.count) photo stacks using similarity")
             }
         }

@@ -214,9 +214,9 @@ struct RListDetailView: View {
         // Present SwipePhotoView when a photo is selected - MUST use overlay, not fullScreenCover
         .overlay {
             if let selectedPhotoStack = selectedPhotoStack {
+                let tempCollection = RPhotoStackCollection(stacks: [selectedPhotoStack])
                 SwipePhotoView(
-                    allAssets: selectedPhotoStack.assets,
-                    photoStacks: [selectedPhotoStack], // Temporary single stack
+                    photoStackCollection: tempCollection,
                     initialAssetId: selectedPhotoStack.primaryAsset.localIdentifier,
                     onDismiss: {
                         self.selectedPhotoStack = nil

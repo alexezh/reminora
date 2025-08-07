@@ -16,8 +16,7 @@ import CoreLocation
 
 // presented as overlay; takes whole screen
 struct SwipePhotoView: View {
-    let allAssets: [PHAsset] // Full list of all photos
-    let photoStacks: [RPhotoStack] // Stack information
+    @ObservedObject var photoStackCollection: RPhotoStackCollection
     let initialAssetId: String // Initial asset to display
     let onDismiss: () -> Void
     
@@ -25,7 +24,6 @@ struct SwipePhotoView: View {
     @Environment(\.toolbarManager) private var toolbarManager
     @Environment(\.selectedAssetService) private var selectedAssetService
     @State private var currentIndex: Int = 0
-    @State private var expandedStacks: Set<String> = [] // Track which stacks are expanded
     @State private var showingMenu = false
     @State private var shareData: PhotoShareData?
     @State private var isLoading = false
@@ -37,7 +35,6 @@ struct SwipePhotoView: View {
     @State private var showingMap = false
     @State private var isFavorite = false
     @State private var showingActionSheet = false
-    @State private var displayAssets: [PHAsset] = [] // Assets to display (includes expanded stacks)
     @State private var verticalOffset: CGFloat = 0 // For swipe down to dismiss
     
     // Two-image animation state
@@ -54,103 +51,32 @@ struct SwipePhotoView: View {
     
     @StateObject private var photoSharingService = PhotoSharingService.shared
     
-    init(allAssets: [PHAsset], photoStacks: [RPhotoStack], initialAssetId: String, onDismiss: @escaping () -> Void) {
-        self.allAssets = allAssets
-        self.photoStacks = photoStacks
+    init(photoStackCollection: RPhotoStackCollection, initialAssetId: String, onDismiss: @escaping () -> Void) {
+        self._photoStackCollection = ObservedObject(wrappedValue: photoStackCollection)
         self.initialAssetId = initialAssetId
         self.onDismiss = onDismiss
     }
     
     private var currentAsset: PHAsset {
-        guard currentIndex >= 0 && currentIndex < displayAssets.count else {
+        let allAssets = photoStackCollection.allAssets()
+        guard currentIndex >= 0 && currentIndex < allAssets.count else {
             return allAssets.first ?? PHAsset()
         }
-        return displayAssets[currentIndex]
+        return allAssets[currentIndex]
     }
     
-    // Helper function to get stack info for an asset
-    private func getStackInfo(for asset: PHAsset) -> (stack: RPhotoStack?, isStack: Bool, count: Int) {
-        for stack in photoStacks {
-            if stack.assets.contains(where: { $0.localIdentifier == asset.localIdentifier }) {
-                return (stack: stack, isStack: stack.assets.count > 1, count: stack.assets.count)
-            }
-        }
-        return (stack: nil, isStack: false, count: 1)
-    }
     
-    // Build display assets based on expanded stacks
-    private func buildDisplayAssets() {
-        var assets: [PHAsset] = []
-        
-        for stack in photoStacks {
-            let stackId = stack.id
-            if stack.assets.count > 1 && expandedStacks.contains(stackId) {
-                // Stack is expanded - add all assets with separation
-                assets.append(contentsOf: stack.assets)
-            } else {
-                // Single asset or collapsed stack - add primary asset only
-                assets.append(stack.primaryAsset)
-            }
-        }
-        
-        displayAssets = assets
-        
-        // Don't try to update currentIndex here to avoid circular dependency
-        print("buildDisplayAssets: Built \(displayAssets.count) display assets")
-    }
     
     // Expand a stack to show all photos
     private func expandStack(_ stack: RPhotoStack?) {
         guard let stack = stack else { return }
-        let stackId = stack.id
-        
-        // Store current asset to maintain position
-        let currentAsset = displayAssets.count > currentIndex ? displayAssets[currentIndex] : nil
-        
-        expandedStacks.insert(stackId)
-        buildDisplayAssets()
-        
-        // Update currentIndex to maintain current photo position
-        if let currentAsset = currentAsset,
-           let newIndex = displayAssets.firstIndex(where: { $0.localIdentifier == currentAsset.localIdentifier }) {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                currentIndex = newIndex
-            }
-        }
-        
-        print("Expanded stack \(stackId) - now showing \(displayAssets.count) assets")
+        photoStackCollection.expandStack(stack.id)
     }
     
     // Collapse a stack
     private func collapseStack(_ stack: RPhotoStack?) {
         guard let stack = stack else { return }
-        let stackId = stack.id
-        
-        // Store current asset to maintain position
-        let currentAsset = displayAssets.count > currentIndex ? displayAssets[currentIndex] : nil
-        
-        expandedStacks.remove(stackId)
-        buildDisplayAssets()
-        
-        // Update currentIndex - if current photo was part of collapsed stack, 
-        // move to stack's primary asset
-        if let currentAsset = currentAsset {
-            if let newIndex = displayAssets.firstIndex(where: { $0.localIdentifier == currentAsset.localIdentifier }) {
-                // Current photo still exists in display
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    currentIndex = newIndex
-                }
-            } else if stack.assets.contains(where: { $0.localIdentifier == currentAsset.localIdentifier }) {
-                // Current photo was part of collapsed stack - move to primary asset
-                if let primaryIndex = displayAssets.firstIndex(where: { $0.localIdentifier == stack.primaryAsset.localIdentifier }) {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        currentIndex = primaryIndex
-                    }
-                }
-            }
-        }
-        
-        print("Collapsed stack \(stackId) - now showing \(displayAssets.count) assets")
+        photoStackCollection.collapseStack(stack.id)
     }
     
     // Trigger photo transition animation
@@ -170,7 +96,8 @@ struct SwipePhotoView: View {
     // MARK: - Two-Image Animation Helpers
     
     private func prepareNextImage() {
-        guard currentIndex + 1 < displayAssets.count else { 
+        let displayAssets = photoStackCollection.allAssets()
+        guard currentIndex + 1 < photoStackCollection.allAssets().count else { 
             nextAsset = nil
             return 
         }
@@ -179,6 +106,7 @@ struct SwipePhotoView: View {
     }
     
     private func preparePreviousImage() {
+        let displayAssets = photoStackCollection.allAssets()
         guard currentIndex > 0 else { 
             previousAsset = nil
             return 
@@ -221,15 +149,15 @@ struct SwipePhotoView: View {
     
     // Handle swipe navigation with stack boundary respect
     private func handleStackBoundarySwipe(_ translationWidth: CGFloat) {
-        let currentAsset = displayAssets[currentIndex]
-        let currentStackInfo = getStackInfo(for: currentAsset)
+        let currentAsset = photoStackCollection.allAssets()[currentIndex]
+        let currentStackInfo = photoStackCollection.getStackInfo(for: currentAsset)
         
         if translationWidth > 0 {
             // Swipe right (go to previous photo)
             if currentIndex > 0 {
                 // Check if we're in an expanded stack and hitting boundary
                 if let stack = currentStackInfo.stack,
-                   expandedStacks.contains(stack.id),
+                   photoStackCollection.isStackExpanded(stack.id),
                    let firstStackAsset = stack.assets.first,
                    currentAsset.localIdentifier == firstStackAsset.localIdentifier {
                     // At beginning of expanded stack - don't go further
@@ -242,10 +170,10 @@ struct SwipePhotoView: View {
             }
         } else {
             // Swipe left (go to next photo)
-            if currentIndex < displayAssets.count - 1 {
+            if currentIndex < photoStackCollection.allAssets().count - 1 {
                 // Check if we're in an expanded stack and hitting boundary
                 if let stack = currentStackInfo.stack,
-                   expandedStacks.contains(stack.id),
+                   photoStackCollection.isStackExpanded(stack.id),
                    let lastStackAsset = stack.assets.last,
                    currentAsset.localIdentifier == lastStackAsset.localIdentifier {
                     // At end of expanded stack - don't go further with regular swipe
@@ -261,12 +189,12 @@ struct SwipePhotoView: View {
     
     // Handle long-pull navigation (closes stack and moves to next)
     private func handleLongPullNavigation(_ translationWidth: CGFloat) {
-        let currentAsset = displayAssets[currentIndex]
-        let currentStackInfo = getStackInfo(for: currentAsset)
+        let currentAsset = photoStackCollection.allAssets()[currentIndex]
+        let currentStackInfo = photoStackCollection.getStackInfo(for: currentAsset)
         
         // If we're in an expanded stack at the boundary, close it and move
         if let stack = currentStackInfo.stack,
-           expandedStacks.contains(stack.id) {
+           photoStackCollection.isStackExpanded(stack.id) {
             
             if translationWidth < 0, // Left swipe
                let lastStackAsset = stack.assets.last,
@@ -277,7 +205,7 @@ struct SwipePhotoView: View {
                 
                 // Move to next photo after stack collapse
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    if self.currentIndex < self.displayAssets.count - 1 {
+                    if self.currentIndex < self.photoStackCollection.allAssets().count - 1 {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             self.currentIndex += 1
                         }
@@ -315,15 +243,15 @@ struct SwipePhotoView: View {
     
     // Move to previous stack or photo
     private func moveToPreviousStack() {
-        let currentAsset = displayAssets[currentIndex]
-        let currentStackInfo = getStackInfo(for: currentAsset)
+        let currentAsset = photoStackCollection.allAssets()[currentIndex]
+        let currentStackInfo = photoStackCollection.getStackInfo(for: currentAsset)
         
         // Find previous stack boundary
         if let currentStack = currentStackInfo.stack {
             // If in a stack, move to first photo before this stack
             let stackAssets = currentStack.assets
             if let firstStackAsset = stackAssets.first,
-               let firstStackIndex = displayAssets.firstIndex(where: { $0.localIdentifier == firstStackAsset.localIdentifier }),
+               let firstStackIndex = photoStackCollection.allAssets().firstIndex(where: { $0.localIdentifier == firstStackAsset.localIdentifier }),
                firstStackIndex > 0 {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     currentIndex = firstStackIndex - 1
@@ -341,23 +269,23 @@ struct SwipePhotoView: View {
     
     // Move to next stack or photo (long pull/press action)
     private func moveToNextStack() {
-        let currentAsset = displayAssets[currentIndex]
-        let currentStackInfo = getStackInfo(for: currentAsset)
+        let currentAsset = photoStackCollection.allAssets()[currentIndex]
+        let currentStackInfo = photoStackCollection.getStackInfo(for: currentAsset)
         
         // Find next stack boundary
         if let currentStack = currentStackInfo.stack {
             // If in a stack, move to first photo after this stack
             let stackAssets = currentStack.assets
             if let lastStackAsset = stackAssets.last,
-               let lastStackIndex = displayAssets.firstIndex(where: { $0.localIdentifier == lastStackAsset.localIdentifier }),
-               lastStackIndex + 1 < displayAssets.count {
+               let lastStackIndex = photoStackCollection.allAssets().firstIndex(where: { $0.localIdentifier == lastStackAsset.localIdentifier }),
+               lastStackIndex + 1 < photoStackCollection.allAssets().count {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     currentIndex = lastStackIndex + 1
                 }
             }
         } else {
             // If single photo, just move to next photo
-            if currentIndex + 1 < displayAssets.count {
+            if currentIndex + 1 < photoStackCollection.allAssets().count {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     currentIndex += 1
                 }
@@ -378,11 +306,11 @@ struct SwipePhotoView: View {
                     let availableHeight = screenGeometry.size.height - LayoutConstants.totalToolbarHeight
                     ZStack {
                         // Main photo area - scales within available height
-                        if !displayAssets.isEmpty && currentIndex < displayAssets.count {
+                        if !photoStackCollection.allAssets().isEmpty && currentIndex < photoStackCollection.allAssets().count {
                             ZStack {
                                 // Current image
-                                let currentStackInfo = getStackInfo(for: displayAssets[currentIndex])
-                                SwipePhotoImageView(asset: displayAssets[currentIndex], isLoading: $isLoading, stackInfo: currentStackInfo)
+                                let currentStackInfo = photoStackCollection.getStackInfo(for: photoStackCollection.allAssets()[currentIndex])
+                                SwipePhotoImageView(asset: photoStackCollection.allAssets()[currentIndex], isLoading: $isLoading, stackInfo: currentStackInfo)
                                     .scaleEffect(photoTransition ? 0.9 : 1.0)
                                     .offset(x: swipeOffset, y: verticalOffset)
                                     .opacity(photoTransition ? 0.7 : (isAnimatingToNext || isAnimatingToPrevious ? 0.0 : 1.0))
@@ -394,7 +322,7 @@ struct SwipePhotoView: View {
                                 
                                 // Next image (slides in from right)
                                 if let nextAsset = nextAsset, isAnimatingToNext {
-                                    let nextStackInfo = getStackInfo(for: nextAsset)
+                                    let nextStackInfo = photoStackCollection.getStackInfo(for: nextAsset)
                                     SwipePhotoImageView(asset: nextAsset, isLoading: .constant(false), stackInfo: nextStackInfo)
                                         .offset(x: nextImageOffset, y: 0)
                                         .animation(.easeOut(duration: 0.25), value: nextImageOffset)
@@ -402,7 +330,7 @@ struct SwipePhotoView: View {
                                 
                                 // Previous image (slides in from left)
                                 if let previousAsset = previousAsset, isAnimatingToPrevious {
-                                    let prevStackInfo = getStackInfo(for: previousAsset)
+                                    let prevStackInfo = photoStackCollection.getStackInfo(for: previousAsset)
                                     SwipePhotoImageView(asset: previousAsset, isLoading: .constant(false), stackInfo: prevStackInfo)
                                         .offset(x: previousImageOffset, y: 0)
                                         .animation(.easeOut(duration: 0.25), value: previousImageOffset)
@@ -456,10 +384,10 @@ struct SwipePhotoView: View {
                                             
                                             if distance < 10 {
                                                 // Tap gesture - check for stack
-                                                let stackInfo = getStackInfo(for: displayAssets[currentIndex])
+                                                let stackInfo = photoStackCollection.getStackInfo(for: photoStackCollection.allAssets()[currentIndex])
                                                 if stackInfo.isStack && stackInfo.count > 1 {
                                                     let stackId = stackInfo.stack!.id
-                                                    if expandedStacks.contains(stackId) {
+                                                    if photoStackCollection.isStackExpanded(stackId) {
                                                         collapseStack(stackInfo.stack)
                                                     } else {
                                                         expandStack(stackInfo.stack)
@@ -502,9 +430,7 @@ struct SwipePhotoView: View {
                             Spacer() // Push thumbnails to bottom
                             
                             ThumbnailListView(
-                                displayAssets: displayAssets,
-                                photoStacks: photoStacks,
-                                expandedStacks: expandedStacks,
+                                photoStackCollection: photoStackCollection,
                                 currentIndex: $currentIndex,
                                 onThumbnailTap: { index in
                                     currentIndex = index
@@ -584,18 +510,17 @@ struct SwipePhotoView: View {
         }
         } // Close screenGeometry GeometryReader
         .onAppear {
-            print("SwipePhotoView onAppear called with \(allAssets.count) total assets and \(photoStacks.count) stacks")
+            print("SwipePhotoView onAppear called with \(photoStackCollection.allAssets().count) total assets and \(photoStackCollection.count) stacks")
             isLoading = true
             
             // Set ActionSheet context for SwipePhotoView
             UniversalActionSheetModel.shared.setContext(.swipePhoto)
             
             // Use allAssets directly to avoid expensive stack processing
-            displayAssets = allAssets
-            print("Using allAssets directly: \(displayAssets.count) assets - virtualized loading")
+            print("Using allAssets directly: \(photoStackCollection.allAssets().count) assets - virtualized loading")
             
             // Find initial index based on initialAssetId
-            if let initialIndex = displayAssets.firstIndex(where: { $0.localIdentifier == initialAssetId }) {
+            if let initialIndex = photoStackCollection.allAssets().firstIndex(where: { $0.localIdentifier == initialAssetId }) {
                 currentIndex = initialIndex
                 print("Set currentIndex to \(currentIndex) for asset \(initialAssetId)")
             } else {

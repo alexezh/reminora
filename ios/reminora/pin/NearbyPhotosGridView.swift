@@ -1056,9 +1056,9 @@ struct NearbyPhotosMainView: View {
         .overlay(
             Group {
                 if let selectedStack = selectedStack {
+                    let tempCollection = RPhotoStackCollection(stacks: [selectedStack])
                     SwipePhotoView(
-                        allAssets: selectedStack.assets,
-                        photoStacks: [selectedStack],
+                        photoStackCollection: tempCollection,
                         initialAssetId: selectedStack.assets[selectedStackIndex].localIdentifier,
                         onDismiss: {
                             withAnimation(.easeInOut(duration: 0.2)) {

@@ -338,10 +338,10 @@ class ECardTemplateService: ObservableObject {
             return renderSVGToImageBasic(svgContent: svgContent, size: size)
         }
         
-        // Set the desired size
+        // Set the desired size to match the control
         svgkImage.size = size
         
-        // Force SVGKit to use our custom PPI
+        // Force SVGKit to scale to the exact target size
         if let caLayer = svgkImage.caLayerTree {
             // Create a bitmap context with proper scale
             let scale = UIScreen.main.scale
@@ -357,13 +357,56 @@ class ECardTemplateService: ObservableObject {
                 cgContext.setFillColor(UIColor.white.cgColor)
                 cgContext.fill(CGRect(origin: .zero, size: size))
                 
-                // Scale the layer to fit the target size
+                // Scale the layer to exactly fill the target size
                 caLayer.frame = CGRect(origin: .zero, size: size)
+                
+                // Apply scaling transform to ensure SVG fills the entire area
+                let svgSize: CGSize
+                if let rootElement = svgkImage.domDocument?.rootElement {
+                    // Try to get dimensions from SVG attributes
+                    let widthAttr = rootElement.getAttribute("width")
+                    let heightAttr = rootElement.getAttribute("height")
+                    
+                    if let widthStr = widthAttr, let heightStr = heightAttr,
+                       let width = Double(widthStr), let height = Double(heightStr),
+                       width > 0 && height > 0 {
+                        svgSize = CGSize(width: width, height: height)
+                    } else {
+                        // Try viewBox as fallback
+                        if let viewBox = rootElement.getAttribute("viewBox") {
+                            let values = viewBox.split(separator: " ").compactMap { Double($0) }
+                            if values.count >= 4 && values[2] > 0 && values[3] > 0 {
+                                svgSize = CGSize(width: values[2], height: values[3])
+                            } else {
+                                svgSize = CGSize(width: 400, height: 500)
+                            }
+                        } else {
+                            svgSize = CGSize(width: 400, height: 500)
+                        }
+                    }
+                } else {
+                    // Fallback to template's calculated dimensions
+                    svgSize = CGSize(width: 400, height: 500)
+                }
+                let scaleX = size.width / svgSize.width
+                let scaleY = size.height / svgSize.height
+                let scale = max(scaleX, scaleY) // Use max to ensure it fills completely
+                
+                cgContext.scaleBy(x: scale, y: scale)
+                
+                // Center the content if needed
+                let scaledWidth = svgSize.width * scale
+                let scaledHeight = svgSize.height * scale
+                let offsetX = (size.width - scaledWidth) / 2 / scale
+                let offsetY = (size.height - scaledHeight) / 2 / scale
+                cgContext.translateBy(x: offsetX, y: offsetY)
+                
                 caLayer.render(in: cgContext)
             }
         }
         
-        // Fallback to standard rendering
+        // Fallback to standard rendering with proper size
+        svgkImage.size = size
         return svgkImage.uiImage
     }
     

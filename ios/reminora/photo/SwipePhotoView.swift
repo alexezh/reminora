@@ -17,7 +17,7 @@ import CoreLocation
 // presented as overlay; takes whole screen
 struct SwipePhotoView: View {
     let allAssets: [PHAsset] // Full list of all photos
-    let photoStacks: [PhotoStack] // Stack information
+    let photoStacks: [RPhotoStack] // Stack information
     let initialAssetId: String // Initial asset to display
     let onDismiss: () -> Void
     
@@ -54,7 +54,7 @@ struct SwipePhotoView: View {
     
     @StateObject private var photoSharingService = PhotoSharingService.shared
     
-    init(allAssets: [PHAsset], photoStacks: [PhotoStack], initialAssetId: String, onDismiss: @escaping () -> Void) {
+    init(allAssets: [PHAsset], photoStacks: [RPhotoStack], initialAssetId: String, onDismiss: @escaping () -> Void) {
         self.allAssets = allAssets
         self.photoStacks = photoStacks
         self.initialAssetId = initialAssetId
@@ -69,7 +69,7 @@ struct SwipePhotoView: View {
     }
     
     // Helper function to get stack info for an asset
-    private func getStackInfo(for asset: PHAsset) -> (stack: PhotoStack?, isStack: Bool, count: Int) {
+    private func getStackInfo(for asset: PHAsset) -> (stack: RPhotoStack?, isStack: Bool, count: Int) {
         for stack in photoStacks {
             if stack.assets.contains(where: { $0.localIdentifier == asset.localIdentifier }) {
                 return (stack: stack, isStack: stack.assets.count > 1, count: stack.assets.count)
@@ -83,7 +83,7 @@ struct SwipePhotoView: View {
         var assets: [PHAsset] = []
         
         for stack in photoStacks {
-            let stackId = stack.id.uuidString
+            let stackId = stack.id
             if stack.assets.count > 1 && expandedStacks.contains(stackId) {
                 // Stack is expanded - add all assets with separation
                 assets.append(contentsOf: stack.assets)
@@ -100,9 +100,9 @@ struct SwipePhotoView: View {
     }
     
     // Expand a stack to show all photos
-    private func expandStack(_ stack: PhotoStack?) {
+    private func expandStack(_ stack: RPhotoStack?) {
         guard let stack = stack else { return }
-        let stackId = stack.id.uuidString
+        let stackId = stack.id
         
         // Store current asset to maintain position
         let currentAsset = displayAssets.count > currentIndex ? displayAssets[currentIndex] : nil
@@ -122,9 +122,9 @@ struct SwipePhotoView: View {
     }
     
     // Collapse a stack
-    private func collapseStack(_ stack: PhotoStack?) {
+    private func collapseStack(_ stack: RPhotoStack?) {
         guard let stack = stack else { return }
-        let stackId = stack.id.uuidString
+        let stackId = stack.id
         
         // Store current asset to maintain position
         let currentAsset = displayAssets.count > currentIndex ? displayAssets[currentIndex] : nil
@@ -151,63 +151,6 @@ struct SwipePhotoView: View {
         }
         
         print("Collapsed stack \(stackId) - now showing \(displayAssets.count) assets")
-    }
-    
-    // Get thumbnail spacing for visual stack separation
-    private func getThumbnailSpacing(for asset: PHAsset, at index: Int) -> (leading: CGFloat, trailing: CGFloat) {
-        let stackInfo = getStackInfo(for: asset)
-        
-        // Half photo width for separation (30px since thumbnail is 60px)
-        let halfPhotoSpacing: CGFloat = 30
-        let normalSpacing = LayoutConstants.thumbnailSpacing
-        let selectedSpacing: CGFloat = 8 // Extra spacing for selected thumbnail (20% bigger)
-        
-        // Check if this is the selected thumbnail
-        let isSelected = index == currentIndex
-        
-        guard let stack = stackInfo.stack, stack.assets.count > 1 else {
-            // Single photo - use normal spacing, add extra for selected
-            if isSelected {
-                return (normalSpacing + selectedSpacing, normalSpacing + selectedSpacing)
-            }
-            return (normalSpacing, normalSpacing)
-        }
-        
-        let stackId = stack.id.uuidString
-        let isExpanded = expandedStacks.contains(stackId)
-        
-        if !isExpanded {
-            // Collapsed stack - use normal spacing, add extra for selected
-            if isSelected {
-                return (normalSpacing + selectedSpacing, normalSpacing + selectedSpacing)
-            }
-            return (normalSpacing, normalSpacing)
-        }
-        
-        // Expanded stack - add half-photo separation around the stack group
-        let isFirstInStack = asset.localIdentifier == stack.assets.first?.localIdentifier
-        let isLastInStack = asset.localIdentifier == stack.assets.last?.localIdentifier
-        
-        var leadingSpacing: CGFloat = normalSpacing
-        var trailingSpacing: CGFloat = normalSpacing
-        
-        if isFirstInStack {
-            // First photo in expanded stack - add half-photo spacing before
-            leadingSpacing = halfPhotoSpacing
-        }
-        
-        if isLastInStack {
-            // Last photo in expanded stack - add half-photo spacing after
-            trailingSpacing = halfPhotoSpacing
-        }
-        
-        // Add extra spacing for selected thumbnail
-        if isSelected {
-            leadingSpacing += selectedSpacing
-            trailingSpacing += selectedSpacing
-        }
-        
-        return (leadingSpacing, trailingSpacing)
     }
     
     // Trigger photo transition animation
@@ -286,7 +229,7 @@ struct SwipePhotoView: View {
             if currentIndex > 0 {
                 // Check if we're in an expanded stack and hitting boundary
                 if let stack = currentStackInfo.stack,
-                   expandedStacks.contains(stack.id.uuidString),
+                   expandedStacks.contains(stack.id),
                    let firstStackAsset = stack.assets.first,
                    currentAsset.localIdentifier == firstStackAsset.localIdentifier {
                     // At beginning of expanded stack - don't go further
@@ -302,7 +245,7 @@ struct SwipePhotoView: View {
             if currentIndex < displayAssets.count - 1 {
                 // Check if we're in an expanded stack and hitting boundary
                 if let stack = currentStackInfo.stack,
-                   expandedStacks.contains(stack.id.uuidString),
+                   expandedStacks.contains(stack.id),
                    let lastStackAsset = stack.assets.last,
                    currentAsset.localIdentifier == lastStackAsset.localIdentifier {
                     // At end of expanded stack - don't go further with regular swipe
@@ -323,7 +266,7 @@ struct SwipePhotoView: View {
         
         // If we're in an expanded stack at the boundary, close it and move
         if let stack = currentStackInfo.stack,
-           expandedStacks.contains(stack.id.uuidString) {
+           expandedStacks.contains(stack.id) {
             
             if translationWidth < 0, // Left swipe
                let lastStackAsset = stack.assets.last,
@@ -423,16 +366,18 @@ struct SwipePhotoView: View {
     }
     
     var body: some View {
-        ZStack {
-            // Full-screen black background
-            Color.black
-                .ignoresSafeArea(.all)
+        GeometryReader { screenGeometry in
+            ZStack {
+                // Full-screen black background
+                Color.black
+                    .ignoresSafeArea(.all)
             
-            // Show the main content immediately
+            // Show the main content immediately - constrained to avoid toolbar
             if true {
                 GeometryReader { geometry in
+                    let availableHeight = screenGeometry.size.height - LayoutConstants.totalToolbarHeight
                     ZStack {
-                        // Main photo area - takes available space minus thumbnail and toolbar area
+                        // Main photo area - scales within available height
                         if !displayAssets.isEmpty && currentIndex < displayAssets.count {
                             ZStack {
                                 // Current image
@@ -463,7 +408,7 @@ struct SwipePhotoView: View {
                                         .animation(.easeOut(duration: 0.25), value: previousImageOffset)
                                 }
                             }
-                            .padding(.bottom, LayoutConstants.thumbnailHeight + 20 + LayoutConstants.totalToolbarHeight + 16) // Reserve space for thumbnails + toolbar
+                            .padding(.bottom, LayoutConstants.thumbnailHeight + 20) // Reserve space for thumbnails only
                                 .gesture(
                                     // Combined gesture for tap, long press, and swipe
                                     DragGesture(minimumDistance: 0)
@@ -513,7 +458,7 @@ struct SwipePhotoView: View {
                                                 // Tap gesture - check for stack
                                                 let stackInfo = getStackInfo(for: displayAssets[currentIndex])
                                                 if stackInfo.isStack && stackInfo.count > 1 {
-                                                    let stackId = stackInfo.stack!.id.uuidString
+                                                    let stackId = stackInfo.stack!.id
                                                     if expandedStacks.contains(stackId) {
                                                         collapseStack(stackInfo.stack)
                                                     } else {
@@ -556,59 +501,24 @@ struct SwipePhotoView: View {
                         VStack {
                             Spacer() // Push thumbnails to bottom
                             
-                            ScrollViewReader { scrollProxy in
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                LazyHStack(spacing: 0) { // Remove default spacing
-                                    ForEach(Array(displayAssets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                                        let stackInfo = getStackInfo(for: asset)
-                                        let (leadingSpacing, trailingSpacing) = getThumbnailSpacing(for: asset, at: index)
-                                        
-                                        HStack(spacing: 0) {
-                                            // Leading spacing
-                                            if leadingSpacing > 0 {
-                                                Spacer()
-                                                    .frame(width: leadingSpacing)
-                                            }
-                                            
-                                            ThumbnailView(
-                                                asset: asset,
-                                                isSelected: index == currentIndex,
-                                                stackInfo: stackInfo
-                                            ) {
-                                                // Handle tap - if it's a stack indicator, expand/collapse
-                                                if stackInfo.isStack && stackInfo.count > 1 {
-                                                    let stackId = stackInfo.stack!.id.uuidString
-                                                    if expandedStacks.contains(stackId) {
-                                                        collapseStack(stackInfo.stack)
-                                                    } else {
-                                                        expandStack(stackInfo.stack)
-                                                    }
-                                                }
-                                                currentIndex = index
-                                            }
-                                            
-                                            // Trailing spacing
-                                            if trailingSpacing > 0 {
-                                                Spacer()
-                                                    .frame(width: trailingSpacing)
-                                            }
-                                        }
-                                    }
+                            ThumbnailListView(
+                                displayAssets: displayAssets,
+                                photoStacks: photoStacks,
+                                expandedStacks: expandedStacks,
+                                currentIndex: $currentIndex,
+                                onThumbnailTap: { index in
+                                    currentIndex = index
+                                },
+                                onStackExpand: { stack in
+                                    expandStack(stack)
+                                },
+                                onStackCollapse: { stack in
+                                    collapseStack(stack)
                                 }
-                                .padding(.horizontal, LayoutConstants.thumbnailPadding)
-                            }
-                            .frame(height: LayoutConstants.thumbnailHeight)
-                            .onChange(of: currentIndex) { _, newIndex in
-                                guard newIndex >= 0 && newIndex < displayAssets.count else { return }
-                                // Smooth scroll to new thumbnail with spring animation
-                                withAnimation(.interpolatingSpring(stiffness: 200, damping: 20)) {
-                                    scrollProxy.scrollTo(displayAssets[newIndex].localIdentifier, anchor: .center)
-                                }
-                            }
-                        }
-                        .padding(.bottom, LayoutConstants.totalToolbarHeight + 16) // Reserve space for toolbar
+                            )
                         }
                     }
+                    .frame(height: availableHeight) // Constrain content to available height
                     
                 }
                 .ignoresSafeArea(.all)
@@ -672,6 +582,7 @@ struct SwipePhotoView: View {
                 }
             }
         }
+        } // Close screenGeometry GeometryReader
         .onAppear {
             print("SwipePhotoView onAppear called with \(allAssets.count) total assets and \(photoStacks.count) stacks")
             isLoading = true

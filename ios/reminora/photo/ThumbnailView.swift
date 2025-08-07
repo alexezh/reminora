@@ -18,7 +18,7 @@ import CoreLocation
 struct ThumbnailView: View {
     let asset: PHAsset
     let isSelected: Bool
-    let stackInfo: (stack: PhotoStack?, isStack: Bool, count: Int)
+    let stackInfo: (stack: RPhotoStack?, isStack: Bool, count: Int)
     let onTap: () -> Void
     
     @State private var image: UIImage?

@@ -18,7 +18,7 @@ import CoreLocation
 struct SwipePhotoImageView: View {
     let asset: PHAsset
     @Binding var isLoading: Bool
-    let stackInfo: (stack: PhotoStack?, isStack: Bool, count: Int)?
+    let stackInfo: (stack: RPhotoStack?, isStack: Bool, count: Int)?
     @State private var image: UIImage?
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
@@ -26,7 +26,7 @@ struct SwipePhotoImageView: View {
     @State private var lastOffset: CGSize = .zero
     @State private var loadError: Bool = false
     
-    init(asset: PHAsset, isLoading: Binding<Bool>, stackInfo: (stack: PhotoStack?, isStack: Bool, count: Int)? = nil) {
+    init(asset: PHAsset, isLoading: Binding<Bool>, stackInfo: (stack: RPhotoStack?, isStack: Bool, count: Int)? = nil) {
         self.asset = asset
         self._isLoading = isLoading
         self.stackInfo = stackInfo

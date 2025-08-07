@@ -22,7 +22,7 @@ struct RListDetailView: View {
     @State private var selectedListId: String?
     
     // View presentation states
-    @State private var selectedPhotoStack: PhotoStack? = nil
+    @State private var selectedPhotoStack: RPhotoStack? = nil
     @State private var selectedPin: PinData? = nil
 
     init(list: RListData) {
@@ -80,7 +80,7 @@ struct RListDetailView: View {
                     userId: getCurrentUserId(),
                     onPhotoTap: { asset in
                         // Show SwipePhotoView for single photo
-                        let photoStack = PhotoStack(assets: [asset])
+                        let photoStack = RPhotoStack(assets: [asset])
                         selectedPhotoStack = photoStack
                     },
                     onPinTap: { place in
@@ -89,7 +89,7 @@ struct RListDetailView: View {
                     },
                     onPhotoStackTap: { assets in
                         // Show SwipePhotoView for photo stack
-                        let photoStack = PhotoStack(assets: assets)
+                        let photoStack = RPhotoStack(assets: assets)
                         selectedPhotoStack = photoStack
                     },
                     onLocationTap: { location in
@@ -104,7 +104,7 @@ struct RListDetailView: View {
                     userId: getCurrentUserId(),
                     onPhotoTap: { asset in
                         // Show SwipePhotoView for single photo
-                        let photoStack = PhotoStack(assets: [asset])
+                        let photoStack = RPhotoStack(assets: [asset])
                         selectedPhotoStack = photoStack
                     },
                     onPinTap: { place in
@@ -113,7 +113,7 @@ struct RListDetailView: View {
                     },
                     onPhotoStackTap: { assets in
                         // Show SwipePhotoView for photo stack
-                        let photoStack = PhotoStack(assets: assets)
+                        let photoStack = RPhotoStack(assets: assets)
                         selectedPhotoStack = photoStack
                     },
                     onLocationTap: { location in
@@ -127,7 +127,7 @@ struct RListDetailView: View {
                     dataSource: .mixed(createMixedContent()),
                     onPhotoTap: { asset in
                         // Show SwipePhotoView for single photo
-                        let photoStack = PhotoStack(assets: [asset])
+                        let photoStack = RPhotoStack(assets: [asset])
                         selectedPhotoStack = photoStack
                     },
                     onPinTap: { place in
@@ -136,7 +136,7 @@ struct RListDetailView: View {
                     },
                     onPhotoStackTap: { assets in
                         // Show SwipePhotoView for photo stack
-                        let photoStack = PhotoStack(assets: assets)
+                        let photoStack = RPhotoStack(assets: assets)
                         selectedPhotoStack = photoStack
                     },
                     onLocationTap: { location in

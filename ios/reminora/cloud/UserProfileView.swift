@@ -39,7 +39,7 @@ struct UserProfileView: View {
     @State private var isFollowActionLoading = false
     @State private var contentItems: [UserContentItem] = []
     @State private var selectedPin: PinData?
-    @State private var selectedPhotoStack: PhotoStack?
+    @State private var selectedPhotoStack: RPhotoStack?
 
     var body: some View {
         NavigationView {

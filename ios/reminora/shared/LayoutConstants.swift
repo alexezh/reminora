@@ -15,7 +15,7 @@ enum LayoutConstants {
     /// Main toolbar content height (buttons and FAB area)
     static let toolbarHeight: CGFloat = 60
 
-    /// Safe area extension below toolbar (minimal like iOS Photos)
+    /// Safe area extension below toolbar (includes device safe area)
     static let toolbarSafeAreaHeight: CGFloat = 8
 
     /// Total toolbar height including safe area

@@ -881,9 +881,9 @@ struct NearbyPhotosMainView: View {
     
     @Environment(\.managedObjectContext) private var viewContext
     @State private var photoAssets: [PHAsset] = []
-    @State private var filteredPhotoStacks: [PhotoStack] = []
+    @State private var filteredPhotoStacks: [RPhotoStack] = []
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
-    @State private var selectedStack: PhotoStack?
+    @State private var selectedStack: RPhotoStack?
     @State private var selectedStackIndex = 0
     @State private var currentFilter: PhotoFilterType = .notDisliked
     @State private var isCoreDataReady = false
@@ -1145,7 +1145,7 @@ struct NearbyPhotosMainView: View {
         // For nearby photos, show each photo individually instead of stacking
         // This ensures users can see all photos in the area
         let stacks = assets.map { asset in
-            PhotoStack(assets: [asset])
+            RPhotoStack(assets: [asset])
         }
         
         print("📸 Created \(stacks.count) individual photo stacks from \(assets.count) nearby assets")
@@ -1163,7 +1163,7 @@ struct NearbyPhotosMainView: View {
 }
 
 struct NearbyPhotoStackCell: View {
-    let stack: PhotoStack
+    let stack: RPhotoStack
     let centerLocation: CLLocationCoordinate2D?
     let onTap: () -> Void
     

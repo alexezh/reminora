@@ -13,9 +13,9 @@ struct PhotoMainView: View {
     @Environment(\.sheetStack) private var sheetStack
     @Binding var isSwipePhotoViewOpen: Bool
     @State private var photoAssets: [PHAsset] = []
-    @State private var filteredPhotoStacks: [PhotoStack] = []
+    @State private var filteredPhotoStacks: [RPhotoStack] = []
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
-    @State private var selectedStack: PhotoStack?
+    @State private var selectedStack: RPhotoStack?
     @State private var selectedStackIndex = 0
     @State private var currentFilter: PhotoFilterType = .notDisliked
     @State private var isCoreDataReady = false
@@ -246,7 +246,7 @@ struct PhotoMainView: View {
                                 // Set current photo in SelectionService before opening
                                 selectedAssetService.setCurrentPhoto(asset)
                                 // Create a stack with just this photo and show it
-                                let stack = PhotoStack(assets: [asset])
+                                let stack = RPhotoStack(assets: [asset])
                                 selectedStackIndex = 0
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     selectedStack = stack
@@ -271,7 +271,7 @@ struct PhotoMainView: View {
                                 // Set current photo in SelectionService before opening (first photo in stack)
                                 selectedAssetService.setCurrentPhoto(assets.first)
                                 // Create a stack and show it
-                                let stack = PhotoStack(assets: assets)
+                                let stack = RPhotoStack(assets: assets)
                                 selectedStackIndex = 0
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     selectedStack = stack
@@ -545,7 +545,7 @@ struct PhotoMainView: View {
         }
     }
 
-    private func createSimilarityBasedStacks(from assets: [PHAsset]) async -> [PhotoStack] {
+    private func createSimilarityBasedStacks(from assets: [PHAsset]) async -> [RPhotoStack] {
         // Check if similarity indices are available
         let embeddingStats = PhotoEmbeddingService.shared.getEmbeddingStats(in: viewContext)
         let hasEmbeddings = embeddingStats.photosWithEmbeddings > 0
@@ -581,14 +581,14 @@ struct PhotoMainView: View {
                     }
                 }
             }
-            return assets.map { PhotoStack(assets: [$0]) }
+            return assets.map { RPhotoStack(assets: [$0]) }
         }
 
         // Limit processing to prevent hangs - process in batches
         let maxAssetsToProcess = 100
         let assetsToProcess = Array(assets.prefix(maxAssetsToProcess))
 
-        var stacks: [PhotoStack] = []
+        var stacks: [RPhotoStack] = []
         var processedAssets: Set<String> = []
         var currentStackId: Int32 = 1  // Start stack IDs at 1
 
@@ -642,7 +642,7 @@ struct PhotoMainView: View {
                 currentStackId += 1  // Increment for next stack
             }
 
-            stacks.append(PhotoStack(assets: currentStack))
+            stacks.append(RPhotoStack(assets: currentStack))
 
             // Yield to prevent blocking main thread every 10 assets
             if i % 10 == 0 {
@@ -653,7 +653,7 @@ struct PhotoMainView: View {
         // Add remaining assets as individual stacks if we hit the limit
         if assets.count > maxAssetsToProcess {
             let remainingAssets = Array(assets.dropFirst(maxAssetsToProcess))
-            let remainingStacks = remainingAssets.map { PhotoStack(assets: [$0]) }
+            let remainingStacks = remainingAssets.map { RPhotoStack(assets: [$0]) }
             stacks.append(contentsOf: remainingStacks)
             print(
                 "📊 Added \(remainingAssets.count) remaining assets as individual photos (processing limit reached)"
@@ -842,7 +842,7 @@ extension SwipePhotoView {
     }
 }
 
-struct PhotoStackView_Previews: PreviewProvider {
+struct PhotoMainView_Previews: PreviewProvider {
     static var previews: some View {
         PhotoMainView(isSwipePhotoViewOpen: .constant(false))
     }

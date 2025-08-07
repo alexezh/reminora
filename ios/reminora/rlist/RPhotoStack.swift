@@ -26,6 +26,11 @@ class RPhotoStack: ObservableObject, Identifiable {
         return assets.count == 1
     }
     
+    /// Returns true if this contains multiple photos (compatibility with PhotoStack)
+    var isStack: Bool {
+        return assets.count > 1
+    }
+    
     /// Returns the primary (first) asset in the stack
     var primaryAsset: PHAsset {
         return assets.first!

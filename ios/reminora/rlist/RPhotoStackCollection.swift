@@ -1,0 +1,332 @@
+//
+//  RPhotoStackCollection.swift
+//  reminora
+//
+//  Created by Claude on 8/7/25.
+//
+
+import Foundation
+import Photos
+import SwiftUI
+
+/// A collection that manages RPhotoStack objects and provides stack expansion/collection functionality
+/// Implements RandomAccessCollection for efficient array-like access
+class RPhotoStackCollection: ObservableObject, RandomAccessCollection {
+    
+    // MARK: - RandomAccessCollection Requirements
+    
+    typealias Element = RPhotoStack
+    typealias Index = Int
+    
+    var startIndex: Int { return stacks.startIndex }
+    var endIndex: Int { return stacks.endIndex }
+    
+    func index(after i: Int) -> Int {
+        return stacks.index(after: i)
+    }
+    
+    func index(before i: Int) -> Int {
+        return stacks.index(before: i)
+    }
+    
+    subscript(position: Int) -> RPhotoStack {
+        return stacks[position]
+    }
+    
+    // MARK: - Properties
+    
+    @Published private var stacks: [RPhotoStack] = []
+    @Published private var expandedStackIds: Set<String> = []
+    
+    /// All stacks in the collection
+    var allStacks: [RPhotoStack] {
+        return stacks
+    }
+    
+    /// Count of all stacks
+    var count: Int {
+        return stacks.count
+    }
+    
+    /// Whether the collection is empty
+    var isEmpty: Bool {
+        return stacks.isEmpty
+    }
+    
+    /// Set of currently expanded stack IDs
+    var expandedStacks: Set<String> {
+        return expandedStackIds
+    }
+    
+    /// Total number of individual photos across all stacks
+    var totalPhotoCount: Int {
+        return stacks.reduce(0) { $0 + $1.assets.count }
+    }
+    
+    /// Number of expanded stacks
+    var expandedStackCount: Int {
+        return expandedStackIds.count
+    }
+    
+    // MARK: - Initializers
+    
+    init() {
+        self.stacks = []
+    }
+    
+    init(stacks: [RPhotoStack]) {
+        self.stacks = stacks
+    }
+    
+    init(assets: [PHAsset]) {
+        self.stacks = assets.map { RPhotoStack(assets: [$0]) }
+    }
+    
+    // MARK: - Collection Management
+    
+    /// Replace all stacks in the collection
+    func setStacks(_ newStacks: [RPhotoStack]) {
+        stacks = newStacks
+        // Clear expanded state for stacks that no longer exist
+        let currentStackIds = Set(newStacks.map { $0.id })
+        expandedStackIds = expandedStackIds.intersection(currentStackIds)
+    }
+    
+    /// Add a stack to the collection
+    func addStack(_ stack: RPhotoStack) {
+        stacks.append(stack)
+    }
+    
+    /// Insert a stack at a specific index
+    func insertStack(_ stack: RPhotoStack, at index: Int) {
+        stacks.insert(stack, at: index)
+    }
+    
+    /// Remove a stack at a specific index
+    @discardableResult
+    func removeStack(at index: Int) -> RPhotoStack {
+        let removedStack = stacks.remove(at: index)
+        expandedStackIds.remove(removedStack.id)
+        return removedStack
+    }
+    
+    /// Remove all stacks
+    func removeAll() {
+        stacks.removeAll()
+        expandedStackIds.removeAll()
+    }
+    
+    // MARK: - Stack Expansion/Collection
+    
+    /// Check if a stack is currently expanded
+    func isStackExpanded(_ stackId: String) -> Bool {
+        return expandedStackIds.contains(stackId)
+    }
+    
+    /// Check if a stack is expandable (has more than one photo)
+    func isStackExpandable(_ stackId: String) -> Bool {
+        return stacks.first { $0.id == stackId }?.assets.count ?? 0 > 1
+    }
+    
+    /// Expand a stack into individual photo stacks
+    /// - Parameter stackId: The ID of the stack to expand
+    /// - Returns: True if the stack was expanded, false if it was already expanded or doesn't exist
+    @discardableResult
+    func expandStack(_ stackId: String) -> Bool {
+        guard !expandedStackIds.contains(stackId),
+              let stackIndex = stacks.firstIndex(where: { $0.id == stackId }),
+              stacks[stackIndex].assets.count > 1 else {
+            return false
+        }
+        
+        let stack = stacks[stackIndex]
+        let individualStacks = stack.individualPhotoStacks()
+        
+        // Replace the original stack with individual stacks
+        stacks.remove(at: stackIndex)
+        stacks.insert(contentsOf: individualStacks, at: stackIndex)
+        
+        // Mark as expanded
+        expandedStackIds.insert(stackId)
+        
+        return true
+    }
+    
+    /// Collapse individual photos back into a stack
+    /// - Parameter stackId: The original stack ID to collapse back to
+    /// - Returns: True if the stack was collapsed, false if it wasn't expanded or doesn't exist
+    @discardableResult
+    func collapseStack(_ stackId: String) -> Bool {
+        guard expandedStackIds.contains(stackId) else {
+            return false
+        }
+        
+        // Find all individual stacks that belong to the original stack
+        let individualStacks = stacks.filter { stack in
+            // Check if this individual stack's asset was part of the original stack
+            return stack.assets.count == 1 && 
+                   stacks.contains { originalStack in
+                       originalStack.id == stackId && 
+                       originalStack.assets.contains { $0.localIdentifier == stack.assets.first?.localIdentifier }
+                   }
+        }
+        
+        guard !individualStacks.isEmpty else {
+            return false
+        }
+        
+        // Collect all assets from individual stacks
+        let allAssets = individualStacks.flatMap { $0.assets }
+        
+        // Create a new combined stack
+        let combinedStack = RPhotoStack(assets: allAssets)
+        
+        // Find the index of the first individual stack
+        guard let firstIndex = stacks.firstIndex(where: { stack in
+            individualStacks.contains { $0.id == stack.id }
+        }) else {
+            return false
+        }
+        
+        // Remove all individual stacks
+        stacks.removeAll { stack in
+            individualStacks.contains { $0.id == stack.id }
+        }
+        
+        // Insert the combined stack at the original position
+        stacks.insert(combinedStack, at: firstIndex)
+        
+        // Mark as not expanded
+        expandedStackIds.remove(stackId)
+        
+        return true
+    }
+    
+    /// Toggle the expansion state of a stack
+    /// - Parameter stackId: The ID of the stack to toggle
+    /// - Returns: True if the stack is now expanded, false if it's now collapsed
+    @discardableResult
+    func toggleStackExpansion(_ stackId: String) -> Bool {
+        if expandedStackIds.contains(stackId) {
+            collapseStack(stackId)
+            return false
+        } else {
+            expandStack(stackId)
+            return true
+        }
+    }
+    
+    /// Expand all expandable stacks in the collection
+    func expandAllStacks() {
+        let expandableStacks = stacks.filter { $0.assets.count > 1 && !expandedStackIds.contains($0.id) }
+        for stack in expandableStacks {
+            expandStack(stack.id)
+        }
+    }
+    
+    /// Collapse all expanded stacks in the collection
+    func collapseAllStacks() {
+        let expandedIds = Array(expandedStackIds)
+        for stackId in expandedIds {
+            collapseStack(stackId)
+        }
+    }
+    
+    // MARK: - Search and Filtering
+    
+    /// Find a stack by its ID
+    func stack(withId stackId: String) -> RPhotoStack? {
+        return stacks.first { $0.id == stackId }
+    }
+    
+    /// Find the index of a stack by its ID
+    func index(of stackId: String) -> Int? {
+        return stacks.firstIndex { $0.id == stackId }
+    }
+    
+    /// Find a stack that contains a specific asset
+    func stack(containing asset: PHAsset) -> RPhotoStack? {
+        return stacks.first { stack in
+            stack.assets.contains { $0.localIdentifier == asset.localIdentifier }
+        }
+    }
+    
+    /// Filter stacks based on a predicate
+    func filteredStacks(_ predicate: (RPhotoStack) -> Bool) -> [RPhotoStack] {
+        return stacks.filter(predicate)
+    }
+    
+    // MARK: - Convenience Methods
+    
+    /// Get all individual photos as a flat array
+    func allAssets() -> [PHAsset] {
+        return stacks.flatMap { $0.assets }
+    }
+    
+    /// Get stacks that contain multiple photos (actual stacks)
+    func multiPhotoStacks() -> [RPhotoStack] {
+        return stacks.filter { $0.assets.count > 1 }
+    }
+    
+    /// Get stacks that contain single photos
+    func singlePhotoStacks() -> [RPhotoStack] {
+        return stacks.filter { $0.assets.count == 1 }
+    }
+    
+    /// Create a new collection with only stacks matching the predicate
+    func filtered(_ predicate: (RPhotoStack) -> Bool) -> RPhotoStackCollection {
+        let filteredStacks = stacks.filter(predicate)
+        let newCollection = RPhotoStackCollection(stacks: filteredStacks)
+        // Don't copy expansion state for filtered collection
+        return newCollection
+    }
+    
+    /// Sort the collection using a comparator
+    func sorted(by comparator: (RPhotoStack, RPhotoStack) -> Bool) {
+        stacks.sort(by: comparator)
+    }
+    
+    /// Create a new sorted collection
+    func sortedCollection(by comparator: (RPhotoStack, RPhotoStack) -> Bool) -> RPhotoStackCollection {
+        let sortedStacks = stacks.sorted(by: comparator)
+        let newCollection = RPhotoStackCollection(stacks: sortedStacks)
+        newCollection.expandedStackIds = self.expandedStackIds
+        return newCollection
+    }
+}
+
+// MARK: - Extensions for Common Operations
+
+extension RPhotoStackCollection {
+    
+    /// Convenience method to sort by creation date (newest first)
+    func sortByDateDescending() {
+        sorted { $0.creationDate > $1.creationDate }
+    }
+    
+    /// Convenience method to sort by creation date (oldest first)
+    func sortByDateAscending() {
+        sorted { $0.creationDate < $1.creationDate }
+    }
+    
+    /// Convenience method to sort by stack size (largest first)
+    func sortByStackSize() {
+        sorted { $0.assets.count > $1.assets.count }
+    }
+}
+
+// MARK: - Sequence Protocol Conformance
+
+extension RPhotoStackCollection: Sequence {
+    func makeIterator() -> Array<RPhotoStack>.Iterator {
+        return stacks.makeIterator()
+    }
+}
+
+// MARK: - Debug Description
+
+extension RPhotoStackCollection: CustomStringConvertible {
+    var description: String {
+        return "RPhotoStackCollection(count: \(count), expanded: \(expandedStackCount), totalPhotos: \(totalPhotoCount))"
+    }
+}

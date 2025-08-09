@@ -262,19 +262,24 @@ struct ECardEditorView: View {
     }
     
     private func setupECard(with template: ECardTemplate) {
-        let initialImageAssignments: [String: String] = [:]
-        var initialTextAssignments: [String: String] = [:]
+        // Use existing image assignments from ECardEditor (which handles persistence)
+        let imageIdentifiers = eCardEditor.imageAssignments.mapValues { $0.localIdentifier }
         
-        // Initialize text assignments with placeholders
+        // Use existing text assignments from ECardEditor, or initialize with placeholders
+        var textAssignments = eCardEditor.textAssignments
         for textSlot in template.textSlots {
-            initialTextAssignments[textSlot.id] = textSlot.placeholder
+            if textAssignments[textSlot.id] == nil {
+                textAssignments[textSlot.id] = textSlot.placeholder
+            }
         }
         
         currentECard = ECard(
             templateId: template.id,
-            imageAssignments: initialImageAssignments,
-            textAssignments: initialTextAssignments
+            imageAssignments: imageIdentifiers,
+            textAssignments: textAssignments
         )
+        
+        print("🎨 ECardEditorView: Setup ECard with \(imageIdentifiers.count) image assignments and \(textAssignments.count) text assignments")
     }
     
     private func assignImage(asset: PHAsset, to slot: ImageSlot) {

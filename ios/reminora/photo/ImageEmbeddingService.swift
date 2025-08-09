@@ -3,6 +3,15 @@ import CoreML
 import Vision
 import UIKit
 
+// MARK: - NSLock Extension for convenience
+extension NSLock {
+    func withLock<T>(_ block: () throws -> T) rethrows -> T {
+        lock()
+        defer { unlock() }
+        return try block()
+    }
+}
+
 // computes embedding for any picture
 class ImageEmbeddingService {
     static let shared = ImageEmbeddingService()
@@ -10,6 +19,8 @@ class ImageEmbeddingService {
     // Using Vision's VNCoreMLFeatureValueObservation with a pre-trained model
     // We'll use MobileNetV2 which is available by default in iOS
     private var model: VNCoreMLModel?
+    private var hardwareSupported: Bool?
+    private let hardwareCheckLock = NSLock()
     
     private init() {
         setupModel()
@@ -21,6 +32,72 @@ class ImageEmbeddingService {
         print("ImageEmbeddingService initialized - using Vision framework")
     }
     
+    /// Check if the device hardware supports Vision ML operations
+    private func checkHardwareSupport() -> Bool {
+        return hardwareCheckLock.withLock {
+            if let cached = hardwareSupported {
+                return cached
+            }
+            
+            // Perform a simple test to see if Vision framework works on this device
+            let testImage = UIImage(systemName: "photo") ?? UIImage()
+            guard let cgImage = testImage.cgImage else {
+                hardwareSupported = false
+                return false
+            }
+            
+            var supportsVision = false
+            let semaphore = DispatchSemaphore(value: 0)
+            
+            let request = VNGenerateImageFeaturePrintRequest { request, error in
+                if let error = error {
+                    let errorMessage = error.localizedDescription
+                    print("⚠️ Hardware check failed: \(errorMessage)")
+                    // Check for specific hardware-related errors
+                    if errorMessage.contains("espresso") || 
+                       errorMessage.contains("hardware") ||
+                       errorMessage.contains("cancelled") {
+                        supportsVision = false
+                    } else {
+                        // Other errors might be temporary, assume hardware is OK
+                        supportsVision = true
+                    }
+                } else {
+                    supportsVision = true
+                }
+                semaphore.signal()
+            }
+            
+            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            do {
+                try handler.perform([request])
+                // Wait for completion with timeout
+                if semaphore.wait(timeout: .now() + 5) == .timedOut {
+                    print("⚠️ Hardware check timed out - assuming not supported")
+                    supportsVision = false
+                }
+            } catch {
+                print("⚠️ Hardware check failed with exception: \(error)")
+                supportsVision = false
+            }
+            
+            hardwareSupported = supportsVision
+            
+            if supportsVision {
+                print("✅ Vision framework hardware support detected")
+            } else {
+                print("❌ Vision framework not supported on this hardware - embeddings will be disabled")
+            }
+            
+            return supportsVision
+        }
+    }
+    
+    /// Check if embedding computation is supported on this device
+    func isEmbeddingSupported() -> Bool {
+        return checkHardwareSupport()
+    }
+    
     /// Compute embedding vector for an image using Vision's feature print
     /// Returns a feature vector suitable for similarity comparison
     func computeEmbedding(for image: UIImage) async -> [Float]? {
@@ -30,6 +107,12 @@ class ImageEmbeddingService {
     
     /// Alternative: Use a more basic approach with Vision's built-in feature extractor
     func computeBasicEmbedding(for image: UIImage) async -> [Float]? {
+        // Check hardware support first
+        if !checkHardwareSupport() {
+            print("⏭️ Skipping embedding computation - hardware not supported")
+            return nil
+        }
+        
         guard let cgImage = image.cgImage else { return nil }
         
         return await withCheckedContinuation { continuation in
@@ -44,7 +127,20 @@ class ImageEmbeddingService {
             
             let request = VNGenerateImageFeaturePrintRequest { request, error in
                 if let error = error {
+                    let errorMessage = error.localizedDescription
                     print("Feature print generation failed: \(error)")
+                    
+                    // Check if this is a hardware-specific error
+                    if errorMessage.contains("espresso") || 
+                       errorMessage.contains("hardware") ||
+                       errorMessage.contains("cancelled") {
+                        // Mark hardware as unsupported for future requests
+                        self.hardwareCheckLock.withLock {
+                            self.hardwareSupported = false
+                        }
+                        print("❌ Detected hardware incompatibility - disabling future embedding attempts")
+                    }
+                    
                     resumeOnce(nil)
                     return
                 }
@@ -65,7 +161,20 @@ class ImageEmbeddingService {
             do {
                 try handler.perform([request])
             } catch {
+                let errorMessage = error.localizedDescription
                 print("Failed to perform feature print request: \(error)")
+                
+                // Check if this is a hardware-specific error
+                if errorMessage.contains("espresso") || 
+                   errorMessage.contains("hardware") ||
+                   errorMessage.contains("cancelled") {
+                    // Mark hardware as unsupported for future requests
+                    hardwareCheckLock.withLock {
+                        hardwareSupported = false
+                    }
+                    print("❌ Detected hardware incompatibility in exception - disabling future embedding attempts")
+                }
+                
                 resumeOnce(nil)
             }
         }

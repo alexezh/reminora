@@ -11,6 +11,20 @@ import Photos
 import UIKit
 import SVGKit
 
+// MARK: - Image Assignment Helper
+private class ECardImageAssignmentHelper {
+    private var imageAssignments: [String: UIImage] = [:]
+    
+    func setImageAssignments(_ assignments: [String: UIImage]) {
+        imageAssignments = assignments
+        print("🎨 ECardImageAssignmentHelper: Updated image assignments for \(assignments.keys)")
+    }
+    
+    func getImage(for slotId: String) -> UIImage? {
+        return imageAssignments[slotId]
+    }
+}
+
 // MARK: - UIColor Extension for Hex Colors
 extension UIColor {
     convenience init?(hex: String) {
@@ -46,6 +60,7 @@ class ECardTemplateService: ObservableObject {
     
     @Published private var templates: [ECardTemplate] = []
     private var templatesLoaded = false
+    private let imageHelper = ECardImageAssignmentHelper()
     
     private init() {
         // Templates will be loaded lazily on first access
@@ -320,6 +335,88 @@ class ECardTemplateService: ObservableObject {
         return ""
     }
     
+    // MARK: - SVG Rendering with Image Resolution
+    
+    /// Generate ECard with assigned images using pure SVG DOM manipulation
+    func generateECardWithImages(
+        template: ECardTemplate,
+        imageAssignments: [String: UIImage],
+        textAssignments: [String: String] = [:],
+        size: CGSize = CGSize(width: 800, height: 1000)
+    ) -> UIImage? {
+        print("🎨 ECardTemplateService: Generating ECard with \(imageAssignments.count) images using pure SVG DOM manipulation")
+        
+        // Create SVGKImage from template content
+        guard let svgData = template.svgContent.data(using: .utf8),
+              let svgkImage = SVGKImage(data: svgData) else {
+            print("⚠️ ECardTemplateService: Failed to create SVGKImage from template content")
+            return renderSVGWithSVGKit(svgContent: template.svgContent, size: size)
+        }
+        
+        // Set the desired output size
+        svgkImage.size = size
+        
+        // Get DOM document for manipulation
+        guard let domDocument = svgkImage.domDocument else {
+            print("⚠️ ECardTemplateService: Failed to get DOM document")
+            return renderSVGWithSVGKit(svgContent: template.svgContent, size: size)
+        }
+        
+        // Update image elements in DOM - only if they're already SVG image elements
+        for slot in template.imageSlots {
+            let slotId = slot.id
+            if let image = imageAssignments[slotId],
+               let imgElement = domDocument.getElementById(slotId) as? SVGImageElement {
+                
+                // Convert UIImage to PNG data URL (more efficient than JPEG for UI images)
+                guard let pngData = image.pngData() else {
+                    print("⚠️ Failed to convert image to PNG data for slot \(slotId)")
+                    continue
+                }
+                
+                let base64String = pngData.base64EncodedString()
+                let dataURL = "data:image/png;base64,\(base64String)"
+                
+                // Update the href of the existing SVG image element using namespaced attribute
+                imgElement.setAttributeNS("http://www.w3.org/1999/xlink", qualifiedName: "xlink:href", value: dataURL)
+                print("🎨 ECardTemplateService: Set PNG data URL on SVGImageElement \(slotId) using xlink:href")
+            } else if let _ = domDocument.getElementById(slotId) {
+                print("⏭️ ECardTemplateService: Element \(slotId) is not an SVGImageElement - ignoring (will render as placeholder)")
+            }
+        }
+        
+        // Update text elements in DOM
+        for (slotId, text) in textAssignments {
+            if let textElement = domDocument.getElementById(slotId) as? SVGTextElement {
+                // For SVG text elements, we need to clear existing content and add new text node
+                // Remove all child nodes first
+                while let child = textElement.firstChild {
+                    textElement.removeChild(child)
+                }
+                // Add new text node
+                let textNode = domDocument.createTextNode(text)
+                textElement.appendChild(textNode)
+                print("🎨 ECardTemplateService: Updated text element \(slotId) with: '\(text)'")
+            } else if let textElement = domDocument.getElementById(slotId) {
+                // For other elements, try to update via attribute or similar
+                print("🎨 ECardTemplateService: Element \(slotId) is not SVGTextElement, type: \(type(of: textElement))")
+            }
+        }
+        
+        // Render the final SVG with all DOM modifications
+        let finalImage = svgkImage.uiImage
+        
+        // Resize if needed
+        if let finalImage = finalImage, finalImage.size != size {
+            let renderer = UIGraphicsImageRenderer(size: size)
+            return renderer.image { _ in
+                finalImage.draw(in: CGRect(origin: .zero, size: size))
+            }
+        }
+        
+        return finalImage
+    }
+    
     // MARK: - SVG Thumbnail Generation
     
     func generateThumbnail(for template: ECardTemplate, size: CGSize = CGSize(width: 120, height: 150)) -> UIImage? {
@@ -332,17 +429,22 @@ class ECardTemplateService: ObservableObject {
     }
     
     private func renderSVGWithSVGKit(svgContent: String, size: CGSize) -> UIImage? {
+        print("🎨 ECardTemplateService: Attempting SVGKit rendering with size \(size)")
+        
         // Create SVGKImage from SVG content
         guard let svgkImage = SVGKImage(data: svgContent.data(using: .utf8)) else {
-            print("⚠️ Failed to create SVGKImage from content")
+            print("⚠️ Failed to create SVGKImage from content, falling back to basic rendering")
             return renderSVGToImageBasic(svgContent: svgContent, size: size)
         }
         
         // Set the desired size to match the control
         svgkImage.size = size
+        print("🎨 ECardTemplateService: SVGKImage created successfully, size set to \(size)")
         
-        // Force SVGKit to scale to the exact target size
+        // Try to use CALayer rendering (most reliable approach)
         if let caLayer = svgkImage.caLayerTree {
+            print("🎨 ECardTemplateService: Using CALayer rendering approach")
+            
             // Create a bitmap context with proper scale
             let scale = UIScreen.main.scale
             let format = UIGraphicsImageRendererFormat()
@@ -350,64 +452,43 @@ class ECardTemplateService: ObservableObject {
             format.opaque = false
             
             let renderer = UIGraphicsImageRenderer(size: size, format: format)
-            return renderer.image { context in
+            let renderedImage = renderer.image { context in
                 let cgContext = context.cgContext
                 
                 // Clear background to white for better visibility
                 cgContext.setFillColor(UIColor.white.cgColor)
                 cgContext.fill(CGRect(origin: .zero, size: size))
                 
-                // Scale the layer to exactly fill the target size
+                // Set the layer frame to match our target size
                 caLayer.frame = CGRect(origin: .zero, size: size)
                 
-                // Apply scaling transform to ensure SVG fills the entire area
-                let svgSize: CGSize
-                if let rootElement = svgkImage.domDocument?.rootElement {
-                    // Try to get dimensions from SVG attributes
-                    let widthAttr = rootElement.getAttribute("width")
-                    let heightAttr = rootElement.getAttribute("height")
-                    
-                    if let widthStr = widthAttr, let heightStr = heightAttr,
-                       let width = Double(widthStr), let height = Double(heightStr),
-                       width > 0 && height > 0 {
-                        svgSize = CGSize(width: width, height: height)
-                    } else {
-                        // Try viewBox as fallback
-                        if let viewBox = rootElement.getAttribute("viewBox") {
-                            let values = viewBox.split(separator: " ").compactMap { Double($0) }
-                            if values.count >= 4 && values[2] > 0 && values[3] > 0 {
-                                svgSize = CGSize(width: values[2], height: values[3])
-                            } else {
-                                svgSize = CGSize(width: 400, height: 500)
-                            }
-                        } else {
-                            svgSize = CGSize(width: 400, height: 500)
-                        }
-                    }
-                } else {
-                    // Fallback to template's calculated dimensions
-                    svgSize = CGSize(width: 400, height: 500)
-                }
-                let scaleX = size.width / svgSize.width
-                let scaleY = size.height / svgSize.height
-                let scale = max(scaleX, scaleY) // Use max to ensure it fills completely
-                
-                cgContext.scaleBy(x: scale, y: scale)
-                
-                // Center the content if needed
-                let scaledWidth = svgSize.width * scale
-                let scaledHeight = svgSize.height * scale
-                let offsetX = (size.width - scaledWidth) / 2 / scale
-                let offsetY = (size.height - scaledHeight) / 2 / scale
-                cgContext.translateBy(x: offsetX, y: offsetY)
-                
+                // Render the layer directly without complex scaling transforms
                 caLayer.render(in: cgContext)
             }
+            
+            print("✅ ECardTemplateService: CALayer rendering completed")
+            return renderedImage
         }
         
-        // Fallback to standard rendering with proper size
-        svgkImage.size = size
-        return svgkImage.uiImage
+        // Fallback to UIImage property if CALayer fails
+        print("🎨 ECardTemplateService: CALayer not available, using UIImage property")
+        if let uiImage = svgkImage.uiImage {
+            // Resize the image to match our target size if needed
+            if uiImage.size != size {
+                let renderer = UIGraphicsImageRenderer(size: size)
+                let resizedImage = renderer.image { _ in
+                    uiImage.draw(in: CGRect(origin: .zero, size: size))
+                }
+                print("✅ ECardTemplateService: UIImage resized to target size")
+                return resizedImage
+            }
+            print("✅ ECardTemplateService: Using UIImage directly")
+            return uiImage
+        }
+        
+        // Final fallback to basic rendering if SVGKit completely fails
+        print("⚠️ ECardTemplateService: SVGKit failed completely, using basic rendering")
+        return renderSVGToImageBasic(svgContent: svgContent, size: size)
     }
     
     private func renderSVGToImageBasic(svgContent: String, size: CGSize) -> UIImage? {

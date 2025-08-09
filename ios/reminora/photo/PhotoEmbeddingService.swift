@@ -21,6 +21,12 @@ class PhotoEmbeddingService {
     
     /// Compute embedding for a PHAsset and store in Core Data
     func computeAndStoreEmbedding(for asset: PHAsset, in context: NSManagedObjectContext) async -> Bool {
+        // Check if embeddings are supported on this device
+        if !ImageEmbeddingService.shared.isEmbeddingSupported() {
+            print("⏭️ Embedding computation not supported on this device")
+            return false
+        }
+        
         // Check if embedding already exists and is up to date
         let existingEmbedding = await getEmbedding(for: asset, in: context)
         if let existing = existingEmbedding, existing.embedding != nil {
@@ -75,7 +81,7 @@ class PhotoEmbeddingService {
         }
         
         // Clear retry attempts on success - thread-safe
-        dataLock.withLock {
+        _ = dataLock.withLock {
             retryAttempts.removeValue(forKey: assetId)
         }
         
@@ -201,6 +207,12 @@ class PhotoEmbeddingService {
     
     /// Compute embeddings for all photos in the library using waterline approach
     func computeAllEmbeddings(in context: NSManagedObjectContext, progressCallback: @escaping (Int, Int) -> Void = { _, _ in }) async {
+        // Check if embeddings are supported on this device
+        if !ImageEmbeddingService.shared.isEmbeddingSupported() {
+            print("❌ Embedding computation not supported on this device - skipping batch processing")
+            return
+        }
+        
         let batchStartTime = CFAbsoluteTimeGetCurrent()
         
         let waterline = getEmbeddingWaterline()

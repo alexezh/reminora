@@ -178,47 +178,10 @@ struct SVGPreviewView: View {
                         self.renderedImage = svgImage
                     }
                 } else {
-                    print("⚠️ SVGPreviewView: SVG image resolution failed, trying basic thumbnail")
-                    // Fallback to basic thumbnail if image resolution fails
-                    if let basicSvgImage = templateService.generateThumbnail(for: self.template, size: targetSize) {
-                        print("✅ SVGPreviewView: Basic SVG thumbnail succeeded")
-                        DispatchQueue.main.async {
-                            self.isLoading = false
-                            self.renderedImage = basicSvgImage
-                        }
-                    } else {
-                        print("⚠️ SVGPreviewView: All SVG rendering failed, creating fallback")
-                        // Final fallback
-                        let renderer = UIGraphicsImageRenderer(size: targetSize)
-                        let fallbackImage = renderer.image { context in
-                            let cgContext = context.cgContext
-                            
-                            // White background
-                            cgContext.setFillColor(UIColor.white.cgColor)
-                            cgContext.fill(CGRect(origin: .zero, size: targetSize))
-                            
-                            // Draw template name
-                            let text = self.template.name
-                            let font = UIFont.systemFont(ofSize: 16, weight: .medium)
-                            let attributes: [NSAttributedString.Key: Any] = [
-                                .font: font,
-                                .foregroundColor: UIColor.systemGray,
-                            ]
-                            let textSize = text.size(withAttributes: attributes)
-                            let textRect = CGRect(
-                                x: targetSize.width/2 - textSize.width/2,
-                                y: targetSize.height/2 - textSize.height/2,
-                                width: textSize.width,
-                                height: textSize.height
-                            )
-                            text.draw(in: textRect, withAttributes: attributes)
-                        }
-                        
-                        DispatchQueue.main.async {
-                            self.isLoading = false
-                            self.renderedImage = fallbackImage
-                            print("✅ SVGPreviewView: Fallback preview completed")
-                        }
+                    // do not fallback
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        print("✅ SVGPreviewView: Fallback preview completed")
                     }
                 }
             }

@@ -11,6 +11,19 @@ import Photos
 import UIKit
 import SVGKit
 
+// MARK: - CALayer Extension for finding layers by identifier
+extension CALayer {
+    func findLayer(byIdentifier id: String) -> CALayer? {
+        if name == id { return self }
+        for sub in sublayers ?? [] {
+            if let match = sub.findLayer(byIdentifier: id) {
+                return match
+            }
+        }
+        return nil
+    }
+}
+
 // MARK: - Image Assignment Helper
 private class ECardImageAssignmentHelper {
     private var imageAssignments: [String: UIImage] = [:]
@@ -353,8 +366,11 @@ class ECardTemplateService: ObservableObject {
             return renderSVGWithSVGKit(svgContent: template.svgContent, size: size)
         }
         
-        // Set the desired output size
+        // Set the desired output size and ensure proper scaling
         svgkImage.size = size
+        
+        // Force SVGKit to scale the content to fit inside the target size
+        svgkImage.scaleToFit(inside: size)
         
         // Get DOM document for manipulation
         guard let domDocument = svgkImage.domDocument else {
@@ -362,27 +378,31 @@ class ECardTemplateService: ObservableObject {
             return renderSVGWithSVGKit(svgContent: template.svgContent, size: size)
         }
         
-        // Update image elements in DOM - only if they're already SVG image elements
-        for slot in template.imageSlots {
-            let slotId = slot.id
-            if let image = imageAssignments[slotId],
-               let imgElement = domDocument.getElementById(slotId) as? SVGImageElement {
-                
-                // Convert UIImage to PNG data URL (more efficient than JPEG for UI images)
-                guard let pngData = image.pngData() else {
-                    print("⚠️ Failed to convert image to PNG data for slot \(slotId)")
-                    continue
+        // Update image layers in CALayer tree - works regardless of DOM element type
+        if let rootLayer = svgkImage.caLayerTree {
+            for slot in template.imageSlots {
+                let slotId = slot.id
+                if let image = imageAssignments[slotId] {
+                    
+                    // Convert UIImage to PNG data for consistency
+                    guard let pngData = image.pngData(),
+                          let pngImage = UIImage(data: pngData) else {
+                        print("⚠️ Failed to convert image to PNG for slot \(slotId)")
+                        continue
+                    }
+                    
+                    // Find the CALayer for this image slot
+                    if let imageLayer = rootLayer.findLayer(byIdentifier: slotId) {
+                        // Set the CGImage directly on the layer's contents
+                        imageLayer.contents = pngImage.cgImage
+                        print("🎨 ECardTemplateService: Set CGImage contents on CALayer for slot \(slotId)")
+                    } else {
+                        print("⏭️ ECardTemplateService: Could not find CALayer for slot \(slotId)")
+                    }
                 }
-                
-                let base64String = pngData.base64EncodedString()
-                let dataURL = "data:image/png;base64,\(base64String)"
-                
-                // Update the href of the existing SVG image element using namespaced attribute
-                imgElement.setAttributeNS("http://www.w3.org/1999/xlink", qualifiedName: "xlink:href", value: dataURL)
-                print("🎨 ECardTemplateService: Set PNG data URL on SVGImageElement \(slotId) using xlink:href")
-            } else if let _ = domDocument.getElementById(slotId) {
-                print("⏭️ ECardTemplateService: Element \(slotId) is not an SVGImageElement - ignoring (will render as placeholder)")
             }
+        } else {
+            print("⚠️ ECardTemplateService: Could not access caLayerTree from SVGKImage")
         }
         
         // Update text elements in DOM
@@ -403,7 +423,38 @@ class ECardTemplateService: ObservableObject {
             }
         }
         
-        // Render the final SVG with all DOM modifications
+        // Render the final SVG using CALayer approach to ensure proper scaling and positioning
+        if let rootLayer = svgkImage.caLayerTree {
+            print("🎨 ECardTemplateService: Using CALayer rendering for final image")
+            
+            let scale = UIScreen.main.scale
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = scale
+            format.opaque = false
+            
+            let renderer = UIGraphicsImageRenderer(size: size, format: format)
+            let renderedImage = renderer.image { context in
+                let cgContext = context.cgContext
+                
+                // Clear background to white for ECard
+                cgContext.setFillColor(UIColor.white.cgColor)
+                cgContext.fill(CGRect(origin: .zero, size: size))
+                
+                // Set the layer frame to match our target size and position at origin
+                rootLayer.frame = CGRect(origin: .zero, size: size)
+                
+                // Ensure the layer contents are scaled properly
+                rootLayer.contentsGravity = .resizeAspect
+                
+                // Render the layer directly
+                rootLayer.render(in: cgContext)
+            }
+            
+            print("✅ ECardTemplateService: CALayer rendering completed with size \(size)")
+            return renderedImage
+        }
+        
+        // Fallback to UIImage property
         let finalImage = svgkImage.uiImage
         
         // Resize if needed

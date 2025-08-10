@@ -22,11 +22,13 @@ enum ActionSheetContext {
     case swipePhoto
     case pinDetail
     case ecard
+    case clip
 }
 
 // MARK: - Editor Type
 enum EditorType: String, CaseIterable {
     case eCard = "ECard"
+    case clip = "Clip"
     case collage = "Collage"
     case videoEditor = "Video Editor"
     
@@ -38,6 +40,8 @@ enum EditorType: String, CaseIterable {
         switch self {
         case .eCard:
             return "rectangle.stack"
+        case .clip:
+            return "video.circle"
         case .collage:
             return "square.grid.2x2"
         case .videoEditor:

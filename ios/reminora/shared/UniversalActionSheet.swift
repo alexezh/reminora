@@ -167,6 +167,8 @@ struct UniversalActionSheet: View {
                         pinDetailActions()
                     case .ecard:
                         ecardActions()
+                    case .clip:
+                        clipActions()
                     }
                 }
                 .padding(.top, 8)
@@ -258,6 +260,12 @@ struct UniversalActionSheet: View {
         ) {
             dismiss()
             ActionRouter.shared.execute(.makeECard([]))
+        }
+        ActionListItem(
+            icon: "video.circle", title: "Make Clip", isEnabled: hasSelectedAssets, hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.makeClip([]))
         }
         ActionListItem(
             icon: "magnifyingglass", title: "Find Similar", isEnabled: hasSelectedAssets,
@@ -389,6 +397,12 @@ struct UniversalActionSheet: View {
             ActionRouter.shared.execute(.makeECard([]))
         }
         ActionListItem(
+            icon: "video.circle", title: "Make Clip", isEnabled: true, hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.makeClip([]))
+        }
+        ActionListItem(
             icon: "square.grid.2x2", title: "Make Collage", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
@@ -482,6 +496,12 @@ struct UniversalActionSheet: View {
             ActionRouter.shared.execute(.makeECard([]))
         }
         ActionListItem(
+            icon: "video.circle", title: "Make Clip", isEnabled: true, hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.makeClip([]))
+        }
+        ActionListItem(
             icon: "square.grid.2x2", title: "Make Collage", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
@@ -521,6 +541,13 @@ struct UniversalActionSheet: View {
         ) {
             dismiss()
             ActionRouter.shared.execute(.makeECard([]))
+        }
+        ActionListItem(
+            icon: "video.circle", title: "Make Clip", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.makeClip([]))
         }
         ActionListItem(
             icon: "magnifyingglass", title: "Find Similar", isEnabled: true,
@@ -588,6 +615,36 @@ struct UniversalActionSheet: View {
     }
 
     @ViewBuilder
+    private func clipActions() -> some View {
+        ActionListItem(
+            icon: "play.circle", title: "Preview", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            // TODO: Implement preview action
+            print("📹 Preview clip action")
+        }
+        ActionListItem(
+            icon: "square.and.arrow.up", title: "Export", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            // TODO: Implement export action
+            print("📹 Export clip action")
+        }
+        ActionListItem(
+            icon: "photo.on.rectangle.angled", title: "Add Images", isEnabled: true,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            // TODO: Implement add images action
+            print("📹 Add images to clip action")
+        }
+        
+        settingsAction()
+    }
+
+    @ViewBuilder
     private func profileTabActions() -> some View {
         ActionListItem(
             icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled
@@ -634,6 +691,12 @@ struct UniversalActionSheet: View {
         ) {
             dismiss()
             ActionRouter.shared.execute(.makeECard([]))
+        }
+        ActionListItem(
+            icon: "video.circle", title: "Make Clip", isEnabled: true, hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.makeClip([]))
         }
         ActionListItem(
             icon: "square.grid.2x2", title: "Make Collage", isEnabled: true,

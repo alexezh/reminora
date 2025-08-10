@@ -768,7 +768,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "99"
             endingLineNumber = "99"
-            landmarkName = "getTemplateForAssets(_:)"
+            landmarkName = "getTemplates(for:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -782,8 +782,8 @@
             filePath = "reminora/ecard/ECardTemplateService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "366"
-            endingLineNumber = "366"
+            startingLineNumber = "353"
+            endingLineNumber = "353"
             landmarkName = "generateECardWithImages(template:imageAssignments:textAssignments:size:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -862,8 +862,8 @@
             filePath = "reminora/ecard/ECardEditor.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "465"
-            endingLineNumber = "465"
+            startingLineNumber = "379"
+            endingLineNumber = "379"
             landmarkName = "loadPersistedState()"
             landmarkType = "7">
          </BreakpointContent>
@@ -878,8 +878,24 @@
             filePath = "reminora/ecard/ECardTemplateService.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "381"
-            endingLineNumber = "381"
+            startingLineNumber = "368"
+            endingLineNumber = "368"
+            landmarkName = "generateECardWithImages(template:imageAssignments:textAssignments:size:)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "F6DB5726-7D20-4203-B61B-58797C9A662A"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "reminora/ecard/ECardTemplateService.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "374"
+            endingLineNumber = "374"
             landmarkName = "generateECardWithImages(template:imageAssignments:textAssignments:size:)"
             landmarkType = "7">
          </BreakpointContent>

@@ -18,8 +18,11 @@ struct ECardTemplate: Identifiable, Codable {
     let imageSlots: [ImageSlot]
     let textSlots: [TextSlot]
     let category: ECardCategory
-    
-    init(id: String, name: String, svgContent: String, thumbnailName: String? = nil, imageSlots: [ImageSlot], textSlots: [TextSlot] = [], category: ECardCategory = .general) {
+
+    init(
+        id: String, name: String, svgContent: String, thumbnailName: String? = nil,
+        imageSlots: [ImageSlot], textSlots: [TextSlot] = [], category: ECardCategory = .general
+    ) {
         self.id = id
         self.name = name
         self.svgContent = svgContent
@@ -28,12 +31,12 @@ struct ECardTemplate: Identifiable, Codable {
         self.textSlots = textSlots
         self.category = category
     }
-    
+
     /// Calculate aspect ratio from SVG viewBox
     var aspectRatio: Double {
         return svgDimensions.width / svgDimensions.height
     }
-    
+
     /// Calculate SVG dimensions based on photo dimensions with padding
     /// +10% on sides and top, +20% on bottom
     var svgDimensions: CGSize {
@@ -42,18 +45,15 @@ struct ECardTemplate: Identifiable, Codable {
             // Fallback to standard 4:5 aspect ratio
             return CGSize(width: 400, height: 500)
         }
-        
-        let photoWidth = firstImageSlot.width
-        let photoHeight = firstImageSlot.height
-        
+
         // Calculate ECard dimensions with padding
         let sidePadding = photoWidth * 0.1  // 10% padding on each side
         let topPadding = photoHeight * 0.1  // 10% padding on top
         let bottomPadding = photoHeight * 0.2  // 20% padding on bottom
-        
+
         let ecardWidth = photoWidth + (sidePadding * 2)  // Photo width + padding on both sides
         let ecardHeight = photoHeight + topPadding + bottomPadding  // Photo height + top and bottom padding
-        
+
         return CGSize(width: ecardWidth, height: ecardHeight)
     }
 }
@@ -61,48 +61,20 @@ struct ECardTemplate: Identifiable, Codable {
 // MARK: - Image Slot
 struct ImageSlot: Identifiable, Codable {
     let id: String
-    let x: Double
-    let y: Double
-    let width: Double
-    let height: Double
-    let cornerRadius: Double
-    let preserveAspectRatio: Bool
-    
-    init(id: String, x: Double, y: Double, width: Double, height: Double, cornerRadius: Double = 0, preserveAspectRatio: Bool = true) {
+
+    init(id: String) {
         self.id = id
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.cornerRadius = cornerRadius
-        self.preserveAspectRatio = preserveAspectRatio
     }
 }
 
 // MARK: - Text Slot
 struct TextSlot: Identifiable, Codable {
     let id: String
-    let x: Double
-    let y: Double
-    let width: Double
-    let height: Double
-    let fontSize: Double
-    let fontFamily: String
-    let textAlign: TextAlignment
-    let maxLines: Int
-    let placeholder: String
-    
-    init(id: String, x: Double, y: Double, width: Double, height: Double, fontSize: Double = 14, fontFamily: String = "Arial", textAlign: TextAlignment = .center, maxLines: Int = 2, placeholder: String = "Add text") {
+
+    init(
+        id: String
+    ) {
         self.id = id
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.fontSize = fontSize
-        self.fontFamily = fontFamily
-        self.textAlign = textAlign
-        self.maxLines = maxLines
-        self.placeholder = placeholder
     }
 }
 
@@ -120,11 +92,11 @@ enum ECardCategory: String, Codable, CaseIterable {
     case modern = "Modern"
     case holiday = "Holiday"
     case travel = "Travel"
-    
+
     var displayName: String {
         return rawValue
     }
-    
+
     var icon: String {
         switch self {
         case .general: return "rectangle.stack"
@@ -141,12 +113,15 @@ enum ECardCategory: String, Codable, CaseIterable {
 struct ECard: Identifiable, Codable {
     let id: String
     let templateId: String
-    let imageAssignments: [String: String] // ImageSlot ID -> PHAsset localIdentifier
-    let textAssignments: [String: String] // TextSlot ID -> Text content
+    let imageAssignments: [String: String]  // ImageSlot ID -> PHAsset localIdentifier
+    let textAssignments: [String: String]  // TextSlot ID -> Text content
     let createdAt: Date
     let updatedAt: Date
-    
-    init(templateId: String, imageAssignments: [String: String] = [:], textAssignments: [String: String] = [:]) {
+
+    init(
+        templateId: String, imageAssignments: [String: String] = [:],
+        textAssignments: [String: String] = [:]
+    ) {
         self.id = UUID().uuidString
         self.templateId = templateId
         self.imageAssignments = imageAssignments
@@ -154,8 +129,10 @@ struct ECard: Identifiable, Codable {
         self.createdAt = Date()
         self.updatedAt = Date()
     }
-    
-    func updated(imageAssignments: [String: String]? = nil, textAssignments: [String: String]? = nil) -> ECard {
+
+    func updated(
+        imageAssignments: [String: String]? = nil, textAssignments: [String: String]? = nil
+    ) -> ECard {
         return ECard(
             id: self.id,
             templateId: self.templateId,
@@ -165,8 +142,11 @@ struct ECard: Identifiable, Codable {
             updatedAt: Date()
         )
     }
-    
-    private init(id: String, templateId: String, imageAssignments: [String: String], textAssignments: [String: String], createdAt: Date, updatedAt: Date) {
+
+    private init(
+        id: String, templateId: String, imageAssignments: [String: String],
+        textAssignments: [String: String], createdAt: Date, updatedAt: Date
+    ) {
         self.id = id
         self.templateId = templateId
         self.imageAssignments = imageAssignments
@@ -182,13 +162,13 @@ enum ECardSize: String, CaseIterable {
     case medium = "Medium"
     case large = "Large"
     case custom = "Custom"
-    
+
     var dimensions: CGSize {
         switch self {
         case .small: return CGSize(width: 300, height: 400)
         case .medium: return CGSize(width: 400, height: 500)
         case .large: return CGSize(width: 500, height: 650)
-        case .custom: return CGSize(width: 400, height: 500) // Default for custom
+        case .custom: return CGSize(width: 400, height: 500)  // Default for custom
         }
     }
 }

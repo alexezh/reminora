@@ -93,14 +93,7 @@ class ECardEditor: ObservableObject {
                let firstImageSlot = template.imageSlots.first {
                 self.imageAssignments[firstImageSlot.id] = firstAsset
             }
-            
-            // Initialize text assignments with placeholders
-            for textSlot in template.textSlots {
-                if self.textAssignments[textSlot.id] == nil {
-                    self.textAssignments[textSlot.id] = textSlot.placeholder
-                }
-            }
-            
+                        
             self.persistState()
             print("🎨 ECardEditor: Set template \(template.name) with \(self.imageAssignments.count) image assignments")
         }
@@ -216,7 +209,6 @@ class ECardEditor: ObservableObject {
         guard let svgData = template.svgContent.data(using: .utf8),
               let svgkImage = SVGKImage(data: svgData) else {
             print("⚠️ Failed to create SVGKImage, falling back to manual rendering")
-            renderECardWithImagesManual(template: template, loadedImages: loadedImages, textAssignments: textAssignments, size: size, completion: completion)
             return
         }
         
@@ -226,7 +218,6 @@ class ECardEditor: ObservableObject {
         // Get the CALayer to modify SVG elements
         guard let svgLayer = svgkImage.caLayerTree else {
             print("⚠️ Failed to get SVG layer tree, falling back to manual rendering")
-            renderECardWithImagesManual(template: template, loadedImages: loadedImages, textAssignments: textAssignments, size: size, completion: completion)
             return
         }
         
@@ -244,78 +235,8 @@ class ECardEditor: ObservableObject {
         
         completion(.success(finalImage))
     }
-    
-    /// Fallback manual rendering method
-    private func renderECardWithImagesManual(
-        template: ECardTemplate,
-        loadedImages: [String: UIImage],
-        textAssignments: [String: String],
-        size: CGSize,
-        completion: @escaping (Result<UIImage, Error>) -> Void
-    ) {
-        let renderer = UIGraphicsImageRenderer(size: size)
         
-        let image = renderer.image { context in
-            let cgContext = context.cgContext
-            
-            // White background
-            cgContext.setFillColor(UIColor.white.cgColor)
-            cgContext.fill(CGRect(origin: .zero, size: size))
-            
-            // Draw assigned images based on template layout
-            for slot in template.imageSlots {
-                if let loadedImage = loadedImages[slot.id] {
-                    let imageRect = CGRect(x: slot.x, y: slot.y, width: slot.width, height: slot.height)
-                    
-                    // Save context, apply corner radius if specified
-                    cgContext.saveGState()
-                    if slot.cornerRadius > 0 {
-                        let path = UIBezierPath(roundedRect: imageRect, cornerRadius: slot.cornerRadius)
-                        cgContext.addPath(path.cgPath)
-                        cgContext.clip()
-                    }
-                    
-                    // Draw the image with aspect fill behavior
-                    let aspectRatio = loadedImage.size.width / loadedImage.size.height
-                    let targetAspectRatio = slot.width / slot.height
-                    
-                    var drawRect = imageRect
-                    if aspectRatio > targetAspectRatio {
-                        // Image is wider, fit height and crop width
-                        let scaledWidth = slot.height * aspectRatio
-                        drawRect = CGRect(x: imageRect.midX - scaledWidth/2, y: imageRect.minY, width: scaledWidth, height: slot.height)
-                    } else {
-                        // Image is taller, fit width and crop height
-                        let scaledHeight = slot.width / aspectRatio
-                        drawRect = CGRect(x: imageRect.minX, y: imageRect.midY - scaledHeight/2, width: slot.width, height: scaledHeight)
-                    }
-                    
-                    loadedImage.draw(in: drawRect)
-                    cgContext.restoreGState()
-                }
-            }
-            
-            // Draw text slots
-            for slot in template.textSlots {
-                let text = textAssignments[slot.id] ?? slot.placeholder
-                let textRect = CGRect(x: slot.x, y: slot.y, width: slot.width, height: slot.height)
-                
-                let paragraphStyle = NSMutableParagraphStyle()
-                paragraphStyle.alignment = slot.textAlign == .center ? .center : (slot.textAlign == .right ? .right : .left)
-                
-                text.draw(in: textRect, withAttributes: [
-                    .font: UIFont.systemFont(ofSize: slot.fontSize),
-                    .foregroundColor: UIColor.black,
-                    .paragraphStyle: paragraphStyle
-                ])
-            }
-        }
-        
-        completion(.success(image))
-    }
-    
     // MARK: - SVG Layer Manipulation Helpers
-    
     private func replaceImagePlaceholders(in layer: CALayer, with images: [String: UIImage], imageSlots: [ImageSlot], targetSize: CGSize) {
         // Walk through sublayers to find image placeholders
         walkLayerTree(layer) { sublayer in
@@ -328,11 +249,7 @@ class ECardEditor: ObservableObject {
                     imageLayer.frame = sublayer.frame
                     imageLayer.contentsGravity = .resizeAspectFill
                     imageLayer.masksToBounds = true
-                    
-                    if slot.cornerRadius > 0 {
-                        imageLayer.cornerRadius = slot.cornerRadius
-                    }
-                    
+                                        
                     // Replace the placeholder layer
                     if let superlayer = sublayer.superlayer {
                         superlayer.replaceSublayer(sublayer, with: imageLayer)
@@ -348,11 +265,8 @@ class ECardEditor: ObservableObject {
             // Look for text layers that match our text slot IDs
             for slot in textSlots {
                 if sublayer.name == slot.id, let textLayer = sublayer as? CATextLayer {
-                    let text = textAssignments[slot.id] ?? slot.placeholder
+                    let text = textAssignments[slot.id]
                     textLayer.string = text
-                    textLayer.fontSize = slot.fontSize
-                    textLayer.alignmentMode = slot.textAlign == .center ? .center : (slot.textAlign == .right ? .right : .left)
-                    textLayer.foregroundColor = UIColor.black.cgColor
                 }
             }
         }

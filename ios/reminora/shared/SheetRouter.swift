@@ -146,6 +146,14 @@ struct SheetRouter: View {
                     }
                 )
             }
+            
+        case .clipEditor(let assets):
+            ClipEditorView(
+                initialAssets: assets,
+                onDismiss: {
+                    sheetStack.pop()
+                }
+            )
         }
     }
 }

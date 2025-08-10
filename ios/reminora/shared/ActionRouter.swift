@@ -26,6 +26,7 @@ enum ActionType: Equatable {
     case findSimilar(PHAsset?)
     case findDuplicates(PHAsset?)
     case makeECard([PHAsset])
+    case makeClip([PHAsset])
     case makeCollage([PHAsset])
     case sharePhoto(PHAsset?)
     case toggleFavorite(PHAsset?)
@@ -74,6 +75,7 @@ enum ActionType: Equatable {
         case (.findSimilar(let a), .findSimilar(let b)): return a?.localIdentifier == b?.localIdentifier
         case (.findDuplicates(let a), .findDuplicates(let b)): return a?.localIdentifier == b?.localIdentifier
         case (.makeECard(let a), .makeECard(let b)): return a.map(\.localIdentifier) == b.map(\.localIdentifier)
+        case (.makeClip(let a), .makeClip(let b)): return a.map(\.localIdentifier) == b.map(\.localIdentifier)
         case (.makeCollage(let a), .makeCollage(let b)): return a.map(\.localIdentifier) == b.map(\.localIdentifier)
         case (.sharePhoto(let a), .sharePhoto(let b)): return a?.localIdentifier == b?.localIdentifier
         case (.toggleFavorite(let a), .toggleFavorite(let b)): return a?.localIdentifier == b?.localIdentifier
@@ -167,6 +169,9 @@ class ActionRouter: ObservableObject {
             
         case .makeECard(let assets):
             handleMakeECard(assets)
+            
+        case .makeClip(let assets):
+            handleMakeClip(assets)
             
         case .makeCollage(let assets):
             handleMakeCollage(assets)
@@ -315,6 +320,28 @@ class ActionRouter: ObservableObject {
         // Switch to Editor tab
         NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: "Editor")
         print("🎯 ActionRouter: Started ECard editing with \(assetsToUse.count) assets")
+    }
+    
+    private func handleMakeClip(_ assets: [PHAsset]) {
+        let assetsToUse: [PHAsset]
+        
+        if assets.isEmpty {
+            // Use selected assets
+            if let selectedAssets = getSelectedAssets(), !selectedAssets.isEmpty {
+                assetsToUse = selectedAssets
+            } else {
+                print("🎯 ActionRouter: No assets available for Clip")
+                return
+            }
+        } else {
+            assetsToUse = assets
+        }
+        
+        // Start Clip editing session
+        ClipEditor.shared.startEditing(with: assetsToUse)
+        // Show ClipEditorView via SheetStack
+        sheetStack?.push(.clipEditor(assets: assetsToUse))
+        print("🎯 ActionRouter: Started Clip editing with \(assetsToUse.count) assets")
     }
     
     private func handleMakeCollage(_ assets: [PHAsset]) {

@@ -22,6 +22,8 @@ struct ContentView: View {
     @StateObject private var sheetStack = SheetStack.shared
     @StateObject private var eCardTemplateService = ECardTemplateService.shared
     @StateObject private var eCardEditor = ECardEditor.shared
+    @StateObject private var clipEditor = ClipEditor.shared
+    @StateObject private var clipManager = ClipManager.shared
     @StateObject private var actionSheetModel = UniversalActionSheetModel.shared
     @State private var isActionSheetScrolling = false
 
@@ -88,6 +90,8 @@ struct ContentView: View {
         .environment(\.sheetStack, sheetStack)
         .environment(\.eCardTemplateService, eCardTemplateService)
         .environment(\.eCardEditor, eCardEditor)
+        .environment(\.clipEditor, clipEditor)
+        .environment(\.clipManager, clipManager)
         .sheet(isPresented: $toolbarManager.showActionSheet) {
             UniversalActionSheet(
                 selectedTab: selectedTab,

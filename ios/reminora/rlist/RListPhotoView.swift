@@ -35,16 +35,51 @@ struct RListPhotoView: View {
                 }
                 
                 // Primary photo
-                primaryPhotoView
-                
-                // Stack count indicator for multi-photo stacks
-                if !photoStack.isSinglePhoto {
-                    stackCountIndicator
+                if let primaryImage = photoStack.primaryImage {
+                    Image(uiImage: primaryImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .clipped()
+                        .cornerRadius(8)
                 }
                 
-                // Selection indicator
+                // Stack count indicator for multi-photo stacks - positioned absolutely
+                if !photoStack.isSinglePhoto {
+                    ZStack {
+                        Circle()
+                            .fill(Color.black.opacity(0.7))
+                            .frame(width: 24, height: 24)
+                        
+                        Text("\(photoStack.count)")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                    }
+                    .offset(x: 0, y: 0)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(6)
+                }
+                
+                // Selection indicator - positioned absolutely
                 if isSelectionMode {
-                    selectionIndicator
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.9))
+                            .frame(width: 28, height: 28)
+                            .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                        
+                        Circle()
+                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
+                            .frame(width: 28, height: 28)
+                        
+                        Image(systemName: selectionIconName)
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(selectionColor)
+                    }
+                    .offset(x: 0, y: 0)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(8)
                 }
             }
         }
@@ -56,36 +91,6 @@ struct RListPhotoView: View {
     
     // MARK: - View Components
     
-    private var primaryPhotoView: some View {
-        Group {
-            if let primaryImage = photoStack.primaryImage {
-                Image(uiImage: primaryImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-                    .cornerRadius(8)
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .cornerRadius(8)
-                    .overlay(
-                        Group {
-                            if photoStack.isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle())
-                                    .scaleEffect(0.7)
-                            } else {
-                                Image(systemName: "photo")
-                                    .font(.title2)
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                    )
-            }
-        }
-    }
     
     private var stackBackgroundLayers: some View {
         Group {
@@ -108,51 +113,7 @@ struct RListPhotoView: View {
             }
         }
     }
-    
-    private var stackCountIndicator: some View {
-        VStack {
-            Spacer()
-            HStack {
-                Spacer()
-                ZStack {
-                    Circle()
-                        .fill(Color.black.opacity(0.7))
-                        .frame(width: 24, height: 24)
-                    
-                    Text("\(photoStack.count)")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                }
-                .padding(6)
-            }
-        }
-    }
-    
-    private var selectionIndicator: some View {
-        VStack {
-            HStack {
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.9))
-                        .frame(width: 28, height: 28)
-                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-                    
-                    Circle()
-                        .stroke(Color.black.opacity(0.2), lineWidth: 1)
-                        .frame(width: 28, height: 28)
-                    
-                    Image(systemName: selectionIconName)
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(selectionColor)
-                }
-                .padding(8)
-                Spacer()
-            }
-            Spacer()
-        }
-    }
-    
+        
     // MARK: - Computed Properties
     
     private var isSelected: Bool {

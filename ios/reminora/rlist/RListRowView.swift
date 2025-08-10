@@ -26,6 +26,11 @@ struct RListRowView: View {
     
     var body: some View {
         switch row.type {
+        case .headerRow:
+            if let firstItem = row.items.first, case .header(let title) = firstItem.itemType {
+                RListHeaderView(title: title)
+            }
+            
         case .photoRow:
             if row.items.count == 1, case .photoStack(let photoStack) = row.items[0].itemType {
                 // Single photo row - limit width to 1/2 and scale preserving aspect ratio

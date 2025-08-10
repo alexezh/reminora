@@ -14,8 +14,6 @@ struct PhotoMainView: View {
     @Binding var isSwipePhotoViewOpen: Bool
     @StateObject private var photoStackCollection = RPhotoStackCollection()
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
-    @State private var selectedStack: RPhotoStack?
-    @State private var selectedStackIndex = 0
     @State private var currentFilter: PhotoFilterType = .notDisliked
     @State private var isCoreDataReady = false
     @State private var hasTriedInitialLoad = false
@@ -246,9 +244,7 @@ struct PhotoMainView: View {
                                 selectedAssetService.setCurrentPhoto(asset)
                                 // Create a stack with just this photo and show it
                                 let stack = RPhotoStack(assets: [asset])
-                                selectedStackIndex = 0
                                 withAnimation(.easeInOut(duration: 0.2)) {
-                                    selectedStack = stack
                                     isSwipePhotoViewOpen = true
                                 }
                             }
@@ -271,9 +267,7 @@ struct PhotoMainView: View {
                                 selectedAssetService.setCurrentPhoto(assets.first)
                                 // Create a stack and show it
                                 let stack = RPhotoStack(assets: assets)
-                                selectedStackIndex = 0
                                 withAnimation(.easeInOut(duration: 0.2)) {
-                                    selectedStack = stack
                                     isSwipePhotoViewOpen = true
                                 }
                             }
@@ -391,14 +385,13 @@ struct PhotoMainView: View {
             }
         }
         .overlay {
-            if let selectedStack = selectedStack {
+            if isSwipePhotoViewOpen {
                 SwipePhotoView(
                     photoStackCollection: photoStackCollection,
-                    initialAssetId: selectedStack.primaryAsset.localIdentifier,
+                    initialAssetId: setCurrentPhoto.primaryAsset.localIdentifier,
                     onDismiss: {
                         print("SwipePhotoView dismissed")
                         withAnimation(.easeInOut(duration: 0.3)) {
-                            self.selectedStack = nil
                             isSwipePhotoViewOpen = false
                         }
                         // Refresh filter to remove disliked photos from view

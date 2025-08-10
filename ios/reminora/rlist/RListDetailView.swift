@@ -407,6 +407,9 @@ struct RListDetailView: View {
             case .location(_):
                 // Location items are not stored in Core Data lists yet
                 return false
+            case .header(_):
+                // Headers cannot be deleted
+                return false
             }
         }
         

@@ -15,6 +15,7 @@ enum RRListItemDataType {
     case photoStack(RPhotoStack)
     case pin(PinData)
     case location(LocationInfo)
+    case header(String)
 }
 
 // MARK: - RListView Item Implementations
@@ -136,7 +137,7 @@ struct RListView: View {
         self.onUserTap = onUserTap
     }
     
-    @State private var sections: [RListDateSection] = []
+    @State private var flatItems: [any RListViewItem] = []
     @State private var isLoading = true
     
     // Photo stack grouping interval (in minutes)
@@ -149,14 +150,14 @@ struct RListView: View {
                     ProgressView("Loading...")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding()
-                } else if sections.isEmpty {
+                } else if flatItems.isEmpty {
                     EmptyStateView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding()
                 } else {
-                    ForEach(sections) { section in
-                        RListSectionView(
-                            section: section,
+                    ForEach(Array(arrangeFlatItemsInRows().enumerated()), id: \.offset) { _, row in
+                        RListRowView(
+                            row: row,
                             isSelectionMode: isSelectionMode,
                             onPhotoTap: onPhotoTap,
                             onPinTap: onPinTap,
@@ -180,10 +181,10 @@ struct RListView: View {
         }
         
         let items = await processDataSource()
-        let groupedSections = groupItemsByDate(items)
+        let flatItemsWithHeaders = createFlatListWithHeaders(items)
         
         await MainActor.run {
-            self.sections = groupedSections
+            self.flatItems = flatItemsWithHeaders
             self.isLoading = false
         }
     }
@@ -215,69 +216,51 @@ struct RListView: View {
         }
     }
     
-    private func groupItemsByDate(_ items: [any RListViewItem]) -> [RListDateSection] {
+    private func createFlatListWithHeaders(_ items: [any RListViewItem]) -> [any RListViewItem] {
         let calendar = Calendar.current
-        let grouped = Dictionary(grouping: items) { item in
-            calendar.startOfDay(for: item.date)
+        
+        // Sort items by date (newest first)
+        let sortedItems = items.sorted { $0.date > $1.date }
+        
+        var flatItems: [any RListViewItem] = []
+        var currentDate: Date?
+        
+        for item in sortedItems {
+            let itemDate = calendar.startOfDay(for: item.date)
+            
+            // Check if we need to add a new header
+            if currentDate == nil || currentDate != itemDate {
+                currentDate = itemDate
+                
+                // Create and add header item
+                let headerTitle = formatDateForHeader(item.date)
+                let headerItem = RListHeaderItem(date: itemDate, title: headerTitle)
+                flatItems.append(headerItem)
+            }
+            
+            // Add the actual item
+            flatItems.append(item)
         }
         
-        return grouped.map { date, items in
-            RListDateSection(date: date, items: items.sorted { $0.date > $1.date })
-        }.sorted { $0.date > $1.date }
-    }
-}
-
-// MARK: - RListSectionView
-struct RListSectionView: View {
-    let section: RListDateSection
-    let isSelectionMode: Bool
-    let onPhotoTap: (PHAsset) -> Void
-    let onPinTap: (PinData) -> Void
-    let onPhotoStackTap: ([PHAsset]) -> Void
-    let onLocationTap: ((LocationInfo) -> Void)?
-    let onDeleteItem: ((any RListViewItem) -> Void)?
-    let onUserTap: ((String, String) -> Void)?
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Date separator
-            HStack {
-                Text(section.title)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(Color(UIColor.systemBackground))
-            
-            // Items in this section with custom layout
-            LazyVStack(spacing: 8) {
-                ForEach(Array(arrangeItemsInRows().enumerated()), id: \.offset) { _, row in
-                    RListRowView(
-                        row: row,
-                        isSelectionMode: isSelectionMode,
-                        onPhotoTap: onPhotoTap,
-                        onPinTap: onPinTap,
-                        onPhotoStackTap: onPhotoStackTap,
-                        onLocationTap: onLocationTap,
-                        onDeleteItem: onDeleteItem,
-                        onUserTap: onUserTap
-                    )
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
-        }
+        return flatItems
     }
     
-    private func arrangeItemsInRows() -> [RListRow] {
+    private func arrangeFlatItemsInRows() -> [RListRow] {
         var rows: [RListRow] = []
         var currentPhotoRow: [any RListViewItem] = []
         
-        for item in section.items {
+        for item in flatItems {
             switch item.itemType {
+            case .header(let title):
+                // Finish any pending photo row first
+                if !currentPhotoRow.isEmpty {
+                    rows.append(RListRow(items: currentPhotoRow, type: .photoRow))
+                    currentPhotoRow = []
+                }
+                
+                // Add header as its own row
+                rows.append(RListRow(items: [item], type: .headerRow))
+                
             case .photoStack(_):
                 // Add photo stack to current row
                 currentPhotoRow.append(item)
@@ -307,7 +290,31 @@ struct RListSectionView: View {
         
         return rows
     }
+    
+    private func formatDateForHeader(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else if calendar.dateInterval(of: .weekOfYear, for: now)?.contains(date) == true {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEEE" // Day of week
+            return formatter.string(from: date)
+        } else if calendar.isDate(date, equalTo: now, toGranularity: .year) {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM d" // Apr 1
+            return formatter.string(from: date)
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMM d, yyyy" // Apr 1, 2023
+            return formatter.string(from: date)
+        }
+    }
 }
+
 
 // MARK: - RListRow
 struct RListRow {
@@ -318,6 +325,7 @@ struct RListRow {
 enum RListRowType {
     case photoRow  // 1-3 photos in a horizontal row
     case pinRow    // Single pin taking full width
+    case headerRow // Date header row
 }
 
 // MARK: - Empty State View

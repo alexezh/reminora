@@ -94,14 +94,13 @@ struct QuickListView: View {
                         items.removeAll { $0.id == item.id }
                     }
                 }
-            case .pin(let pinData):
+            case .pin(_):
                 // For pins, remove from Quick List by toggling
                 // This assumes RListService has a method to remove pins from Quick List
-                // You may need to implement this in RListService
                 print("TODO: Implement pin deletion from Quick List")
-                await MainActor.run {
-                    items.removeAll { $0.id == item.id }
-                }
+            case .header(_):
+                // Headers cannot be deleted
+                break
             case .location(_):
                 print("Location deletion not yet implemented")
             }

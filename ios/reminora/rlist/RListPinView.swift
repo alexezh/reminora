@@ -73,6 +73,9 @@ struct RRListPinView: View {
         case .photoStack(_):
             // This should never happen in pin rows - photos are handled by RListPhotoView in photo rows
             EmptyView()
+        case .header(_):
+            // Headers should be handled by RListHeaderView in header rows
+            EmptyView()
         }
     }
 }

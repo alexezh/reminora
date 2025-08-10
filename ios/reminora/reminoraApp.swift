@@ -258,12 +258,10 @@ struct reminoraApp: App {
             listItem.id = UUID().uuidString
             listItem.placeId = newPlace.objectID.uriRepresentation().absoluteString
             listItem.addedAt = Date()
-            listItem.sharedLink = components.url?.absoluteString
             listItem.listId = sharedList.id ?? ""
             
             // Store owner information for follow functionality
             if !ownerId.isEmpty {
-                listItem.sharedByUserId = ownerId
                 print("🔗 ✅ Stored owner ID: \(ownerId)")
                 
                 // Also store original owner info in the PinData object itself
@@ -271,7 +269,6 @@ struct reminoraApp: App {
                 print("🔗 ✅ Set originalUserId on place: \(ownerId)")
             }
             if !ownerHandle.isEmpty {
-                listItem.sharedByUserName = ownerHandle
                 print("🔗 ✅ Stored owner handle: \(ownerHandle)")
                 
                 // Also store original owner info in the PinData object itself

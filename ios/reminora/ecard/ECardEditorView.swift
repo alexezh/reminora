@@ -349,6 +349,8 @@ struct ECardEditorView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
+                    // Switch to Photo tab after successful save
+                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: "Photo")
                     self.onDismiss()
                 case .failure(let error):
                     print("❌ Failed to save ECard: \(error.localizedDescription)")

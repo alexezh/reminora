@@ -1,39 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23788.4" systemVersion="24F74" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
-    <entity name="PinComment" representedClassName="PinComment" syncable="YES" codeGenerationType="class">
-        <attribute name="cloudId" optional="YES" attributeType="String"/>
-        <attribute name="commentText" attributeType="String"/>
-        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="fromUserHandle" attributeType="String"/>
-        <attribute name="fromUserId" attributeType="String"/>
-        <attribute name="fromUserName" attributeType="String"/>
-        <attribute name="id" attributeType="String"/>
-        <attribute name="isReaction" attributeType="Boolean" usesScalarValueType="YES"/>
-        <attribute name="targetPhotoId" optional="YES" attributeType="String"/>
-        <attribute name="targetUserId" optional="YES" attributeType="String"/>
-        <attribute name="toUserHandle" optional="YES" attributeType="String"/>
-        <attribute name="toUserId" optional="YES" attributeType="String"/>
-        <attribute name="toUserName" optional="YES" attributeType="String"/>
-        <attribute name="type" attributeType="String"/>
-        <fetchIndex name="byCreatedAtIndex">
-            <fetchIndexElement property="createdAt" type="Binary" order="ascending"/>
-        </fetchIndex>
-        <fetchIndex name="byFromUserIdIndex">
-            <fetchIndexElement property="fromUserId" type="Binary" order="ascending"/>
-        </fetchIndex>
-        <fetchIndex name="byIdIndex">
-            <fetchIndexElement property="id" type="Binary" order="ascending"/>
-        </fetchIndex>
-        <fetchIndex name="byTargetPhotoIdIndex">
-            <fetchIndexElement property="targetPhotoId" type="Binary" order="ascending"/>
-        </fetchIndex>
-        <fetchIndex name="byTargetUserIdIndex">
-            <fetchIndexElement property="targetUserId" type="Binary" order="ascending"/>
-        </fetchIndex>
-        <fetchIndex name="byTypeIndex">
-            <fetchIndexElement property="type" type="Binary" order="ascending"/>
-        </fetchIndex>
-    </entity>
     <entity name="LocationPreference" representedClassName="LocationPreference" syncable="YES" codeGenerationType="class">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="isFavorited" attributeType="Boolean" usesScalarValueType="YES"/>
@@ -80,7 +46,7 @@
         <attribute name="dateModified" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="photoId" attributeType="String"/>
         <attribute name="preference" attributeType="String"/>
-        <attribute name="stackId" optional="YES" attributeType="Integer 32" defaultValue="0" usesScalarValueType="YES"/>
+        <attribute name="stackId" optional="YES" attributeType="Integer 32" usesScalarValueType="YES"/>
         <fetchIndex name="byPhotoIdIndex">
             <fetchIndexElement property="photoId" type="Binary" order="ascending"/>
         </fetchIndex>
@@ -89,6 +55,40 @@
         </fetchIndex>
         <fetchIndex name="byStackIdIndex">
             <fetchIndexElement property="stackId" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    <entity name="PinComment" representedClassName="PinComment" syncable="YES" codeGenerationType="class">
+        <attribute name="cloudId" optional="YES" attributeType="String"/>
+        <attribute name="commentText" attributeType="String"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="fromUserHandle" attributeType="String"/>
+        <attribute name="fromUserId" attributeType="String"/>
+        <attribute name="fromUserName" attributeType="String"/>
+        <attribute name="id" attributeType="String"/>
+        <attribute name="isReaction" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="targetPhotoId" optional="YES" attributeType="String"/>
+        <attribute name="targetUserId" optional="YES" attributeType="String"/>
+        <attribute name="toUserHandle" optional="YES" attributeType="String"/>
+        <attribute name="toUserId" optional="YES" attributeType="String"/>
+        <attribute name="toUserName" optional="YES" attributeType="String"/>
+        <attribute name="type" attributeType="String"/>
+        <fetchIndex name="byCreatedAtIndex">
+            <fetchIndexElement property="createdAt" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byFromUserIdIndex">
+            <fetchIndexElement property="fromUserId" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byIdIndex">
+            <fetchIndexElement property="id" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byTargetPhotoIdIndex">
+            <fetchIndexElement property="targetPhotoId" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byTargetUserIdIndex">
+            <fetchIndexElement property="targetUserId" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byTypeIndex">
+            <fetchIndexElement property="type" type="Binary" order="ascending"/>
         </fetchIndex>
     </entity>
     <entity name="PinData" representedClassName="PinData" syncable="YES" codeGenerationType="class">
@@ -137,9 +137,6 @@
         <attribute name="id" attributeType="String"/>
         <attribute name="listId" attributeType="String"/>
         <attribute name="placeId" attributeType="String"/>
-        <attribute name="sharedByUserId" optional="YES" attributeType="String"/>
-        <attribute name="sharedByUserName" optional="YES" attributeType="String"/>
-        <attribute name="sharedLink" optional="YES" attributeType="String"/>
         <fetchIndex name="byIdIndex">
             <fetchIndexElement property="id" type="Binary" order="ascending"/>
         </fetchIndex>

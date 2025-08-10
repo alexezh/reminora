@@ -372,17 +372,54 @@ class ECardTemplateService: ObservableObject {
             if let textElement = domDocument.getElementById(slotId) {
                 print("🎨 ECardTemplateService: Found text element \(slotId), type: \(type(of: textElement))")
                 
-                // Set textContent property directly - this is the most reliable approach
+                // Use DOM manipulation to update text content
                 let elementObj = textElement as AnyObject
-                elementObj.setValue?(text, forKey: "textContent")
-                print("✅ ECardTemplateService: Set textContent for \(slotId)")
                 
-                // Also try setting innerHTML as backup
+                // Try multiple approaches to ensure text is updated
+                if elementObj.responds(to: Selector(("setTextContent:"))) {
+                    let _ = elementObj.perform(Selector(("setTextContent:")), with: text)
+                    print("✅ ECardTemplateService: Updated textContent via setTextContent: for \(slotId)")
+                } else {
+                    // Fallback to setValue for textContent
+                    elementObj.setValue?(text, forKey: "textContent")
+                    print("✅ ECardTemplateService: Updated textContent via setValue for \(slotId)")
+                }
+                
+                // Also set innerHTML as additional backup
                 elementObj.setValue?(text, forKey: "innerHTML")
+                
+                // Force text content refresh using nodeValue property if available
+                if let firstChildValue = elementObj.value(forKey: "firstChild") {
+                    (firstChildValue as AnyObject).setValue?(text, forKey: "nodeValue")
+                    print("✅ ECardTemplateService: Updated nodeValue for first child of \(slotId)")
+                }
                 
             } else {
                 print("❌ ECardTemplateService: Could not find text element with ID: \(slotId)")
+                // Debug: Print all available element IDs
+                debugPrintAllElementIds(domDocument: domDocument)
             }
+        }
+        
+        // Force SVGKit to regenerate by clearing its internal caches
+        // This ensures DOM changes are reflected in the rendered output
+        let svgkImageObj = svgkImage as AnyObject
+        
+        // Try multiple cache clearing approaches
+        if svgkImageObj.responds(to: Selector(("clearCache"))) {
+            let _ = svgkImageObj.perform(Selector(("clearCache")))
+            print("🎨 ECardTemplateService: Cleared SVGKit cache")
+        }
+        
+        if svgkImageObj.responds(to: Selector(("invalidateCache"))) {
+            let _ = svgkImageObj.perform(Selector(("invalidateCache")))
+            print("🎨 ECardTemplateService: Invalidated SVGKit cache")
+        }
+        
+        // Force re-creation of the layer tree to ensure fresh rendering
+        if svgkImageObj.responds(to: Selector(("clearCALayerTree"))) {
+            let _ = svgkImageObj.perform(Selector(("clearCALayerTree")))
+            print("🎨 ECardTemplateService: Cleared CALayer tree for fresh rendering")
         }
 
         // Render the final SVG using CALayer approach to ensure proper scaling and positioning
@@ -459,6 +496,30 @@ class ECardTemplateService: ObservableObject {
         }
         
         // Don't traverse children for now to avoid complexity
+    }
+    
+    private func debugPrintAllElementIds(domDocument: Any) {
+        print("🔍 ECardTemplateService: Debugging available element IDs in DOM:")
+        let domDocumentObj = domDocument as AnyObject
+        
+        if let rootElement = domDocumentObj.rootElement {
+            debugPrintElementIds(element: rootElement as Any, level: 0)
+            
+            // Try to find all elements with IDs
+            for i in 1...10 {
+                let textId = "Text\(i)"
+                if let element = domDocumentObj.getElementById?(textId) {
+                    let elementObj = element as AnyObject
+                    let textContent = elementObj.textContent as? String ?? "no content"
+                    print("  Found \(textId): '\(textContent)'")
+                }
+                
+                let imageId = "Image\(i)"
+                if let element = domDocumentObj.getElementById?(imageId) {
+                    print("  Found \(imageId)")
+                }
+            }
+        }
     }
 
     // MARK: - SVG Coordinate Adjustment

@@ -38,8 +38,8 @@ struct SwipePhotoView: View {
     @State private var verticalOffset: CGFloat = 0 // For swipe down to dismiss
     
     // Two-image animation state
-    @State private var nextAsset: PHAsset? = nil
-    @State private var previousAsset: PHAsset? = nil
+    @State private var nextPhotoStack: RPhotoStack? = nil
+    @State private var previousPhotoStack: RPhotoStack? = nil
     @State private var nextImageOffset: CGFloat = 0
     @State private var previousImageOffset: CGFloat = 0
     @State private var isAnimatingToNext = false
@@ -58,31 +58,14 @@ struct SwipePhotoView: View {
     }
     
     private var currentPhotoStack: RPhotoStack {
-        let allAssets = photoStackCollection.allAssets()
-        guard currentIndex >= 0 && currentIndex < allAssets.count else {
+        guard currentIndex >= 0 && currentIndex < photoStackCollection.count else {
             // Create a fallback stack with the first asset or empty if no assets
-            if let firstAsset = allAssets.first {
-                return RPhotoStack(assets: [firstAsset])
-            } else {
-                return RPhotoStack(assets: [])
-            }
+            return RPhotoStack(assets: [])
         }
         
-        // Get the current asset and find its stack
-        let currentAsset = allAssets[currentIndex]
-        let stackInfo = photoStackCollection.getStackInfo(for: currentAsset)
+        return photoStackCollection[currentIndex]
+    }
         
-        // Return the stack if it exists, otherwise create a single-asset stack
-        return stackInfo.stack ?? RPhotoStack(assets: [currentAsset])
-    }
-    
-    // Convenience property to get the current asset (for backward compatibility)
-    private var currentAsset: PHAsset {
-        return currentPhotoStack.primaryAsset
-    }
-    
-    
-    
     // Expand a stack to show all photos
     private func expandStack(_ stack: RPhotoStack?) {
         guard let stack = stack else { return }
@@ -112,27 +95,25 @@ struct SwipePhotoView: View {
     // MARK: - Two-Image Animation Helpers
     
     private func prepareNextImage() {
-        let displayAssets = photoStackCollection.allAssets()
-        guard currentIndex + 1 < photoStackCollection.allAssets().count else { 
-            nextAsset = nil
+        guard currentIndex + 1 < photoStackCollection.count else { 
+            nextPhotoStack = nil
             return 
         }
-        nextAsset = displayAssets[currentIndex + 1]
+        nextPhotoStack = photoStackCollection[currentIndex + 1]
         nextImageOffset = UIScreen.main.bounds.width // Start off-screen to the right
     }
     
     private func preparePreviousImage() {
-        let displayAssets = photoStackCollection.allAssets()
-        guard currentIndex > 0 else { 
-            previousAsset = nil
+        guard currentIndex > 0 else {
+            previousPhotoStack = nil
             return 
         }
-        previousAsset = displayAssets[currentIndex - 1]
+        previousPhotoStack = photoStackCollection[currentIndex - 1]
         previousImageOffset = -UIScreen.main.bounds.width // Start off-screen to the left
     }
     
     private func animateToNextImage() {
-        guard nextAsset != nil else { return }
+        guard nextPhotoStack != nil else { return }
         
         isAnimatingToNext = true
         nextImageOffset = 0 // Animate to center
@@ -141,14 +122,14 @@ struct SwipePhotoView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             currentIndex += 1
             isAnimatingToNext = false
-            nextAsset = nil
+            nextPhotoStack = nil
             prepareNextImage() // Prepare for next transition
             preparePreviousImage() // Update previous
         }
     }
     
     private func animateToPreviousImage() {
-        guard previousAsset != nil else { return }
+        guard previousPhotoStack != nil else { return }
         
         isAnimatingToPrevious = true
         previousImageOffset = 0 // Animate to center
@@ -157,7 +138,7 @@ struct SwipePhotoView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             currentIndex -= 1
             isAnimatingToPrevious = false
-            previousAsset = nil
+            previousPhotoStack = nil
             prepareNextImage() // Update next
             preparePreviousImage() // Prepare for previous transition
         }
@@ -318,7 +299,7 @@ struct SwipePhotoView: View {
                         if !photoStackCollection.allAssets().isEmpty && currentIndex < photoStackCollection.allAssets().count {
                             ZStack {
                                 // Current image
-                                SwipePhotoImageView(asset: currentAsset, isLoading: $isLoading, stackInfo: (stack: currentPhotoStack, isStack: currentPhotoStack.count > 1, count: currentPhotoStack.count))
+                                SwipePhotoImageView(stack: currentPhotoStack, isLoading: $isLoading)
                                     .scaleEffect(photoTransition ? 0.9 : 1.0)
                                     .offset(x: swipeOffset, y: verticalOffset)
                                     .opacity(photoTransition ? 0.7 : (isAnimatingToNext || isAnimatingToPrevious ? 0.0 : 1.0))
@@ -329,17 +310,15 @@ struct SwipePhotoView: View {
                                     .animation(.easeOut(duration: 0.2), value: isAnimatingToPrevious)
                                 
                                 // Next image (slides in from right)
-                                if let nextAsset = nextAsset, isAnimatingToNext {
-                                    let nextStackInfo = photoStackCollection.getStackInfo(for: nextAsset)
-                                    SwipePhotoImageView(asset: nextAsset, isLoading: .constant(false), stackInfo: nextStackInfo)
+                                if let nextStack = nextPhotoStack, isAnimatingToNext {
+                                    SwipePhotoImageView(stack: nextStack, isLoading: .constant(false))
                                         .offset(x: nextImageOffset, y: 0)
                                         .animation(.easeOut(duration: 0.25), value: nextImageOffset)
                                 }
                                 
                                 // Previous image (slides in from left)
-                                if let previousAsset = previousAsset, isAnimatingToPrevious {
-                                    let prevStackInfo = photoStackCollection.getStackInfo(for: previousAsset)
-                                    SwipePhotoImageView(asset: previousAsset, isLoading: .constant(false), stackInfo: prevStackInfo)
+                                if let previousStack = previousPhotoStack, isAnimatingToPrevious {
+                                    SwipePhotoImageView(stack: previousStack, isLoading: .constant(false))
                                         .offset(x: previousImageOffset, y: 0)
                                         .animation(.easeOut(duration: 0.25), value: previousImageOffset)
                                 }
@@ -475,14 +454,14 @@ struct SwipePhotoView: View {
                             
                             // Location and date info (centered)
                             VStack(spacing: 2) {
-                                if let location = currentAsset.location {
+                                if let location = currentPhotoStack.location {
                                     Text(formatLocation(location))
                                         .font(.caption)
                                         .foregroundColor(.white.opacity(0.9))
                                         .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
                                 }
                                 
-                                if let date = currentAsset.creationDate {
+                                if let date = currentPhotoStack.primaryCreationDate {
                                     Text(formatDate(date))
                                         .font(.caption)
                                         .foregroundColor(.white.opacity(0.9))
@@ -586,7 +565,7 @@ struct SwipePhotoView: View {
         if isVerticalSwipe {
             // Handle swipe up
             if translation.height < -100 || velocity < -500 {
-                if !showingMap && currentAsset.location != nil {
+                if !showingMap && currentPhotoStack.location != nil {
                     // Show map and hide thumbnails
                     withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                         scrollTo("map", .top)
@@ -616,8 +595,8 @@ struct SwipePhotoView: View {
         
         // Toggle the iOS native favorite status
         PHPhotoLibrary.shared().performChanges({
-            let request = PHAssetChangeRequest(for: self.currentAsset)
-            request.isFavorite = !self.currentAsset.isFavorite
+            let request = PHAssetChangeRequest(for: self.currentPhotoStack.primaryAsset)
+            request.isFavorite = !self.currentPhotoStack.primaryAsset.isFavorite
         }) { success, error in
             DispatchQueue.main.async {
                 if success {
@@ -636,7 +615,7 @@ struct SwipePhotoView: View {
     
     private func sharePhoto() {
         // Use stock photo app style sharing
-        photoSharingService.sharePhoto(currentAsset)
+        photoSharingService.sharePhoto(currentPhotoStack.primaryAsset)
     }
     
     
@@ -674,7 +653,7 @@ struct SwipePhotoView: View {
     
     
     private func getPhotoLocation() -> CLLocationCoordinate2D? {
-        guard let location = currentAsset.location else {
+        guard let location = currentPhotoStack.location else {
             return nil
         }
         return location.coordinate
@@ -713,20 +692,20 @@ struct SwipePhotoView: View {
     private func updateQuickListStatus() {
         let userId = AuthenticationService.shared.currentAccount?.id ?? ""
         let newStatus = RListService.shared.isPhotoInQuickList(currentAsset, context: viewContext, userId: userId)
-        print("🔍 Checking Quick List status for photo \(currentAsset.localIdentifier), userId: \(userId), result: \(newStatus)")
+        print("🔍 Checking Quick List status for photo \(currentPhotoStack.localIdentifier), userId: \(userId), result: \(newStatus)")
         isInQuickList = newStatus
     }
     
     private func updateFavoriteStatus() {
         isFavorite = currentAsset.isFavorite
-        print("🔍 Updated favorite status for photo \(currentAsset.localIdentifier): \(isFavorite)")
+        print("🔍 Updated favorite status for photo \(currentPhotoStack.localIdentifier): \(isFavorite)")
     }
     
     private func toggleQuickList() {
         let userId = AuthenticationService.shared.currentAccount?.id ?? ""
         let wasInList = isInQuickList
         
-        print("🔄 Toggling Quick List for photo \(currentAsset.localIdentifier), userId: \(userId), currently in list: \(wasInList)")
+        print("🔄 Toggling Quick List for photo \(currentPhotoStack.localIdentifier), userId: \(userId), currently in list: \(wasInList)")
         
         let success = RListService.shared.togglePhotoInQuickList(currentAsset, context: viewContext, userId: userId)
         
@@ -739,7 +718,7 @@ struct SwipePhotoView: View {
             let impactFeedback = UIImpactFeedbackGenerator(style: .light)
             impactFeedback.impactOccurred()
             
-            print("📝 \(wasInList ? "Removed from" : "Added to") Quick List: \(currentAsset.localIdentifier)")
+            print("📝 \(wasInList ? "Removed from" : "Added to") Quick List: \(currentPhotoStack.localIdentifier)")
             print("📝 New button state: \(isInQuickList)")
             
             // Force save context to ensure persistence

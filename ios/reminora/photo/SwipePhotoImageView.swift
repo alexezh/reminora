@@ -16,9 +16,8 @@ import CoreLocation
 
 // main image in swipe photo view
 struct SwipePhotoImageView: View {
-    let asset: PHAsset
+    let photoStack: RPhotoStack
     @Binding var isLoading: Bool
-    let stackInfo: (stack: RPhotoStack?, isStack: Bool, count: Int)?
     @State private var image: UIImage?
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
@@ -26,10 +25,9 @@ struct SwipePhotoImageView: View {
     @State private var lastOffset: CGSize = .zero
     @State private var loadError: Bool = false
     
-    init(asset: PHAsset, isLoading: Binding<Bool>, stackInfo: (stack: RPhotoStack?, isStack: Bool, count: Int)? = nil) {
-        self.asset = asset
+    init(stack: RPhotoStack, isLoading: Binding<Bool>) {
+        self.photoStack = stack
         self._isLoading = isLoading
-        self.stackInfo = stackInfo
     }
     
     var body: some View {
@@ -118,25 +116,25 @@ struct SwipePhotoImageView: View {
                             }
                         }
                 
-                // Stack count indicator overlay (top-right corner)
-                if let stackInfo = stackInfo, stackInfo.isStack, stackInfo.count > 1 {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            ZStack {
-                                Circle()
-                                    .fill(Color.black.opacity(0.8))
-                                    .frame(width: 32, height: 32)
-                                
-                                Text("\(stackInfo.count)")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.white)
+                    // Stack count indicator overlay (top-right corner)
+                    if photoStack.count > 0 {
+                        VStack {
+                            HStack {
+                                Spacer()
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.black.opacity(0.8))
+                                        .frame(width: 32, height: 32)
+                                    
+                                    Text("\(photoStack.count)")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.white)
+                                }
                             }
+                            Spacer()
                         }
-                        Spacer()
+                        .padding(16)
                     }
-                    .padding(16)
-                }
                 } else if loadError {
                     VStack {
                         Image(systemName: "exclamationmark.triangle")
@@ -166,7 +164,7 @@ struct SwipePhotoImageView: View {
                 loadImage()
             }
         }
-        .onChange(of: asset.localIdentifier) { _, _ in
+        .onChange(of: photoStack.primaryAsset.localIdentifier) { _, _ in
             // Reset state and load new image when asset changes
             image = nil
             scale = 1.0
@@ -192,23 +190,23 @@ struct SwipePhotoImageView: View {
         let targetSize = CGSize(width: UIScreen.main.bounds.width * UIScreen.main.scale,
                                height: UIScreen.main.bounds.height * UIScreen.main.scale)
         
-        print("Loading image for asset: \(asset.localIdentifier)")
+        print("Loading image for asset: \(photoStack.primaryAsset.localIdentifier)")
         
         // Request image with error handling
-        imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: options) { loadedImage, info in
+        imageManager.requestImage(for: photoStack.primaryAsset, targetSize: targetSize, contentMode: .aspectFit, options: options) { loadedImage, info in
             DispatchQueue.main.async {
                 
                 if let loadedImage = loadedImage {
                     image = loadedImage
                     isLoading = false
                     loadError = false
-                    print("Successfully loaded image for asset: \(asset.localIdentifier)")
+                    print("Successfully loaded image for asset: \(photoStack.primaryAsset.localIdentifier)")
                     
                     // Check if this is a degraded image and request high quality
                     if let info = info,
                        let degraded = info[PHImageResultIsDegradedKey] as? Bool,
                        degraded {
-                        print("Loading high quality version for asset: \(asset.localIdentifier)")
+                        print("Loading high quality version for asset: \(photoStack.primaryAsset.localIdentifier)")
                         
                         let hqOptions = PHImageRequestOptions()
                         hqOptions.isSynchronous = false
@@ -216,11 +214,11 @@ struct SwipePhotoImageView: View {
                         hqOptions.resizeMode = .exact
                         hqOptions.isNetworkAccessAllowed = true
                         
-                        imageManager.requestImage(for: asset, targetSize: targetSize, contentMode: .aspectFit, options: hqOptions) { hqImage, hqInfo in
+                        imageManager.requestImage(for: photoStack.primaryAsset, targetSize: targetSize, contentMode: .aspectFit, options: hqOptions) { hqImage, hqInfo in
                             DispatchQueue.main.async {
                                 if let hqImage = hqImage {
                                     image = hqImage
-                                    print("High quality image loaded for asset: \(asset.localIdentifier)")
+                                    print("High quality image loaded for asset: \(photoStack.primaryAsset.localIdentifier)")
                                 }
                             }
                         }
@@ -233,17 +231,17 @@ struct SwipePhotoImageView: View {
                     // Check for specific error information
                     if let info = info {
                         if let error = info[PHImageErrorKey] as? Error {
-                            print("Image loading error for asset \(asset.localIdentifier): \(error)")
+                            print("Image loading error for asset \(photoStack.primaryAsset.localIdentifier): \(error)")
                         }
                         if let cancelled = info[PHImageCancelledKey] as? Bool, cancelled {
-                            print("Image loading cancelled for asset: \(asset.localIdentifier)")
+                            print("Image loading cancelled for asset: \(photoStack.primaryAsset.localIdentifier)")
                         }
                         if let inCloud = info[PHImageResultIsInCloudKey] as? Bool, inCloud {
-                            print("Image is in iCloud for asset: \(asset.localIdentifier)")
+                            print("Image is in iCloud for asset: \(photoStack.primaryAsset.localIdentifier)")
                         }
                     }
                     
-                    print("Failed to load image for asset: \(asset.localIdentifier)")
+                    print("Failed to load image for asset: \(photoStack.primaryAsset.localIdentifier)")
                 }
             }
         }

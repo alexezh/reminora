@@ -9,6 +9,7 @@ import Foundation
 import Photos
 import UIKit
 import SwiftUI
+import CoreLocation
 
 // MARK: - RPhotoStack Class
 class RPhotoStack: ObservableObject, Identifiable {
@@ -50,6 +51,21 @@ class RPhotoStack: ObservableObject, Identifiable {
     /// Returns the total count of photos in this stack
     var count: Int {
         return assets.count
+    }
+    
+    /// Convenience property that maps to primaryAsset.localIdentifier
+    var localIdentifier: String {
+        return primaryAsset.localIdentifier
+    }
+    
+    /// Convenience property that maps to primaryAsset.location
+    var location: CLLocation? {
+        return primaryAsset.location
+    }
+    
+    /// Convenience property that maps to primaryAsset.creationDate
+    var primaryCreationDate: Date? {
+        return primaryAsset.creationDate
     }
     
     // MARK: - Initializers

@@ -18,6 +18,16 @@ struct ECardTemplate: Identifiable, Codable {
     let imageSlots: [ImageSlot]
     let textSlots: [TextSlot]
     let category: ECardCategory
+    
+    // Computed properties
+    var aspectRatio: Double {
+        return svgDimensions.width / svgDimensions.height
+    }
+    
+    var svgDimensions: CGSize {
+        // Default SVG viewbox size - templates are assumed to be created in 100x100 coordinate system
+        return CGSize(width: 100, height: 100)
+    }
 
     init(
         id: String, name: String, svgContent: String, thumbnailName: String? = nil,
@@ -31,50 +41,48 @@ struct ECardTemplate: Identifiable, Codable {
         self.textSlots = textSlots
         self.category = category
     }
-
-    /// Calculate aspect ratio from SVG viewBox
-    var aspectRatio: Double {
-        return svgDimensions.width / svgDimensions.height
-    }
-
-    /// Calculate SVG dimensions based on photo dimensions with padding
-    /// +10% on sides and top, +20% on bottom
-    var svgDimensions: CGSize {
-        // Get the main photo dimensions from the first image slot
-        guard let firstImageSlot = imageSlots.first else {
-            // Fallback to standard 4:5 aspect ratio
-            return CGSize(width: 400, height: 500)
-        }
-
-        // Calculate ECard dimensions with padding
-        let sidePadding = photoWidth * 0.1  // 10% padding on each side
-        let topPadding = photoHeight * 0.1  // 10% padding on top
-        let bottomPadding = photoHeight * 0.2  // 20% padding on bottom
-
-        let ecardWidth = photoWidth + (sidePadding * 2)  // Photo width + padding on both sides
-        let ecardHeight = photoHeight + topPadding + bottomPadding  // Photo height + top and bottom padding
-
-        return CGSize(width: ecardWidth, height: ecardHeight)
-    }
 }
 
 // MARK: - Image Slot
 struct ImageSlot: Identifiable, Codable {
     let id: String
+    let x: Double
+    let y: Double
+    let width: Double
+    let height: Double
+    let cornerRadius: Double
 
-    init(id: String) {
+    init(id: String, x: Double = 0, y: Double = 0, width: Double = 100, height: Double = 100, cornerRadius: Double = 0) {
         self.id = id
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.cornerRadius = cornerRadius
     }
 }
 
 // MARK: - Text Slot
 struct TextSlot: Identifiable, Codable {
     let id: String
+    let x: Double
+    let y: Double
+    let width: Double
+    let height: Double
+    let fontSize: Double
+    let placeholder: String
 
     init(
-        id: String
+        id: String, x: Double = 0, y: Double = 0, width: Double = 100, height: Double = 20, 
+        fontSize: Double = 16, placeholder: String = "Text here"
     ) {
         self.id = id
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.fontSize = fontSize
+        self.placeholder = placeholder
     }
 }
 

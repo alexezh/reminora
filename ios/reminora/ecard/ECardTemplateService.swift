@@ -77,6 +77,9 @@ class ECardTemplateService: ObservableObject {
     @Published private var templates: [ECardTemplate] = []
     private var templatesLoaded = false
     private let imageHelper = ECardImageAssignmentHelper()
+    
+    // Default output size for ECards
+    private let size = CGSize(width: 800, height: 1000)
 
     private init() {
         // Templates will be loaded lazily on first access
@@ -191,7 +194,12 @@ class ECardTemplateService: ObservableObject {
                 let height = Double(imageElement.getAttribute("height") ?? "0") ?? 0
 
                 let imageSlot = ImageSlot(
-                    id: imageId)
+                    id: imageId,
+                    x: x,
+                    y: y,
+                    width: width,
+                    height: height,
+                    cornerRadius: 0) // SVG rx/ry could be parsed here if needed
                 imageSlots.append(imageSlot)
                 print("📍 Found image slot: \(imageId) at (\(x), \(y)) size \(width)x\(height)")
             }
@@ -228,7 +236,13 @@ class ECardTemplateService: ObservableObject {
                 let height = Double(fontSize + 10)
 
                 let textSlot = TextSlot(
-                    id: textId)
+                    id: textId,
+                    x: x,
+                    y: y,
+                    width: width,
+                    height: height,
+                    fontSize: fontSize,
+                    placeholder: placeholder as String)
                 textSlots.append(textSlot)
                 print("📝 Found text slot: \(textId) at (\(x), \(y)) text: '\(placeholder)'")
             }
@@ -275,8 +289,7 @@ class ECardTemplateService: ObservableObject {
     func generateECardWithImages(
         template: ECardTemplate,
         imageAssignments: [String: UIImage],
-        textAssignments: [String: String] = [:],
-        size: CGSize = CGSize(width: 800, height: 1000)
+        textAssignments: [String: String] = [:]
     ) -> UIImage? {
         print(
             "🎨 ECardTemplateService: Generating ECard with \(imageAssignments.count) images using pure SVG DOM manipulation"
@@ -300,6 +313,26 @@ class ECardTemplateService: ObservableObject {
         guard let domDocument = svgkImage.domDocument else {
             print("⚠️ ECardTemplateService: Failed to get DOM document")
             return nil
+        }
+
+        // Calculate aspect ratio adjustment if there's exactly one image
+        var yScaleFactor: Double = 1.0
+        if imageAssignments.count == 1, 
+           let firstImageSlot = template.imageSlots.first,
+           let firstImage = imageAssignments[firstImageSlot.id] {
+            
+            let imageWidth = Double(firstImage.size.width)
+            let imageHeight = Double(firstImage.size.height)
+            
+            // SVG templates are created in 100x100 coordinate system (square)
+            // Adjust Y coordinates based on image aspect ratio
+            // If image is 800/600 (4:3), Y scale factor should be 600/800 = 0.75
+            yScaleFactor = imageHeight / imageWidth
+            
+            print("🎨 ECardTemplateService: Image aspect ratio adjustment - image: \(imageWidth)x\(imageHeight), Y scale factor: \(yScaleFactor)")
+            
+            // Apply Y coordinate scaling to all elements in the SVG DOM
+            adjustSVGElementYCoordinates(domDocument: domDocument, scaleFactor: yScaleFactor)
         }
 
         // Update image layers in CALayer tree - works regardless of DOM element type
@@ -334,21 +367,21 @@ class ECardTemplateService: ObservableObject {
 
         // Update text elements in DOM
         for (slotId, text) in textAssignments {
-            if let textElement = domDocument.getElementById(slotId) as? SVGTextElement {
-                // For SVG text elements, we need to clear existing content and add new text node
-                // Remove all child nodes first
-                while let child = textElement.firstChild {
-                    textElement.removeChild(child)
-                }
-                // Add new text node
-                let textNode = domDocument.createTextNode(text)
-                textElement.appendChild(textNode)
-                print("🎨 ECardTemplateService: Updated text element \(slotId) with: '\(text)'")
-            } else if let textElement = domDocument.getElementById(slotId) {
-                // For other elements, try to update via attribute or similar
-                print(
-                    "🎨 ECardTemplateService: Element \(slotId) is not SVGTextElement, type: \(type(of: textElement))"
-                )
+            print("🎨 ECardTemplateService: Updating text slot \(slotId) with: '\(text)'")
+            
+            if let textElement = domDocument.getElementById(slotId) {
+                print("🎨 ECardTemplateService: Found text element \(slotId), type: \(type(of: textElement))")
+                
+                // Set textContent property directly - this is the most reliable approach
+                let elementObj = textElement as AnyObject
+                elementObj.setValue?(text, forKey: "textContent")
+                print("✅ ECardTemplateService: Set textContent for \(slotId)")
+                
+                // Also try setting innerHTML as backup
+                elementObj.setValue?(text, forKey: "innerHTML")
+                
+            } else {
+                print("❌ ECardTemplateService: Could not find text element with ID: \(slotId)")
             }
         }
 
@@ -405,12 +438,107 @@ class ECardTemplateService: ObservableObject {
         for template: ECardTemplate, size: CGSize = CGSize(width: 120, height: 150)
     ) -> UIImage? {
         // Use the same improved rendering approach as ECard generation
+        // TODO: pass image?
         return generateECardWithImages(
             template: template,
             imageAssignments: [:],
-            textAssignments: [:],
-            size: size
+            textAssignments: [:]
         )
+    }
+
+    // MARK: - Debug Helpers
+    
+    private func debugPrintElementIds(element: Any, level: Int) {
+        let elementObj = element as AnyObject
+        let indent = String(repeating: "  ", count: level)
+        
+        if let elementId = elementObj.getAttribute?("id") as? String, !elementId.isEmpty {
+            print("\(indent)- \(elementObj.localName ?? "unknown") id=\"\(elementId)\"")
+        } else {
+            print("\(indent)- \(elementObj.localName ?? "unknown") (no id)")
+        }
+        
+        // Don't traverse children for now to avoid complexity
+    }
+
+    // MARK: - SVG Coordinate Adjustment
+    
+    private func adjustSVGElementYCoordinates(domDocument: Any, scaleFactor: Double) {
+        // Find all elements with y coordinates and scale them
+        // Using Any type for better compatibility with SVGKit's dynamic typing
+        if let rootElement = (domDocument as AnyObject).rootElement {
+            adjustElementYCoordinates(element: rootElement as Any, scaleFactor: scaleFactor)
+        }
+    }
+    
+    private func adjustElementYCoordinates(element: Any, scaleFactor: Double) {
+        // Scale Y coordinates for various SVG elements using dynamic method calls
+        let elementObj = element as AnyObject
+        
+        // Try to get and set Y coordinate
+        if let yAttr = elementObj.getAttribute?("y") as? String, 
+           let yValue = Double(yAttr) {
+            let scaledY = yValue * scaleFactor
+            elementObj.setAttributeNS?("http://www.w3.org/2000/svg", qualifiedName: "y", value: String(scaledY))
+            print("🎨 Scaled Y coordinate: \(yValue) -> \(scaledY)")
+        }
+        
+        // Try to get and set CY coordinate for circles
+        if let cyAttr = elementObj.getAttribute?("cy") as? String,
+           let cyValue = Double(cyAttr) {
+            let scaledCy = cyValue * scaleFactor
+            elementObj.setAttributeNS?("http://www.w3.org/2000/svg", qualifiedName: "cy", value: String(scaledCy))
+            print("🎨 Scaled CY coordinate: \(cyValue) -> \(scaledCy)")
+        }
+        
+        // Handle transforms that might contain translate Y values
+        if let transformAttr = elementObj.getAttribute?("transform") as? String {
+            let scaledTransform = adjustTransformYCoordinates(transform: transformAttr, scaleFactor: scaleFactor)
+            if scaledTransform != transformAttr {
+                elementObj.setAttributeNS?("http://www.w3.org/2000/svg", qualifiedName: "transform", value: scaledTransform)
+                print("🎨 Scaled transform: \(transformAttr) -> \(scaledTransform)")
+            }
+        }
+        
+        // Skip recursive processing for now to avoid complex reflection
+        // TODO: Implement child element traversal if needed for specific templates
+        print("🎨 Processed element Y coordinate adjustment")
+    }
+    
+    private func adjustTransformYCoordinates(transform: String, scaleFactor: Double) -> String {
+        // Handle translate(x, y) patterns in transform attributes
+        let translatePattern = #"translate\(([^,]+),\s*([^)]+)\)"#
+        
+        do {
+            let regex = try NSRegularExpression(pattern: translatePattern, options: [])
+            let nsString = transform as NSString
+            let results = regex.matches(in: transform, options: [], range: NSRange(location: 0, length: nsString.length))
+            
+            var adjustedTransform = transform
+            
+            // Process matches in reverse order to maintain string positions
+            for result in results.reversed() {
+                if result.numberOfRanges >= 3 {
+                    let xRange = result.range(at: 1)
+                    let yRange = result.range(at: 2)
+                    
+                    let xStr = nsString.substring(with: xRange)
+                    let yStr = nsString.substring(with: yRange)
+                    
+                    if let yValue = Double(yStr.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                        let scaledY = yValue * scaleFactor
+                        let newTranslate = "translate(\(xStr), \(scaledY))"
+                        let fullRange = result.range(at: 0)
+                        adjustedTransform = nsString.replacingCharacters(in: fullRange, with: newTranslate)
+                    }
+                }
+            }
+            
+            return adjustedTransform
+        } catch {
+            print("⚠️ Error processing transform attribute: \(error)")
+            return transform
+        }
     }
 
     // MARK: - Custom Templates

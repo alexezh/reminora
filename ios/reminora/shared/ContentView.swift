@@ -162,6 +162,10 @@ struct ContentView: View {
                 case .eCard:
                     selectedTab = "Editor"
                     break
+                case .clip:
+                    // Clip editor is handled via sheet presentation
+                    print("🎨 ContentView: Clip editor opened via sheet")
+                    break
                 case .collage, .videoEditor:
                     // Future editor types can be handled here
                     print("🎨 ContentView: Editor type \(editorType.displayName) not yet implemented")

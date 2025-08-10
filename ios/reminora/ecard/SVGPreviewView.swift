@@ -74,8 +74,6 @@ struct SVGPreviewView: View {
     private func renderPreview() {
         isLoading = true
         print("🎨 SVGPreviewView: Starting preview render for template \(template.name)")
-        print("🎨 SVGPreviewView: Image assignments count: \(imageAssignments.count)")
-        print("🎨 SVGPreviewView: Image assignment keys: \(imageAssignments.keys)")
         print("🎨 SVGPreviewView: Template image slots: \(template.imageSlots.map { $0.id })")
         
         // If no image assignments, still try to render the base template
@@ -149,30 +147,13 @@ struct SVGPreviewView: View {
                 print("🎨 SVGPreviewView: All images loaded (\(loadedImages.count)), using SVG image resolution")
                 print("🎨 SVGPreviewView: Loaded image keys: \(loadedImages.keys)")
                 
-                // Use dynamic size based on template aspect ratio
-                let templateSize = self.template.svgDimensions
-                let maxSize: CGFloat = 320
-                let aspectRatio = templateSize.width / templateSize.height
-                
-                let targetSize: CGSize
-                if aspectRatio > 1 {
-                    targetSize = CGSize(width: maxSize, height: maxSize / aspectRatio)
-                } else {
-                    targetSize = CGSize(width: maxSize * aspectRatio, height: maxSize)
-                }
-                
-                print("🎨 SVGPreviewView: Template size: \(templateSize), Target size: \(targetSize)")
-                print("🎨 SVGPreviewView: About to call generateECardWithImages...")
-                
                 // Use the new image resolution approach
                 let templateService = ECardTemplateService.shared
                 if let svgImage = templateService.generateECardWithImages(
                     template: self.template,
                     imageAssignments: loadedImages,
                     textAssignments: self.textAssignments,
-                    size: targetSize
                 ) {
-                    print("✅ SVGPreviewView: SVG image resolution completed successfully")
                     DispatchQueue.main.async {
                         self.isLoading = false
                         self.renderedImage = svgImage
@@ -181,7 +162,6 @@ struct SVGPreviewView: View {
                     // do not fallback
                     DispatchQueue.main.async {
                         self.isLoading = false
-                        print("✅ SVGPreviewView: Fallback preview completed")
                     }
                 }
             }

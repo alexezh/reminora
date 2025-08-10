@@ -208,10 +208,6 @@ struct ECardEditorView: View {
             
             ForEach(template.textSlots) { slot in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(slot.id)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
                     TextField(slot.placeholder, text: Binding(
                         get: { eCardEditor.textAssignments[slot.id] ?? slot.placeholder },
                         set: { eCardEditor.textAssignments[slot.id] = $0 }

@@ -234,22 +234,6 @@ class PinSharingService: ObservableObject {
     
     /// Extract shared user information from a place
     func getSharedUserInfo(from place: PinData, context: NSManagedObjectContext) -> (userId: String, userName: String)? {
-        // First try to get from RListItemData
-        let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "placeId == %@", place.objectID.uriRepresentation().absoluteString)
-        
-        do {
-            let items = try context.fetch(fetchRequest)
-            if let item = items.first,
-               let userId = item.sharedByUserId,
-               let userName = item.sharedByUserName,
-               !userId.isEmpty && !userName.isEmpty {
-                return (userId: userId, userName: userName)
-            }
-        } catch {
-            print("Failed to fetch RListItemData for shared info: \(error)")
-        }
-        
         // If not found in RListItemData, try to parse from place URL
         return parseUserInfoFromURL(place.url)
     }

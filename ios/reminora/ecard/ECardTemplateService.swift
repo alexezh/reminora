@@ -474,13 +474,30 @@ class ECardTemplateService: ObservableObject {
     func generateThumbnail(
         for template: ECardTemplate, size: CGSize = CGSize(width: 120, height: 150)
     ) -> UIImage? {
-        // Use the same improved rendering approach as ECard generation
-        // TODO: pass image?
-        return generateECardWithImages(
+        print("🎨 ECardTemplateService: Generating thumbnail for template \(template.name) at size \(size)")
+        
+        // Generate SVG with no images or text assignments for clean template preview
+        guard let baseImage = generateECardWithImages(
             template: template,
             imageAssignments: [:],
             textAssignments: [:]
-        )
+        ) else {
+            print("⚠️ ECardTemplateService: Failed to generate base SVG for thumbnail")
+            return nil
+        }
+        
+        // Resize the generated SVG to the requested thumbnail size if needed
+        if baseImage.size != size {
+            let renderer = UIGraphicsImageRenderer(size: size)
+            let resizedImage = renderer.image { _ in
+                baseImage.draw(in: CGRect(origin: .zero, size: size))
+            }
+            print("✅ ECardTemplateService: Generated and resized thumbnail to \(size)")
+            return resizedImage
+        }
+        
+        print("✅ ECardTemplateService: Generated thumbnail at native size")
+        return baseImage
     }
 
     // MARK: - Debug Helpers

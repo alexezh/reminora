@@ -16,7 +16,6 @@ struct ECardEditorView: View {
     @Environment(\.eCardTemplateService) private var templateService
     @Environment(\.eCardEditor) private var eCardEditor
     @State private var currentECard: ECard?
-    @State private var isLoading = false
     @State private var showingImagePicker = false
     @State private var selectedImageSlot: ImageSlot?
     @State private var showingTextEditor = false
@@ -164,38 +163,26 @@ struct ECardEditorView: View {
     // MARK: - Preview Section
     
     private func previewSection(template: ECardTemplate) -> some View {
-        VStack(spacing: 16) {
-            // SVG Preview with interactive elements
-            ZStack {
-                SVGPreviewView(
-                    template: template,
-                    imageAssignments: eCardEditor.imageAssignments,
-                    textAssignments: eCardEditor.textAssignments,
-                    onImageSlotTapped: { slot in
-                        selectedImageSlot = slot
-                        showingImagePicker = true
-                    },
-                    onTextSlotTapped: { slot in
-                        // Handle text editing
-                        editText(for: slot)
-                    }
-                )
-                .aspectRatio(template.aspectRatio, contentMode: .fit)
-                .frame(maxWidth: 320, maxHeight: 400)
-                .clipped()
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(radius: 8)
-                
-                if isLoading {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                        .background(Color.white.opacity(0.8))
-                        .cornerRadius(8)
-                }
+        // SVG Preview with dynamic sizing based on template aspect ratio
+        SVGPreviewView(
+            template: template,
+            imageAssignments: eCardEditor.imageAssignments,
+            textAssignments: eCardEditor.textAssignments,
+            onImageSlotTapped: { slot in
+                selectedImageSlot = slot
+                showingImagePicker = true
+            },
+            onTextSlotTapped: { slot in
+                // Handle text editing
+                editText(for: slot)
             }
-        }
-        .padding(16)
+        )
+        .aspectRatio(template.aspectRatio, contentMode: .fit)
+        .frame(maxWidth: .infinity, maxHeight: 400)
+        .clipped()
+        .background(Color.white)
+        .cornerRadius(8)
+        .shadow(radius: 8)
     }
     
     // MARK: - Text Editing Section
@@ -305,8 +292,6 @@ struct ECardEditorView: View {
     private func saveECard() {
         guard let template = eCardEditor.currentTemplate else { return }
         
-        isLoading = true
-        
         // Use ECardEditor to generate the image
         ECardEditor.shared.generateECardImage(
             template: template,
@@ -314,8 +299,7 @@ struct ECardEditorView: View {
             textAssignments: eCardEditor.textAssignments
         ) { result in
             DispatchQueue.main.async {
-                self.isLoading = false
-                
+                                
                 switch result {
                 case .success(let image):
                     // Check if similar ECard already exists
@@ -463,55 +447,14 @@ private struct TemplateCard: View {
     
     private func generateThumbnail() {
         DispatchQueue.global(qos: .userInitiated).async {
-            let thumbnailSize = CGSize(width: 80, height: 100)
-            
-            // Generate a simple thumbnail showing the template structure
-            let renderer = UIGraphicsImageRenderer(size: thumbnailSize)
-            let thumbnail = renderer.image { context in
-                let cgContext = context.cgContext
-                
-                // Light gray background
-                cgContext.setFillColor(UIColor.systemGray6.cgColor)
-                cgContext.fill(CGRect(origin: .zero, size: thumbnailSize))
-                
-                // Calculate scale factor from template dimensions to thumbnail size
-                let templateSize = self.template.svgDimensions
-                let scaleX = thumbnailSize.width / templateSize.width
-                let scaleY = thumbnailSize.height / templateSize.height
-                let scale = min(scaleX, scaleY)
-                
-                // Center the content
-                let scaledWidth = templateSize.width * scale
-                let scaledHeight = templateSize.height * scale
-                let offsetX = (thumbnailSize.width - scaledWidth) / 2
-                let offsetY = (thumbnailSize.height - scaledHeight) / 2
-                
-                cgContext.translateBy(x: offsetX, y: offsetY)
-                cgContext.scaleBy(x: scale, y: scale)
-                
-                // Draw image slot placeholders
-                cgContext.setFillColor(UIColor.systemGray4.cgColor)
-                for slot in self.template.imageSlots {
-                    let rect = CGRect(x: slot.x, y: slot.y, width: slot.width, height: slot.height)
-                    if slot.cornerRadius > 0 {
-                        let path = UIBezierPath(roundedRect: rect, cornerRadius: slot.cornerRadius)
-                        cgContext.addPath(path.cgPath)
-                        cgContext.fillPath()
-                    } else {
-                        cgContext.fill(rect)
-                    }
+            // Use the real SVG rendering from ECardTemplateService for authentic thumbnails
+            if let svgThumbnail = self.templateService.generateThumbnail(
+                for: self.template,
+                size: CGSize(width: 80, height: 100)
+            ) {
+                DispatchQueue.main.async {
+                    self.thumbnailImage = svgThumbnail
                 }
-                
-                // Draw text slot indicators
-                cgContext.setFillColor(UIColor.systemGray3.cgColor)
-                for slot in self.template.textSlots {
-                    let rect = CGRect(x: slot.x, y: slot.y, width: slot.width, height: 4)
-                    cgContext.fill(rect)
-                }
-            }
-            
-            DispatchQueue.main.async {
-                self.thumbnailImage = thumbnail
             }
         }
     }

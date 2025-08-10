@@ -234,16 +234,20 @@ struct PhotoMainView: View {
                 } else {
                     // Use RListView to display photos with date separators  
                     RListView(
-                        dataSource: .photoLibrary(photoStackCollection.allAssets()),
+                        dataSource: .photoLibrary(photoStackCollection),
                         isSelectionMode: isSelectionMode,
-                        onPhotoTap: { asset in
+                        onPhotoStackTap: { photoStack in
                             if isSelectionMode {
-                                toggleAssetSelection(asset)
+                                // Select all photos in the stack
+                                for asset in photoStack.assets {
+                                    if !selectedAssetService.isPhotoSelected(asset.localIdentifier) {
+                                        selectedAssetService.addSelectedPhoto(asset.localIdentifier)
+                                    }
+                                }
+                                updateToolbar()
                             } else {
-                                // Set current photo in SelectionService before opening
-                                selectedAssetService.setCurrentPhoto(asset)
-                                // Create a stack with just this photo and show it
-                                let stack = RPhotoStack(assets: [asset])
+                                // Set the photo stack in SelectionService before opening
+                                selectedAssetService.setCurrentPhotoStack(photoStack)
                                 withAnimation(.easeInOut(duration: 0.2)) {
                                     isSwipePhotoViewOpen = true
                                 }
@@ -251,26 +255,6 @@ struct PhotoMainView: View {
                         },
                         onPinTap: { _ in
                             // Not used in photo library view
-                        },
-                        onPhotoStackTap: { assets in
-                            if isSelectionMode {
-                                // Select all photos in the stack
-                                for asset in assets {
-                                    if !selectedAssetService.isPhotoSelected(asset.localIdentifier)
-                                    {
-                                        selectedAssetService.addSelectedPhoto(asset.localIdentifier)
-                                    }
-                                }
-                                updateToolbar()
-                            } else {
-                                // Set current photo in SelectionService before opening (first photo in stack)
-                                selectedAssetService.setCurrentPhoto(assets.first)
-                                // Create a stack and show it
-                                let stack = RPhotoStack(assets: assets)
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    isSwipePhotoViewOpen = true
-                                }
-                            }
                         },
                         onLocationTap: { _ in
                             // Not used in photo library view
@@ -385,10 +369,10 @@ struct PhotoMainView: View {
             }
         }
         .overlay {
-            if isSwipePhotoViewOpen {
+            if isSwipePhotoViewOpen, let currentStack = selectedAssetService.getCurrentPhotoStack {
                 SwipePhotoView(
                     photoStackCollection: photoStackCollection,
-                    initialAssetId: setCurrentPhoto.primaryAsset.localIdentifier,
+                    initialStack: currentStack,
                     onDismiss: {
                         print("SwipePhotoView dismissed")
                         withAnimation(.easeInOut(duration: 0.3)) {

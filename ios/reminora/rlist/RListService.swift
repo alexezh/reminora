@@ -791,17 +791,15 @@ extension RListService {
     static func createSharedListView(
         context: NSManagedObjectContext,
         userId: String,
-        onPhotoTap: @escaping (PHAsset) -> Void,
+        onPhotoStackTap: @escaping (RPhotoStack) -> Void,
         onPinTap: @escaping (PinData) -> Void,
-        onPhotoStackTap: @escaping ([PHAsset]) -> Void,
         onLocationTap: ((LocationInfo) -> Void)? = nil
     ) -> some View {
         SharedListView(
             context: context,
             userId: userId,
-            onPhotoTap: onPhotoTap,
-            onPinTap: onPinTap,
             onPhotoStackTap: onPhotoStackTap,
+            onPinTap: onPinTap,
             onLocationTap: onLocationTap
         )
     }
@@ -810,17 +808,15 @@ extension RListService {
     static func createQuickListView(
         context: NSManagedObjectContext,
         userId: String,
-        onPhotoTap: @escaping (PHAsset) -> Void,
+        onPhotoStackTap: @escaping (RPhotoStack) -> Void,
         onPinTap: @escaping (PinData) -> Void,
-        onPhotoStackTap: @escaping ([PHAsset]) -> Void,
         onLocationTap: ((LocationInfo) -> Void)? = nil
     ) -> some View {
         QuickListView(
             context: context,
             userId: userId,
-            onPhotoTap: onPhotoTap,
-            onPinTap: onPinTap,
             onPhotoStackTap: onPhotoStackTap,
+            onPinTap: onPinTap,
             onLocationTap: onLocationTap
         )
     }

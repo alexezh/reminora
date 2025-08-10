@@ -15,9 +15,8 @@ import SwiftUI
 struct QuickListView: View {
     let context: NSManagedObjectContext
     let userId: String
-    let onPhotoTap: (PHAsset) -> Void
+    let onPhotoStackTap: (RPhotoStack) -> Void
     let onPinTap: (PinData) -> Void
-    let onPhotoStackTap: ([PHAsset]) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
     
     @State private var items: [any RListViewItem] = []
@@ -49,9 +48,8 @@ struct QuickListView: View {
                 } else {
                     RListView(
                         dataSource: .mixed(items),
-                        onPhotoTap: onPhotoTap,
-                        onPinTap: onPinTap,
                         onPhotoStackTap: onPhotoStackTap,
+                        onPinTap: onPinTap,
                         onLocationTap: onLocationTap,
                         onDeleteItem: { item in
                             // Handle delete from Quick List

@@ -107,7 +107,7 @@ struct SimilarPhotosGridView: View {
                     let tempCollection = RPhotoStackCollection(stacks: [singlePhotoStack])
                     SwipePhotoView(
                         photoStackCollection: tempCollection,
-                        initialAssetId: photo.localIdentifier,
+                        initialStack: singlePhotoStack,
                         onDismiss: {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 showingSwipeView = false

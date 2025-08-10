@@ -21,7 +21,7 @@ class SelectionService: ObservableObject {
     
     @Published private var selectedPhotos: Set<String> = [] // Asset localIdentifiers
     @Published private var selectedPins: Set<String> = [] // Pin objectID strings
-    @Published private var currentPhoto: PHAsset? = nil // Current photo in SwipePhotoView
+    @Published private var currentPhotoStack: RPhotoStack? = nil // Current photo stack in SwipePhotoView
     
     private init() {}
     
@@ -85,26 +85,42 @@ class SelectionService: ObservableObject {
         return selectedPins
     }
     
-    // MARK: - Current Photo Management (for SwipePhotoView)
+    // MARK: - Current Photo Stack Management (for SwipePhotoView)
+    
+    func setCurrentPhotoStack(_ stack: RPhotoStack?) {
+        currentPhotoStack = stack
+        if let stack = stack {
+            print("📱 SelectedAssetService: Set current photo stack: \(stack.id) with \(stack.count) photos")
+        } else {
+            print("📱 SelectedAssetService: Cleared current photo stack")
+        }
+    }
+    
+    var getCurrentPhotoStack: RPhotoStack? {
+        return currentPhotoStack
+    }
+    
+    // MARK: - Legacy Photo Management (for backwards compatibility)
     
     func setCurrentPhoto(_ asset: PHAsset?) {
-        currentPhoto = asset
         if let asset = asset {
-            print("📱 SelectedAssetService: Set current photo: \(asset.localIdentifier)")
+            // Create a single-photo stack for backward compatibility
+            let stack = RPhotoStack(assets: [asset])
+            setCurrentPhotoStack(stack)
         } else {
-            print("📱 SelectedAssetService: Cleared current photo")
+            setCurrentPhotoStack(nil)
         }
     }
     
     var getCurrentPhoto: PHAsset? {
-        return currentPhoto
+        return currentPhotoStack?.primaryAsset
     }
     
     // MARK: - Selection State Queries
     
-    /// Returns true if any photos are selected OR there's a current photo
+    /// Returns true if any photos are selected OR there's a current photo stack
     var hasPhotoSelection: Bool {
-        return !selectedPhotos.isEmpty || currentPhoto != nil
+        return !selectedPhotos.isEmpty || currentPhotoStack != nil
     }
     
     /// Returns true if any pins are selected
@@ -132,7 +148,7 @@ class SelectionService: ObservableObject {
     func clearAllSelections() {
         selectedPhotos.removeAll()
         selectedPins.removeAll()
-        currentPhoto = nil
+        currentPhotoStack = nil
         print("📱 SelectedAssetService: Cleared all selections")
     }
     
@@ -143,7 +159,7 @@ class SelectionService: ObservableObject {
         return (
             hasPhotos: !selectedPhotos.isEmpty,
             hasPin: !selectedPins.isEmpty,
-            hasCurrent: currentPhoto != nil,
+            hasCurrent: currentPhotoStack != nil,
             photoCount: selectedPhotos.count,
             pinCount: selectedPins.count
         )

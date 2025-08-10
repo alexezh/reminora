@@ -78,19 +78,13 @@ struct RListDetailView: View {
                 QuickListView(
                     context: viewContext,
                     userId: getCurrentUserId(),
-                    onPhotoTap: { asset in
-                        // Show SwipePhotoView for single photo
-                        let photoStack = RPhotoStack(assets: [asset])
+                    onPhotoStackTap: { photoStack in
+                        // Show SwipePhotoView for photo stack (both single and multiple photos)
                         selectedPhotoStack = photoStack
                     },
                     onPinTap: { place in
                         // Show PinDetailView for pin
                         selectedPin = place
-                    },
-                    onPhotoStackTap: { assets in
-                        // Show SwipePhotoView for photo stack
-                        let photoStack = RPhotoStack(assets: assets)
-                        selectedPhotoStack = photoStack
                     },
                     onLocationTap: { location in
                         // Open location in native map
@@ -102,19 +96,13 @@ struct RListDetailView: View {
                 SharedListView(
                     context: viewContext,
                     userId: getCurrentUserId(),
-                    onPhotoTap: { asset in
-                        // Show SwipePhotoView for single photo
-                        let photoStack = RPhotoStack(assets: [asset])
+                    onPhotoStackTap: { photoStack in
+                        // Show SwipePhotoView for photo stack (both single and multiple photos)
                         selectedPhotoStack = photoStack
                     },
                     onPinTap: { place in
                         // Show PinDetailView for pin
                         selectedPin = place
-                    },
-                    onPhotoStackTap: { assets in
-                        // Show SwipePhotoView for photo stack
-                        let photoStack = RPhotoStack(assets: assets)
-                        selectedPhotoStack = photoStack
                     },
                     onLocationTap: { location in
                         // Open location in native map
@@ -125,19 +113,13 @@ struct RListDetailView: View {
                 // Use RListView for regular lists with mixed content
                 RListView(
                     dataSource: .mixed(createMixedContent()),
-                    onPhotoTap: { asset in
-                        // Show SwipePhotoView for single photo
-                        let photoStack = RPhotoStack(assets: [asset])
+                    onPhotoStackTap: { photoStack in
+                        // Show SwipePhotoView for photo stack (both single and multiple photos)
                         selectedPhotoStack = photoStack
                     },
                     onPinTap: { place in
                         // Show PinDetailView for pin
                         selectedPin = place
-                    },
-                    onPhotoStackTap: { assets in
-                        // Show SwipePhotoView for photo stack
-                        let photoStack = RPhotoStack(assets: assets)
-                        selectedPhotoStack = photoStack
                     },
                     onLocationTap: { location in
                         // Open location in native map
@@ -217,7 +199,7 @@ struct RListDetailView: View {
                 let tempCollection = RPhotoStackCollection(stacks: [selectedPhotoStack])
                 SwipePhotoView(
                     photoStackCollection: tempCollection,
-                    initialAssetId: selectedPhotoStack.primaryAsset.localIdentifier,
+                    initialStack: selectedPhotoStack,
                     onDismiss: {
                         self.selectedPhotoStack = nil
                         // Restore toolbar after SwipePhotoView dismissal

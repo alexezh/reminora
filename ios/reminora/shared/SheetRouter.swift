@@ -167,18 +167,13 @@ private struct QuickListWrapperView: View {
         RListService.createQuickListView(
             context: viewContext,
             userId: AuthenticationService.shared.currentAccount?.id ?? "",
-            onPhotoTap: { asset in
+            onPhotoStackTap: { photoStack in
                 SheetStack.shared.pop()  // Close current sheet
-                // Handle photo tap - you might want to show SwipePhotoView
-                print("📷 Quick List photo tapped: \(asset.localIdentifier)")
+                // Handle photo stack tap (both single photos and multi-photo stacks)
+                print("📷 Quick List photo stack tapped: \(photoStack.count) photos")
             },
             onPinTap: { place in
                 SheetStack.shared.replace(with: .pinDetail(place: place, allPlaces: []))
-            },
-            onPhotoStackTap: { assets in
-                SheetStack.shared.pop()  // Close current sheet
-                // Handle photo stack tap
-                print("📷 Quick List photo stack tapped: \(assets.count) photos")
             }
         )
     }

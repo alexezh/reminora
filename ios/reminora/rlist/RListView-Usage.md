@@ -17,8 +17,8 @@
 
 ### 1. Photo Library
 ```swift
-let assets: [PHAsset] = // your photo assets
-let dataSource = RListDataSource.photoLibrary(assets)
+let photoStackCollection: RPhotoStackCollection = // your photo stack collection
+let dataSource = RListDataSource.photoLibrary(photoStackCollection)
 ```
 
 ### 2. User List (Pins only)
@@ -56,18 +56,14 @@ let dataSource = RListDataSource.mixed(items)
 struct MyView: View {
     var body: some View {
         RListView(
-            dataSource: .photoLibrary(myAssets),
-            onPhotoTap: { asset in
-                // Handle photo tap
-                showFullPhoto(asset)
+            dataSource: .photoLibrary(myPhotoStackCollection),
+            onPhotoStackTap: { photoStack in
+                // Handle photo stack tap (both single photos and multi-photo stacks)
+                showPhotoStack(photoStack)
             },
             onPinTap: { place in
                 // Handle pin tap
                 showPinDetail(place)
-            },
-            onPhotoStackTap: { assets in
-                // Handle photo stack tap
-                showPhotoStack(assets)
             }
         )
     }

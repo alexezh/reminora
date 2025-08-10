@@ -15,18 +15,16 @@ import SwiftUI
 struct AllRListsView: View {
     let context: NSManagedObjectContext
     let userId: String
-    let onPhotoTap: ((PHAsset) -> Void)?
+    let onPhotoStackTap: ((RPhotoStack) -> Void)?
     let onPinTap: ((PinData) -> Void)?
-    let onPhotoStackTap: (([PHAsset]) -> Void)?
     
     @Environment(\.toolbarManager) private var toolbarManager
     
-    init(context: NSManagedObjectContext, userId: String, onPhotoTap: ((PHAsset) -> Void)? = nil, onPinTap: ((PinData) -> Void)? = nil, onPhotoStackTap: (([PHAsset]) -> Void)? = nil) {
+    init(context: NSManagedObjectContext, userId: String, onPhotoStackTap: ((RPhotoStack) -> Void)? = nil, onPinTap: ((PinData) -> Void)? = nil) {
         self.context = context
         self.userId = userId
-        self.onPhotoTap = onPhotoTap
-        self.onPinTap = onPinTap
         self.onPhotoStackTap = onPhotoStackTap
+        self.onPinTap = onPinTap
     }
     
     @State private var userLists: [RListData] = []
@@ -121,9 +119,8 @@ struct AllRListsView: View {
             QuickListView(
                 context: context,
                 userId: userId,
-                onPhotoTap: onPhotoTap ?? { _ in },
-                onPinTap: onPinTap ?? { _ in },
                 onPhotoStackTap: onPhotoStackTap ?? { _ in },
+                onPinTap: onPinTap ?? { _ in },
                 onLocationTap: nil
             )
         }

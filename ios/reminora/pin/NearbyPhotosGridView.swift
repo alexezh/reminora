@@ -1057,9 +1057,12 @@ struct NearbyPhotosMainView: View {
             Group {
                 if let selectedStack = selectedStack {
                     let tempCollection = RPhotoStackCollection(stacks: [selectedStack])
+                    // Create a stack starting with the selected asset
+                    let initialAsset = selectedStack.assets[selectedStackIndex]
+                    let initialStack = RPhotoStack(assets: [initialAsset])
                     SwipePhotoView(
                         photoStackCollection: tempCollection,
-                        initialAssetId: selectedStack.assets[selectedStackIndex].localIdentifier,
+                        initialStack: initialStack,
                         onDismiss: {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 self.selectedStack = nil

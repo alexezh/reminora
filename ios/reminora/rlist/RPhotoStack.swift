@@ -70,6 +70,9 @@ class RPhotoStack: ObservableObject, Identifiable {
         self.id = assets.map { $0.localIdentifier }.joined(separator: "-")
         self.creationDate = assets.first?.creationDate ?? Date()
         self.images = Array(repeating: nil, count: assets.count) // Initialize with placeholders
+        if(isStack) {
+            print("Hello");
+        }
     }
     
     // MARK: - Public Methods

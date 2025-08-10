@@ -16,9 +16,8 @@ import MapKit
 struct RListRowView: View {
     let row: RListRow
     let isSelectionMode: Bool
-    let onPhotoTap: (PHAsset) -> Void
+    let onPhotoStackTap: (RPhotoStack) -> Void
     let onPinTap: (PinData) -> Void
-    let onPhotoStackTap: ([PHAsset]) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
     let onDeleteItem: ((any RListViewItem) -> Void)?
     let onUserTap: ((String, String) -> Void)?
@@ -39,11 +38,7 @@ struct RListRowView: View {
                         photoStack: photoStack,
                         isSelectionMode: isSelectionMode,
                         onTap: {
-                            if photoStack.isSinglePhoto {
-                                onPhotoTap(photoStack.primaryAsset)
-                            } else {
-                                onPhotoStackTap(photoStack.assets)
-                            }
+                            onPhotoStackTap(photoStack)
                         }
                     )
                     .aspectRatio(photoStack.aspectRatio, contentMode: .fit)
@@ -72,11 +67,7 @@ struct RListRowView: View {
                                     photoStack: photoStack,
                                     isSelectionMode: isSelectionMode,
                                     onTap: {
-                                        if photoStack.isSinglePhoto {
-                                            onPhotoTap(photoStack.primaryAsset)
-                                        } else {
-                                            onPhotoStackTap(photoStack.assets)
-                                        }
+                                        onPhotoStackTap(photoStack)
                                     }
                                 )
                                 .aspectRatio(photoStack.aspectRatio, contentMode: .fit)

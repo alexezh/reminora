@@ -57,7 +57,7 @@ struct RListLocationItem: RListViewItem {
 
 // MARK: - RListView Data Source
 enum RListDataSource {
-    case photoLibrary([PHAsset])
+    case photoLibrary(RPhotoStackCollection)
     case userList(RListData, [PinData])
     case nearbyPhotos([PHAsset])
     case pins([PinData])
@@ -106,9 +106,8 @@ struct RListDateSection: Identifiable {
 // MARK: - RListView
 struct RListView: View {
     let dataSource: RListDataSource
-    let onPhotoTap: (PHAsset) -> Void
+    let onPhotoStackTap: (RPhotoStack) -> Void
     let onPinTap: (PinData) -> Void
-    let onPhotoStackTap: ([PHAsset]) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
     let onDeleteItem: ((any RListViewItem) -> Void)?
     let onUserTap: ((String, String) -> Void)?
@@ -120,18 +119,16 @@ struct RListView: View {
     init(
         dataSource: RListDataSource,
         isSelectionMode: Bool = false,
-        onPhotoTap: @escaping (PHAsset) -> Void,
+        onPhotoStackTap: @escaping (RPhotoStack) -> Void,
         onPinTap: @escaping (PinData) -> Void,
-        onPhotoStackTap: @escaping ([PHAsset]) -> Void,
         onLocationTap: ((LocationInfo) -> Void)? = nil,
         onDeleteItem: ((any RListViewItem) -> Void)? = nil,
         onUserTap: ((String, String) -> Void)? = nil
     ) {
         self.dataSource = dataSource
         self.isSelectionMode = isSelectionMode
-        self.onPhotoTap = onPhotoTap
-        self.onPinTap = onPinTap
         self.onPhotoStackTap = onPhotoStackTap
+        self.onPinTap = onPinTap
         self.onLocationTap = onLocationTap
         self.onDeleteItem = onDeleteItem
         self.onUserTap = onUserTap
@@ -159,9 +156,8 @@ struct RListView: View {
                         RListRowView(
                             row: row,
                             isSelectionMode: isSelectionMode,
-                            onPhotoTap: onPhotoTap,
-                            onPinTap: onPinTap,
                             onPhotoStackTap: onPhotoStackTap,
+                            onPinTap: onPinTap,
                             onLocationTap: onLocationTap,
                             onDeleteItem: onDeleteItem,
                             onUserTap: onUserTap
@@ -191,8 +187,8 @@ struct RListView: View {
     
     private func processDataSource() async -> [any RListViewItem] {
         switch dataSource {
-        case .photoLibrary(let assets):
-            return await processPhotoAssets(assets)
+        case .photoLibrary(let collection):
+            return processPhotoStackCollection(collection)
         case .userList(_, let places):
             return places.map { RListPinItem(place: $0) }
         case .nearbyPhotos(let assets):
@@ -203,6 +199,13 @@ struct RListView: View {
             return locations.map { RListLocationItem(location: $0) }
         case .mixed(let items):
             return items
+        }
+    }
+    
+    private func processPhotoStackCollection(_ collection: RPhotoStackCollection) -> [any RListViewItem] {
+        // Convert RPhotoStackCollection to RListViewItems
+        return collection.allStacks.map { photoStack in
+            RListPhotoStackItem(photoStack: photoStack)
         }
     }
     
@@ -353,9 +356,8 @@ struct EmptyStateView: View {
 #Preview {
     RListView(
         dataSource: .mixed([]),
-        onPhotoTap: { _ in },
-        onPinTap: { _ in },
         onPhotoStackTap: { _ in },
+        onPinTap: { _ in },
         onLocationTap: { _ in },
         onDeleteItem: { _ in },
         onUserTap: { _, _ in }

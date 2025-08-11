@@ -33,6 +33,17 @@ enum LayoutConstants {
     /// Bottom padding for regular buttons (minimal like iOS Photos)
     static let buttonBottomPadding: CGFloat = 2
 
+    // MARK: - Header Dimensions
+    
+    /// Header bar height (back button and info area)
+    static let headerHeight: CGFloat = 60
+    
+    /// Header safe area extension (top safe area)
+    static let headerSafeAreaHeight: CGFloat = 8
+    
+    /// Total header height including safe area
+    static let totalHeaderHeight: CGFloat = headerHeight + headerSafeAreaHeight
+
     // MARK: - Content Spacing
 
     /// Gap between content and toolbar

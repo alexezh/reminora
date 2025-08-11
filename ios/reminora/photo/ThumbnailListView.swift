@@ -80,7 +80,7 @@ struct ThumbnailListView: View {
         // Half photo width for separation (30px since thumbnail is 60px)
         let halfPhotoSpacing: CGFloat = 30
         let normalSpacing = LayoutConstants.thumbnailSpacing
-        let selectedSpacing: CGFloat = 8 // Extra spacing for selected thumbnail (20% bigger)
+        let selectedSpacing: CGFloat = 8 // Extra spacing for selected thumbnail only
         
         // Check if this is the selected thumbnail
         let isSelected = index == currentIndex
@@ -89,19 +89,19 @@ struct ThumbnailListView: View {
         let isExpanded = photoStackCollection.isStackExpanded(stackId)
         
         if !isExpanded {
-            // Collapsed stack - use normal spacing, add extra for selected
+            // Collapsed stack - only selected thumbnail gets extra spacing
             if isSelected {
-                return (normalSpacing + selectedSpacing, normalSpacing + selectedSpacing)
+                return (selectedSpacing, selectedSpacing)
             }
-            return (normalSpacing, normalSpacing)
+            return (0, 0) // No extra spacing for non-selected thumbnails
         }
         
         // Expanded stack - add half-photo separation around the stack group
         let isFirstInStack = stack.primaryAsset.localIdentifier == stack.assets.first?.localIdentifier
         let isLastInStack = stack.primaryAsset.localIdentifier == stack.assets.last?.localIdentifier
         
-        var leadingSpacing: CGFloat = normalSpacing
-        var trailingSpacing: CGFloat = normalSpacing
+        var leadingSpacing: CGFloat = 0
+        var trailingSpacing: CGFloat = 0
         
         if isFirstInStack {
             // First photo in expanded stack - add half-photo spacing before
@@ -113,7 +113,7 @@ struct ThumbnailListView: View {
             trailingSpacing = halfPhotoSpacing
         }
         
-        // Add extra spacing for selected thumbnail
+        // Add extra spacing only for selected thumbnail
         if isSelected {
             leadingSpacing += selectedSpacing
             trailingSpacing += selectedSpacing

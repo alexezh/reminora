@@ -26,12 +26,7 @@ struct ThumbnailView: View {
     private var asset: PHAsset {
         return photoStack.primaryAsset
     }
-    
-    // Stack info derived from photoStack
-    private var stackInfo: (stack: RPhotoStack, isStack: Bool, count: Int) {
-        return (stack: photoStack, isStack: photoStack.isStack, count: photoStack.count)
-    }
-    
+        
     var body: some View {
         Button(action: onTap) {
             ZStack {
@@ -62,7 +57,7 @@ struct ThumbnailView: View {
                 }
                 
                 // Stack indicator
-                if stackInfo.isStack {
+                if photoStack.isStack {
                     VStack {
                         HStack {
                             Spacer()
@@ -71,7 +66,7 @@ struct ThumbnailView: View {
                                     .fill(Color.black.opacity(0.8))
                                     .frame(width: 16, height: 16)
                                 
-                                Text("\(stackInfo.count)")
+                                Text("\(photoStack.count)")
                                     .font(.caption2)
                                     .fontWeight(.medium)
                                     .foregroundColor(.white)

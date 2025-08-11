@@ -21,9 +21,8 @@ struct ThumbnailListView: View {
         ScrollViewReader { scrollProxy in
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 0) { // Remove default spacing
-                    ForEach(Array(photoStackCollection.allAssets().enumerated()), id: \.element.localIdentifier) { index, asset in
-                        let stackInfo = photoStackCollection.getStackInfo(for: asset)
-                        let (leadingSpacing, trailingSpacing) = getThumbnailSpacing(for: asset, at: index)
+                    ForEach(Array(photoStackCollection.enumerated()), id: \.element.localIdentifier) { index, stack in
+                        let (leadingSpacing, trailingSpacing) = getThumbnailSpacing(for: stack, at: index)
                         
                         HStack(spacing: 0) {
                             // Leading spacing
@@ -33,11 +32,10 @@ struct ThumbnailListView: View {
                             }
                             
                             ThumbnailView(
-                                asset: asset,
-                                isSelected: index == currentIndex,
-                                stackInfo: stackInfo
+                                photoStack: stack,
+                                isSelected: index == currentIndex
                             ) {
-                                handleThumbnailTap(index: index, stackInfo: stackInfo)
+                                handleThumbnailTap(index: index, stack: stack)
                             }
                             
                             // Trailing spacing
@@ -64,21 +62,20 @@ struct ThumbnailListView: View {
     
     // MARK: - Private Methods
     
-    private func handleThumbnailTap(index: Int, stackInfo: (stack: RPhotoStack?, isStack: Bool, count: Int)) {
+    private func handleThumbnailTap(index: Int, stack: RPhotoStack) {
         // Handle tap - if it's a stack indicator, expand/collapse
-        if stackInfo.isStack && stackInfo.count > 1 {
+        if stack.isStack && stack.count > 1 {
             // Toggle stack expansion - collection handles the logic internally
-            if photoStackCollection.toggleStackExpansion(stackInfo.stack!.id) {
-                onStackExpand(stackInfo.stack)
+            if photoStackCollection.toggleStackExpansion(stack.id) {
+                onStackExpand(stack)
             } else {
-                onStackCollapse(stackInfo.stack)
+                onStackCollapse(stack)
             }
         }
         onThumbnailTap(index)
     }
     
-    private func getThumbnailSpacing(for asset: PHAsset, at index: Int) -> (leading: CGFloat, trailing: CGFloat) {
-        let stackInfo = photoStackCollection.getStackInfo(for: asset)
+    private func getThumbnailSpacing(for stack: RPhotoStack, at index: Int) -> (leading: CGFloat, trailing: CGFloat) {
         
         // Half photo width for separation (30px since thumbnail is 60px)
         let halfPhotoSpacing: CGFloat = 30
@@ -87,14 +84,6 @@ struct ThumbnailListView: View {
         
         // Check if this is the selected thumbnail
         let isSelected = index == currentIndex
-        
-        guard let stack = stackInfo.stack, stack.assets.count > 1 else {
-            // Single photo - use normal spacing, add extra for selected
-            if isSelected {
-                return (normalSpacing + selectedSpacing, normalSpacing + selectedSpacing)
-            }
-            return (normalSpacing, normalSpacing)
-        }
         
         let stackId = stack.id
         let isExpanded = photoStackCollection.isStackExpanded(stackId)
@@ -108,8 +97,8 @@ struct ThumbnailListView: View {
         }
         
         // Expanded stack - add half-photo separation around the stack group
-        let isFirstInStack = asset.localIdentifier == stack.assets.first?.localIdentifier
-        let isLastInStack = asset.localIdentifier == stack.assets.last?.localIdentifier
+        let isFirstInStack = stack.primaryAsset.localIdentifier == stack.assets.first?.localIdentifier
+        let isLastInStack = stack.primaryAsset.localIdentifier == stack.assets.last?.localIdentifier
         
         var leadingSpacing: CGFloat = normalSpacing
         var trailingSpacing: CGFloat = normalSpacing

@@ -691,13 +691,13 @@ struct SwipePhotoView: View {
     
     private func updateQuickListStatus() {
         let userId = AuthenticationService.shared.currentAccount?.id ?? ""
-        let newStatus = RListService.shared.isPhotoInQuickList(currentAsset, context: viewContext, userId: userId)
+        let newStatus = RListService.shared.isPhotoStackInQuickList(currentPhotoStack, context: viewContext, userId: userId)
         print("🔍 Checking Quick List status for photo \(currentPhotoStack.localIdentifier), userId: \(userId), result: \(newStatus)")
         isInQuickList = newStatus
     }
     
     private func updateFavoriteStatus() {
-        isFavorite = currentAsset.isFavorite
+        isFavorite = currentPhotoStack.primaryAsset.isFavorite
         print("🔍 Updated favorite status for photo \(currentPhotoStack.localIdentifier): \(isFavorite)")
     }
     
@@ -707,7 +707,7 @@ struct SwipePhotoView: View {
         
         print("🔄 Toggling Quick List for photo \(currentPhotoStack.localIdentifier), userId: \(userId), currently in list: \(wasInList)")
         
-        let success = RListService.shared.togglePhotoInQuickList(currentAsset, context: viewContext, userId: userId)
+        let success = RListService.shared.togglePhotoStackInQuickList(currentPhotoStack, context: viewContext, userId: userId)
         
         print("🔄 Toggle result: \(success)")
         
@@ -741,21 +741,21 @@ struct SwipePhotoView: View {
                 id: "share",
                 title: "Share",
                 systemImage: "square.and.arrow.up",
-                actionType: .sharePhoto(currentAsset),
+                actionType: .sharePhoto(currentPhotoStack.primaryAsset),
                 color: .blue
             ),
             ToolbarButtonConfig(
                 id: "favorite",
                 title: "Favorite",
                 systemImage: isFavorite ? "heart.fill" : "heart",
-                actionType: .toggleFavorite(currentAsset),
+                actionType: .toggleFavorite(currentPhotoStack.primaryAsset),
                 color: isFavorite ? .red : .primary
             ),
             ToolbarButtonConfig(
                 id: "similar",
                 title: "Find Similar",
                 systemImage: "photo.stack",
-                actionType: .findSimilar(currentAsset),
+                actionType: .findSimilar(currentPhotoStack.primaryAsset),
                 color: .green
             ),
             ToolbarButtonConfig(

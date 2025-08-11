@@ -946,36 +946,6 @@
             endingLineNumber = "270"
             landmarkName = "arrangeFlatItemsInRows()"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "902D2BDF-0FD6-4EC8-8486-E3F5FE456199 - 98463d606e7ab6a4"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "reminora.RListView.arrangeFlatItemsInRows() -&gt; Swift.Array&lt;reminora.RListRow&gt;"
-                  moduleName = "reminora.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/ios/reminora/rlist/RListView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "270"
-                  endingLineNumber = "270">
-               </Location>
-               <Location
-                  uuid = "902D2BDF-0FD6-4EC8-8486-E3F5FE456199 - 98463d606e7ab76a"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "reminora.RListView.arrangeFlatItemsInRows() -&gt; Swift.Array&lt;reminora.RListRow&gt;"
-                  moduleName = "reminora.debug.dylib"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/alexezh/prj/wahi/ios/reminora/rlist/RListView.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "272"
-                  endingLineNumber = "272">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -990,8 +960,8 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "69"
             endingLineNumber = "69"
-            landmarkName = "init(assets:)"
-            landmarkType = "7">
+            landmarkName = "RPhotoStack"
+            landmarkType = "3">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -1006,7 +976,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "74"
             endingLineNumber = "74"
-            landmarkName = "init(assets:)"
+            landmarkName = "init(asset:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

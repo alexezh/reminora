@@ -16,12 +16,21 @@ import CoreLocation
 
 // MARK: - ThumbnailView
 struct ThumbnailView: View {
-    let asset: PHAsset
+    let photoStack: RPhotoStack
     let isSelected: Bool
-    let stackInfo: (stack: RPhotoStack?, isStack: Bool, count: Int)
     let onTap: () -> Void
     
     @State private var image: UIImage?
+    
+    // Convenience computed property for the primary asset
+    private var asset: PHAsset {
+        return photoStack.primaryAsset
+    }
+    
+    // Stack info derived from photoStack
+    private var stackInfo: (stack: RPhotoStack, isStack: Bool, count: Int) {
+        return (stack: photoStack, isStack: photoStack.isStack, count: photoStack.count)
+    }
     
     var body: some View {
         Button(action: onTap) {

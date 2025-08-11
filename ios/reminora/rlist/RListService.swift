@@ -198,39 +198,73 @@ class RListService: ObservableObject {
 
     // MARK: - Quick List Photo Management
 
-    /// Checks if a photo is in the Quick List
+    /// Checks if a photo stack is in the Quick List
+    func isPhotoStackInQuickList(_ photoStack: RPhotoStack, context: NSManagedObjectContext, userId: String)
+        -> Bool
+    {
+        let quickList = getOrCreateQuickList(in: context, userId: userId)
+        return isPhotoStackInList(photoStack, list: quickList, context: context)
+    }
+
+    /// Adds a photo stack to the Quick List
+    func addPhotoStackToQuickList(_ photoStack: RPhotoStack, context: NSManagedObjectContext, userId: String)
+        -> Bool
+    {
+        let quickList = getOrCreateQuickList(in: context, userId: userId)
+        return addPhotoStackToList(photoStack, list: quickList, context: context)
+    }
+
+    /// Removes a photo stack from the Quick List
+    func removePhotoStackFromQuickList(_ photoStack: RPhotoStack, context: NSManagedObjectContext, userId: String)
+        -> Bool
+    {
+        let quickList = getOrCreateQuickList(in: context, userId: userId)
+        return removePhotoStackFromList(photoStack, list: quickList, context: context)
+    }
+
+    /// Toggles a photo stack in the Quick List
+    func togglePhotoStackInQuickList(_ photoStack: RPhotoStack, context: NSManagedObjectContext, userId: String)
+        -> Bool
+    {
+        if isPhotoStackInQuickList(photoStack, context: context, userId: userId) {
+            return removePhotoStackFromQuickList(photoStack, context: context, userId: userId)
+        } else {
+            return addPhotoStackToQuickList(photoStack, context: context, userId: userId)
+        }
+    }
+    
+    // MARK: - Legacy PHAsset Support (for compatibility)
+
+    /// Checks if a photo is in the Quick List (legacy method)
     func isPhotoInQuickList(_ asset: PHAsset, context: NSManagedObjectContext, userId: String)
         -> Bool
     {
-        let quickList = getOrCreateQuickList(in: context, userId: userId)
-        return isAssetInList(asset, list: quickList, context: context)
+        let photoStack = RPhotoStack(asset: asset)
+        return isPhotoStackInQuickList(photoStack, context: context, userId: userId)
     }
 
-    /// Adds a photo to the Quick List by creating a Place entity
+    /// Adds a photo to the Quick List (legacy method)
     func addPhotoToQuickList(_ asset: PHAsset, context: NSManagedObjectContext, userId: String)
         -> Bool
     {
-        let quickList = getOrCreateQuickList(in: context, userId: userId)
-        return addAssetToList(asset, list: quickList, context: context)
+        let photoStack = RPhotoStack(asset: asset)
+        return addPhotoStackToQuickList(photoStack, context: context, userId: userId)
     }
 
-    /// Removes a photo from the Quick List
+    /// Removes a photo from the Quick List (legacy method)
     func removePhotoFromQuickList(_ asset: PHAsset, context: NSManagedObjectContext, userId: String)
         -> Bool
     {
-        let quickList = getOrCreateQuickList(in: context, userId: userId)
-        return removeAssetFromList(asset, list: quickList, context: context)
+        let photoStack = RPhotoStack(asset: asset)
+        return removePhotoStackFromQuickList(photoStack, context: context, userId: userId)
     }
 
-    /// Toggles a photo in the Quick List
+    /// Toggles a photo in the Quick List (legacy method)
     func togglePhotoInQuickList(_ asset: PHAsset, context: NSManagedObjectContext, userId: String)
         -> Bool
     {
-        if isPhotoInQuickList(asset, context: context, userId: userId) {
-            return removePhotoFromQuickList(asset, context: context, userId: userId)
-        } else {
-            return addPhotoToQuickList(asset, context: context, userId: userId)
-        }
+        let photoStack = RPhotoStack(asset: asset)
+        return togglePhotoStackInQuickList(photoStack, context: context, userId: userId)
     }
 
     // MARK: - Quick List Pin Management
@@ -462,11 +496,11 @@ class RListService: ObservableObject {
 
     // MARK: - Private Helper Methods
 
-    private func isAssetInList(_ asset: PHAsset, list: RListData, context: NSManagedObjectContext)
+    private func isPhotoStackInList(_ photoStack: RPhotoStack, list: RListData, context: NSManagedObjectContext)
         -> Bool
     {
-        // Look directly for the photo identifier in list items
-        let photoIdentifier = "photo://\(asset.localIdentifier)"
+        // Look directly for the photo identifier in list items (using primary asset)
+        let photoIdentifier = "photo://\(photoStack.localIdentifier)"
 
         let listItemFetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
         listItemFetchRequest.predicate = NSPredicate(
@@ -477,25 +511,25 @@ class RListService: ObservableObject {
             let count = try context.count(for: listItemFetchRequest)
             return count > 0
         } catch {
-            print("❌ Failed to check if asset is in list: \(error)")
+            print("❌ Failed to check if photo stack is in list: \(error)")
             return false
         }
     }
 
-    private func addAssetToList(_ asset: PHAsset, list: RListData, context: NSManagedObjectContext)
+    private func addPhotoStackToList(_ photoStack: RPhotoStack, list: RListData, context: NSManagedObjectContext)
         -> Bool
     {
-        print("🔍 Adding asset \(asset.localIdentifier) to list \(list.id ?? "nil")")
+        print("🔍 Adding photo stack \(photoStack.localIdentifier) to list \(list.id ?? "nil")")
 
         // Check if already exists
-        if isAssetInList(asset, list: list, context: context) {
-            print("🔍 Asset already in list")
+        if isPhotoStackInList(photoStack, list: list, context: context) {
+            print("🔍 Photo stack already in list")
             return true  // Already in list
         }
 
         // Store photo directly using its localIdentifier (no PinData needed)
-        let photoIdentifier = "photo://\(asset.localIdentifier)"
-        print("🔍 Storing photo directly with identifier: \(photoIdentifier)")
+        let photoIdentifier = "photo://\(photoStack.localIdentifier)"
+        print("🔍 Storing photo stack directly with identifier: \(photoIdentifier)")
 
         // Add the photo to the list
         let listItem = RListItemData(context: context)
@@ -510,7 +544,7 @@ class RListService: ObservableObject {
 
         do {
             try context.save()
-            print("🔍 ✅ Successfully saved asset to list")
+            print("🔍 ✅ Successfully saved photo stack to list")
 
             // Send notification to update UI
             DispatchQueue.main.async {
@@ -520,15 +554,15 @@ class RListService: ObservableObject {
 
             return true
         } catch {
-            print("❌ Failed to add asset to list: \(error)")
+            print("❌ Failed to add photo stack to list: \(error)")
             return false
         }
     }
 
-    private func removeAssetFromList(
-        _ asset: PHAsset, list: RListData, context: NSManagedObjectContext
+    private func removePhotoStackFromList(
+        _ photoStack: RPhotoStack, list: RListData, context: NSManagedObjectContext
     ) -> Bool {
-        let photoIdentifier = "photo://\(asset.localIdentifier)"
+        let photoIdentifier = "photo://\(photoStack.localIdentifier)"
 
         // Remove from list by finding the list item with the photo identifier
         let listItemFetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
@@ -552,9 +586,32 @@ class RListService: ObservableObject {
 
             return true
         } catch {
-            print("❌ Failed to remove asset from list: \(error)")
+            print("❌ Failed to remove photo stack from list: \(error)")
             return false
         }
+    }
+
+    // MARK: - Legacy PHAsset Helper Methods (for backward compatibility)
+    
+    private func isAssetInList(_ asset: PHAsset, list: RListData, context: NSManagedObjectContext)
+        -> Bool
+    {
+        let photoStack = RPhotoStack(asset: asset)
+        return isPhotoStackInList(photoStack, list: list, context: context)
+    }
+
+    private func addAssetToList(_ asset: PHAsset, list: RListData, context: NSManagedObjectContext)
+        -> Bool
+    {
+        let photoStack = RPhotoStack(asset: asset)
+        return addPhotoStackToList(photoStack, list: list, context: context)
+    }
+
+    private func removeAssetFromList(
+        _ asset: PHAsset, list: RListData, context: NSManagedObjectContext
+    ) -> Bool {
+        let photoStack = RPhotoStack(asset: asset)
+        return removePhotoStackFromList(photoStack, list: list, context: context)
     }
 
     private func createPinDataFromAsset(_ asset: PHAsset, context: NSManagedObjectContext)

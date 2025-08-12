@@ -38,11 +38,11 @@ struct ThumbnailView: View {
                         .clipped()
                         .cornerRadius(8)
                         .scaleEffect(isSelected ? 1.2 : 1.0) // Scale selected thumbnail 20% bigger
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(isSelected ? Color.white : Color.clear, lineWidth: isSelected ? 3 : 0)
-                                .shadow(color: isSelected ? Color.white.opacity(0.5) : Color.clear, radius: isSelected ? 4 : 0)
-                        )
+//                        .overlay(
+//                            RoundedRectangle(cornerRadius: 8)
+//                                .stroke(isSelected ? Color.white : Color.clear, lineWidth: isSelected ? 3 : 0)
+//                                .shadow(color: isSelected ? Color.white.opacity(0.5) : Color.clear, radius: isSelected ? 4 : 0)
+//                        )
                         .animation(.easeInOut(duration: 0.2), value: isSelected)
                 } else {
                     Rectangle()

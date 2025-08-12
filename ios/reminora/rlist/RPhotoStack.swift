@@ -86,9 +86,6 @@ class RPhotoStack: ObservableObject, Identifiable {
         self.id = assets.map { $0.localIdentifier }.joined(separator: "-")
         self.creationDate = assets.first?.creationDate ?? Date()
         self.images = Array(repeating: nil, count: assets.count) // Initialize with placeholders
-        if(isStack) {
-            print("Hello");
-        }
     }
     
     // MARK: - Public Methods
@@ -108,7 +105,10 @@ class RPhotoStack: ObservableObject, Identifiable {
         contentMode: PHImageContentMode = .aspectFill,
         completion: (() -> Void)? = nil
     ) {
-        guard !isLoading else { return }
+        guard !isLoading && !assets.isEmpty else { 
+            completion?()
+            return 
+        }
         
         DispatchQueue.main.async {
             self.isLoading = true
@@ -123,6 +123,8 @@ class RPhotoStack: ObservableObject, Identifiable {
         
         let dispatchGroup = DispatchGroup()
         var loadedImages: [Int: UIImage] = [:]
+        var completedRequests: Set<Int> = []
+        let lock = NSLock()
         
         for (index, asset) in assets.enumerated() {
             dispatchGroup.enter()
@@ -135,11 +137,18 @@ class RPhotoStack: ObservableObject, Identifiable {
             ) { image, info in
                 let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
                 
+                lock.lock()
+                defer { lock.unlock() }
+                
                 if !isDegraded, let image = image {
                     loadedImages[index] = image
                 }
                 
-                dispatchGroup.leave()
+                // Only leave the dispatch group once per request
+                if !completedRequests.contains(index) {
+                    completedRequests.insert(index)
+                    dispatchGroup.leave()
+                }
             }
         }
         

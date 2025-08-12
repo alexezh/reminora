@@ -249,7 +249,7 @@ class PhotoEmbeddingService {
             // Skip if embedding already exists
             if let existingEmbedding = await getEmbedding(for: asset, in: context),
                existingEmbedding.embedding != nil {
-                print("📊 Skipping \(asset.localIdentifier) - embedding already exists")
+                //print("📊 Skipping \(asset.localIdentifier) - embedding already exists")
                 processedCount += 1
                 latestProcessedDate = asset.creationDate ?? latestProcessedDate
                 

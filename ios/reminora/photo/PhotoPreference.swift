@@ -184,6 +184,24 @@ class PhotoPreferenceManager {
             print("Failed to clear stack IDs: \(error)")
         }
     }
+    
+    func getMaxStackId() -> Int32 {
+        let fetchRequest: NSFetchRequest<PhotoPreference> = PhotoPreference.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "stackId > 0")
+        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "stackId", ascending: false)]
+        fetchRequest.fetchLimit = 1
+        
+        do {
+            let results = try viewContext.fetch(fetchRequest)
+            if let maxPreference = results.first {
+                return maxPreference.stackId
+            }
+        } catch {
+            print("Failed to fetch max stack ID: \(error)")
+        }
+        
+        return 0 // Return 0 if no stack IDs exist
+    }
 }
 
 enum PhotoPreferenceType: String, CaseIterable {

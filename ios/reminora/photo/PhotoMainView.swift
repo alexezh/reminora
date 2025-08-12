@@ -399,21 +399,28 @@ struct PhotoMainView: View {
 
     private func requestPhotoAccess() {
         authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        print("📷 PhotoMainView: Current photo authorization status: \(authorizationStatus.rawValue)")
 
         // If already authorized and Core Data is ready, load assets
         if (authorizationStatus == .authorized || authorizationStatus == .limited)
             && isCoreDataReady
         {
+            print("📷 PhotoMainView: Already authorized and Core Data ready, loading assets")
             loadPhotoAssets()
         } else if authorizationStatus == .notDetermined {
+            print("📷 PhotoMainView: Authorization not determined, requesting access")
             PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
                 DispatchQueue.main.async {
+                    print("📷 PhotoMainView: Authorization result: \(status.rawValue)")
                     authorizationStatus = status
                     if (status == .authorized || status == .limited) && isCoreDataReady {
+                        print("📷 PhotoMainView: New authorization granted, loading assets")
                         loadPhotoAssets()
                     }
                 }
             }
+        } else {
+            print("📷 PhotoMainView: Authorization denied or restricted: \(authorizationStatus.rawValue)")
         }
     }
 
@@ -560,7 +567,9 @@ struct PhotoMainView: View {
 
         var stacks: [RPhotoStack] = []
         var processedAssets: Set<String> = []
-        var currentStackId: Int32 = 1  // Start stack IDs at 1
+        let maxExistingStackId = preferenceManager.getMaxStackId()
+        var currentStackId: Int32 = maxExistingStackId + 1  // Start after max existing stack ID
+        print("📊 Starting stack creation with ID \(currentStackId) (max existing: \(maxExistingStackId))")
 
         // Process assets sequentially by time with yield points
         for i in 0..<assetsToProcess.count {

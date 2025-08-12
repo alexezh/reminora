@@ -50,7 +50,7 @@ enum LayoutConstants {
     static let contentToolbarGap: CGFloat = 8
 
     /// Thumbnail scroll area height
-    static let thumbnailHeight: CGFloat = 60
+    static let thumbnailHeight: CGFloat = 40
 
     /// Thumbnail spacing
     static let thumbnailSpacing: CGFloat = 2

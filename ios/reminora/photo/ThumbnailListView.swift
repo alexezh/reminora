@@ -23,30 +23,18 @@ struct ThumbnailListView: View {
                 LazyHStack(spacing: 0) { // Remove default spacing
                     ForEach(Array(photoStackCollection.enumerated()), id: \.element.localIdentifier) { index, stack in
                         let (leadingSpacing, trailingSpacing) = getThumbnailSpacing(for: stack, at: index)
-                        
-                        HStack(spacing: 0) {
-                            // Leading spacing
-                            if leadingSpacing > 0 {
-                                Spacer()
-                                    .frame(width: leadingSpacing)
-                            }
-                            
-                            ThumbnailView(
-                                photoStack: stack,
-                                isSelected: index == currentIndex
-                            ) {
+                        ThumbnailView(
+                            photoStack: stack,
+                            isSelected: index == currentIndex,
+                            onTap: {
                                 handleThumbnailTap(index: index, stack: stack)
                             }
-                            
-                            // Trailing spacing
-                            if trailingSpacing > 0 {
-                                Spacer()
-                                    .frame(width: trailingSpacing)
-                            }
-                        }
+                        )
+                        .padding(.horizontal, trailingSpacing)
                     }
                 }
                 .padding(.horizontal, LayoutConstants.thumbnailPadding)
+                .background(Color.black)
             }
             .frame(height: LayoutConstants.thumbnailHeight)
             .onChange(of: currentIndex) { _, newIndex in
@@ -80,7 +68,7 @@ struct ThumbnailListView: View {
         // Half photo width for separation (30px since thumbnail is 60px)
         let halfPhotoSpacing: CGFloat = 30
         let normalSpacing = LayoutConstants.thumbnailSpacing
-        let selectedSpacing: CGFloat = 8 // Extra spacing for selected thumbnail only
+        let selectedSpacing: CGFloat = 20 // Extra spacing for selected thumbnail only
         
         // Check if this is the selected thumbnail
         let isSelected = index == currentIndex

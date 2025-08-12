@@ -286,7 +286,6 @@ struct SwipePhotoView: View {
     // MARK: - Header View
     
     private var headerView: some View {
-        VStack(spacing: 4) {
             HStack {
                 // Navigation-style back button
                 Button(action: {
@@ -323,229 +322,149 @@ struct SwipePhotoView: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 8)
-        }
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black.opacity(0.6),
-                    Color.black.opacity(0.3),
-                    Color.clear
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
     }
     
     var body: some View {
-        GeometryReader { screenGeometry in
+        GeometryReader { geo in
             VStack(spacing: 0) {
-                // Header at top
+
+                // Header
                 headerView
                     .frame(height: LayoutConstants.headerHeight)
-                
-                // Photo content area (takes remaining space)
-                ZStack {
-                        // Main photo area
+
+                // Main photo area takes all available middle space
                     if !photoStackCollection.isEmpty && currentIndex < photoStackCollection.count {
-                        ZStack {
-                            // Current image
-                            SwipePhotoImageView(stack: currentPhotoStack, isLoading: $isLoading)
-                                .scaleEffect(photoTransition ? 0.9 : 1.0)
-                                .offset(x: swipeOffset, y: verticalOffset)
-                                .opacity(photoTransition ? 0.7 : (isAnimatingToNext || isAnimatingToPrevious ? 0.0 : 1.0))
-                                .animation(.easeInOut(duration: 0.3), value: photoTransition)
-                                .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: swipeOffset)
-                                .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: verticalOffset)
-                                .animation(.easeOut(duration: 0.2), value: isAnimatingToNext)
-                                .animation(.easeOut(duration: 0.2), value: isAnimatingToPrevious)
-                            
-                            // Next image (slides in from right)
-                            if let nextStack = nextPhotoStack, isAnimatingToNext {
-                                SwipePhotoImageView(stack: nextStack, isLoading: .constant(false))
-                                    .offset(x: nextImageOffset, y: 0)
-                                    .animation(.easeOut(duration: 0.25), value: nextImageOffset)
-                            }
-                            
-                            // Previous image (slides in from left)
-                            if let previousStack = previousPhotoStack, isAnimatingToPrevious {
-                                SwipePhotoImageView(stack: previousStack, isLoading: .constant(false))
-                                    .offset(x: previousImageOffset, y: 0)
-                                    .animation(.easeOut(duration: 0.25), value: previousImageOffset)
-                            }
-                        }
-                        .gesture(
-                            // Combined gesture for tap, long press, and swipe
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { value in
-                                    // Show swipe effect during drag
-                                    let translationX = value.translation.width
-                                    let translationY = value.translation.height
-                                    
-                                    // Handle horizontal swipe for navigation
-                                    swipeOffset = translationX * 0.3 // Damped swipe offset
-                                    
-                                    // Handle vertical swipe for dismiss (only down) - provide visual feedback
-                                    if translationY > 0 {
-                                        verticalOffset = min(translationY * 0.5, 200) // Damped feedback with max limit
+                        SwipePhotoImageView(stack: currentPhotoStack, isLoading: $isLoading)
+                            .frame(
+                                maxWidth: geo.size.width,
+                                maxHeight: geo.size.height
+                                    - LayoutConstants.headerHeight
+                                    - LayoutConstants.thumbnailHeight
+                                    - LayoutConstants.totalToolbarHeight
+                            )
+                            .clipped()
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { value in
+                                        let translationX = value.translation.width
+                                        let translationY = value.translation.height
+                                        
+                                        swipeOffset = translationX * 0.3
+                                        
+                                        if translationY > 0 {
+                                            verticalOffset = min(translationY * 0.5, 200)
+                                        }
+                                        
+                                        if abs(translationX) > 20 || abs(translationY) > 20 {
+                                            isLoading = true
+                                        }
                                     }
-                                    
-                                    if abs(translationX) > 20 || abs(translationY) > 20 {
-                                        isLoading = true
-                                    }
-                                }
-                                .onEnded { value in
-                                    isLoading = false
-                                    
-                                    // Check for swipe down to dismiss first
-                                    let translationY = value.translation.height
-                                    let translationX = value.translation.width
-                                    let velocityY = value.velocity.height
-                                    let isVerticalSwipe = abs(translationY) > abs(translationX)
-                                    
-                                    if isVerticalSwipe && (translationY > 150 || velocityY > 800) { // Distance or velocity threshold
-                                        // Dismiss immediately - let parent handle animation
-                                        onDismiss()
-                                        return
-                                    }
-                                    
-                                    // Reset both offsets with spring animation
-                                    withAnimation(.interpolatingSpring(stiffness: 300, damping: 25)) {
-                                        swipeOffset = 0
-                                        verticalOffset = 0
-                                    }
-                                    
-                                    // Handle different gesture types
-                                    let isHorizontalSwipe = abs(translationX) > abs(translationY)
-                                    let distance = sqrt(pow(translationX, 2) + pow(translationY, 2))
-                                    
-                                    if distance < 10 {
-                                        // Tap gesture - check for stack
-                                        let stack = currentPhotoStack
-                                        if stack.count > 1 {
-                                            if photoStackCollection.isStackExpanded(stack.id) {
-                                                collapseStack(stack)
+                                    .onEnded { value in
+                                        isLoading = false
+                                        
+                                        let translationY = value.translation.height
+                                        let translationX = value.translation.width
+                                        let velocityY = value.velocity.height
+                                        let isVerticalSwipe = abs(translationY) > abs(translationX)
+                                        
+                                        if isVerticalSwipe && (translationY > 150 || velocityY > 800) {
+                                            onDismiss()
+                                            return
+                                        }
+                                        
+                                        withAnimation(.interpolatingSpring(stiffness: 300, damping: 25)) {
+                                            swipeOffset = 0
+                                            verticalOffset = 0
+                                        }
+                                        
+                                        let isHorizontalSwipe = abs(translationX) > abs(translationY)
+                                        let distance = sqrt(pow(translationX, 2) + pow(translationY, 2))
+                                        
+                                        if distance < 10 {
+                                            let stack = currentPhotoStack
+                                            if stack.count > 1 {
+                                                if photoStackCollection.isStackExpanded(stack.id) {
+                                                    collapseStack(stack)
+                                                } else {
+                                                    expandStack(stack)
+                                                }
+                                            }
+                                        } else if isHorizontalSwipe && abs(translationX) > LayoutConstants.swipeThreshold {
+                                            triggerPhotoTransition()
+                                            
+                                            if abs(translationX) > LayoutConstants.swipeThreshold * 2 {
+                                                handleLongPullNavigation(translationX)
                                             } else {
-                                                expandStack(stack)
+                                                handleStackBoundarySwipe(translationX)
                                             }
                                         }
-                                    } else if isHorizontalSwipe && abs(translationX) > LayoutConstants.swipeThreshold {
-                                        // Trigger photo transition animation
-                                        triggerPhotoTransition()
-                                        
-                                        // Check for long-pull (extended horizontal swipe)
-                                        if abs(translationX) > LayoutConstants.swipeThreshold * 2 {
-                                            // Long horizontal pull - close stack and move to next
-                                            handleLongPullNavigation(translationX)
-                                        } else {
-                                            // Regular horizontal swipe - navigate photos with stack boundaries
-                                            handleStackBoundarySwipe(translationX)
-                                        }
                                     }
-                                }
-                        )
-                        .onLongPressGesture(minimumDuration: LayoutConstants.longPressThreshold) {
-                            // Long press - move to next stack
-                            moveToNextStack()
-                        }
+                            )
+                            .onLongPressGesture(minimumDuration: LayoutConstants.longPressThreshold) {
+                                moveToNextStack()
+                            }
                     } else {
-                        // Fallback when no display assets
-                        VStack {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(1.5)
-                            Text("Loading photos...")
-                                .foregroundColor(.white)
-                                .padding(.top, 16)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        ProgressView("Loading photos…")
+                            .foregroundColor(.white)
                     }
-                    // Space for thumbnails at bottom
-                    Color.clear
-                        .frame(height: LayoutConstants.totalToolbarHeight)
-                }
-                                
-                // Thumbnail overlay (positioned at bottom)
-                VStack {
-                    Spacer()
-                    
-                    ThumbnailListView(
-                        photoStackCollection: photoStackCollection,
-                        currentIndex: $currentIndex,
-                        onThumbnailTap: { index in
-                            currentIndex = index
-                        },
-                        onStackExpand: { stack in
-                            expandStack(stack)
-                        },
-                        onStackCollapse: { stack in
-                            collapseStack(stack)
-                        }
-                    )
-                    .frame(height: LayoutConstants.thumbnailHeight)
-                    .background(Color.red.opacity(0.3)) // Debug background to see thumbnail area
-                    
-                    // Bottom padding to account for toolbar button space
-                    Color.clear
-                        .frame(height: LayoutConstants.totalToolbarHeight - LayoutConstants.thumbnailHeight)
-                }
-                .zIndex(2)
+
+                // Thumbnails pinned above toolbar
+                ThumbnailListView(
+                    photoStackCollection: photoStackCollection,
+                    currentIndex: $currentIndex,
+                    onThumbnailTap: { index in currentIndex = index },
+                    onStackExpand: expandStack,
+                    onStackCollapse: collapseStack
+                )
+                .frame(height: LayoutConstants.thumbnailHeight)
+                //.padding(.bottom, LayoutConstants.totalToolbarHeight)
+                //.background(Color.red.opacity(0.3)) // debug
+                .background(Color.black)
+                .padding(.bottom, LayoutConstants.totalToolbarHeight)
+                //.padding(.bottom, geo.safeAreaInsets.bottom)
             }
-            .onAppear {
-                print("SwipePhotoView onAppear called with \(photoStackCollection.allAssets().count) total assets and \(photoStackCollection.count) stacks")
-                isLoading = true
-                
-                // Set ActionSheet context for SwipePhotoView
-                UniversalActionSheetModel.shared.setContext(.swipePhoto)
-                
-                // Use allAssets directly to avoid expensive stack processing
-                print("Using allAssets directly: \(photoStackCollection.allAssets().count) assets - virtualized loading")
-                
-                // Find initial index based on initialStack's primary asset
-                let initialAssetId = initialStack.primaryAsset.localIdentifier
-                if let initialIndex = photoStackCollection.allAssets().firstIndex(where: { $0.localIdentifier == initialAssetId }) {
-                    currentIndex = initialIndex
-                    print("Set currentIndex to \(currentIndex) for stack \(initialStack.id) with primary asset \(initialAssetId)")
-                } else {
-                    currentIndex = 0
-                    print("Defaulted currentIndex to 0")
-                }
-                
-                print("Starting preference manager initialization...")
-                initializePreferenceManager()
+            .background(Color.black)
+            //.ignoresSafeArea(.all)
+            //.frame(maxWidth: .infinity, maxHeight: .infinity)
+            //.padding(.bottom, 0)
+        }
+        .onAppear {
+            print("SwipePhotoView onAppear called with \(photoStackCollection.count) stacks")
+            isLoading = true
+            
+            UniversalActionSheetModel.shared.setContext(.swipePhoto)
+            
+            let initialAssetId = initialStack.primaryAsset.localIdentifier
+            if let initialIndex = photoStackCollection.allAssets().firstIndex(where: { $0.localIdentifier == initialAssetId }) {
+                currentIndex = initialIndex
+            } else {
+                currentIndex = 0
+            }
+            
+            initializePreferenceManager()
+            updateQuickListStatus()
+            updateFavoriteStatus()
+            updateToolbar(false)
+            selectedAssetService.setCurrentPhotoStack(initialStack)
+            
+            prepareNextImage()
+            preparePreviousImage()
+        }
+        .onDisappear {
+            selectedAssetService.setCurrentPhotoStack(nil)
+        }
+        .onChange(of: currentIndex) { _, _ in
+            selectedAssetService.setCurrentPhotoStack(currentPhotoStack)
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 updateQuickListStatus()
                 updateFavoriteStatus()
-                updateToolbar(false)
-                // Set initial current photo stack in service
-                selectedAssetService.setCurrentPhotoStack(initialStack)
-                
-                // Initialize next/previous images for smooth transitions
-                prepareNextImage()
-                preparePreviousImage()
+                updateToolbar(true)
             }
-            .onDisappear {
-                // Don't hide the toolbar completely, let the parent view restore it
-                print("🔧 SwipePhotoView: onDisappear - not hiding toolbar to allow restoration")
-                // Clear current photo stack from service
-                selectedAssetService.setCurrentPhotoStack(nil)
-                // Reset ActionSheet context - will be set by parent view
-            }
-            .onChange(of: currentIndex) { _, _ in
-                // Update current photo stack immediately for gesture responsiveness
-                selectedAssetService.setCurrentPhotoStack(currentPhotoStack)
-                
-                // Debounce expensive operations to improve performance
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    updateQuickListStatus()
-                    updateFavoriteStatus()
-                    updateToolbar(true)
-                }
-            }
-            .navigationBarHidden(true)
-            
         }
+        .navigationBarHidden(true)
     }
-    
+
     // MARK: - Scroll Gesture Handlers
     
     private func handleScrollGesture(value: DragGesture.Value, geometry: GeometryProxy) {

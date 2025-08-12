@@ -42,6 +42,30 @@ struct RListPhotoView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
                         .cornerRadius(8)
+                } else {
+                    // Show loading state or placeholder
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .cornerRadius(8)
+                        .overlay(
+                            Group {
+                                if photoStack.isLoading {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.8)
+                                } else {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "photo")
+                                            .font(.title2)
+                                            .foregroundColor(.gray)
+                                        Text("No Image")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                            }
+                        )
                 }
                 
                 // Stack count indicator for multi-photo stacks - positioned absolutely
@@ -151,9 +175,20 @@ struct RListPhotoView: View {
     // MARK: - Helper Methods
     
     private func setupView() {
+        // Debug logging
+        print("🖼️ RListPhotoView setupView: stack id=\(photoStack.id), assets=\(photoStack.assets.count), images=\(photoStack.images.count), isLoading=\(photoStack.isLoading)")
+        print("🖼️ Images state: \(photoStack.images.map { $0 == nil ? "nil" : "loaded" })")
+        
         // Load images if not already loaded
         if photoStack.images.allSatisfy({ $0 == nil }) && !photoStack.isLoading {
-            photoStack.loadImages()
+            print("🖼️ Starting image load for stack \(photoStack.id)")
+            photoStack.loadImages {
+                print("🖼️ Image load completed for stack \(photoStack.id)")
+            }
+        } else if !photoStack.images.allSatisfy({ $0 == nil }) {
+            print("🖼️ Images already loaded for stack \(photoStack.id)")
+        } else if photoStack.isLoading {
+            print("🖼️ Images already loading for stack \(photoStack.id)")
         }
     }
 }

@@ -136,16 +136,35 @@ class RPhotoStack: ObservableObject, Identifiable {
                 options: options
             ) { image, info in
                 let isDegraded = info?[PHImageResultIsDegradedKey] as? Bool ?? false
+                let isCancelled = info?[PHImageCancelledKey] as? Bool ?? false
+                let error = info?[PHImageErrorKey] as? Error
                 
                 lock.lock()
                 defer { lock.unlock() }
                 
-                if !isDegraded, let image = image {
-                    loadedImages[index] = image
+                // Debug logging for each image request
+                if let error = error {
+                    print("🖼️ Image request error for asset \(index): \(error)")
+                } else if isCancelled {
+                    print("🖼️ Image request cancelled for asset \(index)")
+                } else if let image = image {
+                    if isDegraded {
+                        print("🖼️ Received degraded image for asset \(index): \(image.size)")
+                        // Store degraded image if we don't have any image yet
+                        if loadedImages[index] == nil {
+                            loadedImages[index] = image
+                        }
+                    } else {
+                        print("🖼️ ✅ Successfully loaded high-quality image for asset \(index): \(image.size)")
+                        // Always store high-quality image (overwrites degraded if any)
+                        loadedImages[index] = image
+                    }
+                } else {
+                    print("🖼️ ❌ No image returned for asset \(index)")
                 }
                 
-                // Only leave the dispatch group once per request
-                if !completedRequests.contains(index) {
+                // Only leave the dispatch group when we get a non-degraded image or error
+                if !completedRequests.contains(index) && (!isDegraded || error != nil || isCancelled) {
                     completedRequests.insert(index)
                     dispatchGroup.leave()
                 }
@@ -158,6 +177,18 @@ class RPhotoStack: ObservableObject, Identifiable {
                 if index < self.images.count {
                     self.images[index] = loadedImages[index]
                 }
+            }
+            
+            // Debug logging
+            let loadedCount = self.images.compactMap { $0 }.count
+            print("🖼️ RPhotoStack loadImages completion - Stack: \(self.id)")
+            print("🖼️ Total assets: \(self.assets.count), Images array size: \(self.images.count)")
+            print("🖼️ Successfully loaded images: \(loadedCount)/\(self.assets.count)")
+            print("🖼️ Primary image available: \(self.primaryImage != nil)")
+            if loadedCount > 0 {
+                print("🖼️ ✅ Images loaded successfully")
+            } else {
+                print("🖼️ ❌ No images were loaded")
             }
             
             self.isLoading = false

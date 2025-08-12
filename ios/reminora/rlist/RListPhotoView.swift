@@ -42,6 +42,9 @@ struct RListPhotoView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .clipped()
                         .cornerRadius(8)
+                        .onAppear {
+                            print("🖼️ RListPhotoView: Primary image displayed for stack \(photoStack.id)")
+                        }
                 } else {
                     // Show loading state or placeholder
                     Rectangle()
@@ -54,6 +57,9 @@ struct RListPhotoView: View {
                                     ProgressView()
                                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                         .scaleEffect(0.8)
+                                        .onAppear {
+                                            print("🖼️ RListPhotoView: Showing loading state for stack \(photoStack.id)")
+                                        }
                                 } else {
                                     VStack(spacing: 4) {
                                         Image(systemName: "photo")
@@ -62,6 +68,11 @@ struct RListPhotoView: View {
                                         Text("No Image")
                                             .font(.caption)
                                             .foregroundColor(.gray)
+                                    }
+                                    .onAppear {
+                                        print("🖼️ RListPhotoView: Showing 'No Image' placeholder for stack \(photoStack.id)")
+                                        print("🖼️ Images state: \(photoStack.images.map { $0 == nil ? "nil" : "loaded" })")
+                                        print("🖼️ Primary image: \(photoStack.primaryImage != nil ? "available" : "nil")")
                                     }
                                 }
                             }

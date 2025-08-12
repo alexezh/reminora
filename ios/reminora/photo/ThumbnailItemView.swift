@@ -15,7 +15,7 @@ import MapKit
 import CoreLocation
 
 // MARK: - ThumbnailView
-struct ThumbnailView: View {
+struct ThumbnailItemView: View {
     let photoStack: RPhotoStack
     let isSelected: Bool
     let onTap: () -> Void
@@ -34,10 +34,10 @@ struct ThumbnailView: View {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 60, height: 60)
+                        .frame(width: 40, height: 60)
                         .clipped()
                         .cornerRadius(8)
-                        .scaleEffect(isSelected ? 1.2 : 1.0) // Scale selected thumbnail 20% bigger
+//                        .scaleEffect(isSelected ? 1.2 : 1.0) // Scale selected thumbnail 20% bigger
 //                        .overlay(
 //                            RoundedRectangle(cornerRadius: 8)
 //                                .stroke(isSelected ? Color.white : Color.clear, lineWidth: isSelected ? 3 : 0)

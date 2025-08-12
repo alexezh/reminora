@@ -328,6 +328,8 @@ struct SwipePhotoView: View {
         GeometryReader { geo in
             VStack(spacing: 0) {
 
+                let w = geo.safeAreaInsets;
+                
                 // Header
                 headerView
                     .frame(height: LayoutConstants.headerHeight)
@@ -420,7 +422,7 @@ struct SwipePhotoView: View {
                 //.padding(.bottom, LayoutConstants.totalToolbarHeight)
                 //.background(Color.red.opacity(0.3)) // debug
                 .background(Color.black)
-                .padding(.bottom, LayoutConstants.totalToolbarHeight)
+                .padding(.bottom, LayoutConstants.totalToolbarHeight + 10)
                 //.padding(.bottom, geo.safeAreaInsets.bottom)
             }
             .background(Color.black)

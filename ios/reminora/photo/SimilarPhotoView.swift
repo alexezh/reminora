@@ -2,7 +2,7 @@ import SwiftUI
 import CoreData
 import Photos
 
-struct PhotoSimilarityView: View {
+struct SimilarPhotoView: View {
     let targetAsset: PHAsset
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.presentationMode) var presentationMode
@@ -382,7 +382,7 @@ struct DuplicateGroupCard: View {
                     // Original photo
                     if let originalAsset = PhotoEmbeddingService.shared.getPhotoAsset(for: group.original) {
                         VStack(spacing: 4) {
-                            PhotoThumbnailView(asset: originalAsset)
+                            SimilarPhotoThumbnailView(asset: originalAsset)
                                 .frame(width: 80, height: 80)
                             Text("Original")
                                 .font(.caption2)
@@ -394,7 +394,7 @@ struct DuplicateGroupCard: View {
                     ForEach(Array(group.duplicates.enumerated()), id: \.offset) { index, duplicate in
                         if let asset = PhotoEmbeddingService.shared.getPhotoAsset(for: duplicate.embedding) {
                             VStack(spacing: 4) {
-                                PhotoThumbnailView(asset: asset)
+                                SimilarPhotoThumbnailView(asset: asset)
                                     .frame(width: 80, height: 80)
                                 Text("\(duplicate.percentage)%")
                                     .font(.caption2)
@@ -454,5 +454,5 @@ struct EmbeddingProgressView: View {
 
 // MARK: - Preview
 #Preview {
-    PhotoSimilarityView(targetAsset: PHAsset())
+    SimilarPhotoView(targetAsset: PHAsset())
 }

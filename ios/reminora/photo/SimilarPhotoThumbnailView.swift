@@ -13,7 +13,7 @@ import PhotosUI
 import SwiftUI
 
 // used by swipe photo to display line of photos
-struct PhotoThumbnailView: View {
+struct SimilarPhotoThumbnailView: View {
   let asset: PHAsset
   let isSelected: Bool?
   let onTap: (() -> Void)?

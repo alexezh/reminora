@@ -81,7 +81,7 @@ struct SheetRouter: View {
             SimilarPhotosGridView(targetAsset: targetAsset)
 
         case .duplicatePhotos(let targetAsset):
-            PhotoSimilarityView(targetAsset: targetAsset)
+            SimilarPhotoView(targetAsset: targetAsset)
 
         // case .photoSimilarity(let targetAsset):
         //     PhotoSimilarityView(targetAsset: targetAsset)

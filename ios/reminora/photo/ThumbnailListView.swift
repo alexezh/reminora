@@ -23,7 +23,7 @@ struct ThumbnailListView: View {
                 LazyHStack(spacing: 0) { // Remove default spacing
                     ForEach(Array(photoStackCollection.enumerated()), id: \.element.localIdentifier) { index, stack in
                         let (leadingSpacing, trailingSpacing) = getThumbnailSpacing(for: stack, at: index)
-                        ThumbnailView(
+                        ThumbnailItemView(
                             photoStack: stack,
                             isSelected: index == currentIndex,
                             onTap: {

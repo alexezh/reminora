@@ -200,13 +200,13 @@ struct SwipePhotoImageView: View {
                     image = loadedImage
                     isLoading = false
                     loadError = false
-                    print("Successfully loaded image for asset: \(photoStack.primaryAsset.localIdentifier)")
+                    //print("Successfully loaded image for asset: \(photoStack.primaryAsset.localIdentifier)")
                     
                     // Check if this is a degraded image and request high quality
                     if let info = info,
                        let degraded = info[PHImageResultIsDegradedKey] as? Bool,
                        degraded {
-                        print("Loading high quality version for asset: \(photoStack.primaryAsset.localIdentifier)")
+                        //print("Loading high quality version for asset: \(photoStack.primaryAsset.localIdentifier)")
                         
                         let hqOptions = PHImageRequestOptions()
                         hqOptions.isSynchronous = false
@@ -218,7 +218,7 @@ struct SwipePhotoImageView: View {
                             DispatchQueue.main.async {
                                 if let hqImage = hqImage {
                                     image = hqImage
-                                    print("High quality image loaded for asset: \(photoStack.primaryAsset.localIdentifier)")
+                                    //print("High quality image loaded for asset: \(photoStack.primaryAsset.localIdentifier)")
                                 }
                             }
                         }

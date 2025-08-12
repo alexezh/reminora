@@ -336,7 +336,32 @@ struct SwipePhotoView: View {
 
                 // Main photo area takes all available middle space
                     if !photoStackCollection.isEmpty && currentIndex < photoStackCollection.count {
-                        SwipePhotoImageView(stack: currentPhotoStack, isLoading: $isLoading)
+                        ZStack {
+                            // Current image
+                            SwipePhotoImageView(stack: currentPhotoStack, isLoading: $isLoading)
+                                .scaleEffect(photoTransition ? 0.9 : 1.0)
+                                .offset(x: swipeOffset, y: verticalOffset)
+                                .opacity(photoTransition ? 0.7 : (isAnimatingToNext || isAnimatingToPrevious ? 0.0 : 1.0))
+                                .animation(.easeInOut(duration: 0.3), value: photoTransition)
+                                .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: swipeOffset)
+                                .animation(.interpolatingSpring(stiffness: 300, damping: 30), value: verticalOffset)
+                                .animation(.easeOut(duration: 0.2), value: isAnimatingToNext)
+                                .animation(.easeOut(duration: 0.2), value: isAnimatingToPrevious)
+                            
+                            // Next image (slides in from right)
+                            if let nextStack = nextPhotoStack, isAnimatingToNext {
+                                SwipePhotoImageView(stack: nextStack, isLoading: .constant(false))
+                                    .offset(x: nextImageOffset, y: 0)
+                                    .animation(.easeOut(duration: 0.25), value: nextImageOffset)
+                            }
+                            
+                            // Previous image (slides in from left)
+                            if let previousStack = previousPhotoStack, isAnimatingToPrevious {
+                                SwipePhotoImageView(stack: previousStack, isLoading: .constant(false))
+                                    .offset(x: previousImageOffset, y: 0)
+                                    .animation(.easeOut(duration: 0.25), value: previousImageOffset)
+                            }
+                        }
                             .frame(
                                 maxWidth: geo.size.width,
                                 maxHeight: geo.size.height

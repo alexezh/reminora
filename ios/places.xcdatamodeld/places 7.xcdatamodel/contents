@@ -119,11 +119,20 @@
     </entity>
     <entity name="RListData" representedClassName="RListData" syncable="YES" codeGenerationType="class">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="data" optional="YES" attributeType="String"/>
         <attribute name="id" attributeType="String"/>
+        <attribute name="kind" attributeType="String" defaultValueString="user"/>
+        <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String"/>
         <attribute name="userId" attributeType="String"/>
         <fetchIndex name="byIdIndex">
             <fetchIndexElement property="id" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byKindIndex">
+            <fetchIndexElement property="kind" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byModifiedAtIndex">
+            <fetchIndexElement property="modifiedAt" type="Binary" order="descending"/>
         </fetchIndex>
         <fetchIndex name="byNameIndex">
             <fetchIndexElement property="name" type="Binary" order="ascending"/>

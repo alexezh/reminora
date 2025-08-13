@@ -9,6 +9,7 @@ import Foundation
 import Photos
 import SwiftUI
 import MediaPlayer
+import CoreData
 
 // MARK: - Clip Models
 
@@ -188,6 +189,10 @@ class ClipManager: ObservableObject {
     func addClip(_ clip: Clip) {
         clips.append(clip)
         saveClips()
+        
+        // Also create an RList entry for the clip
+        createRListEntry(for: clip)
+        
         print("📹 ClipManager: Added clip '\(clip.name)' with \(clip.assetIdentifiers.count) images")
     }
     
@@ -204,11 +209,94 @@ class ClipManager: ObservableObject {
     func deleteClip(id: UUID) {
         clips.removeAll { $0.id == id }
         saveClips()
+        
+        // Also delete the RList entry
+        deleteRListEntry(for: id)
+        
         print("📹 ClipManager: Deleted clip with id \(id)")
     }
     
     func deleteClip(_ clip: Clip) {
         deleteClip(id: clip.id)
+    }
+    
+    // MARK: - RList Integration
+    
+    private func createRListEntry(for clip: Clip) {
+        let context = PersistenceController.shared.container.viewContext
+        
+        // Create the RList entry
+        let rlist = RListData(context: context)
+        rlist.id = clip.id.uuidString
+        rlist.name = clip.name
+        rlist.kind = "clip"
+        rlist.userId = "current_user" // TODO: Get actual user ID from auth service
+        rlist.createdAt = clip.createdAt
+        rlist.modifiedAt = clip.modifiedAt
+        
+        // Store clip data as JSON
+        do {
+            let encoder = JSONEncoder()
+            let clipData = try encoder.encode(clip)
+            rlist.data = String(data: clipData, encoding: .utf8)
+        } catch {
+            print("❌ ClipManager: Failed to encode clip data: \(error)")
+        }
+        
+        // Create RListItemData entries for each photo
+        for (index, assetId) in clip.assetIdentifiers.enumerated() {
+            let item = RListItemData(context: context)
+            item.id = UUID().uuidString
+            item.listId = clip.id.uuidString
+            item.placeId = assetId // Using asset ID as place ID for clips
+            item.addedAt = Date()
+        }
+        
+        // Save the context
+        do {
+            try context.save()
+            print("📹 ClipManager: Created RList entry for clip '\(clip.name)'")
+        } catch {
+            print("❌ ClipManager: Failed to save RList entry: \(error)")
+        }
+    }
+    
+    private func deleteRListEntry(for clipId: UUID) {
+        let context = PersistenceController.shared.container.viewContext
+        
+        // Delete RList entry
+        let rlistRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
+        rlistRequest.predicate = NSPredicate(format: "id == %@ AND kind == %@", clipId.uuidString, "clip")
+        
+        do {
+            let results = try context.fetch(rlistRequest)
+            for rlist in results {
+                context.delete(rlist)
+            }
+        } catch {
+            print("❌ ClipManager: Failed to fetch RList entry for deletion: \(error)")
+        }
+        
+        // Delete RListItemData entries
+        let itemsRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
+        itemsRequest.predicate = NSPredicate(format: "listId == %@", clipId.uuidString)
+        
+        do {
+            let results = try context.fetch(itemsRequest)
+            for item in results {
+                context.delete(item)
+            }
+        } catch {
+            print("❌ ClipManager: Failed to fetch RListItemData entries for deletion: \(error)")
+        }
+        
+        // Save the context
+        do {
+            try context.save()
+            print("📹 ClipManager: Deleted RList entry for clip \(clipId)")
+        } catch {
+            print("❌ ClipManager: Failed to save after RList deletion: \(error)")
+        }
     }
     
     // MARK: - Persistence

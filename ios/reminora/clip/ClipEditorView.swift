@@ -39,10 +39,12 @@ struct ClipEditorView: View {
                 case .player:
                     playerModeView
                 }
+                
+                Spacer()
             }
+            .padding(.top, 20) // Reduced space
+            .padding(.bottom, LayoutConstants.toolbarHeight) // Space for FAB
         }
-        .padding(.top, 20)
-        .padding(.bottom, LayoutConstants.toolbarHeight) // Space for FAB
         .onAppear {
             setupInitialState()
             setupToolbar()

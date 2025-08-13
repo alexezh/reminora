@@ -68,11 +68,21 @@ struct ContentView: View {
                 }
                 
                 // ECard Editor Tab
-                if selectedTab == "Editor" {
+                if selectedTab == "ECard" {
                     ECardEditorView(
                         initialAssets: eCardEditor.getCurrentAssets(),
                         onDismiss: {
                             eCardEditor.endEditing()
+                        }
+                    )
+                }
+                
+                // Clip Editor Tab
+                if selectedTab == "Clip" {
+                    ClipEditorView(
+                        initialAssets: clipEditor.getCurrentAssets(),
+                        onDismiss: {
+                            clipEditor.endEditing()
                         }
                     )
                 }
@@ -84,6 +94,9 @@ struct ContentView: View {
             
             // Set appropriate toolbar for the selected tab
             setupToolbarForTab(newValue)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SwitchToClipEditor"))) { _ in
+            selectedTab = "Clip"
         }
         .environment(\.toolbarManager, toolbarManager)
         .environment(\.selectedAssetService, selectedAssetService)

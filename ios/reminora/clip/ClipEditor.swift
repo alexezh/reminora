@@ -86,6 +86,11 @@ class ClipEditor: ObservableObject {
         return isActive && currentClip != nil
     }
     
+    /// Get current assets for ContentView integration
+    func getCurrentAssets() -> [PHAsset] {
+        return currentAssets
+    }
+    
     /// Save current clip
     func saveClip() {
         guard var clip = currentClip else { return }

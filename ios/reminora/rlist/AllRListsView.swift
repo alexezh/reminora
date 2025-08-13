@@ -127,7 +127,22 @@ struct AllRListsView: View {
     }
     
     private func listItemView(for userList: RListData) -> some View {
-        NavigationLink(destination: RListDetailView(list: userList)) {
+        if userList.kind == "clip" {
+            // For clip lists, use a button to open ClipEditor instead of navigation
+            Button(action: {
+                openClipEditor(for: userList)
+            }) {
+                listItemContent(for: userList)
+            }
+            .buttonStyle(PlainButtonStyle())
+        } else {
+            NavigationLink(destination: RListDetailView(list: userList)) {
+                listItemContent(for: userList)
+            }
+        }
+    }
+    
+    private func listItemContent(for userList: RListData) -> some View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(userList.name ?? "Unnamed List")
@@ -147,6 +162,35 @@ struct AllRListsView: View {
                     .foregroundColor(.secondary)
             }
             .padding(.vertical, 2)
+    }
+    
+    private func openClipEditor(for userList: RListData) {
+        guard userList.kind == "clip", let clipDataString = userList.data else {
+            print("❌ AllRListsView: Invalid clip data for list \(userList.id ?? "unknown")")
+            return
+        }
+        
+        // Decode the clip data from JSON
+        guard let clipData = clipDataString.data(using: .utf8) else {
+            print("❌ AllRListsView: Could not convert clip data to Data")
+            return
+        }
+        
+        do {
+            let decoder = JSONDecoder()
+            let clip = try decoder.decode(Clip.self, from: clipData)
+            
+            // Start clip editing
+            ClipEditor.shared.startEditing(clip: clip)
+            
+            // Switch to Clip tab to show the editor
+            // This assumes ContentView listens for selectedTab changes
+            UserDefaults.standard.set("Clip", forKey: "selectedTab")
+            NotificationCenter.default.post(name: NSNotification.Name("SwitchToClipEditor"), object: nil)
+            
+            print("📹 AllRListsView: Opened clip editor for '\(clip.name)'")
+        } catch {
+            print("❌ AllRListsView: Failed to decode clip data: \(error)")
         }
     }
     

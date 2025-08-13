@@ -415,9 +415,11 @@ class RListService: ObservableObject {
             print(
                 "🔍 ✅ Successfully created list '\(newListName)' with \(quickListItems.count) items")
 
-            // Send notification to refresh the AllRListsView
+            // Send notifications to refresh views
             NotificationCenter.default.post(
                 name: NSNotification.Name("RListDatasChanged"), object: nil)
+            NotificationCenter.default.post(
+                name: NSNotification.Name("QuickListChanged"), object: nil)
 
             return true
         } catch {

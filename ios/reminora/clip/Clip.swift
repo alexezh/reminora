@@ -17,15 +17,17 @@ struct Clip: Identifiable, Codable {
     var assetIdentifiers: [String]
     var duration: TimeInterval // Duration per image in seconds
     var transition: ClipTransition
+    var orientation: ClipOrientation
     var createdAt: Date
     var modifiedAt: Date
     
-    init(name: String, assets: [PHAsset], duration: TimeInterval = 2.0, transition: ClipTransition = .fade) {
+    init(name: String, assets: [PHAsset], duration: TimeInterval = 2.0, transition: ClipTransition = .fade, orientation: ClipOrientation = .square) {
         self.id = UUID()
         self.name = name
         self.assetIdentifiers = assets.map { $0.localIdentifier }
         self.duration = duration
         self.transition = transition
+        self.orientation = orientation
         self.createdAt = Date()
         self.modifiedAt = Date()
     }
@@ -63,6 +65,28 @@ enum ClipTransition: String, Codable, CaseIterable {
         case .fade: return "Fade"
         case .slide: return "Slide"
         case .zoom: return "Zoom"
+        }
+    }
+}
+
+enum ClipOrientation: String, Codable, CaseIterable {
+    case portrait = "portrait"
+    case landscape = "landscape"
+    case square = "square"
+    
+    var displayName: String {
+        switch self {
+        case .portrait: return "Portrait"
+        case .landscape: return "Landscape"
+        case .square: return "Square"
+        }
+    }
+    
+    var videoSize: CGSize {
+        switch self {
+        case .portrait: return CGSize(width: 1080, height: 1920)  // 9:16
+        case .landscape: return CGSize(width: 1920, height: 1080) // 16:9
+        case .square: return CGSize(width: 1080, height: 1080)    // 1:1
         }
     }
 }

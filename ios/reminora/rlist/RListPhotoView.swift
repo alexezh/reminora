@@ -96,25 +96,45 @@ struct RListPhotoView: View {
                     .padding(6)
                 }
                 
-                // Selection indicator - positioned absolutely
+                // Selection indicator - positioned absolutely  
                 if isSelectionMode {
                     ZStack {
+                        // Background circle
                         Circle()
-                            .fill(Color.white.opacity(0.9))
-                            .frame(width: 28, height: 28)
+                            .fill(Color.white)
+                            .frame(width: 24, height: 24)
                             .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
                         
-                        Circle()
-                            .stroke(Color.black.opacity(0.2), lineWidth: 1)
-                            .frame(width: 28, height: 28)
-                        
-                        Image(systemName: selectionIconName)
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(selectionColor)
+                        // Checkbox design
+                        if isSelected {
+                            // Filled checkbox
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: 20, height: 20)
+                            
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                        } else if isPartiallySelected {
+                            // Partially selected (orange with minus)
+                            Circle()
+                                .fill(Color.orange)
+                                .frame(width: 20, height: 20)
+                            
+                            Image(systemName: "minus")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                        } else {
+                            // Empty checkbox
+                            Circle()
+                                .stroke(Color.gray, lineWidth: 2)
+                                .frame(width: 20, height: 20)
+                        }
                     }
                     .offset(x: 0, y: 0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .padding(8)
+                    .id("selection-\(photoStack.id)-\(selectedAssetService.selectedPhotoCount)")  // Force refresh
                 }
             }
         }
@@ -163,25 +183,6 @@ struct RListPhotoView: View {
         return !photoStack.isSinglePhoto && photoStack.isPartiallySelected(selectedAssets: selectedAssetService.selectedPhotoIdentifiers)
     }
     
-    private var selectionIconName: String {
-        if isSelected {
-            return "checkmark.circle.fill"
-        } else if isPartiallySelected {
-            return "minus.circle.fill"
-        } else {
-            return "circle"
-        }
-    }
-    
-    private var selectionColor: Color {
-        if isSelected {
-            return .blue
-        } else if isPartiallySelected {
-            return .orange
-        } else {
-            return .gray
-        }
-    }
     
     // MARK: - Helper Methods
     

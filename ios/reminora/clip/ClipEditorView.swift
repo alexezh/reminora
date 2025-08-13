@@ -15,6 +15,7 @@ struct ClipEditorView: View {
     
     @Environment(\.clipEditor) private var clipEditor
     @Environment(\.clipManager) private var clipManager
+    @Environment(\.toolbarManager) private var toolbarManager
     @State private var viewMode: ClipEditorMode = .list
     @State private var showingSettings = false
     @State private var previewVideoURL: URL?
@@ -39,9 +40,6 @@ struct ClipEditorView: View {
                 }
                 
                 Spacer()
-                
-                // Bottom controls
-                bottomControlsSection
             }
             .padding(.top, 20)
             .padding(.bottom, 100) // Space for FAB
@@ -70,6 +68,7 @@ struct ClipEditorView: View {
         }
         .onAppear {
             setupInitialState()
+            setupToolbar()
             
             // Set ActionSheet context to clip
             UniversalActionSheetModel.shared.setContext(.clip)
@@ -132,21 +131,19 @@ struct ClipEditorView: View {
     
     private var listModeView: some View {
         VStack(spacing: 16) {
-            // Image list
+            // Vertical list of slides
             if !clipEditor.currentAssets.isEmpty {
                 ScrollView {
-                    LazyVGrid(columns: [
-                        GridItem(.flexible()),
-                        GridItem(.flexible()),
-                        GridItem(.flexible())
-                    ], spacing: 8) {
+                    LazyVStack(spacing: 12) {
                         ForEach(Array(clipEditor.currentAssets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                            ClipImageCell(
+                            ClipSlideRow(
                                 asset: asset,
                                 index: index,
+                                clip: clipEditor.currentClip,
                                 onRemove: {
                                     clipEditor.removeAsset(at: index)
-                                }
+                                },
+                                onEdit: { /* TODO: Edit slide settings */ }
                             )
                         }
                     }
@@ -155,24 +152,6 @@ struct ClipEditorView: View {
             } else {
                 emptyStateView
             }
-            
-            // Add images button
-            Button(action: {
-                // TODO: Open photo picker to add more images
-                print("📹 Add images button tapped")
-            }) {
-                HStack {
-                    Image(systemName: "plus.circle.fill")
-                    Text("Add Images")
-                }
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(Color.blue)
-                .cornerRadius(8)
-            }
-            .padding(.horizontal, 20)
         }
     }
     
@@ -254,41 +233,41 @@ struct ClipEditorView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // MARK: - Bottom Controls
+    // MARK: - Toolbar Setup
     
-    private var bottomControlsSection: some View {
-        HStack {
-            // Settings button
-            Button(action: { showingSettings = true }) {
-                HStack {
-                    Image(systemName: "gearshape.fill")
-                    Text("Settings")
-                }
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(Color.gray.opacity(0.3))
-                .cornerRadius(8)
-            }
-            
-            Spacer()
-            
-            // Clip info
-            if let clip = clipEditor.currentClip {
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("\(clipEditor.currentAssets.count) images")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.7))
-                    
-                    Text("\(Int(clip.totalDuration))s total")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.7))
-                }
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 20)
+    private func setupToolbar() {
+        let toolbarButtons = [
+            ToolbarButtonConfig(
+                id: "settings",
+                title: "Settings",
+                systemImage: "gearshape.fill",
+                action: { showingSettings = true },
+                color: .gray
+            ),
+            ToolbarButtonConfig(
+                id: "add",
+                title: "Add Photos",
+                systemImage: "plus.circle.fill",
+                action: { /* TODO: Add photos */ },
+                color: .blue
+            ),
+            ToolbarButtonConfig(
+                id: "preview",
+                title: "Generate Preview",
+                systemImage: "play.circle.fill",
+                action: { generatePreview() },
+                color: .green
+            ),
+            ToolbarButtonConfig(
+                id: "export",
+                title: "Export",
+                systemImage: "square.and.arrow.up",
+                action: { exportVideo() },
+                color: .purple
+            )
+        ]
+        
+        toolbarManager.setCustomToolbar(buttons: toolbarButtons)
     }
     
     // MARK: - Empty State
@@ -366,6 +345,22 @@ struct ClipEditorView: View {
                     .pickerStyle(SegmentedPickerStyle())
                 }
                 
+                // Orientation
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Orientation")
+                        .font(.headline)
+                    
+                    Picker("Orientation", selection: Binding(
+                        get: { clipEditor.currentClip?.orientation ?? .square },
+                        set: { clipEditor.updateClip(orientation: $0) }
+                    )) {
+                        ForEach(ClipOrientation.allCases, id: \.self) { orientation in
+                            Text(orientation.displayName).tag(orientation)
+                        }
+                    }
+                    .pickerStyle(SegmentedPickerStyle())
+                }
+                
                 Spacer()
             }
             .padding()
@@ -437,60 +432,119 @@ enum ClipEditorMode {
     case player
 }
 
-struct ClipImageCell: View {
+struct ClipSlideRow: View {
     let asset: PHAsset
     let index: Int
+    let clip: Clip?
     let onRemove: () -> Void
+    let onEdit: () -> Void
     
     @State private var image: UIImage?
     
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            // Image
+        HStack(spacing: 12) {
+            // Photo thumbnail on left
             ZStack {
                 Rectangle()
                     .fill(Color.gray.opacity(0.3))
-                    .aspectRatio(1, contentMode: .fit)
+                    .frame(width: 80, height: 80)
+                    .cornerRadius(8)
                 
                 if let image = image {
                     Image(uiImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
+                        .frame(width: 80, height: 80)
+                        .cornerRadius(8)
                         .clipped()
                 } else {
                     ProgressView()
                         .scaleEffect(0.8)
-                }
-            }
-            .cornerRadius(8)
-            
-            // Remove button
-            Button(action: onRemove) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title3)
-                    .foregroundColor(.white)
-                    .background(Color.black.opacity(0.6))
-                    .clipShape(Circle())
-            }
-            .offset(x: 5, y: -5)
-            
-            // Index indicator
-            VStack {
-                Spacer()
-                HStack {
-                    Text("\(index + 1)")
-                        .font(.caption)
-                        .fontWeight(.semibold)
                         .foregroundColor(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.black.opacity(0.6))
-                        .cornerRadius(4)
+                }
+                
+                // Index number overlay
+                VStack {
+                    HStack {
+                        Text("\(index + 1)")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.black.opacity(0.7))
+                            .cornerRadius(4)
+                        Spacer()
+                    }
                     Spacer()
                 }
                 .padding(4)
             }
+            
+            // Slide info on right
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Slide \(index + 1)")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    Spacer()
+                }
+                
+                // Duration info
+                HStack {
+                    Image(systemName: "clock.fill")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                    Text("\(String(format: "%.1f", clip?.duration ?? 2.0))s duration")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+                    Spacer()
+                }
+                
+                // Transition info
+                HStack {
+                    Image(systemName: "arrow.right.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                    Text("\(clip?.transition.displayName ?? "Fade") transition")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+                    Spacer()
+                }
+                
+                // Effects placeholder
+                HStack {
+                    Image(systemName: "camera.filters")
+                        .font(.caption)
+                        .foregroundColor(.purple)
+                    Text("No effects")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.6))
+                    Spacer()
+                }
+            }
+            
+            Spacer()
+            
+            // Action buttons
+            VStack(spacing: 8) {
+                Button(action: onEdit) {
+                    Image(systemName: "pencil.circle.fill")
+                        .font(.title3)
+                        .foregroundColor(.blue)
+                }
+                
+                Button(action: onRemove) {
+                    Image(systemName: "trash.circle.fill")
+                        .font(.title3)
+                        .foregroundColor(.red)
+                }
+            }
         }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .background(Color.black.opacity(0.3))
+        .cornerRadius(12)
         .onAppear {
             loadThumbnail()
         }
@@ -504,7 +558,7 @@ struct ClipImageCell: View {
         
         imageManager.requestImage(
             for: asset,
-            targetSize: CGSize(width: 200, height: 200),
+            targetSize: CGSize(width: 160, height: 160),
             contentMode: .aspectFill,
             options: options
         ) { loadedImage, _ in

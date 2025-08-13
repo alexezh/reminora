@@ -103,13 +103,14 @@ class ClipEditor: ObservableObject {
     }
     
     /// Update clip settings
-    func updateClip(name: String? = nil, duration: TimeInterval? = nil, transition: ClipTransition? = nil) {
+    func updateClip(name: String? = nil, duration: TimeInterval? = nil, transition: ClipTransition? = nil, orientation: ClipOrientation? = nil) {
         guard var clip = currentClip else { return }
         
         DispatchQueue.main.async {
             if let name = name { clip.name = name }
             if let duration = duration { clip.duration = duration }
             if let transition = transition { clip.transition = transition }
+            if let orientation = orientation { clip.orientation = orientation }
             
             clip.markAsModified()
             self.currentClip = clip
@@ -188,11 +189,12 @@ class ClipEditor: ObservableObject {
             return
         }
         
-        // Video settings
+        // Video settings based on orientation
+        let videoSize = clip.orientation.videoSize
         let videoSettings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: 1080,
-            AVVideoHeightKey: 1080,
+            AVVideoWidthKey: Int(videoSize.width),
+            AVVideoHeightKey: Int(videoSize.height),
             AVVideoCompressionPropertiesKey: [
                 AVVideoAverageBitRateKey: 2000000
             ]
@@ -230,7 +232,7 @@ class ClipEditor: ObservableObject {
             
             imageManager.requestImage(
                 for: asset,
-                targetSize: CGSize(width: 1080, height: 1080),
+                targetSize: videoSize,
                 contentMode: .aspectFill,
                 options: options
             ) { image, _ in
@@ -238,8 +240,8 @@ class ClipEditor: ObservableObject {
                 
                 guard let image = image else { return }
                 
-                // Create pixel buffer from image
-                guard let pixelBuffer = self.createPixelBuffer(from: image, size: CGSize(width: 1080, height: 1080)) else {
+                // Create pixel buffer from image with proper orientation
+                guard let pixelBuffer = self.createPixelBuffer(from: image, size: videoSize) else {
                     return
                 }
                 
@@ -314,11 +316,65 @@ class ClipEditor: ObservableObject {
             return nil
         }
         
-        context.translateBy(x: 0, y: size.height)
-        context.scaleBy(x: 1.0, y: -1.0)
+        // Set proper orientation - NO FLIPPING for correct video orientation
+        // Just draw the image directly without transformations
         
-        let rect = CGRect(origin: .zero, size: size)
-        context.draw(image.cgImage!, in: rect)
+        // Calculate aspect fit/crop rectangle to preserve aspect ratio
+        let imageSize = image.size
+        let imageAspectRatio = imageSize.width / imageSize.height
+        let targetAspectRatio = size.width / size.height
+        
+        let drawRect: CGRect
+        if imageAspectRatio > targetAspectRatio {
+            // Image is wider than target - crop sides
+            let newWidth = size.height * imageAspectRatio
+            let xOffset = (size.width - newWidth) / 2
+            drawRect = CGRect(x: xOffset, y: 0, width: newWidth, height: size.height)
+        } else {
+            // Image is taller than target - crop top/bottom
+            let newHeight = size.width / imageAspectRatio
+            let yOffset = (size.height - newHeight) / 2
+            drawRect = CGRect(x: 0, y: yOffset, width: size.width, height: newHeight)
+        }
+        
+        // Draw image with proper orientation handling
+        if let cgImage = image.cgImage {
+            // Handle image orientation properly
+            context.saveGState()
+            
+            // Apply transformations based on image orientation
+            switch image.imageOrientation {
+            case .up:
+                break // No transformation needed
+            case .down:
+                context.translateBy(x: size.width, y: size.height)
+                context.rotate(by: .pi)
+            case .left:
+                context.translateBy(x: size.width, y: 0)
+                context.rotate(by: .pi / 2)
+            case .right:
+                context.translateBy(x: 0, y: size.height)
+                context.rotate(by: -.pi / 2)
+            case .upMirrored:
+                context.translateBy(x: size.width, y: 0)
+                context.scaleBy(x: -1, y: 1)
+            case .downMirrored:
+                context.translateBy(x: 0, y: size.height)
+                context.scaleBy(x: -1, y: 1)
+            case .leftMirrored:
+                context.translateBy(x: size.width, y: size.height)
+                context.rotate(by: -.pi / 2)
+                context.scaleBy(x: -1, y: 1)
+            case .rightMirrored:
+                context.rotate(by: .pi / 2)
+                context.scaleBy(x: -1, y: 1)
+            @unknown default:
+                break
+            }
+            
+            context.draw(cgImage, in: drawRect)
+            context.restoreGState()
+        }
         
         return buffer
     }

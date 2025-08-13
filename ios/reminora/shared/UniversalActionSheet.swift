@@ -436,6 +436,13 @@ struct UniversalActionSheet: View {
             dismiss()
             ActionRouter.shared.execute(.addQuickListToExistingList)
         }
+        ActionListItem(
+            icon: "video", title: "Make Clip", isEnabled: hasSelectedAssets,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.makeClip([]))
+        }
         
         settingsAction()
     }
@@ -447,6 +454,14 @@ struct UniversalActionSheet: View {
         ) {
             dismiss()
             ActionRouter.shared.execute(.refreshLists)
+        }
+
+        ActionListItem(
+            icon: "video", title: "Make Clip", isEnabled: hasSelectedAssets,
+            hasScrolled: $hasScrolled
+        ) {
+            dismiss()
+            ActionRouter.shared.execute(.makeClip([]))
         }
 
         ActionListItem(

@@ -272,12 +272,36 @@ struct AddPinFromPhotoView: View {
     }
     
     private func loadImage() {
+        guard !asset.localIdentifier.isEmpty else {
+            print("❌ AddPinFromPhotoView: Cannot load image - invalid asset")
+            return
+        }
+        
         let imageManager = PHImageManager.default()
         let options = PHImageRequestOptions()
         options.isSynchronous = false
         options.deliveryMode = .opportunistic
+        options.isNetworkAccessAllowed = true
+        options.resizeMode = .fast
         
-        imageManager.requestImage(for: asset, targetSize: CGSize(width: 400, height: 400), contentMode: .aspectFill, options: options) { loadedImage, _ in
+        imageManager.requestImage(
+            for: asset, 
+            targetSize: CGSize(width: 400, height: 400), 
+            contentMode: .aspectFill, 
+            options: options
+        ) { loadedImage, info in
+            // Check for errors
+            if let error = info?[PHImageErrorKey] as? Error {
+                print("❌ AddPinFromPhotoView: Image loading error: \(error)")
+                return
+            }
+            
+            // Check if request was cancelled
+            if let cancelled = info?[PHImageCancelledKey] as? Bool, cancelled {
+                print("ℹ️ AddPinFromPhotoView: Image request was cancelled")
+                return
+            }
+            
             DispatchQueue.main.async {
                 image = loadedImage
             }

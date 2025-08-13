@@ -88,7 +88,9 @@ The app uses Core Data (iOS) with main entities:
 - **Address Management**: Multi-address support for pins with location picker
 - **Social Features**: User following, pin sharing, comments, and user profiles
 - **Map Interaction**: Interactive map with pin clustering and detailed pin views
-- **Photo Management**: Smart photo library integration with EXIF data extraction
+- **Photo Management**: Smart photo library integration with EXIF data extraction and AI-powered similarity detection
+- **LazySnapPager**: Optimized photo swiping with robust spring animations for smooth transitions
+- **Photo Stack Management**: Dynamic stacking/expanding of similar photos with boundary-aware navigation
 - **Offline Support**: Local-first architecture with cloud sync when available
 - **Cross-Platform**: iOS (SwiftUI) and Android (Kotlin) implementations
 
@@ -122,6 +124,12 @@ The app uses Core Data (iOS) with main entities:
 - ContentView listens for "RestoreToolbar" notification and calls `setupToolbarForTab(selectedTab)`
 - This ensures the correct toolbar configuration is restored for the current tab after SwipePhotoView dismissal
 
+**LazySnapPager Improvements:**
+- **Robust Snapping**: Fixed image snapping with optimized spring animation parameters
+- **Animation Config**: `response: 0.4, dampingFraction: 0.8, blendDuration: 0` prevents partial transitions
+- **Performance**: Only renders previous/current/next images for memory efficiency
+- **Gesture Handling**: Threshold-based swipe detection with proper boundary checking
+
 ### Technical Details
 
 **iOS:**
@@ -149,6 +157,9 @@ The app uses Core Data (iOS) with main entities:
 - `PersistenceController.shared` singleton for Core Data operations
 - Async image loading with `PHImageManager` for photo thumbnails
 - Location updates via `@StateObject private var locationManager = LocationManager()`
+- LazySnapPager for memory-efficient horizontal photo swiping with robust animations
+- UniversalActionSheet context management via `UniversalActionSheetModel.shared.setContext()`
+- Toolbar state restoration using NotificationCenter for view transitions
 
 ### Testing
 

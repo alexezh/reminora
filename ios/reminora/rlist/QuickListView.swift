@@ -63,6 +63,11 @@ struct QuickListView: View {
         .task {
             await loadItems()
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("QuickListChanged"))) { _ in
+            Task {
+                await loadItems()
+            }
+        }
     }
     
     private func loadItems() async {

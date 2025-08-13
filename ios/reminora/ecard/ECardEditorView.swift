@@ -41,30 +41,7 @@ struct ECardEditorView: View {
                 templateSelectionSection
             }
             .padding(.top, 20) // Reduced space for back button
-            .padding(.bottom, 100) // Space for FAB
-            
-            // Back button - top left
-            VStack {
-                HStack {
-                    Button(action: onDismiss) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.black.opacity(0.6))
-                                .frame(width: 44, height: 44)
-                            
-                            Image(systemName: "xmark")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(.white)
-                        }
-                    }
-                    .padding(.leading, 20)
-                    .padding(.top, 20)
-                    
-                    Spacer()
-                }
-                Spacer()
-            }
-            
+            .padding(.bottom, LayoutConstants.toolbarHeight) // Space for FAB
         }
         .onAppear {
             setupInitialState()

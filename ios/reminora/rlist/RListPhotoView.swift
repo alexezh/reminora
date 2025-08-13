@@ -14,7 +14,7 @@ struct RListPhotoView: View {
     let isSelectionMode: Bool
     let onTap: () -> Void
     
-    @Environment(\.selectedAssetService) private var selectedAssetService
+    @ObservedObject private var selectedAssetService = SelectionService.shared
     
     init(
         photoStack: RPhotoStack,
@@ -134,7 +134,7 @@ struct RListPhotoView: View {
                     .offset(x: 0, y: 0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .padding(8)
-                    .id("selection-\(photoStack.id)-\(selectedAssetService.selectedPhotoCount)")  // Force refresh
+                    // Selection will update automatically via @ObservedObject
                 }
             }
         }

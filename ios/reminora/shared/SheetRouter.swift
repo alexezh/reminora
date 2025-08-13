@@ -138,7 +138,6 @@ struct SheetRouter: View {
 
         case .eCardEditor(let assets):
             NavigationView {
-
                 ECardEditorView(
                     initialAssets: assets,
                     onDismiss: {
@@ -148,12 +147,14 @@ struct SheetRouter: View {
             }
             
         case .clipEditor(let assets):
-            ClipEditorView(
-                initialAssets: assets,
-                onDismiss: {
-                    sheetStack.pop()
-                }
-            )
+            NavigationView {
+                ClipEditorView(
+                    initialAssets: assets,
+                    onDismiss: {
+                        sheetStack.pop()
+                    }
+                )
+            }
         }
     }
 }

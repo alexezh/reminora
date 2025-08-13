@@ -103,7 +103,7 @@ class ClipEditor: ObservableObject {
     }
     
     /// Update clip settings
-    func updateClip(name: String? = nil, duration: TimeInterval? = nil, transition: ClipTransition? = nil, orientation: ClipOrientation? = nil) {
+    func updateClip(name: String? = nil, duration: TimeInterval? = nil, transition: ClipTransition? = nil, orientation: ClipOrientation? = nil, effect: ClipEffect? = nil, audioTrack: AudioTrack? = nil) {
         guard var clip = currentClip else { return }
         
         DispatchQueue.main.async {
@@ -111,6 +111,8 @@ class ClipEditor: ObservableObject {
             if let duration = duration { clip.duration = duration }
             if let transition = transition { clip.transition = transition }
             if let orientation = orientation { clip.orientation = orientation }
+            if let effect = effect { clip.effect = effect }
+            if let audioTrack = audioTrack { clip.audioTrack = audioTrack }
             
             clip.markAsModified()
             self.currentClip = clip
@@ -212,6 +214,14 @@ class ClipEditor: ObservableObject {
         
         writer.add(writerInput)
         
+        // TODO: Add audio track if present
+        if let audioTrack = clip.audioTrack {
+            // Placeholder for audio mixing
+            // Full implementation would require AVMutableComposition
+            // and AVAssetWriter with multiple inputs
+            print("📹 Audio track will be added: \(audioTrack.displayName)")
+        }
+        
         // Start writing
         writer.startWriting()
         writer.startSession(atSourceTime: .zero)
@@ -240,8 +250,11 @@ class ClipEditor: ObservableObject {
                 
                 guard let image = image else { return }
                 
+                // Apply effects to image if needed
+                let processedImage = self.applyEffect(to: image, effect: clip.effect)
+                
                 // Create pixel buffer from image with proper orientation
-                guard let pixelBuffer = self.createPixelBuffer(from: image, size: videoSize) else {
+                guard let pixelBuffer = self.createPixelBuffer(from: processedImage, size: videoSize) else {
                     return
                 }
                 
@@ -377,6 +390,106 @@ class ClipEditor: ObservableObject {
         }
         
         return buffer
+    }
+    
+    private func applyEffect(to image: UIImage, effect: ClipEffect) -> UIImage {
+        guard effect != .none else { return image }
+        
+        guard let ciImage = CIImage(image: image) else { return image }
+        
+        let context = CIContext()
+        var filteredImage = ciImage
+        
+        switch effect {
+        case .none:
+            break
+            
+        case .blackAndWhite:
+            if let filter = CIFilter(name: "CIColorMonochrome") {
+                filter.setValue(filteredImage, forKey: kCIInputImageKey)
+                filter.setValue(CIColor.gray, forKey: kCIInputColorKey)
+                filter.setValue(1.0, forKey: kCIInputIntensityKey)
+                filteredImage = filter.outputImage ?? filteredImage
+            }
+            
+        case .sepia:
+            if let filter = CIFilter(name: "CISepiaTone") {
+                filter.setValue(filteredImage, forKey: kCIInputImageKey)
+                filter.setValue(0.8, forKey: kCIInputIntensityKey)
+                filteredImage = filter.outputImage ?? filteredImage
+            }
+            
+        case .vintage:
+            // Apply multiple filters for vintage look
+            if let sepiaFilter = CIFilter(name: "CISepiaTone") {
+                sepiaFilter.setValue(filteredImage, forKey: kCIInputImageKey)
+                sepiaFilter.setValue(0.5, forKey: kCIInputIntensityKey)
+                filteredImage = sepiaFilter.outputImage ?? filteredImage
+            }
+            
+            if let vignetteFilter = CIFilter(name: "CIVignette") {
+                vignetteFilter.setValue(filteredImage, forKey: kCIInputImageKey)
+                vignetteFilter.setValue(0.8, forKey: kCIInputIntensityKey)
+                vignetteFilter.setValue(1.5, forKey: kCIInputRadiusKey)
+                filteredImage = vignetteFilter.outputImage ?? filteredImage
+            }
+            
+        case .dramatic:
+            if let filter = CIFilter(name: "CIColorControls") {
+                filter.setValue(filteredImage, forKey: kCIInputImageKey)
+                filter.setValue(1.3, forKey: kCIInputContrastKey)
+                filter.setValue(0.1, forKey: kCIInputBrightnessKey)
+                filter.setValue(1.2, forKey: kCIInputSaturationKey)
+                filteredImage = filter.outputImage ?? filteredImage
+            }
+            
+        case .vivid:
+            if let filter = CIFilter(name: "CIColorControls") {
+                filter.setValue(filteredImage, forKey: kCIInputImageKey)
+                filter.setValue(1.0, forKey: kCIInputContrastKey)
+                filter.setValue(0.1, forKey: kCIInputBrightnessKey)
+                filter.setValue(1.5, forKey: kCIInputSaturationKey)
+                filteredImage = filter.outputImage ?? filteredImage
+            }
+            
+        case .noir:
+            if let monoFilter = CIFilter(name: "CIColorMonochrome") {
+                monoFilter.setValue(filteredImage, forKey: kCIInputImageKey)
+                monoFilter.setValue(CIColor.black, forKey: kCIInputColorKey)
+                monoFilter.setValue(1.0, forKey: kCIInputIntensityKey)
+                filteredImage = monoFilter.outputImage ?? filteredImage
+            }
+            
+            if let contrastFilter = CIFilter(name: "CIColorControls") {
+                contrastFilter.setValue(filteredImage, forKey: kCIInputImageKey)
+                contrastFilter.setValue(1.5, forKey: kCIInputContrastKey)
+                contrastFilter.setValue(-0.2, forKey: kCIInputBrightnessKey)
+                filteredImage = contrastFilter.outputImage ?? filteredImage
+            }
+            
+        case .warm:
+            if let filter = CIFilter(name: "CITemperatureAndTint") {
+                filter.setValue(filteredImage, forKey: kCIInputImageKey)
+                filter.setValue(CIVector(x: 6500, y: 0), forKey: "inputNeutral")
+                filter.setValue(CIVector(x: 7000, y: 200), forKey: "inputTargetNeutral")
+                filteredImage = filter.outputImage ?? filteredImage
+            }
+            
+        case .cool:
+            if let filter = CIFilter(name: "CITemperatureAndTint") {
+                filter.setValue(filteredImage, forKey: kCIInputImageKey)
+                filter.setValue(CIVector(x: 6500, y: 0), forKey: "inputNeutral")
+                filter.setValue(CIVector(x: 5500, y: -200), forKey: "inputTargetNeutral")
+                filteredImage = filter.outputImage ?? filteredImage
+            }
+        }
+        
+        // Convert back to UIImage
+        guard let cgImage = context.createCGImage(filteredImage, from: filteredImage.extent) else {
+            return image
+        }
+        
+        return UIImage(cgImage: cgImage)
     }
     
     // MARK: - Persistence

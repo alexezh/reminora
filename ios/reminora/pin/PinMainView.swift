@@ -441,7 +441,7 @@ struct PinMainView: View {
         title: "Photos",
         systemImage: "photo",
         action: { 
-          NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 0)
+          NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: "Photo")
         },
         color: .blue
       ),
@@ -450,7 +450,7 @@ struct PinMainView: View {
         title: "Map",
         systemImage: "map",
         action: { 
-          NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 1)
+          NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: "Map")
         },
         color: .green
       ),
@@ -467,7 +467,7 @@ struct PinMainView: View {
         title: "Lists",
         systemImage: "list.bullet.circle",
         action: { 
-          NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 3)
+          NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: "Lists")
         },
         color: .purple
       )

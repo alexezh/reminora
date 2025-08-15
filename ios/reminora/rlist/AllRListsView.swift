@@ -349,7 +349,7 @@ struct AllRListsView: View {
                 title: "Photos",
                 systemImage: "photo",
                 action: { 
-                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 0)
+                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: "Photo")
                 },
                 color: .blue
             ),
@@ -358,7 +358,7 @@ struct AllRListsView: View {
                 title: "Map",
                 systemImage: "map",
                 action: { 
-                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 1)
+                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: "Map")
                 },
                 color: .green
             ),
@@ -367,7 +367,7 @@ struct AllRListsView: View {
                 title: "Pins",
                 systemImage: "mappin.and.ellipse",
                 action: { 
-                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 2)
+                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: "Pin")
                 },
                 color: .red
             ),
@@ -376,7 +376,7 @@ struct AllRListsView: View {
                 title: "Profile",
                 systemImage: "person.circle",
                 action: { 
-                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: 4)
+                    NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: "Profile")
                 },
                 color: .purple
             )

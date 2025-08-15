@@ -13,7 +13,7 @@ import SwiftUI
 
 // MARK: - Navigation Route Enum
 
-enum AppRoute: String, CaseIterable {
+enum AppTab: String, CaseIterable {
     case photo = "Photo"
     case map = "Map"
     case pin = "Pin"
@@ -44,6 +44,19 @@ enum AppRoute: String, CaseIterable {
         case .ecard: return "rectangle.and.pencil.and.ellipsis"
         case .clip: return "video"
         }
+    }
+}
+
+// MARK: - Helper Functions
+
+func tabIndexToRoute(_ index: Int) -> AppTab {
+    switch index {
+    case 0: return .photo
+    case 1: return .map
+    case 2: return .pin
+    case 3: return .lists
+    case 4: return .profile
+    default: return .photo
     }
 }
 
@@ -204,13 +217,16 @@ struct ContentView: View {
     @EnvironmentObject private var authService: AuthenticationService
 
     @State private var navigationPath = NavigationPath()
-    @State private var currentRoute: AppRoute = {
+    @State private var currentTab: AppTab = {
         if let savedTab = UserDefaults.standard.string(forKey: "selectedTab"),
-           let route = AppRoute(rawValue: savedTab) {
+           let route = AppTab(rawValue: savedTab) {
             return route
         }
         return .photo
     }()
+    
+    // Per-tab navigation stack storage
+    @State private var tabNavigationStacks: [AppTab: NavigationPath] = [:]
     @StateObject private var toolbarManager = ToolbarManager()
     @StateObject private var selectedAssetService = SelectionService.shared
     @StateObject private var sheetStack = SheetStack.shared
@@ -240,9 +256,9 @@ struct ContentView: View {
     var body: some View {
         NavigationStack(path: $navigationPath) {
             // Root view based on current route
-            rootView(for: currentRoute)
+            rootView(for: currentTab)
                 .navigationBarHidden(true)
-                .navigationDestination(for: AppRoute.self) { route in
+                .navigationDestination(for: AppTab.self) { route in
                     destinationView(for: route)
                         .navigationBarHidden(true)
                 }
@@ -262,6 +278,10 @@ struct ContentView: View {
                             }
                         )
                         .navigationBarHidden(true)
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.1, anchor: .center).combined(with: .opacity),
+                            removal: .scale(scale: 0.1, anchor: .center).combined(with: .opacity)
+                        ))
                     } else {
                         Text("Photo not available")
                             .foregroundColor(.white)
@@ -413,14 +433,14 @@ struct ContentView: View {
                     }
                 }
         }
-        .onChange(of: currentRoute) { _, newRoute in
+        .onChange(of: currentTab) { _, newRoute in
             UserDefaults.standard.set(newRoute.rawValue, forKey: "selectedTab")
             
             // Set appropriate toolbar for the selected route
             setupToolbarForRoute(newRoute)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SwitchToClipEditor"))) { _ in
-            navigateToRoute(.clip)
+            navigateToTab(.clip)
         }
         .environment(\.toolbarManager, toolbarManager)
         .environment(\.selectedAssetService, selectedAssetService)
@@ -431,7 +451,7 @@ struct ContentView: View {
         .environment(\.clipManager, clipManager)
         .sheet(isPresented: $toolbarManager.showActionSheet) {
             UniversalActionSheet(
-                selectedTab: currentRoute.rawValue,
+                selectedTab: currentTab.rawValue,
                 onRefreshLists: {
                     // Trigger refresh on Lists tab
                     NotificationCenter.default.post(name: NSNotification.Name("RefreshLists"), object: nil)
@@ -474,6 +494,14 @@ struct ContentView: View {
             }
         }
         .onAppear {
+            // Initialize navigation stacks for all tabs
+            if tabNavigationStacks.isEmpty {
+                for tab in AppTab.allCases {
+                    tabNavigationStacks[tab] = NavigationPath()
+                }
+                print("🔄 ContentView: Initialized navigation stacks for all tabs")
+            }
+            
             // Configure ActionRouter with services
             ActionRouter.shared.configure(
                 sheetStack: sheetStack,
@@ -485,19 +513,19 @@ struct ContentView: View {
             startBackgroundEmbeddingComputation()
             
             // Set up toolbar for initial route
-            setupToolbarForRoute(currentRoute)
+            setupToolbarForRoute(currentTab)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RestoreToolbar"))) { _ in
             // Restore toolbar when returning from overlay views
-            print("🔧 ContentView: Restoring toolbar for current route \(currentRoute.displayName)")
-            setupToolbarForRoute(currentRoute)
+            print("🔧 ContentView: Restoring toolbar for current route \(currentTab.displayName)")
+            setupToolbarForRoute(currentTab)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenCurrentEditor"))) { notification in
             if let editorType = notification.object as? EditorType {
                 print("🎨 ContentView: Opening current editor: \(editorType.displayName)")
                 switch editorType {
                 case .eCard:
-                    navigateToRoute(.ecard)
+                    navigateToTab(.ecard)
                     break
                 case .clip:
                     // Clip editor is handled via sheet presentation
@@ -518,7 +546,7 @@ struct ContentView: View {
                 print("🔗 ContentView navigating to shared place: \(place.post ?? "Unknown")")
 
                 // Switch to Pin route and show the shared place via SheetStack
-                navigateToRoute(.pin)
+                navigateToTab(.pin)
                 sheetStack.push(.pinDetail(place: place, allPlaces: []))
 
                 print("🔗 ContentView set currentRoute=Pin, showing shared place via SheetStack")
@@ -530,13 +558,13 @@ struct ContentView: View {
             NotificationCenter.default.publisher(for: NSNotification.Name("SwitchToTab"))
         ) { notification in
             if let routeName = notification.object as? String,
-               let route = AppRoute(rawValue: routeName) {
-                navigateToRoute(route)
+               let route = AppTab(rawValue: routeName) {
+                navigateToTab(route)
                 print("🔗 ContentView switched to route: \(route.displayName)")
             } else if let tabIndex = notification.object as? Int {
                 // Legacy support for integer tab indices
                 let route = tabIndexToRoute(tabIndex)
-                navigateToRoute(route)
+                navigateToTab(route)
                 print("🔗 ContentView switched to route: \(route.displayName) (from legacy index \(tabIndex))")
             }
         }
@@ -571,7 +599,9 @@ struct ContentView: View {
             if let asset = notification.object as? PHAsset {
                 print("🎨 ContentView: Creating ECard for single asset: \(asset.localIdentifier)")
                 eCardEditor.startEditing(with: [asset])
-                navigateToRoute(.ecard)
+                // Clear ecard tab stack and switch to it (fresh start for each ecard)
+                clearTabNavigationStack(.ecard)
+                navigateToTab(.ecard)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECardFromSelected"))) { notification in
@@ -582,7 +612,9 @@ struct ContentView: View {
                 let assets = (0..<fetchResult.count).compactMap { fetchResult.object(at: $0) }
                 if !assets.isEmpty {
                     eCardEditor.startEditing(with: assets)
-                    navigateToRoute(.ecard)
+                    // Clear ecard tab stack and switch to it (fresh start for each ecard)
+                    clearTabNavigationStack(.ecard)
+                    navigateToTab(.ecard)
                 }
             }
         }
@@ -688,8 +720,58 @@ struct ContentView: View {
     
     // MARK: - Navigation Methods
     
-    private func navigateToRoute(_ route: AppRoute) {
-        currentRoute = route
+    private func navigateToTab(_ route: AppTab) {
+        // Save current tab's navigation stack before switching
+        if currentTab != route {
+            print("🔄 ContentView: Saving navigation stack for \(currentTab.displayName) and switching to \(route.displayName)")
+            
+            // Save current navigation stack
+            tabNavigationStacks[currentTab] = navigationPath
+            
+            // Restore target tab's navigation stack (or create empty one)
+            navigationPath = tabNavigationStacks[route] ?? NavigationPath()
+            
+            // Update current tab
+            currentTab = route
+        }
+    }
+    
+    /// Navigate to a specific tab and optionally push a destination to that tab's stack
+    private func navigateToTab(_ route: AppTab, pushDestination destination: (any Hashable)? = nil) {
+        // Switch to the target tab first
+        navigateToTab(route)
+        
+        // If a destination is provided, push it to the current navigation stack
+        if let destination = destination {
+            print("🔄 ContentView: Pushing destination to \(route.displayName) tab")
+            navigationPath.append(destination)
+        }
+    }
+    
+    /// Clear the navigation stack for a specific tab (useful for resetting tab state)
+    private func clearTabNavigationStack(_ route: AppTab) {
+        print("🔄 ContentView: Clearing navigation stack for \(route.displayName) tab")
+        
+        if currentTab == route {
+            // If it's the current tab, clear the active navigation path
+            navigationPath = NavigationPath()
+        }
+        
+        // Clear the stored stack for this tab
+        tabNavigationStacks[route] = NavigationPath()
+    }
+    
+    /// Clear navigation stacks for all tabs (useful for app reset or logout)
+    private func clearAllTabNavigationStacks() {
+        print("🔄 ContentView: Clearing all tab navigation stacks")
+        
+        // Clear the active navigation path
+        navigationPath = NavigationPath()
+        
+        // Clear all stored stacks
+        for tab in AppTab.allCases {
+            tabNavigationStacks[tab] = NavigationPath()
+        }
     }
     
     func navigateToPhotoView(photoStackCollection: RPhotoStackCollection, initialStack: RPhotoStack) {
@@ -799,7 +881,7 @@ struct ContentView: View {
     }
     
     @ViewBuilder
-    private func rootView(for route: AppRoute) -> some View {
+    private func rootView(for route: AppTab) -> some View {
         switch route {
         case .photo:
             PhotoMainView()
@@ -819,7 +901,7 @@ struct ContentView: View {
                 initialAssets: eCardEditor.getCurrentAssets(),
                 onDismiss: {
                     eCardEditor.endEditing()
-                    navigateToRoute(.photo) // Return to photos after dismissing
+                    navigateToTab(.photo) // Return to photos after dismissing
                 }
             )
         case .clip:
@@ -827,20 +909,20 @@ struct ContentView: View {
                 initialAssets: clipEditor.getCurrentAssets(),
                 onDismiss: {
                     clipEditor.endEditing()
-                    navigateToRoute(.photo) // Return to photos after dismissing
+                    navigateToTab(.photo) // Return to photos after dismissing
                 }
             )
         }
     }
     
     @ViewBuilder
-    private func destinationView(for route: AppRoute) -> some View {
+    private func destinationView(for route: AppTab) -> some View {
         rootView(for: route)
     }
     
     // MARK: - Toolbar Management
     
-    private func setupToolbarForRoute(_ route: AppRoute) {
+    private func setupToolbarForRoute(_ route: AppTab) {
         print("🔧 ContentView: Setting up toolbar for route \(route.displayName)")
         
         switch route {
@@ -894,19 +976,6 @@ struct ContentView: View {
         case .clip: // Clip Editor Route - FAB only for now
             toolbarManager.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.clip)
-        }
-    }
-    
-    // MARK: - Helper Functions
-    
-    private func tabIndexToRoute(_ index: Int) -> AppRoute {
-        switch index {
-        case 0: return .photo
-        case 1: return .map
-        case 2: return .pin
-        case 3: return .lists
-        case 4: return .profile
-        default: return .photo
         }
     }
 }

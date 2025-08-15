@@ -136,12 +136,7 @@ class SheetStack: ObservableObject {
     /// Pop all photo-related sheets (convenience method)
     func popAllPhotoSheets() {
         popAll { sheet in
-            switch sheet {
-            case .duplicatePhotos:  // .photoSimilarity:
-                return true
-            default:
-                return false
-            }
+            return false
         }
     }
 

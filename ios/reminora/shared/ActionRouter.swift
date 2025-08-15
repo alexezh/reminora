@@ -294,7 +294,7 @@ class ActionRouter: ObservableObject {
     
     private func handleFindDuplicates(_ asset: PHAsset?) {
         if let asset = asset {
-            sheetStack?.push(.duplicatePhotos(targetAsset: asset))
+            NotificationCenter.default.post(name: NSNotification.Name("NavigateToDuplicatePhotos"), object: asset)
         } else {
             NotificationCenter.default.post(name: NSNotification.Name("FindDuplicatePhotos"), object: nil)
         }
@@ -315,10 +315,9 @@ class ActionRouter: ObservableObject {
             assetsToUse = assets
         }
         
-        // Start ECard editing session
+        // Start ECard editing session and navigate to ECardEditor
         ECardEditor.shared.startEditing(with: assetsToUse)
-        // Switch to Editor tab
-        NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: "Editor")
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToECardEditor"), object: assetsToUse)
         print("🎯 ActionRouter: Started ECard editing with \(assetsToUse.count) assets")
     }
     
@@ -337,10 +336,9 @@ class ActionRouter: ObservableObject {
             assetsToUse = assets
         }
         
-        // Start Clip editing session
+        // Start Clip editing session and navigate to ClipEditor
         ClipEditor.shared.startEditing(with: assetsToUse)
-        // Show ClipEditorView via SheetStack
-        sheetStack?.push(.clipEditor(assets: assetsToUse))
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToClipEditor"), object: assetsToUse)
         print("🎯 ActionRouter: Started Clip editing with \(assetsToUse.count) assets")
     }
     
@@ -417,19 +415,20 @@ class ActionRouter: ObservableObject {
     }
     
     private func handleShowQuickList() {
-        sheetStack?.push(.quickList)
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToQuickList"), object: nil)
     }
     
     private func handleShowAllLists() {
-        sheetStack?.push(.allLists)
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToAllLists"), object: nil)
     }
     
     private func handleShowNearbyPhotos(_ location: CLLocationCoordinate2D) {
-        sheetStack?.push(.nearbyPhotos(centerLocation: location))
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToNearbyPhotos"), object: location)
     }
     
     private func handleShowNearbyLocations(_ location: CLLocationCoordinate2D, _ name: String) {
-        sheetStack?.push(.nearbyLocations(searchLocation: location, locationName: name))
+        let locationData: [String: Any] = ["searchLocation": location, "locationName": name]
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToNearbyLocations"), object: locationData)
     }
     
     private func handleShowSearchDialog() {

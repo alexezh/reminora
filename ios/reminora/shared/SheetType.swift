@@ -13,19 +13,11 @@ import SwiftUI
 enum SheetType: Identifiable, Equatable {
     case pinDetail(place: PinData, allPlaces: [PinData])
     case userProfile(userId: String, userName: String, userHandle: String)
-    case duplicatePhotos(targetAsset: PHAsset)
-    //case photoSimilarity(targetAsset: PHAsset)
-    case quickList
-    case allLists
     case shareSheet(text: String, url: String)
     case searchDialog
-    case nearbyPhotos(centerLocation: CLLocationCoordinate2D)
-    case nearbyLocations(searchLocation: CLLocationCoordinate2D, locationName: String)
     case selectLocations(initialAddresses: [PlaceAddress], onSave: ([PlaceAddress]) -> Void)
     case comments(targetPhotoId: String)
     case editAddresses(initialAddresses: [PlaceAddress], onSave: ([PlaceAddress]) -> Void)
-    case eCardEditor(assets: [PHAsset])
-    case clipEditor(assets: [PHAsset])
 
     var id: String {
         switch self {
@@ -33,32 +25,16 @@ enum SheetType: Identifiable, Equatable {
             return "pinDetail_\(place.objectID.uriRepresentation().absoluteString)"
         case .userProfile(let userId, _, _):
             return "userProfile_\(userId)"
-        case .duplicatePhotos(let targetAsset):
-            return "duplicatePhotos_\(targetAsset.localIdentifier)"
-        // case .photoSimilarity(let targetAsset):
-        //     return "photoSimilarity_\(targetAsset.localIdentifier)"
-        case .quickList:
-            return "quickList"
-        case .allLists:
-            return "allLists"
         case .shareSheet(let text, let url):
             return "shareSheet_\(text.hashValue)_\(url.hashValue)"
         case .searchDialog:
             return "searchDialog"
-        case .nearbyPhotos(let centerLocation):
-            return "nearbyPhotos_\(centerLocation.latitude)_\(centerLocation.longitude)"
-        case .nearbyLocations(let searchLocation, _):
-            return "nearbyLocations_\(searchLocation.latitude)_\(searchLocation.longitude)"
         case .selectLocations(_, _):
             return "selectLocations"
         case .comments(let targetPhotoId):
             return "comments_\(targetPhotoId.hashValue)"
         case .editAddresses(_, _):
             return "editAddresses"
-        case .eCardEditor(let assets):
-            return "eCardEditor_\(assets.map { $0.localIdentifier }.joined(separator: "_"))"
-        case .clipEditor(let assets):
-            return "clipEditor_\(assets.map { $0.localIdentifier }.joined(separator: "_"))"
         }
     }
 
@@ -106,24 +82,14 @@ extension SheetType {
             return .fullScreen
         case .userProfile:
             return .fullScreen
-        case .duplicatePhotos:  //, .photoSimilarity:
-            return .fullScreen
-        case .quickList, .allLists:
-            return .large
         case .shareSheet:
             return .default
         case .searchDialog:
             return .large
-        case .nearbyPhotos, .nearbyLocations:
-            return .fullScreen
         case .selectLocations, .editAddresses:
             return .large
         case .comments:
             return .large
-        case .eCardEditor:
-            return .fullScreen
-        case .clipEditor:
-            return .fullScreen
         }
     }
 

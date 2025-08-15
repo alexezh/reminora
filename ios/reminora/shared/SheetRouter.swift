@@ -57,40 +57,11 @@ struct SheetRouter: View {
                 userHandle: userHandle
             )
 
-        case .duplicatePhotos(let targetAsset):
-            SimilarPhotoView(targetAsset: targetAsset)
-
-        // case .photoSimilarity(let targetAsset):
-        //     PhotoSimilarityView(targetAsset: targetAsset)
-
-        case .quickList:
-            QuickListWrapperView()
-
-        case .allLists:
-            AllListsWrapperView()
-
         case .shareSheet(let text, let url):
             ShareSheet(text: text, url: url)
 
         case .searchDialog:
             SearchDialogWrapper()
-
-        case .nearbyPhotos(let centerLocation):
-            NavigationView {
-                NearbyPhotosGridView(
-                    centerLocation: centerLocation,
-                    onDismiss: {
-                        sheetStack.pop()
-                    }
-                )
-                .navigationBarTitleDisplayMode(.inline)
-            }
-
-        case .nearbyLocations(let searchLocation, let locationName):
-            NearbyLocationsView(
-                searchLocation: searchLocation,
-                locationName: locationName
-            )
 
         case .selectLocations(let initialAddresses, let onSave):
             SelectLocationsView(
@@ -112,61 +83,11 @@ struct SheetRouter: View {
                     sheetStack.pop()
                 }
             )
-
-        case .eCardEditor(let assets):
-            NavigationView {
-                ECardEditorView(
-                    initialAssets: assets,
-                    onDismiss: {
-                        sheetStack.pop()
-                    }
-                )
-            }
-            
-        case .clipEditor(let assets):
-            NavigationView {
-                ClipEditorView(
-                    initialAssets: assets,
-                    onDismiss: {
-                        sheetStack.pop()
-                    }
-                )
-            }
         }
     }
 }
 
 // MARK: - Wrapper Views for Complex Cases
-
-private struct QuickListWrapperView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-
-    var body: some View {
-        RListService.createQuickListView(
-            context: viewContext,
-            userId: AuthenticationService.shared.currentAccount?.id ?? "",
-            onPhotoStackTap: { photoStack in
-                SheetStack.shared.pop()  // Close current sheet
-                // Handle photo stack tap (both single photos and multi-photo stacks)
-                print("📷 Quick List photo stack tapped: \(photoStack.count) photos")
-            },
-            onPinTap: { place in
-                SheetStack.shared.replace(with: .pinDetail(place: place, allPlaces: []))
-            }
-        )
-    }
-}
-
-private struct AllListsWrapperView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-
-    var body: some View {
-        AllRListsView(
-            context: viewContext,
-            userId: AuthenticationService.shared.currentAccount?.id ?? ""
-        )
-    }
-}
 
 private struct SearchDialogWrapper: View {
     @State private var searchText = ""

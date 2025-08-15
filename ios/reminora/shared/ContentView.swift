@@ -105,6 +105,99 @@ struct SimilarPhotosData: Hashable {
     }
 }
 
+struct AllListsData: Hashable {
+    let userId: String
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(userId)
+    }
+    
+    static func == (lhs: AllListsData, rhs: AllListsData) -> Bool {
+        lhs.userId == rhs.userId
+    }
+}
+
+struct QuickListData: Hashable {
+    let userId: String
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(userId)
+    }
+    
+    static func == (lhs: QuickListData, rhs: QuickListData) -> Bool {
+        lhs.userId == rhs.userId
+    }
+}
+
+struct DuplicatePhotosData: Hashable {
+    let targetAssetIdentifier: String
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(targetAssetIdentifier)
+    }
+    
+    static func == (lhs: DuplicatePhotosData, rhs: DuplicatePhotosData) -> Bool {
+        lhs.targetAssetIdentifier == rhs.targetAssetIdentifier
+    }
+}
+
+struct NearbyPhotosData: Hashable {
+    let centerLatitude: Double
+    let centerLongitude: Double
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(centerLatitude)
+        hasher.combine(centerLongitude)
+    }
+    
+    static func == (lhs: NearbyPhotosData, rhs: NearbyPhotosData) -> Bool {
+        lhs.centerLatitude == rhs.centerLatitude && 
+        lhs.centerLongitude == rhs.centerLongitude
+    }
+}
+
+struct NearbyLocationsData: Hashable {
+    let searchLatitude: Double
+    let searchLongitude: Double
+    let locationName: String
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(searchLatitude)
+        hasher.combine(searchLongitude)
+        hasher.combine(locationName)
+    }
+    
+    static func == (lhs: NearbyLocationsData, rhs: NearbyLocationsData) -> Bool {
+        lhs.searchLatitude == rhs.searchLatitude &&
+        lhs.searchLongitude == rhs.searchLongitude &&
+        lhs.locationName == rhs.locationName
+    }
+}
+
+struct ECardEditorData: Hashable {
+    let assetIdentifiers: [String]
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(assetIdentifiers)
+    }
+    
+    static func == (lhs: ECardEditorData, rhs: ECardEditorData) -> Bool {
+        lhs.assetIdentifiers == rhs.assetIdentifiers
+    }
+}
+
+struct ClipEditorData: Hashable {
+    let assetIdentifiers: [String]
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(assetIdentifiers)
+    }
+    
+    static func == (lhs: ClipEditorData, rhs: ClipEditorData) -> Bool {
+        lhs.assetIdentifiers == rhs.assetIdentifiers
+    }
+}
+
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -137,6 +230,13 @@ struct ContentView: View {
     @State private var navigationAsset: PHAsset?
     @State private var navigationLocation: LocationInfo?
     @State private var navigationTargetAsset: PHAsset?
+    
+    // Navigation data for migrated sheet types
+    @State private var navigationNearbyPhotosCenter: CLLocationCoordinate2D?
+    @State private var navigationNearbyLocationsSearch: CLLocationCoordinate2D?
+    @State private var navigationNearbyLocationsName: String?
+    @State private var navigationECardAssets: [PHAsset]?
+    @State private var navigationClipAssets: [PHAsset]?
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -203,6 +303,109 @@ struct ContentView: View {
                             .navigationBarHidden(true)
                     } else {
                         Text("Target asset not available")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
+                .navigationDestination(for: AllListsData.self) { data in
+                    // AllRListsView
+                    AllRListsView(
+                        context: viewContext,
+                        userId: data.userId
+                    )
+                    .navigationBarHidden(true)
+                }
+                .navigationDestination(for: QuickListData.self) { data in
+                    // QuickListView
+                    RListService.createQuickListView(
+                        context: viewContext,
+                        userId: data.userId,
+                        onPhotoStackTap: { photoStack in
+                            navigationPath.removeLast() // Close current view
+                            print("📷 Quick List photo stack tapped: \(photoStack.count) photos")
+                        },
+                        onPinTap: { place in
+                            // Replace current view with pin detail
+                            navigationPath.removeLast() // Remove QuickList
+                            sheetStack.push(.pinDetail(place: place, allPlaces: []))
+                        }
+                    )
+                    .navigationBarHidden(true)
+                }
+                .navigationDestination(for: DuplicatePhotosData.self) { _ in
+                    // SimilarPhotoView for duplicates
+                    if let targetAsset = navigationTargetAsset {
+                        SimilarPhotoView(targetAsset: targetAsset)
+                            .navigationBarHidden(true)
+                    } else {
+                        Text("Target asset not available")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
+                .navigationDestination(for: NearbyPhotosData.self) { _ in
+                    // NearbyPhotosGridView
+                    if let centerLocation = navigationNearbyPhotosCenter {
+                        NavigationView {
+                            NearbyPhotosGridView(
+                                centerLocation: centerLocation,
+                                onDismiss: {
+                                    navigationPath.removeLast()
+                                }
+                            )
+                            .navigationBarTitleDisplayMode(.inline)
+                        }
+                        .navigationBarHidden(true)
+                    } else {
+                        Text("Center location not available")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
+                .navigationDestination(for: NearbyLocationsData.self) { _ in
+                    // NearbyLocationsView
+                    if let searchLocation = navigationNearbyLocationsSearch,
+                       let locationName = navigationNearbyLocationsName {
+                        NearbyLocationsView(
+                            searchLocation: searchLocation,
+                            locationName: locationName,
+                            isSelectMode: false,
+                            selectedLocations: .constant([])
+                        )
+                        .navigationBarHidden(true)
+                    } else {
+                        Text("Location data not available")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
+                .navigationDestination(for: ECardEditorData.self) { _ in
+                    // ECardEditorView
+                    if let assets = navigationECardAssets {
+                        NavigationView {
+                            ECardEditorView(
+                                initialAssets: assets,
+                                onDismiss: {
+                                    navigationPath.removeLast()
+                                }
+                            )
+                        }
+                        .navigationBarHidden(true)
+                    } else {
+                        Text("Assets not available")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
+                .navigationDestination(for: ClipEditorData.self) { _ in
+                    // ClipEditorView
+                    if let assets = navigationClipAssets {
+                        NavigationView {
+                            ClipEditorView(
+                                initialAssets: assets,
+                                onDismiss: {
+                                    navigationPath.removeLast()
+                                }
+                            )
+                        }
+                        .navigationBarHidden(true)
+                    } else {
+                        Text("Assets not available")
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                 }
@@ -358,7 +561,7 @@ struct ContentView: View {
             fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
             let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
             if let firstAsset = fetchResult.firstObject {
-                sheetStack.push(.duplicatePhotos(targetAsset: firstAsset))
+                navigateToDuplicatePhotos(targetAsset: firstAsset)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECard"))) { notification in
@@ -390,6 +593,48 @@ struct ContentView: View {
             if let location = notification.object as? LocationInfo {
                 print("📍 ContentView: Navigating to AddPinFromLocation for location: \(location.name)")
                 navigateToAddPinFromLocation(location: location)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToAllLists"))) { _ in
+            print("📝 ContentView: Navigating to All Lists")
+            let userId = authService.currentAccount?.id ?? ""
+            navigateToAllLists(userId: userId)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToQuickList"))) { _ in
+            print("📝 ContentView: Navigating to Quick List")
+            let userId = authService.currentAccount?.id ?? ""
+            navigateToQuickList(userId: userId)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToNearbyPhotos"))) { notification in
+            if let centerLocation = notification.object as? CLLocationCoordinate2D {
+                print("📷 ContentView: Navigating to Nearby Photos")
+                navigateToNearbyPhotos(centerLocation: centerLocation)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToNearbyLocations"))) { notification in
+            if let locationData = notification.object as? [String: Any],
+               let searchLocation = locationData["searchLocation"] as? CLLocationCoordinate2D,
+               let locationName = locationData["locationName"] as? String {
+                print("📍 ContentView: Navigating to Nearby Locations")
+                navigateToNearbyLocations(searchLocation: searchLocation, locationName: locationName)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToECardEditor"))) { notification in
+            if let assets = notification.object as? [PHAsset] {
+                print("🎨 ContentView: Navigating to ECard Editor with \(assets.count) assets")
+                navigateToECardEditor(assets: assets)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToClipEditor"))) { notification in
+            if let assets = notification.object as? [PHAsset] {
+                print("🎬 ContentView: Navigating to Clip Editor with \(assets.count) assets")
+                navigateToClipEditor(assets: assets)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToDuplicatePhotos"))) { notification in
+            if let asset = notification.object as? PHAsset {
+                print("📷 ContentView: Navigating to Duplicate Photos with asset: \(asset.localIdentifier)")
+                navigateToDuplicatePhotos(targetAsset: asset)
             }
         }
     }
@@ -477,6 +722,69 @@ struct ContentView: View {
         // Navigate using SimilarPhotosData
         let similarData = SimilarPhotosData(targetAssetIdentifier: targetAsset.localIdentifier)
         navigationPath.append(similarData)
+    }
+    
+    func navigateToAllLists(userId: String) {
+        let allListsData = AllListsData(userId: userId)
+        navigationPath.append(allListsData)
+    }
+    
+    func navigateToQuickList(userId: String) {
+        let quickListData = QuickListData(userId: userId)
+        navigationPath.append(quickListData)
+    }
+    
+    func navigateToDuplicatePhotos(targetAsset: PHAsset) {
+        // Store the target asset
+        navigationTargetAsset = targetAsset
+        
+        // Navigate using DuplicatePhotosData
+        let duplicateData = DuplicatePhotosData(targetAssetIdentifier: targetAsset.localIdentifier)
+        navigationPath.append(duplicateData)
+    }
+    
+    func navigateToNearbyPhotos(centerLocation: CLLocationCoordinate2D) {
+        // Store the center location
+        navigationNearbyPhotosCenter = centerLocation
+        
+        // Navigate using NearbyPhotosData
+        let nearbyData = NearbyPhotosData(
+            centerLatitude: centerLocation.latitude,
+            centerLongitude: centerLocation.longitude
+        )
+        navigationPath.append(nearbyData)
+    }
+    
+    func navigateToNearbyLocations(searchLocation: CLLocationCoordinate2D, locationName: String) {
+        // Store the location data
+        navigationNearbyLocationsSearch = searchLocation
+        navigationNearbyLocationsName = locationName
+        
+        // Navigate using NearbyLocationsData
+        let nearbyLocationsData = NearbyLocationsData(
+            searchLatitude: searchLocation.latitude,
+            searchLongitude: searchLocation.longitude,
+            locationName: locationName
+        )
+        navigationPath.append(nearbyLocationsData)
+    }
+    
+    func navigateToECardEditor(assets: [PHAsset]) {
+        // Store the assets
+        navigationECardAssets = assets
+        
+        // Navigate using ECardEditorData
+        let eCardData = ECardEditorData(assetIdentifiers: assets.map { $0.localIdentifier })
+        navigationPath.append(eCardData)
+    }
+    
+    func navigateToClipEditor(assets: [PHAsset]) {
+        // Store the assets
+        navigationClipAssets = assets
+        
+        // Navigate using ClipEditorData
+        let clipData = ClipEditorData(assetIdentifiers: assets.map { $0.localIdentifier })
+        navigationPath.append(clipData)
     }
     
     @ViewBuilder

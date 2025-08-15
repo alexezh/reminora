@@ -230,7 +230,7 @@ struct PhotoMainView: View {
             print("📷 Finding duplicate photos across entire library")
             // Use first available photo as target for duplicate detection
             if let firstAsset = allPhotoAssets.first {
-                sheetStack.push(.duplicatePhotos(targetAsset: firstAsset))
+                NotificationCenter.default.post(name: NSNotification.Name("NavigateToDuplicatePhotos"), object: firstAsset)
             }
         }
         .onReceive(
@@ -246,7 +246,7 @@ struct PhotoMainView: View {
             notification in
             if let asset = notification.object as? PHAsset {
                 print("🎨 Creating ECard for single asset: \(asset.localIdentifier)")
-                sheetStack.push(.eCardEditor(assets: [asset]))
+                NotificationCenter.default.post(name: NSNotification.Name("NavigateToECardEditor"), object: [asset])
             }
         }
         .onChange(of: isCoreDataReady) { _, isReady in

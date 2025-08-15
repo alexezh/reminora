@@ -211,7 +211,6 @@ struct ContentView: View {
         }
         return .photo
     }()
-    @State private var isSwipePhotoViewOpen = false
     @StateObject private var toolbarManager = ToolbarManager()
     @StateObject private var selectedAssetService = SelectionService.shared
     @StateObject private var sheetStack = SheetStack.shared
@@ -256,6 +255,10 @@ struct ContentView: View {
                             initialStack: initialStack,
                             onDismiss: {
                                 navigationPath.removeLast()
+                                // Refresh filter to remove disliked photos from view
+                                NotificationCenter.default.post(name: NSNotification.Name("RefreshPhotoFilter"), object: nil)
+                                // Restore toolbar state
+                                NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
                             }
                         )
                         .navigationBarHidden(true)
@@ -457,7 +460,7 @@ struct ContentView: View {
             SheetRouter(sheetStack: sheetStack)
         }
         .overlay(alignment: .bottom) {
-            // Custom dynamic toolbar (show when enabled, including when SwipePhotoView is open with its buttons)
+            // Custom dynamic toolbar (show when enabled)
             if toolbarManager.showCustomToolbar {
                 DynamicToolbar(
                     buttons: toolbarManager.customButtons,
@@ -485,7 +488,7 @@ struct ContentView: View {
             setupToolbarForRoute(currentRoute)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RestoreToolbar"))) { _ in
-            // Restore toolbar when returning from SwipePhotoView or other overlay views
+            // Restore toolbar when returning from overlay views
             print("🔧 ContentView: Restoring toolbar for current route \(currentRoute.displayName)")
             setupToolbarForRoute(currentRoute)
         }
@@ -635,6 +638,14 @@ struct ContentView: View {
             if let asset = notification.object as? PHAsset {
                 print("📷 ContentView: Navigating to Duplicate Photos with asset: \(asset.localIdentifier)")
                 navigateToDuplicatePhotos(targetAsset: asset)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToPhotoView"))) { notification in
+            if let navigationData = notification.object as? [String: Any],
+               let photoStackCollection = navigationData["photoStackCollection"] as? RPhotoStackCollection,
+               let initialStack = navigationData["initialStack"] as? RPhotoStack {
+                print("📷 ContentView: Navigating to SwipePhotoView")
+                navigateToPhotoView(photoStackCollection: photoStackCollection, initialStack: initialStack)
             }
         }
     }
@@ -791,7 +802,7 @@ struct ContentView: View {
     private func rootView(for route: AppRoute) -> some View {
         switch route {
         case .photo:
-            PhotoMainView(isSwipePhotoViewOpen: $isSwipePhotoViewOpen)
+            PhotoMainView()
         case .map:
             MapView()
         case .pin:

@@ -883,8 +883,6 @@ struct NearbyPhotosMainView: View {
     @State private var photoAssets: [PHAsset] = []
     @State private var filteredPhotoStacks: [RPhotoStack] = []
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
-    @State private var selectedStack: RPhotoStack?
-    @State private var selectedStackIndex = 0
     @State private var currentFilter: PhotoFilterType = .notDisliked
     @State private var isCoreDataReady = false
     @State private var hasTriedInitialLoad = false
@@ -997,10 +995,13 @@ struct NearbyPhotosMainView: View {
                                         stack: stack,
                                         centerLocation: centerLocation,
                                         onTap: {
-                                            selectedStackIndex = 0
-                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                selectedStack = stack
-                                            }
+                                            // Navigate to SwipePhotoView using NavigationStack
+                                            let tempCollection = RPhotoStackCollection(stacks: [stack])
+                                            let navigationData: [String: Any] = [
+                                                "photoStackCollection": tempCollection,
+                                                "initialStack": stack
+                                            ]
+                                            NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
                                         }
                                     )
                                     .frame(width: squareSize, height: squareSize)
@@ -1053,35 +1054,6 @@ struct NearbyPhotosMainView: View {
         .onChange(of: selectedRange) { _, _ in
             applyFilter()
         }
-        .overlay(
-            Group {
-                if let selectedStack = selectedStack {
-                    let tempCollection = RPhotoStackCollection(stacks: [selectedStack])
-                    // Create a stack starting with the selected asset
-                    let initialAsset = selectedStack.assets[selectedStackIndex]
-                    let initialStack = RPhotoStack(assets: [initialAsset])
-                    SwipePhotoView(
-                        photoStackCollection: tempCollection,
-                        initialStack: initialStack,
-                        onDismiss: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                self.selectedStack = nil
-                            }
-                            // Refresh filter to remove disliked photos from view
-                            applyFilter()
-                            // Restore toolbar state via ContentView
-                            NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
-                        }
-                    )
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.1, anchor: .center)
-                            .combined(with: .opacity),
-                        removal: .scale(scale: 0.1, anchor: .center)
-                            .combined(with: .opacity)
-                    ))
-                }
-            }
-        )
     }
     
     private func requestPhotoAccess() {

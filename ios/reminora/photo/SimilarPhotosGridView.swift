@@ -9,8 +9,6 @@ struct SimilarPhotosGridView: View {
     
     @State private var similarPhotos: [PhotoSimilarity] = []
     @State private var isLoading = true
-    @State private var selectedPhoto: PHAsset?
-    @State private var showingSwipeView = false
     
     private let columns = [
         GridItem(.flexible()),
@@ -56,10 +54,14 @@ struct SimilarPhotosGridView: View {
                                     similarity: similarity,
                                     rank: index + 1
                                 ) { asset in
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        selectedPhoto = asset
-                                        showingSwipeView = true
-                                    }
+                                    // Navigate to SwipePhotoView using NavigationStack
+                                    let singlePhotoStack = RPhotoStack(assets: [asset])
+                                    let tempCollection = RPhotoStackCollection(stacks: [singlePhotoStack])
+                                    let navigationData: [String: Any] = [
+                                        "photoStackCollection": tempCollection,
+                                        "initialStack": singlePhotoStack
+                                    ]
+                                    NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
                                 }
                             }
                         }
@@ -99,32 +101,6 @@ struct SimilarPhotosGridView: View {
                 }
             }
         }
-        .overlay(
-            Group {
-                if showingSwipeView, let photo = selectedPhoto {
-                    // Create a temporary RPhotoStackCollection for single photo display  
-                    let singlePhotoStack = RPhotoStack(assets: [photo])
-                    let tempCollection = RPhotoStackCollection(stacks: [singlePhotoStack])
-                    SwipePhotoView(
-                        photoStackCollection: tempCollection,
-                        initialStack: singlePhotoStack,
-                        onDismiss: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                showingSwipeView = false
-                                selectedPhoto = nil
-                            }
-                        }
-                    )
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.1, anchor: .center)
-                            .combined(with: .opacity),
-                        removal: .scale(scale: 0.1, anchor: .center)
-                            .combined(with: .opacity)
-                    ))
-                    .zIndex(999)
-                }
-            }
-        )
         .onAppear {
             findSimilarPhotos()
         }

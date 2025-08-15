@@ -22,7 +22,6 @@ struct RListDetailView: View {
     @State private var selectedListId: String?
     
     // View presentation states
-    @State private var selectedPhotoStack: RPhotoStack? = nil
     @State private var selectedPin: PinData? = nil
 
     init(list: RListData) {
@@ -79,8 +78,13 @@ struct RListDetailView: View {
                     context: viewContext,
                     userId: getCurrentUserId(),
                     onPhotoStackTap: { photoStack in
-                        // Show SwipePhotoView for photo stack (both single and multiple photos)
-                        selectedPhotoStack = photoStack
+                        // Navigate to SwipePhotoView using NavigationStack
+                        let tempCollection = RPhotoStackCollection(stacks: [photoStack])
+                        let navigationData: [String: Any] = [
+                            "photoStackCollection": tempCollection,
+                            "initialStack": photoStack
+                        ]
+                        NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
                     },
                     onPinTap: { place in
                         // Show PinDetailView for pin
@@ -97,8 +101,13 @@ struct RListDetailView: View {
                     context: viewContext,
                     userId: getCurrentUserId(),
                     onPhotoStackTap: { photoStack in
-                        // Show SwipePhotoView for photo stack (both single and multiple photos)
-                        selectedPhotoStack = photoStack
+                        // Navigate to SwipePhotoView using NavigationStack
+                        let tempCollection = RPhotoStackCollection(stacks: [photoStack])
+                        let navigationData: [String: Any] = [
+                            "photoStackCollection": tempCollection,
+                            "initialStack": photoStack
+                        ]
+                        NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
                     },
                     onPinTap: { place in
                         // Show PinDetailView for pin
@@ -114,8 +123,13 @@ struct RListDetailView: View {
                 RListView(
                     dataSource: .mixed(createMixedContent()),
                     onPhotoStackTap: { photoStack in
-                        // Show SwipePhotoView for photo stack (both single and multiple photos)
-                        selectedPhotoStack = photoStack
+                        // Navigate to SwipePhotoView using NavigationStack
+                        let tempCollection = RPhotoStackCollection(stacks: [photoStack])
+                        let navigationData: [String: Any] = [
+                            "photoStackCollection": tempCollection,
+                            "initialStack": photoStack
+                        ]
+                        NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
                     },
                     onPinTap: { place in
                         // Show PinDetailView for pin
@@ -192,26 +206,6 @@ struct RListDetailView: View {
                     showingAddToList = false
                 }
             )
-        }
-        // Present SwipePhotoView when a photo is selected - MUST use overlay, not fullScreenCover
-        .overlay {
-            if let selectedPhotoStack = selectedPhotoStack {
-                let tempCollection = RPhotoStackCollection(stacks: [selectedPhotoStack])
-                SwipePhotoView(
-                    photoStackCollection: tempCollection,
-                    initialStack: selectedPhotoStack,
-                    onDismiss: {
-                        self.selectedPhotoStack = nil
-                        // Restore toolbar after SwipePhotoView dismissal
-                        NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
-                    }
-                )
-                .transition(.asymmetric(
-                    insertion: .scale(scale: 0.1).combined(with: .opacity),
-                    removal: .scale(scale: 0.1).combined(with: .opacity)
-                ))
-                .zIndex(999)
-            }
         }
         // Present PinDetailView when a pin is selected
         .overlay {

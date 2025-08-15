@@ -11,7 +11,6 @@ struct PhotoMainView: View {
     @Environment(\.toolbarManager) private var toolbarManager
     @Environment(\.selectedAssetService) private var selectedAssetService
     @Environment(\.sheetStack) private var sheetStack
-    @Binding var isSwipePhotoViewOpen: Bool
     @StateObject private var photoStackCollection = RPhotoStackCollection()
     @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
     @State private var currentFilter: PhotoFilterType = .notDisliked
@@ -186,11 +185,12 @@ struct PhotoMainView: View {
                     }
                     updateToolbar()
                 } else {
-                    // Set the photo stack in SelectionService before opening
-                    selectedAssetService.setCurrentPhotoStack(photoStack)
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        isSwipePhotoViewOpen = true
-                    }
+                    // Navigate to SwipePhotoView using NavigationStack
+                    let navigationData: [String: Any] = [
+                        "photoStackCollection": photoStackCollection,
+                        "initialStack": photoStack
+                    ]
+                    NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
                 }
             },
             onPinTap: { _ in
@@ -224,6 +224,11 @@ struct PhotoMainView: View {
             print("🔧 PhotoMainView: Restoring toolbar after SwipePhotoView dismissal")
             setupToolbar()
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RefreshPhotoFilter"))) { _ in
+            // Refresh filter to remove disliked photos from view after SwipePhotoView dismissal
+            print("🔄 PhotoMainView: Refreshing photo filter")
+            applyFilter()
+        }
         .onReceive(
             NotificationCenter.default.publisher(for: NSNotification.Name("FindDuplicatePhotos"))
         ) { _ in
@@ -256,32 +261,6 @@ struct PhotoMainView: View {
                 if authorizationStatus == .authorized || authorizationStatus == .limited {
                     loadPhotoAssets()
                 }
-            }
-        }
-        .overlay {
-            if isSwipePhotoViewOpen, let currentStack = selectedAssetService.getCurrentPhotoStack {
-                SwipePhotoView(
-                    photoStackCollection: photoStackCollection,
-                    initialStack: currentStack,
-                    onDismiss: {
-                        print("SwipePhotoView dismissed")
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            isSwipePhotoViewOpen = false
-                        }
-                        // Refresh filter to remove disliked photos from view
-                        applyFilter()
-                        // Restore toolbar state via ContentView
-                        NotificationCenter.default.post(
-                            name: NSNotification.Name("RestoreToolbar"), object: nil)
-                    }
-                )
-                .transition(
-                    .asymmetric(
-                        insertion: .scale(scale: 0.1).combined(with: .opacity),
-                        removal: .scale(scale: 0.1).combined(with: .opacity)
-                    )
-                )
-                .zIndex(999)
             }
         }
         .toolbar(.hidden, for: .navigationBar)
@@ -588,6 +567,6 @@ extension SwipePhotoView {
 
 struct PhotoMainView_Previews: PreviewProvider {
     static var previews: some View {
-        PhotoMainView(isSwipePhotoViewOpen: .constant(false))
+        PhotoMainView()
     }
 }

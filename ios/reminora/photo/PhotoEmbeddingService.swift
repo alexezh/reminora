@@ -554,6 +554,167 @@ class PhotoEmbeddingService {
     func getFailedAssetsCount() -> Int {
         return dataLock.withLock { failedAssets.count }
     }
+    
+    // MARK: - Photo Stacking Methods
+    
+    /// Create photo stacks from assets using similarity-based grouping
+    func createPhotoStacks(from assets: [PHAsset], in context: NSManagedObjectContext, 
+                          preferenceManager: PhotoPreferenceManager,
+                          lastEmbeddingCount: inout Int,
+                          hasStacksBeenCleared: inout Bool,
+                          hasTriggeredEmbeddingComputation: inout Bool) async -> [RPhotoStack] {
+        
+        return await createSimilarityBasedStacks(
+            from: assets, 
+            in: context, 
+            preferenceManager: preferenceManager,
+            lastEmbeddingCount: &lastEmbeddingCount,
+            hasStacksBeenCleared: &hasStacksBeenCleared,
+            hasTriggeredEmbeddingComputation: &hasTriggeredEmbeddingComputation
+        )
+    }
+    
+    /// Create similarity-based photo stacks
+    private func createSimilarityBasedStacks(from assets: [PHAsset], 
+                                           in context: NSManagedObjectContext,
+                                           preferenceManager: PhotoPreferenceManager,
+                                           lastEmbeddingCount: inout Int,
+                                           hasStacksBeenCleared: inout Bool,
+                                           hasTriggeredEmbeddingComputation: inout Bool) async -> [RPhotoStack] {
+        // Check if similarity indices are available
+        let embeddingStats = getEmbeddingStats(in: context)
+        let hasEmbeddings = embeddingStats.photosWithEmbeddings > 0
+
+        // Only print embedding stats if they're meaningful or different from last time
+        if embeddingStats.photosWithEmbeddings != lastEmbeddingCount {
+            print(
+                "📊 Embedding coverage: \(embeddingStats.photosWithEmbeddings)/\(embeddingStats.totalPhotos) (\(embeddingStats.coveragePercentage)%)"
+            )
+            lastEmbeddingCount = embeddingStats.photosWithEmbeddings
+        }
+
+        // Clear existing stack IDs only once per session to avoid repeated work
+        if !hasStacksBeenCleared {
+            preferenceManager.clearAllStackIds()
+            hasStacksBeenCleared = true
+        }
+
+        if !hasEmbeddings {
+            // Only log and trigger computation once per session
+            if !hasTriggeredEmbeddingComputation {
+                print("📊 No similarity indices available, using individual photos")
+                hasTriggeredEmbeddingComputation = true
+
+                // Trigger embedding computation in background without blocking UI
+                Task.detached {
+                    await PhotoEmbeddingService.shared.computeAllEmbeddings(in: context) {
+                        processed, total in
+                        // Only log every 10 photos to reduce spam
+                        if processed % 10 == 0 || processed == total {
+                            print("📊 Computing embeddings: \(processed)/\(total)")
+                        }
+                    }
+                }
+            }
+            return assets.map { RPhotoStack(assets: [$0]) }
+        }
+
+        // Limit processing to prevent hangs - process in batches
+        let maxAssetsToProcess = 100
+        let assetsToProcess = Array(assets.prefix(maxAssetsToProcess))
+
+        var stacks: [RPhotoStack] = []
+        var processedAssets: Set<String> = []
+        let maxExistingStackId = preferenceManager.getMaxStackId()
+        var currentStackId: Int32 = maxExistingStackId + 1  // Start after max existing stack ID
+        print("📊 Starting stack creation with ID \(currentStackId) (max existing: \(maxExistingStackId))")
+
+        // Process assets sequentially by time with yield points
+        for i in 0..<assetsToProcess.count {
+            let currentAsset = assetsToProcess[i]
+
+            // Skip if already processed
+            if processedAssets.contains(currentAsset.localIdentifier) {
+                continue
+            }
+
+            var currentStack = [currentAsset]
+            processedAssets.insert(currentAsset.localIdentifier)
+
+            // Only compare with next sequential photos (by time) - limit comparison window
+            let maxComparisons = 5  // Only compare with next 5 photos to prevent hangs
+            let endIndex = min(i + maxComparisons + 1, assetsToProcess.count)
+
+            for j in (i + 1)..<endIndex {
+                let nextAsset = assetsToProcess[j]
+
+                // Skip if already processed
+                if processedAssets.contains(nextAsset.localIdentifier) {
+                    break  // Stop checking if we hit a processed asset
+                }
+
+                // Check similarity between current stack's first photo and next photo
+                let similarity = await getSimilarity(between: currentAsset, and: nextAsset, in: context)
+
+                if let similarity = similarity, similarity > 0.95 {
+                    print(
+                        "📊 Found similar photos: \(currentAsset.localIdentifier) <-> \(nextAsset.localIdentifier) (similarity: \(Int(similarity * 100))%)"
+                    )
+                    currentStack.append(nextAsset)
+                    processedAssets.insert(nextAsset.localIdentifier)
+                } else {
+                    // If similarity is not high enough or not available, stop stacking
+                    break
+                }
+            }
+
+            // Store stack ID for all photos in this stack if it has more than one photo
+            if currentStack.count > 1 {
+                for asset in currentStack {
+                    preferenceManager.setStackId(for: asset, stackId: currentStackId)
+                }
+                print(
+                    "📊 Created stack with ID \(currentStackId) containing \(currentStack.count) similar photos"
+                )
+                currentStackId += 1  // Increment for next stack
+            }
+
+            stacks.append(RPhotoStack(assets: currentStack))
+
+            // Yield to prevent blocking main thread every 10 assets
+            if i % 10 == 0 {
+                await Task.yield()
+            }
+        }
+
+        // Add remaining assets as individual stacks if we hit the limit
+        if assets.count > maxAssetsToProcess {
+            let remainingAssets = Array(assets.dropFirst(maxAssetsToProcess))
+            let remainingStacks = remainingAssets.map { RPhotoStack(assets: [$0]) }
+            stacks.append(contentsOf: remainingStacks)
+            print(
+                "📊 Added \(remainingAssets.count) remaining assets as individual photos (processing limit reached)"
+            )
+        }
+
+        print("📊 Stored stack IDs for \(currentStackId - 1) similarity-based stacks")
+        return stacks
+    }
+
+    /// Get similarity between two assets using their embeddings
+    private func getSimilarity(between asset1: PHAsset, and asset2: PHAsset, in context: NSManagedObjectContext) async -> Float? {
+        // Get embeddings for both assets
+        guard
+            let embedding1 = await getEmbedding(for: asset1, in: context),
+            let embedding2 = await getEmbedding(for: asset2, in: context),
+            let vector1 = getEmbeddingVector(from: embedding1),
+            let vector2 = getEmbeddingVector(from: embedding2)
+        else {
+            return nil
+        }
+
+        return ImageEmbeddingService.shared.cosineSimilarity(vector1, vector2)
+    }
 }
 
 // MARK: - Supporting Types

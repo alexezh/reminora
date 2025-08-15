@@ -401,11 +401,11 @@ class ActionRouter: ObservableObject {
     }
     
     private func handleAddPinFromPhoto(_ asset: PHAsset) {
-        sheetStack?.push(.addPinFromPhoto(asset: asset))
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToAddPinFromPhoto"), object: asset)
     }
     
     private func handleAddPinFromLocation(_ location: LocationInfo) {
-        sheetStack?.push(.addPinFromLocation(location: location))
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToAddPinFromLocation"), object: location)
     }
     
     private func handleShowPinDetail(_ place: PinData, _ allPlaces: [PinData]) {

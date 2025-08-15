@@ -41,26 +41,6 @@ struct SheetRouter: View {
     @ViewBuilder
     private func sheetContent(for sheetType: SheetType) -> some View {
         switch sheetType {
-        case .addPinFromPhoto(let asset):
-            NavigationView {
-                AddPinFromPhotoView(
-                    asset: asset,
-                    onDismiss: {
-                        sheetStack.pop()
-                    }
-                )
-            }
-
-        case .addPinFromLocation(let location):
-            NavigationView {
-                AddPinFromLocationView(
-                    location: location,
-                    onDismiss: {
-                        sheetStack.pop()
-                    }
-                )
-            }
-
         case .pinDetail(let place, let allPlaces):
             PinDetailView(
                 place: place,
@@ -76,9 +56,6 @@ struct SheetRouter: View {
                 userName: userName,
                 userHandle: userHandle
             )
-
-        case .similarPhotos(let targetAsset):
-            SimilarPhotosGridView(targetAsset: targetAsset)
 
         case .duplicatePhotos(let targetAsset):
             SimilarPhotoView(targetAsset: targetAsset)

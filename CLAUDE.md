@@ -96,17 +96,19 @@ The app uses Core Data (iOS) with main entities:
 
 ### Navigation System
 
-**Custom Navigation Architecture:**
-- **No TabView**: Replaced iOS TabView with custom VStack + ZStack system for complete control
+**Modern NavigationStack Architecture:**
+- **NavigationStack**: Uses iOS 16+ NavigationStack for proper navigation patterns
+- **Route-Based**: AppRoute enum defines all main navigation destinations
 - **Dynamic Toolbar**: Custom bottom toolbar with context-aware buttons and universal FAB
-- **Tab Management**: ContentView manages tab switching via `selectedTab` state and conditional view rendering
+- **Route Management**: ContentView manages route switching via `currentRoute` state
 
 **Navigation Flow:**
-1. **Photos Tab (0)**: PhotoMainView with FAB-only mode (centered floating button)
-2. **Map Tab (1)**: MapView with navigation toolbar (Photos, Pins, Lists + FAB)
-3. **Pins Tab (2)**: PinMainView with navigation toolbar + pin actions (Sort, Add Pin, Open Invite)
-4. **Lists Tab (3)**: AllRListsView with navigation toolbar + refresh action
-5. **Profile Tab (4)**: ProfileView with FAB-only mode
+1. **Photos Route**: PhotoMainView with FAB-only mode (centered floating button)
+2. **Map Route**: MapView with navigation toolbar (Photos, Pins, Lists + FAB)
+3. **Pins Route**: PinMainView with navigation toolbar + pin actions (Sort, Add Pin, Open Invite)
+4. **Lists Route**: AllRListsView with navigation toolbar + refresh action
+5. **Profile Route**: ProfileView with FAB-only mode
+6. **Editor Routes**: ECard and Clip editors as full-screen destinations
 
 **Universal FAB System:**
 - **Icon**: "r.circle.fill" - Blue circular button with "R" icon
@@ -150,6 +152,105 @@ The app uses Core Data (iOS) with main entities:
 - **Architecture**: MVVM with Room database
 - **Matching iOS functionality and UI patterns
 
+### Main Services Architecture
+
+The app is built around key singleton services that manage global state and functionality:
+
+**1. SelectionService (`shared/SelectionService.swift`)**
+- **Purpose**: Manages multi-selection state for photos/assets across the entire app
+- **Usage**: `@Environment(\.selectedAssetService)` or `SelectionService.shared`
+- **Key Methods**:
+  - `addSelectedPhoto(String)` / `removeSelectedPhoto(String)` - Manage photo selection
+  - `isPhotoSelected(String) -> Bool` - Check selection state
+  - `selectedPhotoIdentifiers: Set<String>` - Current selected photos
+  - `setCurrentPhotoStack(RPhotoStack?)` - Track currently viewed photo
+- **Observable**: SwiftUI reactive updates when selection changes
+- **Scope**: Global across all views (PhotoMainView, SwipePhotoView, RListView, etc.)
+
+**2. ToolbarManager (`shared/DynamicToolbar.swift`)**
+- **Purpose**: Manages dynamic toolbar state and button configurations
+- **Usage**: `@Environment(\.toolbarManager)`
+- **Key Methods**:
+  - `setFABOnlyMode()` - Show only floating action button
+  - `setCustomToolbar(buttons: [ToolbarButtonConfig])` - Custom button set
+  - `updateCustomToolbar(buttons: [ToolbarButtonConfig])` - Update existing toolbar
+- **Integration**: Works with UniversalActionSheet for context-aware actions
+- **State Management**: Tracks toolbar visibility, button configs, and FAB state
+
+**3. SheetStack (`shared/SheetStack.swift`)**
+- **Purpose**: Centralized sheet presentation management with stack-based navigation
+- **Usage**: `@Environment(\.sheetStack)` or `SheetStack.shared`
+- **Key Methods**:
+  - `push(SheetType)` - Present new sheet
+  - `pop()` - Dismiss current sheet
+  - `clear()` - Dismiss all sheets
+- **Sheet Types**: Enum-based type safety for all sheet presentations
+- **Benefits**: Consistent sheet management, proper navigation stack handling
+
+**4. UniversalActionSheetModel (`shared/UniversalActionSheetModel.swift`)**
+- **Purpose**: Context-aware action sheet with dynamic content based on current view
+- **Usage**: `UniversalActionSheetModel.shared`
+- **Context Types**: `.photos`, `.pins`, `.lists`, `.swipePhoto`, `.quickList`, etc.
+- **Integration**: Automatically adapts actions based on current context
+- **Method**: `setContext(ActionSheetContext)` - Update available actions
+
+**5. AuthenticationService (`cloud/AuthenticationService.swift`)**
+- **Purpose**: User authentication, session management, and account state
+- **Usage**: `@EnvironmentObject private var authService: AuthenticationService`
+- **Key Properties**:
+  - `currentAccount: Account?` - Current user account info
+  - `authState: AuthState` - Authentication status (.signedIn, .signedOut, etc.)
+- **OAuth Integration**: Google/Facebook authentication flows
+- **Session Management**: Bearer token handling and refresh
+
+**6. ClipManager (`clip/Clip.swift`)**
+- **Purpose**: Manages clip creation, editing, and persistence
+- **Usage**: `@Environment(\.clipManager)` or `ClipManager.shared`
+- **Storage**: UserDefaults for primary clip data + RListData for list integration
+- **Key Methods**:
+  - `getAllClips() -> [Clip]` - Retrieve all clips
+  - `addClip(Clip)` / `updateClip(Clip)` / `deleteClip(UUID)` - CRUD operations
+- **Dual Storage**: Maintains UserDefaults as primary with RListData for integration
+
+**7. ECardEditor (`ecard/ECardEditor.swift`)**
+- **Purpose**: Manages ECard editing sessions and state
+- **Usage**: `@Environment(\.eCardEditor)` or `ECardEditor.shared`
+- **Session Management**: Start/end editing sessions with asset management
+- **Integration**: Works with UniversalActionSheet for "Make ECard" actions
+
+**8. ActionRouter (`shared/ActionRouter.swift`)**
+- **Purpose**: Centralized action execution with dependency injection
+- **Usage**: `ActionRouter.shared.execute(ActionType)`
+- **Configuration**: Requires setup with SheetStack, SelectionService, ToolbarManager
+- **Benefits**: Decoupled action handling, testable architecture
+
+### Service Integration Patterns
+
+**Environment Injection:**
+```swift
+.environment(\.toolbarManager, toolbarManager)
+.environment(\.selectedAssetService, selectedAssetService)
+.environment(\.sheetStack, sheetStack)
+```
+
+**Shared Access:**
+```swift
+// For services that need global access
+SelectionService.shared.addSelectedPhoto(assetId)
+UniversalActionSheetModel.shared.setContext(.photos)
+ActionRouter.shared.execute(.sharePhoto(asset))
+```
+
+**Reactive Updates:**
+- All services use `@Published` properties for SwiftUI reactivity
+- Views automatically update when service state changes
+- ObservableObject conformance enables `@StateObject` and `@ObservedObject` usage
+
+**Notification Integration:**
+- Services use NotificationCenter for loose coupling
+- Example: "RestoreToolbar" notification for view transitions
+- Cross-service communication without tight dependencies
+
 ### Common Patterns
 
 - All views use `@Environment(\.managedObjectContext)` for Core Data access
@@ -160,6 +261,7 @@ The app uses Core Data (iOS) with main entities:
 - LazySnapPager for memory-efficient horizontal photo swiping with robust animations
 - UniversalActionSheet context management via `UniversalActionSheetModel.shared.setContext()`
 - Toolbar state restoration using NotificationCenter for view transitions
+- Service-based architecture with dependency injection and reactive state management
 
 ### Testing
 

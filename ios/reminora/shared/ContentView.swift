@@ -11,11 +11,113 @@ import Photos
 import PhotosUI
 import SwiftUI
 
+// MARK: - Navigation Route Enum
+
+enum AppRoute: String, CaseIterable {
+    case photo = "Photo"
+    case map = "Map"
+    case pin = "Pin"
+    case lists = "Lists"
+    case profile = "Profile"
+    case ecard = "ECard"
+    case clip = "Clip"
+    
+    var displayName: String {
+        switch self {
+        case .photo: return "Photos"
+        case .map: return "Map"
+        case .pin: return "Pins"
+        case .lists: return "Lists"
+        case .profile: return "Profile"
+        case .ecard: return "ECard Editor"
+        case .clip: return "Clip Editor"
+        }
+    }
+    
+    var systemImage: String {
+        switch self {
+        case .photo: return "photo"
+        case .map: return "map"
+        case .pin: return "mappin.and.ellipse"
+        case .lists: return "list.bullet.circle"
+        case .profile: return "person.circle"
+        case .ecard: return "rectangle.and.pencil.and.ellipsis"
+        case .clip: return "video"
+        }
+    }
+}
+
+// MARK: - Navigation Data Structures
+
+struct PhotoViewData: Hashable {
+    let photoStackCollectionId: String
+    let initialStackId: String
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(photoStackCollectionId)
+        hasher.combine(initialStackId)
+    }
+    
+    static func == (lhs: PhotoViewData, rhs: PhotoViewData) -> Bool {
+        lhs.photoStackCollectionId == rhs.photoStackCollectionId && 
+        lhs.initialStackId == rhs.initialStackId
+    }
+}
+
+struct AddPinFromPhotoData: Hashable {
+    let assetIdentifier: String
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(assetIdentifier)
+    }
+    
+    static func == (lhs: AddPinFromPhotoData, rhs: AddPinFromPhotoData) -> Bool {
+        lhs.assetIdentifier == rhs.assetIdentifier
+    }
+}
+
+struct AddPinFromLocationData: Hashable {
+    let locationName: String
+    let locationCoordinate: CLLocationCoordinate2D
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(locationName)
+        hasher.combine(locationCoordinate.latitude)
+        hasher.combine(locationCoordinate.longitude)
+    }
+    
+    static func == (lhs: AddPinFromLocationData, rhs: AddPinFromLocationData) -> Bool {
+        lhs.locationName == rhs.locationName &&
+        lhs.locationCoordinate.latitude == rhs.locationCoordinate.latitude &&
+        lhs.locationCoordinate.longitude == rhs.locationCoordinate.longitude
+    }
+}
+
+struct SimilarPhotosData: Hashable {
+    let targetAssetIdentifier: String
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(targetAssetIdentifier)
+    }
+    
+    static func == (lhs: SimilarPhotosData, rhs: SimilarPhotosData) -> Bool {
+        lhs.targetAssetIdentifier == rhs.targetAssetIdentifier
+    }
+}
+
+
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject private var authService: AuthenticationService
 
-    @State private var selectedTab = UserDefaults.standard.string(forKey: "selectedTab") ?? "Photo"
+    @State private var navigationPath = NavigationPath()
+    @State private var currentRoute: AppRoute = {
+        if let savedTab = UserDefaults.standard.string(forKey: "selectedTab"),
+           let route = AppRoute(rawValue: savedTab) {
+            return route
+        }
+        return .photo
+    }()
     @State private var isSwipePhotoViewOpen = false
     @StateObject private var toolbarManager = ToolbarManager()
     @StateObject private var selectedAssetService = SelectionService.shared
@@ -26,77 +128,93 @@ struct ContentView: View {
     @StateObject private var clipManager = ClipManager.shared
     @StateObject private var actionSheetModel = UniversalActionSheetModel.shared
     @State private var isActionSheetScrolling = false
+    
+    // Shared photo navigation data
+    @State private var sharedPhotoStackCollection: RPhotoStackCollection?
+    @State private var selectedPhotoStack: RPhotoStack?
+    
+    // Navigation data for moved views
+    @State private var navigationAsset: PHAsset?
+    @State private var navigationLocation: LocationInfo?
+    @State private var navigationTargetAsset: PHAsset?
 
     var body: some View {
-        VStack(spacing: 0) {
-            ZStack {
-                // Photos Tab
-                if selectedTab == "Photo" {
-                    NavigationView {
-                        PhotoMainView(isSwipePhotoViewOpen: $isSwipePhotoViewOpen)
+        NavigationStack(path: $navigationPath) {
+            // Root view based on current route
+            rootView(for: currentRoute)
+                .navigationBarHidden(true)
+                .navigationDestination(for: AppRoute.self) { route in
+                    destinationView(for: route)
+                        .navigationBarHidden(true)
+                }
+                .navigationDestination(for: PhotoViewData.self) { _ in
+                    // SwipePhotoView for photo viewing
+                    if let collection = sharedPhotoStackCollection,
+                       let initialStack = selectedPhotoStack {
+                        SwipePhotoView(
+                            photoStackCollection: collection,
+                            initialStack: initialStack,
+                            onDismiss: {
+                                navigationPath.removeLast()
+                            }
+                        )
+                        .navigationBarHidden(true)
+                    } else {
+                        Text("Photo not available")
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color.black)
                     }
-                    .navigationBarHidden(true)
                 }
-                
-                // Map Tab
-                if selectedTab == "Map" {
-                    NavigationView {
-                        MapView()
+                .navigationDestination(for: AddPinFromPhotoData.self) { _ in
+                    // AddPinFromPhotoView
+                    if let asset = navigationAsset {
+                        AddPinFromPhotoView(
+                            asset: asset,
+                            onDismiss: {
+                                navigationPath.removeLast()
+                            }
+                        )
+                        .navigationBarHidden(true)
+                    } else {
+                        Text("Asset not available")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .navigationBarHidden(true)
                 }
-                
-                // Pins Tab
-                if selectedTab == "Pin" {
-                    NavigationView {
-                        PinMainView()
+                .navigationDestination(for: AddPinFromLocationData.self) { _ in
+                    // AddPinFromLocationView
+                    if let location = navigationLocation {
+                        AddPinFromLocationView(
+                            location: location,
+                            onDismiss: {
+                                navigationPath.removeLast()
+                            }
+                        )
+                        .navigationBarHidden(true)
+                    } else {
+                        Text("Location not available")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
-                    .navigationBarHidden(true)
                 }
-                
-                // Lists Tab
-                if selectedTab == "Lists" {
-                    AllRListsView(
-                        context: viewContext,
-                        userId: authService.currentAccount?.id ?? ""
-                    )
+                .navigationDestination(for: SimilarPhotosData.self) { _ in
+                    // SimilarPhotosGridView
+                    if let targetAsset = navigationTargetAsset {
+                        SimilarPhotosGridView(targetAsset: targetAsset)
+                            .navigationBarHidden(true)
+                    } else {
+                        Text("Target asset not available")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
                 }
-                
-                // Profile Tab
-                if selectedTab == "Profile" {
-                    ProfileView()
-                }
-                
-                // ECard Editor Tab
-                if selectedTab == "ECard" {
-                    ECardEditorView(
-                        initialAssets: eCardEditor.getCurrentAssets(),
-                        onDismiss: {
-                            eCardEditor.endEditing()
-                        }
-                    )
-                }
-                
-                // Clip Editor Tab
-                if selectedTab == "Clip" {
-                    ClipEditorView(
-                        initialAssets: clipEditor.getCurrentAssets(),
-                        onDismiss: {
-                            clipEditor.endEditing()
-                        }
-                    )
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .onChange(of: selectedTab) { _, newValue in
-            UserDefaults.standard.set(newValue, forKey: "selectedTab")
+        .onChange(of: currentRoute) { _, newRoute in
+            UserDefaults.standard.set(newRoute.rawValue, forKey: "selectedTab")
             
-            // Set appropriate toolbar for the selected tab
-            setupToolbarForTab(newValue)
+            // Set appropriate toolbar for the selected route
+            setupToolbarForRoute(newRoute)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SwitchToClipEditor"))) { _ in
-            selectedTab = "Clip"
+            navigateToRoute(.clip)
         }
         .environment(\.toolbarManager, toolbarManager)
         .environment(\.selectedAssetService, selectedAssetService)
@@ -107,7 +225,7 @@ struct ContentView: View {
         .environment(\.clipManager, clipManager)
         .sheet(isPresented: $toolbarManager.showActionSheet) {
             UniversalActionSheet(
-                selectedTab: selectedTab,
+                selectedTab: currentRoute.rawValue,
                 onRefreshLists: {
                     // Trigger refresh on Lists tab
                     NotificationCenter.default.post(name: NSNotification.Name("RefreshLists"), object: nil)
@@ -160,20 +278,20 @@ struct ContentView: View {
             // Start background embedding computation for all photos
             startBackgroundEmbeddingComputation()
             
-            // Set up toolbar for initial tab
-            setupToolbarForTab(selectedTab)
+            // Set up toolbar for initial route
+            setupToolbarForRoute(currentRoute)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RestoreToolbar"))) { _ in
             // Restore toolbar when returning from SwipePhotoView or other overlay views
-            print("🔧 ContentView: Restoring toolbar for current tab \(selectedTab)")
-            setupToolbarForTab(selectedTab)
+            print("🔧 ContentView: Restoring toolbar for current route \(currentRoute.displayName)")
+            setupToolbarForRoute(currentRoute)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenCurrentEditor"))) { notification in
             if let editorType = notification.object as? EditorType {
                 print("🎨 ContentView: Opening current editor: \(editorType.displayName)")
                 switch editorType {
                 case .eCard:
-                    selectedTab = "Editor"
+                    navigateToRoute(.ecard)
                     break
                 case .clip:
                     // Clip editor is handled via sheet presentation
@@ -193,11 +311,11 @@ struct ContentView: View {
             if let place = notification.object as? PinData {
                 print("🔗 ContentView navigating to shared place: \(place.post ?? "Unknown")")
 
-                // Switch to Pin tab and show the shared place via SheetStack
-                selectedTab = "Pin"
+                // Switch to Pin route and show the shared place via SheetStack
+                navigateToRoute(.pin)
                 sheetStack.push(.pinDetail(place: place, allPlaces: []))
 
-                print("🔗 ContentView set selectedTab=Pin, showing shared place via SheetStack")
+                print("🔗 ContentView set currentRoute=Pin, showing shared place via SheetStack")
             } else {
                 print("🔗 ❌ ContentView: notification object is not a Place")
             }
@@ -205,20 +323,21 @@ struct ContentView: View {
         .onReceive(
             NotificationCenter.default.publisher(for: NSNotification.Name("SwitchToTab"))
         ) { notification in
-            if let tabName = notification.object as? String {
-                selectedTab = tabName
-                print("🔗 ContentView switched to tab: \(tabName)")
+            if let routeName = notification.object as? String,
+               let route = AppRoute(rawValue: routeName) {
+                navigateToRoute(route)
+                print("🔗 ContentView switched to route: \(route.displayName)")
             } else if let tabIndex = notification.object as? Int {
                 // Legacy support for integer tab indices
-                let tabName = tabIndexToString(tabIndex)
-                selectedTab = tabName
-                print("🔗 ContentView switched to tab: \(tabName) (from legacy index \(tabIndex))")
+                let route = tabIndexToRoute(tabIndex)
+                navigateToRoute(route)
+                print("🔗 ContentView switched to route: \(route.displayName) (from legacy index \(tabIndex))")
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindSimilarPhotos"))) { notification in
             if let asset = notification.object as? PHAsset {
                 print("📷 ContentView: Finding similar photos for single asset: \(asset.localIdentifier)")
-                sheetStack.push(.similarPhotos(targetAsset: asset))
+                navigateToSimilarPhotos(targetAsset: asset)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FindSimilarToSelected"))) { notification in
@@ -227,7 +346,7 @@ struct ContentView: View {
                 let fetchOptions = PHFetchOptions()
                 let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [firstId], options: fetchOptions)
                 if let targetAsset = fetchResult.firstObject {
-                    sheetStack.push(.similarPhotos(targetAsset: targetAsset))
+                    navigateToSimilarPhotos(targetAsset: targetAsset)
                 }
             }
         }
@@ -246,7 +365,7 @@ struct ContentView: View {
             if let asset = notification.object as? PHAsset {
                 print("🎨 ContentView: Creating ECard for single asset: \(asset.localIdentifier)")
                 eCardEditor.startEditing(with: [asset])
-                selectedTab = "Editor"
+                navigateToRoute(.ecard)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECardFromSelected"))) { notification in
@@ -257,8 +376,20 @@ struct ContentView: View {
                 let assets = (0..<fetchResult.count).compactMap { fetchResult.object(at: $0) }
                 if !assets.isEmpty {
                     eCardEditor.startEditing(with: assets)
-                    selectedTab = "Editor"
+                    navigateToRoute(.ecard)
                 }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToAddPinFromPhoto"))) { notification in
+            if let asset = notification.object as? PHAsset {
+                print("📍 ContentView: Navigating to AddPinFromPhoto for asset: \(asset.localIdentifier)")
+                navigateToAddPinFromPhoto(asset: asset)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToAddPinFromLocation"))) { notification in
+            if let location = notification.object as? LocationInfo {
+                print("📍 ContentView: Navigating to AddPinFromLocation for location: \(location.name)")
+                navigateToAddPinFromLocation(location: location)
             }
         }
     }
@@ -299,17 +430,106 @@ struct ContentView: View {
         }
     }
     
+    // MARK: - Navigation Methods
+    
+    private func navigateToRoute(_ route: AppRoute) {
+        currentRoute = route
+    }
+    
+    func navigateToPhotoView(photoStackCollection: RPhotoStackCollection, initialStack: RPhotoStack) {
+        // Store the shared data
+        sharedPhotoStackCollection = photoStackCollection
+        selectedPhotoStack = initialStack
+        
+        // Navigate using a simple PhotoViewData
+        let photoData = PhotoViewData(
+            photoStackCollectionId: UUID().uuidString, // Just use a UUID since we're storing the actual collection
+            initialStackId: initialStack.id
+        )
+        navigationPath.append(photoData)
+    }
+    
+    func navigateToAddPinFromPhoto(asset: PHAsset) {
+        // Store the asset
+        navigationAsset = asset
+        
+        // Navigate using AddPinFromPhotoData
+        let addPinData = AddPinFromPhotoData(assetIdentifier: asset.localIdentifier)
+        navigationPath.append(addPinData)
+    }
+    
+    func navigateToAddPinFromLocation(location: LocationInfo) {
+        // Store the location
+        navigationLocation = location
+        
+        // Navigate using AddPinFromLocationData
+        let addPinData = AddPinFromLocationData(
+            locationName: location.name,
+            locationCoordinate: location.coordinate
+        )
+        navigationPath.append(addPinData)
+    }
+    
+    func navigateToSimilarPhotos(targetAsset: PHAsset) {
+        // Store the target asset
+        navigationTargetAsset = targetAsset
+        
+        // Navigate using SimilarPhotosData
+        let similarData = SimilarPhotosData(targetAssetIdentifier: targetAsset.localIdentifier)
+        navigationPath.append(similarData)
+    }
+    
+    @ViewBuilder
+    private func rootView(for route: AppRoute) -> some View {
+        switch route {
+        case .photo:
+            PhotoMainView(isSwipePhotoViewOpen: $isSwipePhotoViewOpen)
+        case .map:
+            MapView()
+        case .pin:
+            PinMainView()
+        case .lists:
+            AllRListsView(
+                context: viewContext,
+                userId: authService.currentAccount?.id ?? ""
+            )
+        case .profile:
+            ProfileView()
+        case .ecard:
+            ECardEditorView(
+                initialAssets: eCardEditor.getCurrentAssets(),
+                onDismiss: {
+                    eCardEditor.endEditing()
+                    navigateToRoute(.photo) // Return to photos after dismissing
+                }
+            )
+        case .clip:
+            ClipEditorView(
+                initialAssets: clipEditor.getCurrentAssets(),
+                onDismiss: {
+                    clipEditor.endEditing()
+                    navigateToRoute(.photo) // Return to photos after dismissing
+                }
+            )
+        }
+    }
+    
+    @ViewBuilder
+    private func destinationView(for route: AppRoute) -> some View {
+        rootView(for: route)
+    }
+    
     // MARK: - Toolbar Management
     
-    private func setupToolbarForTab(_ tabName: String) {
-        print("🔧 ContentView: Setting up toolbar for tab \(tabName)")
+    private func setupToolbarForRoute(_ route: AppRoute) {
+        print("🔧 ContentView: Setting up toolbar for route \(route.displayName)")
         
-        switch tabName {
-        case "Photo": // Photos Tab - FAB only
+        switch route {
+        case .photo: // Photos Route - FAB only
             toolbarManager.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.photos)
             
-        case "Map": // Map Tab - Full toolbar with navigation buttons
+        case .map: // Map Route - Full toolbar with navigation buttons
             let mapButtons = [
                 ToolbarButtonConfig(
                     id: "photos",
@@ -336,38 +556,38 @@ struct ContentView: View {
             toolbarManager.setCustomToolbar(buttons: mapButtons)
             UniversalActionSheetModel.shared.setContext(.map)
             
-        case "Pin": // Pins Tab - Show FAB only
+        case .pin: // Pins Route - Show FAB only
             toolbarManager.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.pins)
             
-        case "Lists": // Lists Tab - Show FAB only
+        case .lists: // Lists Route - Show FAB only
             toolbarManager.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.lists)
             
-        case "Profile": // Profile Tab - FAB only for now
+        case .profile: // Profile Route - FAB only for now
             toolbarManager.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.profile)
             
-        case "Editor": // Editor Tab - FAB only for now
+        case .ecard: // ECard Editor Route - FAB only for now
             toolbarManager.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.ecard)
             
-        default:
+        case .clip: // Clip Editor Route - FAB only for now
             toolbarManager.setFABOnlyMode()
-            UniversalActionSheetModel.shared.setContext(.lists)
+            UniversalActionSheetModel.shared.setContext(.clip)
         }
     }
     
     // MARK: - Helper Functions
     
-    private func tabIndexToString(_ index: Int) -> String {
+    private func tabIndexToRoute(_ index: Int) -> AppRoute {
         switch index {
-        case 0: return "Photo"
-        case 1: return "Map"
-        case 2: return "Pin"
-        case 3: return "Lists"
-        case 4: return "Profile"
-        default: return "Photo"
+        case 0: return .photo
+        case 1: return .map
+        case 2: return .pin
+        case 3: return .lists
+        case 4: return .profile
+        default: return .photo
         }
     }
 }

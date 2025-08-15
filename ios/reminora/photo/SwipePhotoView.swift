@@ -544,7 +544,7 @@ struct SwipePhotoView: View {
         
     private func addPin() {
         // Navigate to AddPinFromPhotoView with current photo
-        sheetStack.push(.addPinFromPhoto(asset: currentPhotoStack.primaryAsset))
+        ActionRouter.shared.execute(.addPinFromPhoto(currentPhotoStack.primaryAsset))
     }
     
     private func updateToolbar(_ update: Bool) {

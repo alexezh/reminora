@@ -11,11 +11,8 @@ import SwiftUI
 
 // MARK: - Sheet Type Definitions
 enum SheetType: Identifiable, Equatable {
-    case addPinFromPhoto(asset: PHAsset)
-    case addPinFromLocation(location: LocationInfo)
     case pinDetail(place: PinData, allPlaces: [PinData])
     case userProfile(userId: String, userName: String, userHandle: String)
-    case similarPhotos(targetAsset: PHAsset)
     case duplicatePhotos(targetAsset: PHAsset)
     //case photoSimilarity(targetAsset: PHAsset)
     case quickList
@@ -32,16 +29,10 @@ enum SheetType: Identifiable, Equatable {
 
     var id: String {
         switch self {
-        case .addPinFromPhoto(let asset):
-            return "addPinFromPhoto_\(asset.localIdentifier)"
-        case .addPinFromLocation(let location):
-            return "addPinFromLocation_\(location.name)"
         case .pinDetail(let place, _):
             return "pinDetail_\(place.objectID.uriRepresentation().absoluteString)"
         case .userProfile(let userId, _, _):
             return "userProfile_\(userId)"
-        case .similarPhotos(let targetAsset):
-            return "similarPhotos_\(targetAsset.localIdentifier)"
         case .duplicatePhotos(let targetAsset):
             return "duplicatePhotos_\(targetAsset.localIdentifier)"
         // case .photoSimilarity(let targetAsset):
@@ -111,13 +102,11 @@ struct SheetConfiguration {
 extension SheetType {
     var configuration: SheetConfiguration {
         switch self {
-        case .addPinFromPhoto, .addPinFromLocation:
-            return .fullScreen
         case .pinDetail:
             return .fullScreen
         case .userProfile:
             return .fullScreen
-        case .similarPhotos, .duplicatePhotos:  //, .photoSimilarity:
+        case .duplicatePhotos:  //, .photoSimilarity:
             return .fullScreen
         case .quickList, .allLists:
             return .large
@@ -140,7 +129,7 @@ extension SheetType {
 
     var allowsBackgroundDismissal: Bool {
         switch self {
-        case .addPinFromPhoto, .addPinFromLocation, .editAddresses, .selectLocations:
+        case .editAddresses, .selectLocations:
             return false  // Don't allow accidental dismissal for forms
         default:
             return true

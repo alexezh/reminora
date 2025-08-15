@@ -36,145 +36,41 @@ struct PhotoMainView: View {
         PhotoPreferenceManager(viewContext: viewContext)
     }
 
-    private var searchDialogView: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                // Search text field
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Search Photos")
-                        .font(.headline)
-                    TextField("Enter search terms...", text: $searchText)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                }
-
-                // Date range picker
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Date Range")
-                        .font(.headline)
-
-                    DatePicker(
-                        "Start Date",
-                        selection: Binding(
-                            get: { startDate ?? Date.distantPast },
-                            set: { startDate = $0 }
-                        ), displayedComponents: .date
-                    )
-                    .onChange(of: startDate) { _, _ in
-                        if startDate == Date.distantPast {
-                            startDate = nil
-                        }
-                    }
-
-                    DatePicker(
-                        "End Date",
-                        selection: Binding(
-                            get: { endDate ?? Date() },
-                            set: { endDate = $0 }
-                        ), displayedComponents: .date
-                    )
-                    .onChange(of: endDate) { _, _ in
-                        if endDate == Date() {
-                            endDate = nil
-                        }
-                    }
-
-                    Button("Clear Dates") {
-                        startDate = nil
-                        endDate = nil
-                    }
-                    .foregroundColor(.blue)
-                }
-
-                // Filter buttons (moved from main view)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Filters")
-                        .font(.headline)
-
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                        ForEach(
-                            [PhotoFilterType.notDisliked, .favorites, .dislikes, .all], id: \.self
-                        ) { filter in
-                            Button(action: {
-                                currentFilter = filter
-                            }) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: filter.iconName)
-                                    Text(filter.displayName)
-                                }
-                                .font(.caption)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .frame(maxWidth: .infinity)
-                                .background(
-                                    currentFilter == filter
-                                        ? Color.blue
-                                        : Color.gray.opacity(0.2)
-                                )
-                                .foregroundColor(
-                                    currentFilter == filter
-                                        ? .white
-                                        : .primary
-                                )
-                                .cornerRadius(8)
-                            }
-                        }
-                    }
-                }
-
-                Spacer()
-            }
-            .padding()
-            .navigationTitle("Search Photos")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        showingSearch = false
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Apply") {
-                        applySearchFilter()
-                        showingSearch = false
-                    }
-                    .fontWeight(.semibold)
-                }
-            }
-        }
-    }
 
     // Time interval for grouping photos into stacks (in minutes)
     private let stackingInterval: TimeInterval = 10 * 60  // 10 minutes
 
-    var body: some View {
-        VStack {
-            // Top buttons: Search and Select/Cancel
-            HStack {
-                Spacer()
+    // MARK: - UI Components
+    
+    private var topButtonsView: some View {
+        HStack {
+            Spacer()
 
-                // Search button
-                Button(action: {
-                    sheetStack.push(.searchDialog)
-                }) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.title2)
-                        .foregroundColor(.blue)
-                }
-                .padding(.trailing, 8)
-
-                // Select/Cancel button
-                Button(action: {
-                    toggleSelectionMode()
-                }) {
-                    Text(isSelectionMode ? "Cancel" : "Select")
-                        .font(.body)
-                        .foregroundColor(.blue)
-                }
-                .padding(.trailing, 8)
+            // Search button
+            Button(action: {
+                sheetStack.push(.searchDialog)
+            }) {
+                Image(systemName: "magnifyingglass")
+                    .font(.title2)
+                    .foregroundColor(.blue)
             }
-            .padding(.top, 8)
+            .padding(.trailing, 8)
 
-            // Selection status
+            // Select/Cancel button
+            Button(action: {
+                toggleSelectionMode()
+            }) {
+                Text(isSelectionMode ? "Cancel" : "Select")
+                    .font(.body)
+                    .foregroundColor(.blue)
+            }
+            .padding(.trailing, 8)
+        }
+        .padding(.top, 8)
+    }
+    
+    private var selectionStatusView: some View {
+        Group {
             if isSelectionMode {
                 HStack {
                     Text(
@@ -189,104 +85,132 @@ struct PhotoMainView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 4)
             }
+        }
+    }
+    
+    private var loadingView: some View {
+        VStack(spacing: 20) {
+            ProgressView()
+                .scaleEffect(1.5)
+            Text("Initializing...")
+                .font(.title2)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "photo.stack")
+                .font(.system(size: 60))
+                .foregroundColor(.gray)
 
+            Text("No Photos Found")
+                .font(.title2)
+                .fontWeight(.semibold)
+
+            Text("Unable to load photos. Try refreshing.")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            Button("Refresh") {
+                print("Manual refresh triggered")
+                hasTriedInitialLoad = false
+                loadPhotoAssets()
+            }
+            .padding()
+            .background(Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(10)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+    }
+    
+    private var noAccessView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "photo.on.rectangle")
+                .font(.system(size: 60))
+                .foregroundColor(.gray)
+
+            Text("Photo Access Required")
+                .font(.title2)
+                .fontWeight(.semibold)
+
+            Text("Please allow access to your photo library to see your photos")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            Button("Grant Access") {
+                requestPhotoAccess()
+            }
+            .padding()
+            .background(Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(10)
+        }
+        .padding()
+    }
+    
+    private var mainContentView: some View {
+        Group {
             if !isCoreDataReady {
-                // Show loading UI while Core Data is initializing
-                VStack(spacing: 20) {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                    Text("Initializing...")
-                        .font(.title2)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                loadingView
             } else if authorizationStatus == .authorized || authorizationStatus == .limited {
-
                 if photoStackCollection.isEmpty && isCoreDataReady {
-                    // Show empty state with retry option
-                    VStack(spacing: 20) {
-                        Image(systemName: "photo.stack")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray)
-
-                        Text("No Photos Found")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-
-                        Text("Unable to load photos. Try refreshing.")
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-
-                        Button("Refresh") {
-                            print("Manual refresh triggered")
-                            hasTriedInitialLoad = false
-                            loadPhotoAssets()
-                        }
-                        .padding()
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding()
+                    emptyStateView
                 } else {
-                    // Use RListView to display photos with date separators  
-                    RListView(
-                        dataSource: .photoLibrary(photoStackCollection),
-                        isSelectionMode: isSelectionMode,
-                        onPhotoStackTap: { photoStack in
-                            if isSelectionMode {
-                                // Select all photos in the stack
-                                for asset in photoStack.assets {
-                                    if !selectedAssetService.isPhotoSelected(asset.localIdentifier) {
-                                        selectedAssetService.addSelectedPhoto(asset.localIdentifier)
-                                    }
-                                }
-                                updateToolbar()
-                            } else {
-                                // Set the photo stack in SelectionService before opening
-                                selectedAssetService.setCurrentPhotoStack(photoStack)
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    isSwipePhotoViewOpen = true
-                                }
-                            }
-                        },
-                        onPinTap: { _ in
-                            // Not used in photo library view
-                        },
-                        onLocationTap: { _ in
-                            // Not used in photo library view
-                        }
-                    )
+                    photoListView
                 }
             } else {
-                VStack(spacing: 20) {
-                    Image(systemName: "photo.on.rectangle")
-                        .font(.system(size: 60))
-                        .foregroundColor(.gray)
-
-                    Text("Photo Access Required")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-
-                    Text("Please allow access to your photo library to see your photos")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-
-                    Button("Grant Access") {
-                        requestPhotoAccess()
-                    }
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                }
-                .padding()
+                noAccessView
             }
+        }
+    }
+    
+    private var photoListView: some View {
+        RListView(
+            dataSource: .photoLibrary(photoStackCollection),
+            isSelectionMode: isSelectionMode,
+            onPhotoStackTap: { photoStack in
+                if isSelectionMode {
+                    // Select all photos in the stack
+                    for asset in photoStack.assets {
+                        if !selectedAssetService.isPhotoSelected(asset.localIdentifier) {
+                            selectedAssetService.addSelectedPhoto(asset.localIdentifier)
+                        }
+                    }
+                    updateToolbar()
+                } else {
+                    // Set the photo stack in SelectionService before opening
+                    selectedAssetService.setCurrentPhotoStack(photoStack)
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isSwipePhotoViewOpen = true
+                    }
+                }
+            },
+            onPinTap: { _ in
+                // Not used in photo library view
+            },
+            onLocationTap: { _ in
+                // Not used in photo library view
+            }
+        )
+    }
+    
+    var body: some View {
+        VStack {
+            // Top buttons: Search and Select/Cancel
+            topButtonsView
+            
+            // Selection status
+            selectionStatusView
+
+            mainContentView
         }
         .padding(.bottom, LayoutConstants.totalToolbarHeight)
         .onAppear {
@@ -299,27 +223,6 @@ struct PhotoMainView: View {
             // Restore PhotoMainView specific toolbar when returning from SwipePhotoView
             print("🔧 PhotoMainView: Restoring toolbar after SwipePhotoView dismissal")
             setupToolbar()
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(for: NSNotification.Name("FindSimilarPhotos"))
-        ) { notification in
-            if let asset = notification.object as? PHAsset {
-                print("📷 Finding similar photos for single asset: \(asset.localIdentifier)")
-                sheetStack.push(.similarPhotos(targetAsset: asset))
-            }
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(for: NSNotification.Name("FindSimilarToSelected"))
-        ) { notification in
-            if let identifiers = notification.object as? Set<String>,
-                let firstId = identifiers.first,
-                let targetAsset = allPhotoAssets.first(where: { $0.localIdentifier == firstId })
-            {
-                print(
-                    "📷 Finding similar photos for selected assets, using first asset as target: \(targetAsset.localIdentifier)"
-                )
-                sheetStack.push(.similarPhotos(targetAsset: targetAsset))
-            }
         }
         .onReceive(
             NotificationCenter.default.publisher(for: NSNotification.Name("FindDuplicatePhotos"))
@@ -344,19 +247,6 @@ struct PhotoMainView: View {
             if let asset = notification.object as? PHAsset {
                 print("🎨 Creating ECard for single asset: \(asset.localIdentifier)")
                 sheetStack.push(.eCardEditor(assets: [asset]))
-            }
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(for: NSNotification.Name("MakeECardFromSelected"))
-        ) { notification in
-            if let identifiers = notification.object as? Set<String> {
-                let selectedAssets = allPhotoAssets.filter {
-                    identifiers.contains($0.localIdentifier)
-                }
-                print("🎨 Creating ECard for \(selectedAssets.count) selected assets")
-                if !selectedAssets.isEmpty {
-                    sheetStack.push(.eCardEditor(assets: selectedAssets))
-                }
             }
         }
         .onChange(of: isCoreDataReady) { _, isReady in
@@ -514,157 +404,32 @@ struct PhotoMainView: View {
         print("Creating photo stacks from \(assets.count) assets using similarity indices")
 
         Task {
-            let stacks = await createSimilarityBasedStacks(from: assets)
+            // Create a wrapper struct to handle the inout parameters
+            var embeddingCount = lastEmbeddingCount
+            var stacksCleared = hasStacksBeenCleared
+            var triggeredComputation = hasTriggeredEmbeddingComputation
+            
+            let stacks = await PhotoEmbeddingService.shared.createPhotoStacks(
+                from: assets, 
+                in: viewContext, 
+                preferenceManager: preferenceManager,
+                lastEmbeddingCount: &embeddingCount,
+                hasStacksBeenCleared: &stacksCleared,
+                hasTriggeredEmbeddingComputation: &triggeredComputation
+            )
+            
             await MainActor.run {
+                // Update the state variables
+                self.lastEmbeddingCount = embeddingCount
+                self.hasStacksBeenCleared = stacksCleared
+                self.hasTriggeredEmbeddingComputation = triggeredComputation
+                
                 self.photoStackCollection.setStacks(stacks)
                 print("Created \(stacks.count) photo stacks using similarity")
             }
         }
     }
 
-    private func createSimilarityBasedStacks(from assets: [PHAsset]) async -> [RPhotoStack] {
-        // Check if similarity indices are available
-        let embeddingStats = PhotoEmbeddingService.shared.getEmbeddingStats(in: viewContext)
-        let hasEmbeddings = embeddingStats.photosWithEmbeddings > 0
-
-        // Only print embedding stats if they're meaningful or different from last time
-        if embeddingStats.photosWithEmbeddings != lastEmbeddingCount {
-            print(
-                "📊 Embedding coverage: \(embeddingStats.photosWithEmbeddings)/\(embeddingStats.totalPhotos) (\(embeddingStats.coveragePercentage)%)"
-            )
-            lastEmbeddingCount = embeddingStats.photosWithEmbeddings
-        }
-
-        // Clear existing stack IDs only once per session to avoid repeated work
-        if !hasStacksBeenCleared {
-            preferenceManager.clearAllStackIds()
-            hasStacksBeenCleared = true
-        }
-
-        if !hasEmbeddings {
-            // Only log and trigger computation once per session
-            if !hasTriggeredEmbeddingComputation {
-                print("📊 No similarity indices available, using individual photos")
-                hasTriggeredEmbeddingComputation = true
-
-                // Trigger embedding computation in background without blocking UI
-                Task.detached {
-                    await PhotoEmbeddingService.shared.computeAllEmbeddings(in: viewContext) {
-                        processed, total in
-                        // Only log every 10 photos to reduce spam
-                        if processed % 10 == 0 || processed == total {
-                            print("📊 Computing embeddings: \(processed)/\(total)")
-                        }
-                    }
-                }
-            }
-            return assets.map { RPhotoStack(assets: [$0]) }
-        }
-
-        // Limit processing to prevent hangs - process in batches
-        let maxAssetsToProcess = 100
-        let assetsToProcess = Array(assets.prefix(maxAssetsToProcess))
-
-        var stacks: [RPhotoStack] = []
-        var processedAssets: Set<String> = []
-        let maxExistingStackId = preferenceManager.getMaxStackId()
-        var currentStackId: Int32 = maxExistingStackId + 1  // Start after max existing stack ID
-        print("📊 Starting stack creation with ID \(currentStackId) (max existing: \(maxExistingStackId))")
-
-        // Process assets sequentially by time with yield points
-        for i in 0..<assetsToProcess.count {
-            let currentAsset = assetsToProcess[i]
-
-            // Skip if already processed
-            if processedAssets.contains(currentAsset.localIdentifier) {
-                continue
-            }
-
-            var currentStack = [currentAsset]
-            processedAssets.insert(currentAsset.localIdentifier)
-
-            // Only compare with next sequential photos (by time) - limit comparison window
-            let maxComparisons = 5  // Only compare with next 5 photos to prevent hangs
-            let endIndex = min(i + maxComparisons + 1, assetsToProcess.count)
-
-            for j in (i + 1)..<endIndex {
-                let nextAsset = assetsToProcess[j]
-
-                // Skip if already processed
-                if processedAssets.contains(nextAsset.localIdentifier) {
-                    break  // Stop checking if we hit a processed asset
-                }
-
-                // Check similarity between current stack's first photo and next photo
-                let similarity = await getSimilarity(between: currentAsset, and: nextAsset)
-
-                if let similarity = similarity, similarity > 0.95 {
-                    print(
-                        "📊 Found similar photos: \(currentAsset.localIdentifier) <-> \(nextAsset.localIdentifier) (similarity: \(Int(similarity * 100))%)"
-                    )
-                    currentStack.append(nextAsset)
-                    processedAssets.insert(nextAsset.localIdentifier)
-                } else {
-                    // If similarity is not high enough or not available, stop stacking
-                    break
-                }
-            }
-
-            // Store stack ID for all photos in this stack if it has more than one photo
-            if currentStack.count > 1 {
-                for asset in currentStack {
-                    preferenceManager.setStackId(for: asset, stackId: currentStackId)
-                }
-                print(
-                    "📊 Created stack with ID \(currentStackId) containing \(currentStack.count) similar photos"
-                )
-                currentStackId += 1  // Increment for next stack
-            }
-
-            stacks.append(RPhotoStack(assets: currentStack))
-
-            // Yield to prevent blocking main thread every 10 assets
-            if i % 10 == 0 {
-                await Task.yield()
-            }
-        }
-
-        // Add remaining assets as individual stacks if we hit the limit
-        if assets.count > maxAssetsToProcess {
-            let remainingAssets = Array(assets.dropFirst(maxAssetsToProcess))
-            let remainingStacks = remainingAssets.map { RPhotoStack(assets: [$0]) }
-            stacks.append(contentsOf: remainingStacks)
-            print(
-                "📊 Added \(remainingAssets.count) remaining assets as individual photos (processing limit reached)"
-            )
-        }
-
-        print("📊 Stored stack IDs for \(currentStackId - 1) similarity-based stacks")
-        return stacks
-    }
-
-    private func getSimilarity(between asset1: PHAsset, and asset2: PHAsset) async -> Float? {
-        // Get embeddings for both assets
-        guard
-            let embedding1 = await PhotoEmbeddingService.shared.getEmbedding(
-                for: asset1, in: viewContext),
-            let embedding2 = await PhotoEmbeddingService.shared.getEmbedding(
-                for: asset2, in: viewContext),
-            let vector1 = getEmbeddingVector(from: embedding1),
-            let vector2 = getEmbeddingVector(from: embedding2)
-        else {
-            return nil
-        }
-
-        return ImageEmbeddingService.shared.cosineSimilarity(vector1, vector2)
-    }
-
-    private func getEmbeddingVector(from photoEmbedding: PhotoEmbedding) -> [Float]? {
-        guard let embeddingData = photoEmbedding.embedding else {
-            return nil
-        }
-        return PhotoEmbeddingService.shared.dataToEmbedding(embeddingData)
-    }
 
     // MARK: - Selection Mode
 

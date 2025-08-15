@@ -33,7 +33,6 @@ struct SwipePhotoView: View {
     @State private var showingMap = false
     @State private var isFavorite = false
     @State private var showingActionSheet = false
-    @State private var verticalOffset: CGFloat = 0 // For swipe down to dismiss
     @State private var isViewReady = false // Prevent flash during initialization
     @State private var photoTransition = false // For photo transition animation
     
@@ -87,7 +86,7 @@ struct SwipePhotoView: View {
     // Animate to previous image
     private func animateToPreviousImage() {
         guard currentIndex > 0 else { return }
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)) {
             currentIndex -= 1
         }
         triggerPhotoTransition()
@@ -96,7 +95,7 @@ struct SwipePhotoView: View {
     // Animate to next image
     private func animateToNextImage() {
         guard currentIndex < photoStackCollection.allAssets().count - 1 else { return }
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)) {
             currentIndex += 1
         }
         triggerPhotoTransition()
@@ -144,82 +143,7 @@ struct SwipePhotoView: View {
         }
     }
     
-    // Handle long-pull navigation (closes stack and moves to next)
-    private func handleLongPullNavigation(_ translationWidth: CGFloat) {
-        let stack = currentPhotoStack
-        let currentAsset = stack.primaryAsset
-        
-        // If we're in an expanded stack at the boundary, close it and move
-        if stack.count > 1 && photoStackCollection.isStackExpanded(stack.id) {
-            
-            if translationWidth < 0, // Left swipe
-               let lastStackAsset = stack.assets.last,
-               currentAsset.localIdentifier == lastStackAsset.localIdentifier {
-                // At end of expanded stack - close stack and move to next photo
-                print("Long pull: closing stack and moving to next photo")
-                collapseStack(stack)
-                
-                // Move to next photo after stack collapse
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    if self.currentIndex < self.photoStackCollection.allAssets().count - 1 {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            self.currentIndex += 1
-                        }
-                    }
-                }
-                return
-            }
-            
-            if translationWidth > 0, // Right swipe
-               let firstStackAsset = stack.assets.first,
-               currentAsset.localIdentifier == firstStackAsset.localIdentifier {
-                // At beginning of expanded stack - close stack and move to previous photo
-                print("Long pull: closing stack and moving to previous photo")
-                collapseStack(stack)
-                
-                // Move to previous photo after stack collapse
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    if self.currentIndex > 0 {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            self.currentIndex -= 1
-                        }
-                    }
-                }
-                return
-            }
-        }
-        
-        // If not at stack boundary, use regular moveToNextStack logic
-        if translationWidth < 0 {
-            moveToNextStack()
-        } else {
-            moveToPreviousStack()
-        }
-    }
-    
-    // Move to previous stack or photo
-    private func moveToPreviousStack() {
-        let stack = currentPhotoStack
-        
-        // Find previous stack boundary
-        if stack.count > 1 {
-            // If in a stack, move to first photo before this stack
-            if let firstStackAsset = stack.assets.first,
-               let firstStackIndex = photoStackCollection.allAssets().firstIndex(where: { $0.localIdentifier == firstStackAsset.localIdentifier }),
-               firstStackIndex > 0 {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    currentIndex = firstStackIndex - 1
-                }
-            }
-        } else {
-            // If single photo, just move to previous photo
-            if currentIndex > 0 {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    currentIndex -= 1
-                }
-            }
-        }
-    }
+
     
     // Move to next stack or photo (long pull/press action)
     private func moveToNextStack() {
@@ -231,14 +155,14 @@ struct SwipePhotoView: View {
             if let lastStackAsset = stack.assets.last,
                let lastStackIndex = photoStackCollection.allAssets().firstIndex(where: { $0.localIdentifier == lastStackAsset.localIdentifier }),
                lastStackIndex + 1 < photoStackCollection.allAssets().count {
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)) {
                     currentIndex = lastStackIndex + 1
                 }
             }
         } else {
             // If single photo, just move to next photo
             if currentIndex + 1 < photoStackCollection.allAssets().count {
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)) {
                     currentIndex += 1
                 }
             }
@@ -306,6 +230,10 @@ struct SwipePhotoView: View {
                             updateQuickListStatus()
                             updateFavoriteStatus()
                             updateToolbar(true)
+                        },
+                        onVerticalPull: {
+                            // Handle vertical pull to dismiss
+                            onDismiss()
                         }
                     ) { index in
                         // Render photo at given index
@@ -315,47 +243,17 @@ struct SwipePhotoView: View {
                             isLoading: index == currentIndex ? $isLoading : .constant(false)
                         )
                     }
-                    .simultaneousGesture(
-                        DragGesture()
-                            .onChanged { value in
-                                // Handle vertical swipe for dismiss
-                                let translationY = value.translation.height
-                                let translationX = value.translation.width
-                                if abs(translationY) > abs(translationX) && translationY > 0 {
-                                    verticalOffset = min(translationY * 0.5, 200)
-                                }
+                    .onTapGesture {
+                        // Handle tap to expand/collapse stacks
+                        let stack = currentPhotoStack
+                        if stack.count > 1 {
+                            if photoStackCollection.isStackExpanded(stack.id) {
+                                collapseStack(stack)
+                            } else {
+                                expandStack(stack)
                             }
-                            .onEnded { value in
-                                let translationY = value.translation.height
-                                let translationX = value.translation.width
-                                let velocityY = value.velocity.height
-                                
-                                // Handle vertical swipe to dismiss
-                                if abs(translationY) > abs(translationX) && (translationY > 150 || velocityY > 800) {
-                                    onDismiss()
-                                    return
-                                }
-                                
-                                // Reset vertical offset
-                                withAnimation(.interpolatingSpring(stiffness: 300, damping: 25)) {
-                                    verticalOffset = 0
-                                }
-                                
-                                // Handle tap to expand/collapse stacks
-                                let distance = sqrt(pow(translationX, 2) + pow(translationY, 2))
-                                if distance < 10 {
-                                    let stack = currentPhotoStack
-                                    if stack.count > 1 {
-                                        if photoStackCollection.isStackExpanded(stack.id) {
-                                            collapseStack(stack)
-                                        } else {
-                                            expandStack(stack)
-                                        }
-                                    }
-                                }
-                            }
-                    )
-                    .offset(y: verticalOffset)
+                        }
+                    }
                     .frame(
                         maxWidth: geo.size.width,
                         maxHeight: geo.size.height
@@ -410,7 +308,6 @@ struct SwipePhotoView: View {
             
             // Initialize state to prevent flash
             isLoading = true
-            verticalOffset = 0
             
             print("🔧 Initial state set for LazySnapPager")
             

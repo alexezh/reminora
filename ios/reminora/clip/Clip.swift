@@ -202,6 +202,10 @@ class ClipManager: ObservableObject {
             updatedClip.markAsModified()
             clips[index] = updatedClip
             saveClips()
+            
+            // Also update the RList entry with new JSON data
+            updateRListEntry(for: updatedClip)
+            
             print("📹 ClipManager: Updated clip '\(clip.name)'")
         }
     }
@@ -258,6 +262,32 @@ class ClipManager: ObservableObject {
             print("📹 ClipManager: Created RList entry for clip '\(clip.name)'")
         } catch {
             print("❌ ClipManager: Failed to save RList entry: \(error)")
+        }
+    }
+    
+    private func updateRListEntry(for clip: Clip) {
+        let context = PersistenceController.shared.container.viewContext
+        
+        // Find the existing RList entry
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "id == %@ AND kind == %@", clip.id.uuidString, "clip")
+        
+        do {
+            let results = try context.fetch(fetchRequest)
+            if let rlist = results.first {
+                // Update the JSON data
+                let encoder = JSONEncoder()
+                let clipData = try encoder.encode(clip)
+                rlist.data = String(data: clipData, encoding: .utf8)
+                rlist.name = clip.name
+                rlist.modifiedAt = clip.modifiedAt
+                
+                // Save the changes
+                try context.save()
+                print("📹 ClipManager: Updated RList entry for clip '\(clip.name)'")
+            }
+        } catch {
+            print("❌ ClipManager: Failed to update RList entry: \(error)")
         }
     }
     

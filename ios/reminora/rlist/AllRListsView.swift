@@ -127,17 +127,19 @@ struct AllRListsView: View {
     }
     
     private func listItemView(for userList: RListData) -> some View {
-        if userList.kind == "clip" {
-            // For clip lists, use a button to open ClipEditor instead of navigation
-            Button(action: {
-                openClipEditor(for: userList)
-            }) {
-                listItemContent(for: userList)
-            }
-            .buttonStyle(PlainButtonStyle())
-        } else {
-            NavigationLink(destination: RListDetailView(list: userList)) {
-                listItemContent(for: userList)
+        Group {
+            if userList.kind == "clip" {
+                // For clip lists, use a button to open ClipEditor instead of navigation
+                Button(action: {
+                    openClipEditor(for: userList)
+                }) {
+                    listItemContent(for: userList)
+                }
+                .buttonStyle(PlainButtonStyle())
+            } else {
+                NavigationLink(destination: RListDetailView(list: userList)) {
+                    listItemContent(for: userList)
+                }
             }
         }
     }
@@ -178,19 +180,62 @@ struct AllRListsView: View {
         
         do {
             let decoder = JSONDecoder()
-            let clip = try decoder.decode(Clip.self, from: clipData)
+            var clip = try decoder.decode(Clip.self, from: clipData)
+            
+            // Sync any new photos added via RListItemData back to the Clip
+            let updatedClip = syncRListItemsToClip(clip, listId: userList.id ?? "")
+            
+            // Update the clip in ClipManager if there were changes
+            if updatedClip.assetIdentifiers != clip.assetIdentifiers {
+                ClipManager.shared.updateClip(updatedClip)
+                clip = updatedClip
+                print("📹 AllRListsView: Synced \(updatedClip.assetIdentifiers.count - clip.assetIdentifiers.count) new photos to clip")
+            }
             
             // Start clip editing
             ClipEditor.shared.startEditing(clip: clip)
             
             // Switch to Clip tab to show the editor
-            // This assumes ContentView listens for selectedTab changes
             UserDefaults.standard.set("Clip", forKey: "selectedTab")
             NotificationCenter.default.post(name: NSNotification.Name("SwitchToClipEditor"), object: nil)
             
             print("📹 AllRListsView: Opened clip editor for '\(clip.name)'")
         } catch {
             print("❌ AllRListsView: Failed to decode clip data: \(error)")
+        }
+    }
+    
+    private func syncRListItemsToClip(_ clip: Clip, listId: String) -> Clip {
+        // Fetch all RListItemData for this clip list
+        let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "listId == %@", listId)
+        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "addedAt", ascending: true)]
+        
+        do {
+            let items = try context.fetch(fetchRequest)
+            let currentAssetIds = Set(clip.assetIdentifiers)
+            var newAssetIds: [String] = []
+            
+            // Find any new assets that were added via RList but not in the original clip
+            for item in items {
+                guard let placeId = item.placeId else { continue }
+                if !currentAssetIds.contains(placeId) {
+                    newAssetIds.append(placeId)
+                }
+            }
+            
+            // If there are new assets, add them to the clip
+            if !newAssetIds.isEmpty {
+                var updatedClip = clip
+                updatedClip.assetIdentifiers.append(contentsOf: newAssetIds)
+                updatedClip.markAsModified()
+                return updatedClip
+            }
+            
+            return clip
+        } catch {
+            print("❌ AllRListsView: Failed to fetch RListItemData for sync: \(error)")
+            return clip
         }
     }
     

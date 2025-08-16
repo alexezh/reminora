@@ -32,8 +32,9 @@ class ClipEditor: ObservableObject {
     // MARK: - Public Interface
     
     /// Start clip editing session with assets
-    func startEditing(with assets: [RPhotoStack]) {
+    func startEditing(with stacks: [RPhotoStack]) {
         DispatchQueue.main.async {
+            let assets = stacks.map { $0.primaryAsset }
             let clipName = ClipManager.shared.createClipName(from: assets)
             let newClip = Clip(name: clipName, assets: assets)
             
@@ -45,7 +46,7 @@ class ClipEditor: ObservableObject {
             // Set the current editor in ActionSheet model
             UniversalActionSheetModel.shared.setCurrentEditor(.clip)
             
-            print("📹 ClipEditor: Started editing with \(assets.count) assets")
+            print("📹 ClipEditor: Started editing with \(stacks.count) assets")
         }
     }
     

@@ -371,8 +371,6 @@ struct PinMainView: View {
         for followedUser in followedUsers {
           group.addTask {
             do {
-              print("🔄 PinMainView: Syncing pins for user: \(followedUser.name ?? "unknown") (ID: \(followedUser.userId ?? "unknown"))")
-              
               if let userId = followedUser.userId {
                 let _ = try await self.cloudSyncService.syncUserPins(userId: userId, limit: 20)
                 print("✅ PinMainView: Successfully synced pins for user: \(followedUser.name ?? "unknown")")

@@ -17,16 +17,10 @@ class RListService: ObservableObject {
     // MARK: - List Management
 
     /// Gets or creates the Shared List for the current user
-    func getOrCreateSharedList(in context: NSManagedObjectContext, userId: String) -> RListData {
-        // Validate userId is not empty
-        guard !userId.isEmpty else {
-            print("❌ Cannot create SharedList with empty userId")
-            fatalError("SharedList requires valid userId")
-        }
-
+    func getOrCreateSharedList(in context: NSManagedObjectContext) -> RListData {
         let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
         fetchRequest.predicate = NSPredicate(
-            format: "name == %@ AND userId == %@", Self.sharedListName, userId)
+            format: "name == %@", Self.sharedListName)
 
         do {
             let existingLists = try context.fetch(fetchRequest)
@@ -34,13 +28,12 @@ class RListService: ObservableObject {
                 return sharedList
             } else {
                 // Create new Shared List
-                print("🗂️ Creating new Shared List for userId: \(userId)")
+                print("🗂️ Creating new Shared List")
                 let sharedList = RListData(context: context)
                 sharedList.id = UUID().uuidString
                 sharedList.name = Self.sharedListName
                 sharedList.createdAt = Date()
                 sharedList.modifiedAt = Date()
-                sharedList.userId = userId
 
                 try context.save()
                 return sharedList
@@ -48,13 +41,12 @@ class RListService: ObservableObject {
         } catch {
             print("❌ Failed to get/create Shared List: \(error)")
             // Return a temporary one if database fails - but don't insert it into context
-            print("🗂️ Creating temporary Shared List for userId: \(userId)")
+            print("🗂️ Creating temporary Shared List")
             let tempList = RListData(context: context)
             tempList.id = UUID().uuidString
             tempList.name = Self.sharedListName
             tempList.createdAt = Date()
             tempList.modifiedAt = Date()
-            tempList.userId = userId
 
             // Don't save the context here - let the caller decide
             return tempList
@@ -62,10 +54,10 @@ class RListService: ObservableObject {
     }
 
     /// Gets or creates the Quick List for the current user
-    func getOrCreateQuickList(in context: NSManagedObjectContext, userId: String) -> RListData {
+    func getOrCreateQuickList(in context: NSManagedObjectContext) -> RListData {
         let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
         fetchRequest.predicate = NSPredicate(
-            format: "name == %@ AND userId == %@", Self.quickListName, userId)
+            format: "name == %@", Self.quickListName)
 
         do {
             let existingLists = try context.fetch(fetchRequest)
@@ -78,7 +70,6 @@ class RListService: ObservableObject {
                 quickList.name = Self.quickListName
                 quickList.createdAt = Date()
                 quickList.modifiedAt = Date()
-                quickList.userId = userId
 
                 try context.save()
                 return quickList
@@ -91,7 +82,6 @@ class RListService: ObservableObject {
             tempList.name = Self.quickListName
             tempList.createdAt = Date()
             tempList.modifiedAt = Date()
-            tempList.userId = userId
             return tempList
         }
     }
@@ -113,7 +103,7 @@ class RListService: ObservableObject {
 
         await MainActor.run {
             // Get or create the shared list
-            let sharedList = getOrCreateSharedList(in: context, userId: currentUserId)
+            let sharedList = getOrCreateSharedList(in: context)
 
             // Check if this place is already in the shared list
             let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
@@ -151,7 +141,7 @@ class RListService: ObservableObject {
         // In a real implementation, this would fetch items from a sharing service
         // or items marked as shared with this user
 
-        let sharedList = getOrCreateSharedList(in: context, userId: userId)
+        let sharedList = getOrCreateSharedList(in: context)
 
         // Get all list items for the shared list
         let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
@@ -203,48 +193,48 @@ class RListService: ObservableObject {
     // MARK: - Quick List Photo Management
 
     /// Checks if a photo stack is in the Quick List
-    func isPhotoStackInQuickList(_ photoStack: RPhotoStack, context: NSManagedObjectContext, userId: String)
+    func isPhotoStackInQuickList(_ photoStack: RPhotoStack, context: NSManagedObjectContext)
         -> Bool
     {
-        let quickList = getOrCreateQuickList(in: context, userId: userId)
+        let quickList = getOrCreateQuickList(in: context)
         return isPhotoStackInList(photoStack, list: quickList, context: context)
     }
 
     /// Adds a photo stack to the Quick List
-    func addPhotoStackToQuickList(_ photoStack: RPhotoStack, context: NSManagedObjectContext, userId: String)
+    func addPhotoStackToQuickList(_ photoStack: RPhotoStack, context: NSManagedObjectContext)
         -> Bool
     {
-        let quickList = getOrCreateQuickList(in: context, userId: userId)
+        let quickList = getOrCreateQuickList(in: context)
         return addPhotoStackToList(photoStack, list: quickList, context: context)
     }
 
     /// Removes a photo stack from the Quick List
-    func removePhotoStackFromQuickList(_ photoStack: RPhotoStack, context: NSManagedObjectContext, userId: String)
+    func removePhotoStackFromQuickList(_ photoStack: RPhotoStack, context: NSManagedObjectContext)
         -> Bool
     {
-        let quickList = getOrCreateQuickList(in: context, userId: userId)
+        let quickList = getOrCreateQuickList(in: context)
         return removePhotoStackFromList(photoStack, list: quickList, context: context)
     }
 
     /// Toggles a photo stack in the Quick List
-    func togglePhotoStackInQuickList(_ photoStack: RPhotoStack, context: NSManagedObjectContext, userId: String)
+    func togglePhotoStackInQuickList(_ photoStack: RPhotoStack, context: NSManagedObjectContext)
         -> Bool
     {
-        if isPhotoStackInQuickList(photoStack, context: context, userId: userId) {
-            return removePhotoStackFromQuickList(photoStack, context: context, userId: userId)
+        if isPhotoStackInQuickList(photoStack, context: context) {
+            return removePhotoStackFromQuickList(photoStack, context: context)
         } else {
-            return addPhotoStackToQuickList(photoStack, context: context, userId: userId)
+            return addPhotoStackToQuickList(photoStack, context: context)
         }
     }
     
     // MARK: - Legacy PHAsset Support (for compatibility)
 
     /// Checks if a photo is in the Quick List (legacy method)
-    func isPhotoInQuickList(_ asset: PHAsset, context: NSManagedObjectContext, userId: String)
+    func isPhotoInQuickList(_ asset: PHAsset, context: NSManagedObjectContext)
         -> Bool
     {
         let photoStack = RPhotoStack(asset: asset)
-        return isPhotoStackInQuickList(photoStack, context: context, userId: userId)
+        return isPhotoStackInQuickList(photoStack, context: context)
     }
 
     /// Adds a photo to the Quick List (legacy method)
@@ -252,7 +242,7 @@ class RListService: ObservableObject {
         -> Bool
     {
         let photoStack = RPhotoStack(asset: asset)
-        return addPhotoStackToQuickList(photoStack, context: context, userId: userId)
+        return addPhotoStackToQuickList(photoStack, context: context)
     }
 
     /// Removes a photo from the Quick List (legacy method)
@@ -260,15 +250,15 @@ class RListService: ObservableObject {
         -> Bool
     {
         let photoStack = RPhotoStack(asset: asset)
-        return removePhotoStackFromQuickList(photoStack, context: context, userId: userId)
+        return removePhotoStackFromQuickList(photoStack, context: context)
     }
 
     /// Toggles a photo in the Quick List (legacy method)
-    func togglePhotoInQuickList(_ asset: PHAsset, context: NSManagedObjectContext, userId: String)
+    func togglePhotoInQuickList(_ asset: PHAsset, context: NSManagedObjectContext)
         -> Bool
     {
         let photoStack = RPhotoStack(asset: asset)
-        return togglePhotoStackInQuickList(photoStack, context: context, userId: userId)
+        return togglePhotoStackInQuickList(photoStack, context: context)
     }
 
     // MARK: - Quick List Pin Management
@@ -276,7 +266,7 @@ class RListService: ObservableObject {
     /// Checks if a pin is in the Quick List
     func isPinInQuickList(_ place: PinData, context: NSManagedObjectContext, userId: String) -> Bool
     {
-        let quickList = getOrCreateQuickList(in: context, userId: userId)
+        let quickList = getOrCreateQuickList(in: context)
         return isPlaceInList(place, list: quickList, context: context)
     }
 
@@ -284,7 +274,7 @@ class RListService: ObservableObject {
     func addPinToQuickList(_ place: PinData, context: NSManagedObjectContext, userId: String)
         -> Bool
     {
-        let quickList = getOrCreateQuickList(in: context, userId: userId)
+        let quickList = getOrCreateQuickList(in: context)
         return addPlaceToList(place, list: quickList, context: context)
     }
 
@@ -292,7 +282,7 @@ class RListService: ObservableObject {
     func removePinFromQuickList(_ place: PinData, context: NSManagedObjectContext, userId: String)
         -> Bool
     {
-        let quickList = getOrCreateQuickList(in: context, userId: userId)
+        let quickList = getOrCreateQuickList(in: context)
         return removePlaceFromList(place, list: quickList, context: context)
     }
 
@@ -313,7 +303,7 @@ class RListService: ObservableObject {
     func getQuickListItems(context: NSManagedObjectContext, userId: String) async
         -> [any RListViewItem]
     {
-        let quickList = getOrCreateQuickList(in: context, userId: userId)
+        let quickList = getOrCreateQuickList(in: context)
         print("🔍 Quick List ID: \(quickList.id ?? "nil"), User ID: \(userId)")
 
         // Get all list items for this list
@@ -400,10 +390,9 @@ class RListService: ObservableObject {
             newList.name = newListName
             newList.createdAt = Date()
             newList.modifiedAt = Date()
-            newList.userId = userId
 
             // Get Quick List
-            let quickList = getOrCreateQuickList(in: context, userId: userId)
+            let quickList = getOrCreateQuickList(in: context)
 
             // Move all items from Quick List to new list
             let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
@@ -441,7 +430,7 @@ class RListService: ObservableObject {
 
         do {
             // Get Quick List
-            let quickList = getOrCreateQuickList(in: context, userId: userId)
+            let quickList = getOrCreateQuickList(in: context)
 
             // Get all Quick List items
             let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
@@ -474,7 +463,7 @@ class RListService: ObservableObject {
 
         do {
             // Get Quick List
-            let quickList = getOrCreateQuickList(in: context, userId: userId)
+            let quickList = getOrCreateQuickList(in: context)
 
             // Get all Quick List items
             let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()

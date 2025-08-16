@@ -497,7 +497,7 @@ struct SwipePhotoView: View {
     
     private func updateQuickListStatus() {
         let userId = AuthenticationService.shared.currentAccount?.id ?? ""
-        let newStatus = RListService.shared.isPhotoStackInQuickList(currentPhotoStack, context: viewContext, userId: userId)
+        let newStatus = RListService.shared.isPhotoStackInQuickList(currentPhotoStack, context: viewContext)
         print("🔍 Checking Quick List status for photo \(currentPhotoStack.localIdentifier), userId: \(userId), result: \(newStatus)")
         isInQuickList = newStatus
     }

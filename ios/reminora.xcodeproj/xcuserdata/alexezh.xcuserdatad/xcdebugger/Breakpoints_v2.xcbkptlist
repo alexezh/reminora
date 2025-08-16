@@ -1070,8 +1070,8 @@
             filePath = "reminora/photo/PhotoMainView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "288"
-            endingLineNumber = "288"
+            startingLineNumber = "286"
+            endingLineNumber = "286"
             landmarkName = "initializeCoreData()"
             landmarkType = "7">
          </BreakpointContent>

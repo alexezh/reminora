@@ -184,7 +184,6 @@ struct RListPickerView: View {
         defaultList.id = UUID().uuidString
         defaultList.name = "My Pins"
         defaultList.createdAt = Date()
-        defaultList.userId = currentUser.id
         
         // Save the place to the new default list
         saveToNewList(defaultList)

@@ -192,10 +192,8 @@ struct PhotoMainView: View {
             onPhotoStackTap: { photoStack in
                 if isSelectionMode {
                     // Select all photos in the stack
-                    for asset in photoStack.assets {
-                        if !selectedAssetService.isPhotoSelected(asset.localIdentifier) {
-                            selectedAssetService.addSelectedPhoto(asset.localIdentifier)
-                        }
+                    if !selectedAssetService.isPhotoSelected(photoStack) {
+                        selectedAssetService.addSelectedPhoto(photoStack)
                     }
                     updateToolbar()
                 } else {
@@ -394,31 +392,26 @@ struct PhotoMainView: View {
         }
     }
 
-    private func toggleAssetSelection(_ asset: PHAsset) {
-        if selectedAssetService.isPhotoSelected(asset.localIdentifier) {
-            selectedAssetService.removeSelectedPhoto(asset.localIdentifier)
+    private func toggleAssetSelection(_ stack: RPhotoStack) {
+        if selectedAssetService.isPhotoSelected(stack) {
+            selectedAssetService.removeSelectedPhoto(stack)
         } else {
-            selectedAssetService.addSelectedPhoto(asset.localIdentifier)
+            selectedAssetService.addSelectedPhoto(stack)
         }
     }
 
     // MARK: - Batch Actions
 
     private func favoriteSelectedPhotos() {
-        let allAssets = photoLibraryService.photoStackCollection.getAllPhotoAssets()
-        let assetsToFavorite = allAssets.filter {
-            selectedAssetService.selectedPhotoIdentifiers.contains($0.localIdentifier)
-        }
-
         PHPhotoLibrary.shared().performChanges({
-            for asset in assetsToFavorite {
-                let request = PHAssetChangeRequest(for: asset)
+            for asset in SelectionService.shared.selectedPhotos {
+                let request = PHAssetChangeRequest(for: asset.primaryAsset)
                 request.isFavorite = true
             }
         }) { success, error in
             DispatchQueue.main.async {
                 if success {
-                    print("✅ Successfully favorited \(assetsToFavorite.count) photos")
+                    print("✅ Successfully favorited \(SelectionService.shared.selectedPhotos.count) photos")
                 } else {
                     print(
                         "❌ Failed to favorite photos: \(error?.localizedDescription ?? "Unknown error")"
@@ -433,17 +426,10 @@ struct PhotoMainView: View {
     }
 
     private func archiveSelectedPhotos() {
-        let allAssets = photoLibraryService.photoStackCollection.getAllPhotoAssets()
-        let assetsToArchive = allAssets.filter {
-            selectedAssetService.selectedPhotoIdentifiers.contains($0.localIdentifier)
-        }
-
         // Update preferences to mark as archived
-        for asset in assetsToArchive {
-            preferenceManager.setPreference(for: asset, preference: .archive)
+        for asset in selectedAssetService.selectedPhotos {
+            preferenceManager.setPreference(for: asset.primaryAsset, preference: .archive)
         }
-
-        print("✅ Archived \(assetsToArchive.count) photos")
 
         // Exit selection mode and refresh
         isSelectionMode = false
@@ -453,27 +439,21 @@ struct PhotoMainView: View {
     }
 
     private func addSelectedToQuickList() {
-        let allAssets = photoLibraryService.photoStackCollection.getAllPhotoAssets()
-        let assetsToAdd = allAssets.filter {
-            selectedAssetService.selectedPhotoIdentifiers.contains($0.localIdentifier)
-        }
-        let userId = AuthenticationService.shared.currentAccount?.id ?? ""
-
-        var successCount = 0
-        for asset in assetsToAdd {
-            if RListService.shared.togglePhotoInQuickList(
-                asset, context: viewContext, userId: userId)
-            {
-                successCount += 1
-            }
-        }
-
-        print("✅ Added \(successCount) photos to Quick List")
-
-        // Exit selection mode after action
-        isSelectionMode = false
-        selectedAssetService.clearSelectedPhotos()
-        updateToolbar()
+//        var successCount = 0
+//        for photoStack in selectedAssetService.selectedPhotos {
+//            if RListService.shared.togglePhotoInQuickList(
+//                photoStack, context: viewContext)
+//            {
+//                successCount += 1
+//            }
+//        }
+//
+//        print("✅ Added \(successCount) photos to Quick List")
+//
+//        // Exit selection mode after action
+//        isSelectionMode = false
+//        selectedAssetService.clearSelectedPhotos()
+//        updateToolbar()
     }
 
     // MARK: - Toolbar Setup

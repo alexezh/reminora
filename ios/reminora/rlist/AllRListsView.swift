@@ -292,7 +292,7 @@ struct AllRListsView: View {
     private func ensureSystemLists() async {
         // Check if they already exist first
         let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "userId == %@ AND (name == %@ OR name == %@)", userId, "Quick", "Shared")
+        fetchRequest.predicate = NSPredicate(format: "name == %@ OR name == %@", "Quick", "Shared")
         
         do {
             let existingLists = try context.fetch(fetchRequest)
@@ -306,7 +306,6 @@ struct AllRListsView: View {
                 quickList.id = UUID().uuidString
                 quickList.name = "Quick"
                 quickList.createdAt = Date()
-                quickList.userId = userId
                 needsSave = true
                 print("📝 Creating Quick List for user: \(userId)")
             }
@@ -317,7 +316,6 @@ struct AllRListsView: View {
                 sharedList.id = UUID().uuidString
                 sharedList.name = "Shared"
                 sharedList.createdAt = Date()
-                sharedList.userId = userId
                 needsSave = true
                 print("📝 Creating Shared List for user: \(userId)")
             }

@@ -234,7 +234,6 @@ class ClipManager: ObservableObject {
         rlist.id = clip.id.uuidString
         rlist.name = clip.name
         rlist.kind = "clip"
-        rlist.userId = "current_user" // TODO: Get actual user ID from auth service
         rlist.createdAt = clip.createdAt
         rlist.modifiedAt = clip.modifiedAt
         

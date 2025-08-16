@@ -124,7 +124,6 @@
         <attribute name="kind" attributeType="String" defaultValueString="user"/>
         <attribute name="modifiedAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String"/>
-        <attribute name="userId" attributeType="String"/>
         <fetchIndex name="byIdIndex">
             <fetchIndexElement property="id" type="Binary" order="ascending"/>
         </fetchIndex>
@@ -138,7 +137,7 @@
             <fetchIndexElement property="name" type="Binary" order="ascending"/>
         </fetchIndex>
         <fetchIndex name="byUserIdIndex">
-            <fetchIndexElement property="userId" type="Binary" order="ascending"/>
+            <fetchIndexElement property="id" type="Binary" order="descending"/>
         </fetchIndex>
     </entity>
     <entity name="RListItemData" representedClassName="RListItemData" syncable="YES" codeGenerationType="class">

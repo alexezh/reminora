@@ -14,7 +14,7 @@ import SVGKit
 // MARK: - ECard Editor State Manager
 class ECardEditor: ObservableObject {
     @Published var isActive: Bool = false
-    @Published var currentAssets: [PHAsset] = []
+    @Published var currentAssets: [RPhotoStack] = []
     @Published var currentTemplate: ECardTemplate?
     @Published var imageAssignments: [String: PHAsset] = [:]
     @Published var textAssignments: [String: String] = [:]
@@ -44,7 +44,7 @@ class ECardEditor: ObservableObject {
             if let template = self.currentTemplate,
                let firstAsset = assets.first,
                let firstImageSlot = template.imageSlots.first {
-                self.imageAssignments[firstImageSlot.id] = firstAsset
+                self.imageAssignments[firstImageSlot.id] = firstAsset.primaryAsset
             }
             
             self.persistState()
@@ -80,7 +80,7 @@ class ECardEditor: ObservableObject {
     
     /// Get current editing assets
     func getCurrentAssets() -> [PHAsset] {
-        return currentAssets
+        return currentAssets.map { $0.primaryAsset }
     }
     
     /// Set current template and persist state
@@ -91,7 +91,7 @@ class ECardEditor: ObservableObject {
             // Auto-assign first asset to first image slot if available
             if let firstAsset = self.currentAssets.first,
                let firstImageSlot = template.imageSlots.first {
-                self.imageAssignments[firstImageSlot.id] = firstAsset
+                self.imageAssignments[firstImageSlot.id] = firstAsset.primaryAsset
             }
                         
             self.persistState()
@@ -103,7 +103,7 @@ class ECardEditor: ObservableObject {
     func setImageAssignment(assetId: String, for slotId: String) {
         DispatchQueue.main.async {
             if let asset = self.currentAssets.first(where: { $0.localIdentifier == assetId }) {
-                self.imageAssignments[slotId] = asset
+                self.imageAssignments[slotId] = asset.primaryAsset
                 self.persistState()
                 print("🎨 ECardEditor: Assigned asset \(assetId) to slot \(slotId)")
             }
@@ -360,7 +360,7 @@ class ECardEditor: ObservableObject {
         
         if !restoredAssets.isEmpty {
             DispatchQueue.main.async {
-                self.currentAssets = restoredAssets
+                //self.currentAssets = restoredAssets
                 self.isActive = true
                 
                 // Restore template

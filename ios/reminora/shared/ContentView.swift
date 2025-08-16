@@ -278,10 +278,7 @@ struct ContentView: View {
                             }
                         )
                         .navigationBarHidden(true)
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.1, anchor: .center).combined(with: .opacity),
-                            removal: .scale(scale: 0.1, anchor: .center).combined(with: .opacity)
-                        ))
+                        .animation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0), value: navigationPath)
                     } else {
                         Text("Photo not available")
                             .foregroundColor(.white)
@@ -780,12 +777,16 @@ struct ContentView: View {
         sharedPhotoStackCollection = photoStackCollection
         selectedPhotoStack = initialStack
         
-        // Navigate using a simple PhotoViewData
+        // Navigate using a simple PhotoViewData with center-scale animation
         let photoData = PhotoViewData(
             photoStackCollectionId: UUID().uuidString, // Just use a UUID since we're storing the actual collection
             initialStackId: initialStack.id
         )
-        navigationPath.append(photoData)
+        
+        // Use animation when navigating to photo view - try center scale animation
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0)) {
+            navigationPath.append(photoData)
+        }
     }
     
     func navigateToAddPinFromPhoto(asset: PHAsset) {

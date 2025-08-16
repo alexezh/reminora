@@ -94,7 +94,7 @@ struct SwipePhotoView: View {
     
     // Animate to next image
     private func animateToNextImage() {
-        guard currentIndex < photoStackCollection.allAssets().count - 1 else { return }
+        guard currentIndex < photoStackCollection.count - 1 else { return }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)) {
             currentIndex += 1
         }
@@ -127,7 +127,7 @@ struct SwipePhotoView: View {
             }
         } else {
             // Swipe left (go to next photo)
-            if currentIndex < photoStackCollection.allAssets().count - 1 {
+            if currentIndex < photoStackCollection.count - 1 {
                 // Check if we're in an expanded stack and hitting boundary
                 if stack.count > 1 && photoStackCollection.isStackExpanded(stack.id),
                    let lastStackAsset = stack.assets.last,
@@ -153,15 +153,15 @@ struct SwipePhotoView: View {
         if stack.count > 1 {
             // If in a stack, move to first photo after this stack
             if let lastStackAsset = stack.assets.last,
-               let lastStackIndex = photoStackCollection.allAssets().firstIndex(where: { $0.localIdentifier == lastStackAsset.localIdentifier }),
-               lastStackIndex + 1 < photoStackCollection.allAssets().count {
+               let lastStackIndex = photoStackCollection.firstIndex(where: { $0.localIdentifier == lastStackAsset.localIdentifier }),
+               lastStackIndex + 1 < photoStackCollection.count {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)) {
                     currentIndex = lastStackIndex + 1
                 }
             }
         } else {
             // If single photo, just move to next photo
-            if currentIndex + 1 < photoStackCollection.allAssets().count {
+            if currentIndex + 1 < photoStackCollection.count {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)) {
                     currentIndex += 1
                 }
@@ -314,7 +314,7 @@ struct SwipePhotoView: View {
             UniversalActionSheetModel.shared.setContext(.swipePhoto)
             
             let initialAssetId = initialStack.primaryAsset.localIdentifier
-            if let initialIndex = photoStackCollection.allAssets().firstIndex(where: { $0.localIdentifier == initialAssetId }) {
+            if let initialIndex = photoStackCollection.firstIndex(where: { $0.localIdentifier == initialAssetId }) {
                 currentIndex = initialIndex
                 print("🔧 Set currentIndex to \(initialIndex) for asset \(initialAssetId)")
             } else {

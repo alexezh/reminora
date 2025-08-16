@@ -38,11 +38,10 @@ struct ThumbnailListView: View {
             }
             .frame(height: LayoutConstants.thumbnailHeight)
             .onChange(of: currentIndex) { _, newIndex in
-                let allAssets = photoStackCollection.allAssets()
-                guard newIndex >= 0 && newIndex < allAssets.count else { return }
+                guard newIndex >= 0 && newIndex < photoStackCollection.count else { return }
                 // Smooth scroll to new thumbnail with spring animation
                 withAnimation(.interpolatingSpring(stiffness: 200, damping: 20)) {
-                    scrollProxy.scrollTo(allAssets[newIndex].localIdentifier, anchor: .center)
+                    scrollProxy.scrollTo(photoStackCollection[newIndex].localIdentifier, anchor: .center)
                 }
             }
         }

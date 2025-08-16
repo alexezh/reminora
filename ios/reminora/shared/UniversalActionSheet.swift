@@ -163,8 +163,8 @@ struct UniversalActionSheet: View {
                         profileTabActions()
                     case .swipePhoto(let stack):
                         swipePhotoActions(stack: stack)
-                    case .pinDetail:
-                        pinDetailActions()
+                    case .pinDetail(let pin):
+                        pinDetailActions(pin: pin)
                     case .ecard:
                         ecardActions()
                     case .clip:
@@ -233,60 +233,60 @@ struct UniversalActionSheet: View {
             icon: "archivebox", title: "Archive", isEnabled: hasSelectedAssets, hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.archive)
+            ActionRouter.shared.archivePhoto()
         }
         ActionListItem(
             icon: "trash", title: "Delete", isEnabled: hasSelectedAssets, isDestructive: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.delete)
+            ActionRouter.shared.deletePhoto()
         }
         ActionListItem(
             icon: "doc.on.doc", title: "Duplicate", isEnabled: hasSelectedAssets, hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.duplicate)
+            ActionRouter.shared.duplicatePhoto()
         }
         ActionListItem(
             icon: "plus.square", title: "Add to Quick List", isEnabled: hasSelectedAssets,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.addToQuickList(nil)
+            ActionRouter.shared.addToQuickList(SelectionService.shared.selectedPhotosArray)
         }
         ActionListItem(
             icon: "rectangle.stack", title: "Make ECard", isEnabled: hasSelectedAssets, hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.makeECard([])
+            ActionRouter.shared.makeECard(SelectionService.shared.selectedPhotosArray)
         }
         ActionListItem(
             icon: "video.circle", title: "Make Clip", isEnabled: hasSelectedAssets, hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.makeClip([]))
+            ActionRouter.shared.makeClip(SelectionService.shared.selectedPhotosArray)
         }
         ActionListItem(
             icon: "magnifyingglass", title: "Find Similar", isEnabled: hasSelectedAssets,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.findSimilar(nil))
+            ActionRouter.shared.findSimilar(SelectionService.shared.selectedPhotosArray)
         }
         ActionListItem(
             icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.findDuplicates(nil))
+            ActionRouter.shared.findDuplicates(SelectionService.shared.selectedPhotosArray)
         }
         ActionListItem(
             icon: "square.grid.2x2", title: "Make Collage", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.makeCollage([]))
+            ActionRouter.shared.makeCollage([])
         }
         
         settingsAction()
@@ -298,31 +298,31 @@ struct UniversalActionSheet: View {
             icon: "plus.circle", title: "Add Pin", isEnabled: true, hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.addPin)
+            ActionRouter.shared.addPin()
         }
         ActionListItem(
             icon: "person.3", title: "Add Open Invite", isEnabled: true, hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.addOpenInvite)
+            ActionRouter.shared.addOpenInvite()
         }
         ActionListItem(
             icon: "arrow.up.arrow.down", title: "Toggle Sort", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.toggleSort)
+            ActionRouter.shared.toggleSort()
         }
 
         ActionListItem(icon: "photo", title: "Photos", isEnabled: true, hasScrolled: $hasScrolled) {
             dismiss()
-            ActionRouter.shared.execute(.switchToTab("Photo"))
+            ActionRouter.shared.switchToTab("Photo")
         }
         ActionListItem(
             icon: "mappin.and.ellipse", title: "Pins", isEnabled: true, hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.switchToTab("Pin"))
+            ActionRouter.shared.switchToTab("Pin")
         }
         
         settingsAction()
@@ -334,80 +334,35 @@ struct UniversalActionSheet: View {
             icon: "plus.circle", title: "Add Pin", isEnabled: true, hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.addPin)
+            ActionRouter.shared.addPin()
         }
         ActionListItem(
             icon: "person.3", title: "Add Open Invite", isEnabled: true, hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.addOpenInvite)
+            ActionRouter.shared.addOpenInvite()
         }
         ActionListItem(
             icon: "arrow.up.arrow.down", title: "Toggle Sort", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.toggleSort)
+            ActionRouter.shared.toggleSort()
         }
 
-        ActionListItem(
-            icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.archive)
-        }
         ActionListItem(
             icon: "trash", title: "Delete", isEnabled: true, isDestructive: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.delete)
-        }
-        ActionListItem(
-            icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.duplicate)
+            ActionRouter.shared.deletePhoto()
         }
         ActionListItem(
             icon: "plus.square", title: "Add to Quick List", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.addToQuickList(nil)
-        }
-        ActionListItem(
-            icon: "magnifyingglass", title: "Find Similar", isEnabled: true,
-            hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.findSimilar(nil)
-        }
-        ActionListItem(
-            icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true,
-            hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.findDuplicates(nil))
-        }
-        ActionListItem(
-            icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.makeECard([]))
-        }
-        ActionListItem(
-            icon: "video.circle", title: "Make Clip", isEnabled: true, hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.makeClip([]))
-        }
-        ActionListItem(
-            icon: "square.grid.2x2", title: "Make Collage", isEnabled: true,
-            hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.makeCollage([]))
+            ActionRouter.shared.addToQuickList([])
         }
         
         settingsAction()
@@ -420,28 +375,28 @@ struct UniversalActionSheet: View {
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.emptyQuickList)
+            ActionRouter.shared.emptyQuickList()
         }
         ActionListItem(
             icon: "plus.rectangle.on.folder", title: "Create List", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.createListFromQuickList)
+            ActionRouter.shared.createListFromQuickList()
         }
         ActionListItem(
             icon: "folder.badge.plus", title: "Add to List", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.addQuickListToExistingList)
+            ActionRouter.shared.addQuickListToExistingList()
         }
         ActionListItem(
             icon: "video", title: "Make Clip", isEnabled: hasSelectedAssets,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.makeClip([]))
+            ActionRouter.shared.makeClip([])
         }
         
         settingsAction()
@@ -453,7 +408,7 @@ struct UniversalActionSheet: View {
             icon: "arrow.clockwise", title: "Refresh", isEnabled: true, hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.refreshLists)
+            ActionRouter.shared.refreshLists()
         }
 
         ActionListItem(
@@ -461,67 +416,41 @@ struct UniversalActionSheet: View {
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.makeClip([]))
+            ActionRouter.shared.makeClip([])
         }
 
-        ActionListItem(
-            icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.archive)
-        }
         ActionListItem(
             icon: "trash", title: "Delete", isEnabled: true, isDestructive: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.delete)
-        }
-        ActionListItem(
-            icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.duplicate)
+            ActionRouter.shared.deletePhoto()
         }
         ActionListItem(
             icon: "plus.square", title: "Add to Quick List", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.addToQuickList(nil)
-        }
-        ActionListItem(
-            icon: "magnifyingglass", title: "Find Similar", isEnabled: true,
-            hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.findSimilar(nil)
-        }
-        ActionListItem(
-            icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true,
-            hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.findDuplicates(nil)
+            ActionRouter.shared.addToQuickList([])
         }
         ActionListItem(
             icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.makeECard([]))
+            ActionRouter.shared.makeECard([])
         }
         ActionListItem(
             icon: "video.circle", title: "Make Clip", isEnabled: true, hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.makeClip([]))
+            ActionRouter.shared.makeClip([])
         }
         ActionListItem(
             icon: "square.grid.2x2", title: "Make Collage", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.makeCollage([]))
+            ActionRouter.shared.makeCollage([])
         }
         
         settingsAction()
@@ -548,28 +477,28 @@ struct UniversalActionSheet: View {
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.addToQuickList(stack)
+            ActionRouter.shared.addToQuickList([stack])
         }
         ActionListItem(
             icon: "rectangle.stack", title: "Make ECard", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.makeECard([]))
+            ActionRouter.shared.makeECard([stack])
         }
         ActionListItem(
             icon: "video.circle", title: "Make Clip", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.makeClip([]))
+            ActionRouter.shared.makeClip([stack])
         }
         ActionListItem(
             icon: "magnifyingglass", title: "Find Similar", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.execute(.findSimilar(nil))
+            ActionRouter.shared.findSimilar([stack])
         }
         ActionListItem(
             icon: "mappin.and.ellipse", title: "Add Pin", isEnabled: true,
@@ -583,7 +512,7 @@ struct UniversalActionSheet: View {
     }
 
     @ViewBuilder
-    private func pinDetailActions() -> some View {
+    private func pinDetailActions(pin: PinData) -> some View {
         ActionListItem(
             icon: "square.and.arrow.up", title: "Share", isEnabled: true,
             hasScrolled: $hasScrolled
@@ -596,7 +525,7 @@ struct UniversalActionSheet: View {
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.addToQuickList(nil)
+            ActionRouter.shared.addToQuickList([])
         }
         
         settingsAction()
@@ -661,65 +590,13 @@ struct UniversalActionSheet: View {
 
     @ViewBuilder
     private func profileTabActions() -> some View {
-        ActionListItem(
-            icon: "archivebox", title: "Archive", isEnabled: true, hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.archive)
-        }
-        ActionListItem(
-            icon: "trash", title: "Delete", isEnabled: true, isDestructive: true,
-            hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.delete)
-        }
-        ActionListItem(
-            icon: "doc.on.doc", title: "Duplicate", isEnabled: true, hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.duplicate)
-        }
-        ActionListItem(
-            icon: "plus.square", title: "Add to Quick List", isEnabled: true,
-            hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.addToQuickList()
-        }
-        ActionListItem(
-            icon: "magnifyingglass", title: "Find Similar", isEnabled: true,
-            hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.findSimilar(nil))
-        }
-        ActionListItem(
-            icon: "doc.on.doc.fill", title: "Find Duplicates", isEnabled: true,
-            hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.findDuplicates(nil))
-        }
-        ActionListItem(
-            icon: "rectangle.stack", title: "Make ECard", isEnabled: true, hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.makeECard([]))
-        }
-        ActionListItem(
-            icon: "video.circle", title: "Make Clip", isEnabled: true, hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.makeClip([]))
-        }
-        ActionListItem(
-            icon: "square.grid.2x2", title: "Make Collage", isEnabled: true,
-            hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.execute(.makeCollage([]))
-        }
+//        ActionListItem(
+//            icon: "plus.square", title: "Add to Quick List", isEnabled: true,
+//            hasScrolled: $hasScrolled
+//        ) {
+//            dismiss()
+//            ActionRouter.shared.addToQuickList()
+//        }
         
         settingsAction()
     }

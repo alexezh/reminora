@@ -19,7 +19,7 @@ enum SelectedAssetType {
 class SelectionService: ObservableObject {
     static let shared = SelectionService()
     
-    @Published private var selectedPhotos: Set<String> = [] // Asset localIdentifiers
+    @Published private var _selectedPhotos: Set<RPhotoStack> = [] // Asset localIdentifiers
     @Published private var selectedPins: Set<String> = [] // Pin objectID strings
     @Published private var currentPhotoStack: RPhotoStack? = nil // Current photo stack in SwipePhotoView
     
@@ -27,34 +27,38 @@ class SelectionService: ObservableObject {
     
     // MARK: - Photo Selection Management
     
-    func setSelectedPhotos(_ photoIdentifiers: Set<String>) {
-        selectedPhotos = photoIdentifiers
-        print("📱 SelectedAssetService: Updated selected photos count: \(selectedPhotos.count)")
+    func setSelectedPhotos(_ photoIdentifiers: Set<RPhotoStack>) {
+        _selectedPhotos = photoIdentifiers
+        print("📱 SelectedAssetService: Updated selected photos count: \(_selectedPhotos.count)")
     }
     
-    func addSelectedPhoto(_ photoIdentifier: String) {
-        selectedPhotos.insert(photoIdentifier)
-        print("📱 SelectedAssetService: Added photo to selection, total: \(selectedPhotos.count)")
+    func addSelectedPhoto(_ photoIdentifier: RPhotoStack) {
+        _selectedPhotos.insert(photoIdentifier)
+        print("📱 SelectedAssetService: Added photo to selection, total: \(_selectedPhotos.count)")
     }
     
-    func removeSelectedPhoto(_ photoIdentifier: String) {
-        selectedPhotos.remove(photoIdentifier)
-        print("📱 SelectedAssetService: Removed photo from selection, total: \(selectedPhotos.count)")
+    func removeSelectedPhoto(_ photoIdentifier: RPhotoStack) {
+        _selectedPhotos.remove(photoIdentifier)
+        print("📱 SelectedAssetService: Removed photo from selection, total: \(_selectedPhotos.count)")
     }
     
     func clearSelectedPhotos() {
-        selectedPhotos.removeAll()
+        _selectedPhotos.removeAll()
         print("📱 SelectedAssetService: Cleared photo selection")
     }
     
-    func isPhotoSelected(_ photoIdentifier: String) -> Bool {
-        return selectedPhotos.contains(photoIdentifier)
+    func isPhotoSelected(_ photoIdentifier: RPhotoStack) -> Bool {
+        return _selectedPhotos.contains(photoIdentifier)
     }
     
-    var selectedPhotoIdentifiers: Set<String> {
-        return selectedPhotos
+    var selectedPhotos: Set<RPhotoStack> {
+        return _selectedPhotos
     }
-    
+
+    var selectedPhotosArray: [RPhotoStack] {
+        return Array(_selectedPhotos)
+    }
+
     // MARK: - Pin Selection Management
     
     func setSelectedPins(_ pinIds: Set<String>) {
@@ -120,7 +124,7 @@ class SelectionService: ObservableObject {
     
     /// Returns true if any photos are selected OR there's a current photo stack
     var hasPhotoSelection: Bool {
-        return !selectedPhotos.isEmpty || currentPhotoStack != nil
+        return !_selectedPhotos.isEmpty || currentPhotoStack != nil
     }
     
     /// Returns true if any pins are selected
@@ -135,7 +139,7 @@ class SelectionService: ObservableObject {
     
     /// Returns the count of selected photos (not including current photo)
     var selectedPhotoCount: Int {
-        return selectedPhotos.count
+        return _selectedPhotos.count
     }
     
     /// Returns the count of selected pins
@@ -146,7 +150,7 @@ class SelectionService: ObservableObject {
     // MARK: - Clear All Selections
     
     func clearAllSelections() {
-        selectedPhotos.removeAll()
+        _selectedPhotos.removeAll()
         selectedPins.removeAll()
         currentPhotoStack = nil
         print("📱 SelectedAssetService: Cleared all selections")
@@ -157,10 +161,10 @@ class SelectionService: ObservableObject {
     /// Get selection info for current context
     func getSelectionInfo() -> (hasPhotos: Bool, hasPin: Bool, hasCurrent: Bool, photoCount: Int, pinCount: Int) {
         return (
-            hasPhotos: !selectedPhotos.isEmpty,
+            hasPhotos: !_selectedPhotos.isEmpty,
             hasPin: !selectedPins.isEmpty,
             hasCurrent: currentPhotoStack != nil,
-            photoCount: selectedPhotos.count,
+            photoCount: _selectedPhotos.count,
             pinCount: selectedPins.count
         )
     }

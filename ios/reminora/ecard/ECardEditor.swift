@@ -35,7 +35,7 @@ class ECardEditor: ObservableObject {
     // MARK: - Public Interface
     
     /// Start ECard editing session with assets
-    func startEditing(with assets: [PHAsset]) {
+    func startEditing(with assets: [RPhotoStack]) {
         DispatchQueue.main.async {
             self.currentAssets = assets
             self.isActive = true

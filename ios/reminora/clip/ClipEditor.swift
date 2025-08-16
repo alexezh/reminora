@@ -32,7 +32,7 @@ class ClipEditor: ObservableObject {
     // MARK: - Public Interface
     
     /// Start clip editing session with assets
-    func startEditing(with assets: [PHAsset]) {
+    func startEditing(with assets: [RPhotoStack]) {
         DispatchQueue.main.async {
             let clipName = ClipManager.shared.createClipName(from: assets)
             let newClip = Clip(name: clipName, assets: assets)

@@ -20,7 +20,7 @@ enum ActionSheetContext {
     case quickList
     case profile
     case swipePhoto(stack: RPhotoStack)
-    case pinDetail
+    case pinDetail(pin: PinData)
     case ecard
     case clip
 }

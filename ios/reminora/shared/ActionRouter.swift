@@ -61,75 +61,51 @@ class ActionRouter: ObservableObject {
         print("🎯 ActionRouter: Duplicate action not yet implemented")
     }
     
-    public func addToQuickList(stack: RPhotoStack) {
+    public func addToQuickList(_ stack: [RPhotoStack]) {
         NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: stack)
         NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: stack)
     }
     
-    public func findSimilar(_ asset: PHAsset?) {
-        if let asset = asset {
-            NotificationCenter.default.post(name: NSNotification.Name("FindSimilarPhotos"), object: asset)
-        } else {
-            // Use first selected asset if available
-            if let selectedAssets = getSelectedAssets(), let firstAsset = selectedAssets.first {
-                NotificationCenter.default.post(name: NSNotification.Name("FindSimilarPhotos"), object: firstAsset)
-            } else {
-                print("🎯 ActionRouter: No asset available for find similar")
-            }
+    public func findSimilar(_ asset: [RPhotoStack]) {
+        if asset.count == 0 {
+            return;
         }
-    }
-    
-    private func findDuplicates(_ asset: PHAsset?) {
-        if let asset = asset {
-            NotificationCenter.default.post(name: NSNotification.Name("NavigateToDuplicatePhotos"), object: asset)
-        } else {
-            NotificationCenter.default.post(name: NSNotification.Name("FindDuplicatePhotos"), object: nil)
-        }
-    }
-    
-    private func makeECard(_ assets: [PHAsset]) {
-        let assetsToUse: [PHAsset]
         
+        NotificationCenter.default.post(name: NSNotification.Name("FindSimilarPhotos"), object: asset)
+    }
+    
+    public func findDuplicates(_ asset: [RPhotoStack]) {
+        if asset.count == 0 {
+            return;
+        }
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToDuplicatePhotos"), object: asset)
+    }
+    
+    public func makeECard(_ assets: [RPhotoStack]) {
         if assets.isEmpty {
-            // Use selected assets
-            if let selectedAssets = getSelectedAssets(), !selectedAssets.isEmpty {
-                assetsToUse = selectedAssets
-            } else {
-                print("🎯 ActionRouter: No assets available for ECard")
-                return
-            }
-        } else {
-            assetsToUse = assets
+            print("🎯 ActionRouter: No assets available for ECard")
+            return
         }
         
         // Start ECard editing session and navigate to ECardEditor
-        ECardEditor.shared.startEditing(with: assetsToUse)
-        NotificationCenter.default.post(name: NSNotification.Name("NavigateToECardEditor"), object: assetsToUse)
-        print("🎯 ActionRouter: Started ECard editing with \(assetsToUse.count) assets")
+        ECardEditor.shared.startEditing(with: assets)
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToECardEditor"), object: assets)
+        print("🎯 ActionRouter: Started ECard editing with \(assets.count) assets")
     }
     
-    private func makeClip(_ assets: [PHAsset]) {
-        let assetsToUse: [PHAsset]
-        
+    public func makeClip(_ assets: [RPhotoStack]) {
         if assets.isEmpty {
-            // Use selected assets
-            if let selectedAssets = getSelectedAssets(), !selectedAssets.isEmpty {
-                assetsToUse = selectedAssets
-            } else {
-                print("🎯 ActionRouter: No assets available for Clip")
-                return
-            }
-        } else {
-            assetsToUse = assets
+            print("🎯 ActionRouter: No assets available for Clip")
+            return
         }
         
         // Start Clip editing session and navigate to ClipEditor
-        ClipEditor.shared.startEditing(with: assetsToUse)
-        NotificationCenter.default.post(name: NSNotification.Name("NavigateToClipEditor"), object: assetsToUse)
-        print("🎯 ActionRouter: Started Clip editing with \(assetsToUse.count) assets")
+        ClipEditor.shared.startEditing(with: assets)
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToClipEditor"), object: assets)
+        print("🎯 ActionRouter: Started Clip editing with \(assets.count) assets")
     }
     
-    private func makeCollage(_ assets: [PHAsset]) {
+    public func makeCollage(_ assets: [PHAsset]) {
         // TODO: Implement collage functionality
         print("🎯 ActionRouter: Collage action not yet implemented")
     }
@@ -211,15 +187,15 @@ class ActionRouter: ObservableObject {
         sheetStack?.push(.searchDialog)
     }
     
-    private func emptyQuickList() {
+    public func emptyQuickList() {
         NotificationCenter.default.post(name: NSNotification.Name("EmptyQuickList"), object: nil)
     }
     
-    private func createListFromQuickList() {
+    public func createListFromQuickList() {
         NotificationCenter.default.post(name: NSNotification.Name("CreateListFromQuickList"), object: nil)
     }
     
-    private func addQuickListToExistingList() {
+    public func addQuickListToExistingList() {
         NotificationCenter.default.post(name: NSNotification.Name("AddQuickListToExistingList"), object: nil)
     }
     
@@ -243,9 +219,9 @@ class ActionRouter: ObservableObject {
         }
         
         // First check for multi-selected photos
-        if !selectionService.selectedPhotoIdentifiers.isEmpty {
+        if !selectionService.selectedPhotos.isEmpty {
             let fetchOptions = PHFetchOptions()
-            let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: Array(selectionService.selectedPhotoIdentifiers), options: fetchOptions)
+            let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: selectionService.selectedPhotos.map{ $0.localIdentifier }, options: fetchOptions)
             return (0..<fetchResult.count).compactMap { fetchResult.object(at: $0) }
         }
         

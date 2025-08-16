@@ -12,45 +12,6 @@ import Combine
 import CoreData
 import CoreLocation
 
-// MARK: - Action Types
-enum ActionType: Equatable {
-    // Navigation Actions
-    case switchToTab(String)
-    case showActionSheet
-    
-    // Photo Actions
-    case archive
-    case delete
-    case duplicate
-    
-    // Pin Actions
-    case addPin
-    case addOpenInvite
-    case toggleSort
-    case addPinFromLocation(LocationInfo)
-    case showPinDetail(PinData, [PinData])
-    
-    // List Actions
-    case refreshLists
-    case showQuickList
-    case showAllLists
-    
-    // QuickList Actions
-    case emptyQuickList
-    case createListFromQuickList
-    case addQuickListToExistingList
-        
-    // Map Actions
-    case showNearbyPhotos(CLLocationCoordinate2D)
-    case showNearbyLocations(CLLocationCoordinate2D, String)
-    
-    // Search Actions
-    case showSearchDialog
-    
-    // Custom Actions
-    case custom(String, () -> Void)
-}
-
 // MARK: - Action Router Service
 class ActionRouter: ObservableObject {
     static let shared = ActionRouter()
@@ -75,115 +36,27 @@ class ActionRouter: ObservableObject {
         self.toolbarManager = toolbarManager
     }
     
-    // MARK: - Action Execution
-    func execute(_ action: ActionType) {
-        guard !isProcessing else {
-            print("🎯 ActionRouter: Ignoring action \(action) - already processing")
-            return
-        }
-        
-        print("🎯 ActionRouter: Executing action \(action)")
-        isProcessing = true
-        
-        defer {
-            DispatchQueue.main.async {
-                self.isProcessing = false
-            }
-        }
-        
-        switch action {
-        // Navigation Actions
-        case .switchToTab(let tabName):
-            handleSwitchToTab(tabName)
-            
-        case .showActionSheet:
-            handleShowActionSheet()
-            
-        // Photo Actions
-        case .archive:
-            handleArchive()
-            
-        case .delete:
-            handleDelete()
-            
-        case .duplicate:
-            handleDuplicate()
-            
-        // Pin Actions
-        case .addPin:
-            handleAddPin()
-            
-        case .addOpenInvite:
-            handleAddOpenInvite()
-            
-        case .toggleSort:
-            handleToggleSort()
-            
-        case .addPinFromLocation(let location):
-            handleAddPinFromLocation(location)
-            
-        case .showPinDetail(let place, let allPlaces):
-            handleShowPinDetail(place, allPlaces)
-            
-        // List Actions
-        case .refreshLists:
-            handleRefreshLists()
-            
-        case .showQuickList:
-            handleShowQuickList()
-            
-        case .showAllLists:
-            handleShowAllLists()
-            
-        // QuickList Actions
-        case .emptyQuickList:
-            handleEmptyQuickList()
-            
-        case .createListFromQuickList:
-            handleCreateListFromQuickList()
-            
-        case .addQuickListToExistingList:
-            handleAddQuickListToExistingList()
-            
-        // Map Actions
-        case .showNearbyPhotos(let location):
-            handleShowNearbyPhotos(location)
-            
-        case .showNearbyLocations(let location, let name):
-            handleShowNearbyLocations(location, name)
-            
-        // Search Actions
-        case .showSearchDialog:
-            handleShowSearchDialog()
-            
-        // Custom Actions
-        case .custom(let id, let closure):
-            print("🎯 ActionRouter: Executing custom action \(id)")
-            closure()
-        }
-    }
-    
     // MARK: - Action Handlers
     
-    private func handleSwitchToTab(_ tabName: String) {
+    public func switchToTab(_ tabName: String) {
         NotificationCenter.default.post(name: NSNotification.Name("SwitchToTab"), object: tabName)
     }
     
-    private func handleShowActionSheet() {
+    public func showActionSheet() {
         toolbarManager?.showActionSheet = true
     }
     
-    private func handleArchive() {
+    public func archivePhoto() {
         // TODO: Implement archive functionality
         print("🎯 ActionRouter: Archive action not yet implemented")
     }
     
-    private func handleDelete() {
+    public func deletePhoto() {
         // TODO: Implement delete functionality
         print("🎯 ActionRouter: Delete action not yet implemented")
     }
     
-    private func handleDuplicate() {
+    public func duplicatePhoto() {
         // TODO: Implement duplicate functionality
         print("🎯 ActionRouter: Duplicate action not yet implemented")
     }
@@ -289,15 +162,15 @@ class ActionRouter: ObservableObject {
         }
     }
     
-    private func handleAddPin() {
+    public func addPin() {
         NotificationCenter.default.post(name: NSNotification.Name("AddPin"), object: nil)
     }
     
-    private func handleAddOpenInvite() {
+    public func addOpenInvite() {
         NotificationCenter.default.post(name: NSNotification.Name("AddOpenInvite"), object: nil)
     }
     
-    private func handleToggleSort() {
+    public func toggleSort() {
         NotificationCenter.default.post(name: NSNotification.Name("ToggleSort"), object: nil)
     }
     
@@ -305,48 +178,48 @@ class ActionRouter: ObservableObject {
         NotificationCenter.default.post(name: NSNotification.Name("NavigateToAddPinFromPhoto"), object: asset)
     }
     
-    private func handleAddPinFromLocation(_ location: LocationInfo) {
+    public func addPinFromLocation(_ location: LocationInfo) {
         NotificationCenter.default.post(name: NSNotification.Name("NavigateToAddPinFromLocation"), object: location)
     }
     
-    private func handleShowPinDetail(_ place: PinData, _ allPlaces: [PinData]) {
+    public func showPinDetail(_ place: PinData, _ allPlaces: [PinData]) {
         sheetStack?.push(.pinDetail(place: place, allPlaces: allPlaces))
     }
     
-    private func handleRefreshLists() {
+    public func refreshLists() {
         NotificationCenter.default.post(name: NSNotification.Name("RefreshLists"), object: nil)
     }
     
-    private func handleShowQuickList() {
+    private func showQuickList() {
         NotificationCenter.default.post(name: NSNotification.Name("NavigateToQuickList"), object: nil)
     }
     
-    private func handleShowAllLists() {
+    private func showAllLists() {
         NotificationCenter.default.post(name: NSNotification.Name("NavigateToAllLists"), object: nil)
     }
     
-    private func handleShowNearbyPhotos(_ location: CLLocationCoordinate2D) {
+    private func showNearbyPhotos(_ location: CLLocationCoordinate2D) {
         NotificationCenter.default.post(name: NSNotification.Name("NavigateToNearbyPhotos"), object: location)
     }
     
-    private func handleShowNearbyLocations(_ location: CLLocationCoordinate2D, _ name: String) {
+    public func showNearbyLocations(_ location: CLLocationCoordinate2D, _ name: String) {
         let locationData: [String: Any] = ["searchLocation": location, "locationName": name]
         NotificationCenter.default.post(name: NSNotification.Name("NavigateToNearbyLocations"), object: locationData)
     }
     
-    private func handleShowSearchDialog() {
+    public func showSearchDialog() {
         sheetStack?.push(.searchDialog)
     }
     
-    private func handleEmptyQuickList() {
+    private func emptyQuickList() {
         NotificationCenter.default.post(name: NSNotification.Name("EmptyQuickList"), object: nil)
     }
     
-    private func handleCreateListFromQuickList() {
+    private func createListFromQuickList() {
         NotificationCenter.default.post(name: NSNotification.Name("CreateListFromQuickList"), object: nil)
     }
     
-    private func handleAddQuickListToExistingList() {
+    private func addQuickListToExistingList() {
         NotificationCenter.default.post(name: NSNotification.Name("AddQuickListToExistingList"), object: nil)
     }
     
@@ -382,15 +255,6 @@ class ActionRouter: ObservableObject {
         }
         
         return nil
-    }
-    
-    // MARK: - Convenience Methods
-    
-    /// Create a button action closure for the given action type
-    func createAction(_ actionType: ActionType) -> () -> Void {
-        return { [weak self] in
-            self?.execute(actionType)
-        }
     }
 }
 

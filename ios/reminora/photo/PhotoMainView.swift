@@ -11,7 +11,7 @@ struct PhotoMainView: View {
     @Environment(\.toolbarManager) private var toolbarManager
     @Environment(\.selectedAssetService) private var selectedAssetService
     @Environment(\.sheetStack) private var sheetStack
-    @Environment(\.photoLibraryService) private var photoLibraryService
+    @ObservedObject private var photoLibraryService = PhotoLibraryService.shared
     @State private var currentFilter: PhotoFilterType = .notDisliked
     @State private var isCoreDataReady = false
     @State private var showingQuickList = false

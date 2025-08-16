@@ -311,7 +311,7 @@ struct SwipePhotoView: View {
             
             print("🔧 Initial state set for LazySnapPager")
             
-            UniversalActionSheetModel.shared.setContext(.swipePhoto)
+            UniversalActionSheetModel.shared.setContext(.swipePhoto(stack: currentPhotoStack))
             
             let initialAssetId = initialStack.primaryAsset.localIdentifier
             if let initialIndex = photoStackCollection.firstIndex(where: { $0.localIdentifier == initialAssetId }) {
@@ -544,7 +544,7 @@ struct SwipePhotoView: View {
         
     private func addPin() {
         // Navigate to AddPinFromPhotoView with current photo
-        ActionRouter.shared.execute(.addPinFromPhoto(currentPhotoStack.primaryAsset))
+        ActionRouter.shared.addPinFromPhoto(currentPhotoStack)
     }
     
     private func updateToolbar(_ update: Bool) {
@@ -555,7 +555,7 @@ struct SwipePhotoView: View {
                 id: "share",
                 title: "Share",
                 systemImage: "square.and.arrow.up",
-                actionType: .sharePhoto(currentPhotoStack.primaryAsset),
+                action: { ActionRouter.shared.sharePhoto(currentPhotoStack) },
                 color: .blue
             ),
             ToolbarButtonConfig(

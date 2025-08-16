@@ -22,20 +22,11 @@ enum ActionType: Equatable {
     case archive
     case delete
     case duplicate
-    case addToQuickList
-    case findSimilar(PHAsset?)
-    case findDuplicates(PHAsset?)
-    case makeECard([PHAsset])
-    case makeClip([PHAsset])
-    case makeCollage([PHAsset])
-    case sharePhoto(PHAsset?)
-    case toggleFavorite(PHAsset?)
     
     // Pin Actions
     case addPin
     case addOpenInvite
     case toggleSort
-    case addPinFromPhoto(PHAsset)
     case addPinFromLocation(LocationInfo)
     case showPinDetail(PinData, [PinData])
     
@@ -48,12 +39,7 @@ enum ActionType: Equatable {
     case emptyQuickList
     case createListFromQuickList
     case addQuickListToExistingList
-    
-    // ECard Actions
-    case editCaption
-    case selectImage
-    case savePhoto
-    
+        
     // Map Actions
     case showNearbyPhotos(CLLocationCoordinate2D)
     case showNearbyLocations(CLLocationCoordinate2D, String)
@@ -63,41 +49,6 @@ enum ActionType: Equatable {
     
     // Custom Actions
     case custom(String, () -> Void)
-    
-    static func == (lhs: ActionType, rhs: ActionType) -> Bool {
-        switch (lhs, rhs) {
-        case (.switchToTab(let a), .switchToTab(let b)): return a == b
-        case (.showActionSheet, .showActionSheet): return true
-        case (.archive, .archive): return true
-        case (.delete, .delete): return true
-        case (.duplicate, .duplicate): return true
-        case (.addToQuickList, .addToQuickList): return true
-        case (.findSimilar(let a), .findSimilar(let b)): return a?.localIdentifier == b?.localIdentifier
-        case (.findDuplicates(let a), .findDuplicates(let b)): return a?.localIdentifier == b?.localIdentifier
-        case (.makeECard(let a), .makeECard(let b)): return a.map(\.localIdentifier) == b.map(\.localIdentifier)
-        case (.makeClip(let a), .makeClip(let b)): return a.map(\.localIdentifier) == b.map(\.localIdentifier)
-        case (.makeCollage(let a), .makeCollage(let b)): return a.map(\.localIdentifier) == b.map(\.localIdentifier)
-        case (.sharePhoto(let a), .sharePhoto(let b)): return a?.localIdentifier == b?.localIdentifier
-        case (.toggleFavorite(let a), .toggleFavorite(let b)): return a?.localIdentifier == b?.localIdentifier
-        case (.addPin, .addPin): return true
-        case (.addOpenInvite, .addOpenInvite): return true
-        case (.toggleSort, .toggleSort): return true
-        case (.addPinFromPhoto(let a), .addPinFromPhoto(let b)): return a.localIdentifier == b.localIdentifier
-        case (.addPinFromLocation(let a), .addPinFromLocation(let b)): return a.id == b.id
-        case (.refreshLists, .refreshLists): return true
-        case (.showQuickList, .showQuickList): return true
-        case (.showAllLists, .showAllLists): return true
-        case (.emptyQuickList, .emptyQuickList): return true
-        case (.createListFromQuickList, .createListFromQuickList): return true
-        case (.addQuickListToExistingList, .addQuickListToExistingList): return true
-        case (.editCaption, .editCaption): return true
-        case (.selectImage, .selectImage): return true
-        case (.savePhoto, .savePhoto): return true
-        case (.showSearchDialog, .showSearchDialog): return true
-        case (.custom(let a, _), .custom(let b, _)): return a == b
-        default: return false
-        }
-    }
 }
 
 // MARK: - Action Router Service
@@ -158,30 +109,6 @@ class ActionRouter: ObservableObject {
         case .duplicate:
             handleDuplicate()
             
-        case .addToQuickList:
-            handleAddToQuickList()
-            
-        case .findSimilar(let asset):
-            handleFindSimilar(asset)
-            
-        case .findDuplicates(let asset):
-            handleFindDuplicates(asset)
-            
-        case .makeECard(let assets):
-            handleMakeECard(assets)
-            
-        case .makeClip(let assets):
-            handleMakeClip(assets)
-            
-        case .makeCollage(let assets):
-            handleMakeCollage(assets)
-            
-        case .sharePhoto(let asset):
-            handleSharePhoto(asset)
-            
-        case .toggleFavorite(let asset):
-            handleToggleFavorite(asset)
-            
         // Pin Actions
         case .addPin:
             handleAddPin()
@@ -191,9 +118,6 @@ class ActionRouter: ObservableObject {
             
         case .toggleSort:
             handleToggleSort()
-            
-        case .addPinFromPhoto(let asset):
-            handleAddPinFromPhoto(asset)
             
         case .addPinFromLocation(let location):
             handleAddPinFromLocation(location)
@@ -220,16 +144,6 @@ class ActionRouter: ObservableObject {
             
         case .addQuickListToExistingList:
             handleAddQuickListToExistingList()
-            
-        // ECard Actions
-        case .editCaption:
-            handleEditCaption()
-            
-        case .selectImage:
-            handleSelectImage()
-            
-        case .savePhoto:
-            handleSavePhoto()
             
         // Map Actions
         case .showNearbyPhotos(let location):
@@ -274,12 +188,12 @@ class ActionRouter: ObservableObject {
         print("🎯 ActionRouter: Duplicate action not yet implemented")
     }
     
-    private func handleAddToQuickList() {
-        NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: nil)
-        NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: nil)
+    public func addToQuickList(stack: RPhotoStack) {
+        NotificationCenter.default.post(name: NSNotification.Name("AddToQuickList"), object: stack)
+        NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: stack)
     }
     
-    private func handleFindSimilar(_ asset: PHAsset?) {
+    public func findSimilar(_ asset: PHAsset?) {
         if let asset = asset {
             NotificationCenter.default.post(name: NSNotification.Name("FindSimilarPhotos"), object: asset)
         } else {
@@ -292,7 +206,7 @@ class ActionRouter: ObservableObject {
         }
     }
     
-    private func handleFindDuplicates(_ asset: PHAsset?) {
+    private func findDuplicates(_ asset: PHAsset?) {
         if let asset = asset {
             NotificationCenter.default.post(name: NSNotification.Name("NavigateToDuplicatePhotos"), object: asset)
         } else {
@@ -300,7 +214,7 @@ class ActionRouter: ObservableObject {
         }
     }
     
-    private func handleMakeECard(_ assets: [PHAsset]) {
+    private func makeECard(_ assets: [PHAsset]) {
         let assetsToUse: [PHAsset]
         
         if assets.isEmpty {
@@ -321,7 +235,7 @@ class ActionRouter: ObservableObject {
         print("🎯 ActionRouter: Started ECard editing with \(assetsToUse.count) assets")
     }
     
-    private func handleMakeClip(_ assets: [PHAsset]) {
+    private func makeClip(_ assets: [PHAsset]) {
         let assetsToUse: [PHAsset]
         
         if assets.isEmpty {
@@ -342,37 +256,26 @@ class ActionRouter: ObservableObject {
         print("🎯 ActionRouter: Started Clip editing with \(assetsToUse.count) assets")
     }
     
-    private func handleMakeCollage(_ assets: [PHAsset]) {
+    private func makeCollage(_ assets: [PHAsset]) {
         // TODO: Implement collage functionality
         print("🎯 ActionRouter: Collage action not yet implemented")
     }
     
-    private func handleSharePhoto(_ asset: PHAsset?) {
-        if let asset = asset {
-            PhotoSharingService.shared.sharePhoto(asset)
-        } else if let selectedAssets = getSelectedAssets(), let firstAsset = selectedAssets.first {
-            PhotoSharingService.shared.sharePhoto(firstAsset)
+    public func sharePhoto(_ stack: RPhotoStack?) {
+        if let stack = stack {
+            PhotoSharingService.shared.sharePhoto(stack.primaryAsset)
         } else {
             print("🎯 ActionRouter: No asset available for sharing")
         }
     }
     
-    private func handleToggleFavorite(_ asset: PHAsset?) {
-        let targetAsset: PHAsset?
-        if let asset = asset {
-            targetAsset = asset
-        } else if let selectedAssets = getSelectedAssets(), let firstAsset = selectedAssets.first {
-            targetAsset = firstAsset
-        } else {
-            print("🎯 ActionRouter: No asset available for favorite toggle")
-            return
-        }
+    public func toggleFavorite(_ stqck: RPhotoStack?) {
         
-        guard let asset = targetAsset else { return }
+        guard let stqck = stqck else { return }
         
         PHPhotoLibrary.shared().performChanges({
-            let request = PHAssetChangeRequest(for: asset)
-            request.isFavorite = !asset.isFavorite
+            let request = PHAssetChangeRequest(for: stqck.primaryAsset)
+            request.isFavorite = !stqck.primaryAsset.isFavorite
         }) { success, error in
             DispatchQueue.main.async {
                 if success {
@@ -398,7 +301,7 @@ class ActionRouter: ObservableObject {
         NotificationCenter.default.post(name: NSNotification.Name("ToggleSort"), object: nil)
     }
     
-    private func handleAddPinFromPhoto(_ asset: PHAsset) {
+    public func addPinFromPhoto(_ asset: RPhotoStack) {
         NotificationCenter.default.post(name: NSNotification.Name("NavigateToAddPinFromPhoto"), object: asset)
     }
     
@@ -447,15 +350,15 @@ class ActionRouter: ObservableObject {
         NotificationCenter.default.post(name: NSNotification.Name("AddQuickListToExistingList"), object: nil)
     }
     
-    private func handleEditCaption() {
+    public func editCaption() {
         ECardEditor.shared.editCaption()
     }
     
-    private func handleSelectImage() {
+    public func selectImage() {
         ECardEditor.shared.selectImage()
     }
     
-    private func handleSavePhoto() {
+    public func savePhoto() {
         ECardEditor.shared.savePhoto()
     }
     
@@ -487,21 +390,6 @@ class ActionRouter: ObservableObject {
     func createAction(_ actionType: ActionType) -> () -> Void {
         return { [weak self] in
             self?.execute(actionType)
-        }
-    }
-    
-    /// Execute action with automatic asset selection
-    func executeWithCurrentAsset(_ actionType: ActionType) {
-        // Some actions might need the current asset automatically injected
-        switch actionType {
-        case .findSimilar(_):
-            execute(.findSimilar(nil)) // Will use first selected asset
-        case .sharePhoto(_):
-            execute(.sharePhoto(nil)) // Will use first selected asset
-        case .toggleFavorite(_):
-            execute(.toggleFavorite(nil)) // Will use first selected asset
-        default:
-            execute(actionType)
         }
     }
 }

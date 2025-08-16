@@ -78,14 +78,14 @@ struct PhotoViewData: Hashable {
 }
 
 struct AddPinFromPhotoData: Hashable {
-    let assetIdentifier: String
+    let stack: RPhotoStack
     
     func hash(into hasher: inout Hasher) {
-        hasher.combine(assetIdentifier)
+        hasher.combine(stack.localIdentifier)
     }
     
     static func == (lhs: AddPinFromPhotoData, rhs: AddPinFromPhotoData) -> Bool {
-        lhs.assetIdentifier == rhs.assetIdentifier
+        lhs.stack.localIdentifier == rhs.stack.localIdentifier
     }
 }
 
@@ -242,7 +242,6 @@ struct ContentView: View {
     @State private var selectedPhotoStack: RPhotoStack?
     
     // Navigation data for moved views
-    @State private var navigationAsset: PHAsset?
     @State private var navigationLocation: LocationInfo?
     @State private var navigationTargetAsset: PHAsset?
     
@@ -287,19 +286,13 @@ struct ContentView: View {
                     }
                 }
                 .navigationDestination(for: AddPinFromPhotoData.self) { _ in
-                    // AddPinFromPhotoView
-                    if let asset = navigationAsset {
-                        AddPinFromPhotoView(
-                            asset: asset,
-                            onDismiss: {
-                                navigationPath.removeLast()
-                            }
-                        )
-                        .navigationBarHidden(true)
-                    } else {
-                        Text("Asset not available")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
+                    AddPinFromPhotoView(
+                        asset: for.stack,
+                        onDismiss: {
+                            navigationPath.removeLast()
+                        }
+                    )
+                    .navigationBarHidden(true)
                 }
                 .navigationDestination(for: AddPinFromLocationData.self) { _ in
                     // AddPinFromLocationView
@@ -617,7 +610,7 @@ struct ContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToAddPinFromPhoto"))) { notification in
-            if let asset = notification.object as? PHAsset {
+            if let asset = notification.object as? RPhotoStack {
                 print("📍 ContentView: Navigating to AddPinFromPhoto for asset: \(asset.localIdentifier)")
                 navigateToAddPinFromPhoto(asset: asset)
             }
@@ -789,10 +782,7 @@ struct ContentView: View {
         }
     }
     
-    func navigateToAddPinFromPhoto(asset: PHAsset) {
-        // Store the asset
-        navigationAsset = asset
-        
+    func navigateToAddPinFromPhoto(asset: RPhotoStack) {
         // Navigate using AddPinFromPhotoData
         let addPinData = AddPinFromPhotoData(assetIdentifier: asset.localIdentifier)
         navigationPath.append(addPinData)

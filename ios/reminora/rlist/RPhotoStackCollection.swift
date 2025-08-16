@@ -44,6 +44,7 @@ class RPhotoStackCollection: ObservableObject, RandomAccessCollection {
     private var preferenceManager: PhotoPreferenceManager?
     private var viewContext: NSManagedObjectContext?
     private var hasLoadedFromLibrary = false
+    private var hasCompletedEmbeddingComputation = false
     
     /// All stacks in the collection
     var allStacks: [RPhotoStack] {
@@ -340,7 +341,45 @@ class RPhotoStackCollection: ObservableObject, RandomAccessCollection {
             return
         }
         
-        print("📷 RPhotoStackCollection: Applying filter \\(currentFilter.displayName) to \\(allPhotoAssets.count) assets")
+        print("📷 RPhotoStackCollection: Applying filter \(currentFilter.displayName) to existing stacks")
+        
+        // If we have computed stacks, filter them based on their assets
+        if hasCompletedEmbeddingComputation && !rawStacks.isEmpty {
+            // Filter existing stacks based on their assets
+            let filteredStacks = rawStacks.filter { stack in
+                // Keep stack if any of its assets pass the filter
+                return stack.assets.contains { asset in
+                    switch currentFilter {
+                    case .all:
+                        return true
+                    case .favorites:
+                        return asset.isFavorite
+                    case .dislikes:
+                        return preferenceManager.getPreference(for: asset) == .archive
+                    case .neutral:
+                        return !asset.isFavorite && preferenceManager.getPreference(for: asset) != .archive
+                    case .notDisliked:
+                        return preferenceManager.getPreference(for: asset) != .archive
+                    }
+                }
+            }
+            
+            stacks = filteredStacks
+            print("📷 RPhotoStackCollection: Filtered to \(filteredStacks.count) stacks")
+        } else {
+            // If no computed stacks yet, create simple stacks and trigger computation
+            createAndComputeStacks()
+        }
+    }
+    
+    /// Create initial stacks and trigger background embedding computation (only once)
+    private func createAndComputeStacks() {
+        guard let preferenceManager = preferenceManager else {
+            print("❌ RPhotoStackCollection: No preference manager available")
+            return
+        }
+        
+        print("📷 RPhotoStackCollection: Creating initial stacks from \(allPhotoAssets.count) assets")
         
         // Apply preference filter to all assets
         let filteredAssets = preferenceManager.getFilteredAssets(
@@ -348,37 +387,93 @@ class RPhotoStackCollection: ObservableObject, RandomAccessCollection {
             filter: currentFilter
         )
         
-        print("📷 RPhotoStackCollection: Filtered to \\(filteredAssets.count) assets")
+        print("📷 RPhotoStackCollection: Filtered to \(filteredAssets.count) assets")
         
-        // Create stacks from filtered assets using PhotoEmbeddingService
-        Task {
-            guard let viewContext = viewContext else {
-                print("❌ RPhotoStackCollection: Missing viewContext for stack creation")
-                return
-            }
-            
-            // Use PhotoEmbeddingService to create stacks with similarity detection
-            var lastEmbeddingCount = -1
-            var hasStacksBeenCleared = false
-            var hasTriggeredEmbeddingComputation = false
-            
-            let newStacks = await PhotoEmbeddingService.shared.createPhotoStacks(
-                from: filteredAssets,
-                in: viewContext,
-                preferenceManager: preferenceManager,
-                lastEmbeddingCount: &lastEmbeddingCount,
-                hasStacksBeenCleared: &hasStacksBeenCleared,
-                hasTriggeredEmbeddingComputation: &hasTriggeredEmbeddingComputation
-            )
-            
-            await MainActor.run {
-                // Update both raw and filtered stacks
-                rawStacks = newStacks
-                stacks = newStacks
+        // Create simple stacks first (without embedding computation) for immediate UI display
+        let simpleStacks = createSimpleStacksFromAssets(filteredAssets)
+        
+        // Update UI immediately with simple stacks
+        rawStacks = simpleStacks
+        stacks = simpleStacks
+        print("📷 RPhotoStackCollection: Created \(simpleStacks.count) simple photo stacks for immediate display")
+        
+        // Start embedding computation in background (non-blocking) - but only once
+        if !hasCompletedEmbeddingComputation {
+            Task.detached(priority: .background) {
+                guard let viewContext = self.viewContext, let preferenceManager = self.preferenceManager else {
+                    print("❌ RPhotoStackCollection: Missing dependencies for background embedding computation")
+                    return
+                }
                 
-                print("📷 RPhotoStackCollection: Created \\(newStacks.count) photo stacks with filter \\(currentFilter.displayName)")
+                print("📊 RPhotoStackCollection: Starting background embedding computation...")
+                
+                // Use PhotoEmbeddingService to create stacks with similarity detection
+                var lastEmbeddingCount = -1
+                var hasStacksBeenCleared = false
+                var hasTriggeredEmbeddingComputation = false
+                
+                // Use ALL assets for embedding computation, not just filtered ones
+                let embeddedStacks = await PhotoEmbeddingService.shared.createPhotoStacks(
+                    from: self.allPhotoAssets,
+                    in: viewContext,
+                    preferenceManager: preferenceManager,
+                    lastEmbeddingCount: &lastEmbeddingCount,
+                    hasStacksBeenCleared: &hasStacksBeenCleared,
+                    hasTriggeredEmbeddingComputation: &hasTriggeredEmbeddingComputation
+                )
+                
+                await MainActor.run {
+                    // Store all computed stacks
+                    self.rawStacks = embeddedStacks
+                    self.hasCompletedEmbeddingComputation = true
+                    
+                    // Apply current filter to the computed stacks
+                    self.applyCurrentFilter()
+                    
+                    print("📊 RPhotoStackCollection: Background embedding complete - Updated to \(embeddedStacks.count) photo stacks with similarity detection")
+                }
             }
         }
+    }
+    
+    /// Create simple stacks from assets without embedding computation (for fast UI display)
+    private func createSimpleStacksFromAssets(_ assets: [PHAsset]) -> [RPhotoStack] {
+        // Group assets by time proximity (simple time-based stacking)
+        let sortedAssets = assets.sorted {
+            ($0.creationDate ?? Date.distantPast) > ($1.creationDate ?? Date.distantPast)
+        }
+        
+        var stacks: [RPhotoStack] = []
+        var currentBatch: [PHAsset] = []
+        let stackingInterval: TimeInterval = 10 * 60 // 10 minutes
+        let maxStackSize = 3
+        
+        for asset in sortedAssets {
+            if let lastAsset = currentBatch.last,
+               let lastDate = lastAsset.creationDate,
+               let assetDate = asset.creationDate {
+                let timeDiff = abs(assetDate.timeIntervalSince(lastDate))
+                
+                if timeDiff <= stackingInterval && currentBatch.count < maxStackSize {
+                    currentBatch.append(asset)
+                } else {
+                    // Finalize current batch
+                    if !currentBatch.isEmpty {
+                        stacks.append(RPhotoStack(assets: currentBatch))
+                    }
+                    currentBatch = [asset]
+                }
+            } else {
+                currentBatch = [asset]
+            }
+        }
+        
+        // Add final batch
+        if !currentBatch.isEmpty {
+            stacks.append(RPhotoStack(assets: currentBatch))
+        }
+        
+        return stacks
     }
     
     /// Set a new filter and update the stacks accordingly

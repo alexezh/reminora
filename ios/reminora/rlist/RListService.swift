@@ -39,6 +39,7 @@ class RListService: ObservableObject {
                 sharedList.id = UUID().uuidString
                 sharedList.name = Self.sharedListName
                 sharedList.createdAt = Date()
+                sharedList.modifiedAt = Date()
                 sharedList.userId = userId
 
                 try context.save()
@@ -52,6 +53,7 @@ class RListService: ObservableObject {
             tempList.id = UUID().uuidString
             tempList.name = Self.sharedListName
             tempList.createdAt = Date()
+            tempList.modifiedAt = Date()
             tempList.userId = userId
 
             // Don't save the context here - let the caller decide
@@ -75,6 +77,7 @@ class RListService: ObservableObject {
                 quickList.id = UUID().uuidString
                 quickList.name = Self.quickListName
                 quickList.createdAt = Date()
+                quickList.modifiedAt = Date()
                 quickList.userId = userId
 
                 try context.save()
@@ -87,6 +90,7 @@ class RListService: ObservableObject {
             tempList.id = UUID().uuidString
             tempList.name = Self.quickListName
             tempList.createdAt = Date()
+            tempList.modifiedAt = Date()
             tempList.userId = userId
             return tempList
         }
@@ -395,6 +399,7 @@ class RListService: ObservableObject {
             newList.id = UUID().uuidString
             newList.name = newListName
             newList.createdAt = Date()
+            newList.modifiedAt = Date()
             newList.userId = userId
 
             // Get Quick List

@@ -11,17 +11,14 @@ struct PhotoMainView: View {
     @Environment(\.toolbarManager) private var toolbarManager
     @Environment(\.selectedAssetService) private var selectedAssetService
     @Environment(\.sheetStack) private var sheetStack
-    @StateObject private var photoStackCollection = RPhotoStackCollection()
-    @State private var authorizationStatus: PHAuthorizationStatus = .notDetermined
+    @Environment(\.photoLibraryService) private var photoLibraryService
     @State private var currentFilter: PhotoFilterType = .notDisliked
     @State private var isCoreDataReady = false
-    @State private var hasTriedInitialLoad = false
     @State private var showingQuickList = false
     @State private var showingSearch = false
     @State private var searchText = ""
     @State private var startDate: Date?
     @State private var endDate: Date?
-    @State private var allPhotoAssets: [PHAsset] = []  // Store all photos before filtering
 
     // Selection mode state
     @State private var isSelectionMode = false
@@ -116,8 +113,7 @@ struct PhotoMainView: View {
 
             Button("Refresh") {
                 print("Manual refresh triggered")
-                hasTriedInitialLoad = false
-                loadPhotoAssets()
+                photoLibraryService.loadPhotoLibrary()
             }
             .padding()
             .background(Color.blue)
@@ -138,29 +134,47 @@ struct PhotoMainView: View {
                 .font(.title2)
                 .fontWeight(.semibold)
 
-            Text("Please allow access to your photo library to see your photos")
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
+            if photoLibraryService.authorizationStatus == .denied || photoLibraryService.authorizationStatus == .restricted {
+                Text("Photo access was denied. Please go to Settings > Privacy & Security > Photos to allow access for Reminora.")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
 
-            Button("Grant Access") {
-                requestPhotoAccess()
+                Button("Open Settings") {
+                    if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(settingsUrl)
+                    }
+                }
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+            } else {
+                Text("Please allow access to your photo library to see your photos")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+
+                Button("Grant Access") {
+                    photoLibraryService.requestPhotoAccess()
+                }
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(10)
             }
-            .padding()
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(10)
         }
         .padding()
     }
     
     private var mainContentView: some View {
         Group {
-            if !isCoreDataReady {
+            if !isCoreDataReady || photoLibraryService.isLoading {
                 loadingView
-            } else if authorizationStatus == .authorized || authorizationStatus == .limited {
-                if photoStackCollection.isEmpty && isCoreDataReady {
+            } else if photoLibraryService.authorizationStatus == .authorized || photoLibraryService.authorizationStatus == .limited {
+                if photoLibraryService.photoStackCollection.isEmpty && photoLibraryService.hasLoaded {
                     emptyStateView
                 } else {
                     photoListView
@@ -173,7 +187,7 @@ struct PhotoMainView: View {
     
     private var photoListView: some View {
         RListView(
-            dataSource: .photoLibrary(photoStackCollection),
+            dataSource: .photoLibrary(photoLibraryService.photoStackCollection),
             isSelectionMode: isSelectionMode,
             onPhotoStackTap: { photoStack in
                 if isSelectionMode {
@@ -187,7 +201,7 @@ struct PhotoMainView: View {
                 } else {
                     // Navigate to SwipePhotoView using NavigationStack
                     let navigationData: [String: Any] = [
-                        "photoStackCollection": photoStackCollection,
+                        "photoStackCollection": photoLibraryService.photoStackCollection,
                         "initialStack": photoStack
                     ]
                     NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
@@ -215,7 +229,6 @@ struct PhotoMainView: View {
         .padding(.bottom, LayoutConstants.totalToolbarHeight)
         .onAppear {
             initializeCoreData()
-            requestPhotoAccess()
             setupToolbar()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RestoreToolbar")))
@@ -226,15 +239,16 @@ struct PhotoMainView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RefreshPhotoFilter"))) { _ in
             // Refresh filter to remove disliked photos from view after SwipePhotoView dismissal
-            print("🔄 PhotoMainView: Refreshing photo filter")
-            applyFilter()
+            print("🔄 PhotoMainView: Refreshing photo filter via PhotoLibraryService")
+            photoLibraryService.refreshWithCurrentFilter()
         }
         .onReceive(
             NotificationCenter.default.publisher(for: NSNotification.Name("FindDuplicatePhotos"))
         ) { _ in
             print("📷 Finding duplicate photos across entire library")
             // Use first available photo as target for duplicate detection
-            if let firstAsset = allPhotoAssets.first {
+            let allAssets = photoLibraryService.photoStackCollection.getAllPhotoAssets()
+            if let firstAsset = allAssets.first {
                 NotificationCenter.default.post(name: NSNotification.Name("NavigateToDuplicatePhotos"), object: firstAsset)
             }
         }
@@ -255,43 +269,19 @@ struct PhotoMainView: View {
             }
         }
         .onChange(of: isCoreDataReady) { _, isReady in
-            if isReady && !hasTriedInitialLoad {
-                hasTriedInitialLoad = true
-                print("Core Data became ready, triggering initial load")
-                if authorizationStatus == .authorized || authorizationStatus == .limited {
-                    loadPhotoAssets()
-                }
+            if isReady {
+                print("Core Data became ready, initializing PhotoLibraryService")
+                photoLibraryService.initialize(
+                    with: viewContext,
+                    preferenceManager: preferenceManager,
+                    initialFilter: currentFilter
+                )
+                photoLibraryService.requestPhotoAccess()
             }
         }
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    private func requestPhotoAccess() {
-        authorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        print("📷 PhotoMainView: Current photo authorization status: \(authorizationStatus.rawValue)")
-
-        // If already authorized and Core Data is ready, load assets
-        if (authorizationStatus == .authorized || authorizationStatus == .limited)
-            && isCoreDataReady
-        {
-            print("📷 PhotoMainView: Already authorized and Core Data ready, loading assets")
-            loadPhotoAssets()
-        } else if authorizationStatus == .notDetermined {
-            print("📷 PhotoMainView: Authorization not determined, requesting access")
-            PHPhotoLibrary.requestAuthorization(for: .readWrite) { status in
-                DispatchQueue.main.async {
-                    print("📷 PhotoMainView: Authorization result: \(status.rawValue)")
-                    authorizationStatus = status
-                    if (status == .authorized || status == .limited) && isCoreDataReady {
-                        print("📷 PhotoMainView: New authorization granted, loading assets")
-                        loadPhotoAssets()
-                    }
-                }
-            }
-        } else {
-            print("📷 PhotoMainView: Authorization denied or restricted: \(authorizationStatus.rawValue)")
-        }
-    }
 
     private func initializeCoreData() {
         // Check if Core Data is ready
@@ -308,29 +298,9 @@ struct PhotoMainView: View {
         }
     }
 
-    private func loadPhotoAssets() {
-        print("Loading photo assets...")
-        let fetchOptions = PHFetchOptions()
-        fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-        // Remove fetchLimit to load all photos
-
-        let fetchResult = PHAsset.fetchAssets(with: .image, options: fetchOptions)
-
-        var assets: [PHAsset] = []
-        fetchResult.enumerateObjects { asset, _, _ in
-            assets.append(asset)
-        }
-
-        print("Loaded \(assets.count) photo assets")
-
-        DispatchQueue.main.async {
-            allPhotoAssets = assets
-            applyFilter()
-        }
-    }
 
     private func applySearchFilter() {
-        var filteredAssets = allPhotoAssets
+        var filteredAssets = photoLibraryService.photoStackCollection.getAllPhotoAssets()
 
         // Apply date range filter
         if let startDate = startDate, let endDate = endDate {
@@ -370,18 +340,19 @@ struct PhotoMainView: View {
             print("Core Data not ready, skipping filter")
             return
         }
-        print("Applying filter: \(currentFilter.displayName) to \(allPhotoAssets.count) assets")
-        let filteredAssets = preferenceManager.getFilteredAssets(
-            from: allPhotoAssets, filter: currentFilter)
-        print("Filtered to \(filteredAssets.count) assets")
-
-        // Create photo stacks for empty state check
-        createPhotoStacks(from: filteredAssets)
+        
+        if photoLibraryService.hasLoaded {
+            print("📷 PhotoMainView: Applying filter \(currentFilter.displayName) via PhotoLibraryService")
+            photoLibraryService.setFilter(currentFilter)
+        } else {
+            print("📷 PhotoMainView: Collection not loaded yet, will apply filter on load")
+        }
     }
 
     private func createPhotoStacks(from assets: [PHAsset]) {
-        print("Creating photo stacks from \(assets.count) assets using similarity indices")
-
+        print("📷 PhotoMainView: Creating photo stacks from \(assets.count) assets using RPhotoStackCollection")
+        
+        // For search filter results, create temporary stacks
         Task {
             // Create a wrapper struct to handle the inout parameters
             var embeddingCount = lastEmbeddingCount
@@ -403,8 +374,9 @@ struct PhotoMainView: View {
                 self.hasStacksBeenCleared = stacksCleared
                 self.hasTriggeredEmbeddingComputation = triggeredComputation
                 
-                self.photoStackCollection.setStacks(stacks)
-                print("Created \(stacks.count) photo stacks using similarity")
+                // Set stacks directly for search results (bypassing the collection's filter logic)
+                self.photoLibraryService.photoStackCollection.setStacks(stacks)
+                print("📷 PhotoMainView: Created \(stacks.count) photo stacks for search results")
             }
         }
     }
@@ -433,7 +405,8 @@ struct PhotoMainView: View {
     // MARK: - Batch Actions
 
     private func favoriteSelectedPhotos() {
-        let assetsToFavorite = allPhotoAssets.filter {
+        let allAssets = photoLibraryService.photoStackCollection.getAllPhotoAssets()
+        let assetsToFavorite = allAssets.filter {
             selectedAssetService.selectedPhotoIdentifiers.contains($0.localIdentifier)
         }
 
@@ -460,7 +433,8 @@ struct PhotoMainView: View {
     }
 
     private func archiveSelectedPhotos() {
-        let assetsToArchive = allPhotoAssets.filter {
+        let allAssets = photoLibraryService.photoStackCollection.getAllPhotoAssets()
+        let assetsToArchive = allAssets.filter {
             selectedAssetService.selectedPhotoIdentifiers.contains($0.localIdentifier)
         }
 
@@ -479,7 +453,8 @@ struct PhotoMainView: View {
     }
 
     private func addSelectedToQuickList() {
-        let assetsToAdd = allPhotoAssets.filter {
+        let allAssets = photoLibraryService.photoStackCollection.getAllPhotoAssets()
+        let assetsToAdd = allAssets.filter {
             selectedAssetService.selectedPhotoIdentifiers.contains($0.localIdentifier)
         }
         let userId = AuthenticationService.shared.currentAccount?.id ?? ""

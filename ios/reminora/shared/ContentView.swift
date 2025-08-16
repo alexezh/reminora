@@ -449,6 +449,7 @@ struct ContentView: View {
         .environment(\.eCardEditor, eCardEditor)
         .environment(\.clipEditor, clipEditor)
         .environment(\.clipManager, clipManager)
+        .environment(\.photoLibraryService, PhotoLibraryService.shared)
         .sheet(isPresented: $toolbarManager.showActionSheet) {
             UniversalActionSheet(
                 selectedTab: currentTab.rawValue,

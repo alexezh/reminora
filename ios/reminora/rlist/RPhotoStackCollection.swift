@@ -8,6 +8,7 @@
 import Foundation
 import Photos
 import SwiftUI
+import CoreData
 
 /// A collection that manages RPhotoStack objects and provides stack expansion/collection functionality
 /// Implements RandomAccessCollection for efficient array-like access
@@ -36,7 +37,13 @@ class RPhotoStackCollection: ObservableObject, RandomAccessCollection {
     // MARK: - Properties
     
     @Published private var stacks: [RPhotoStack] = []
+    @Published private var rawStacks: [RPhotoStack] = [] // Store unfiltered initial items
     @Published private var expandedStackIds: Set<String> = []
+    private var allPhotoAssets: [PHAsset] = [] // Store all photos from library
+    private var currentFilter: PhotoFilterType = .notDisliked
+    private var preferenceManager: PhotoPreferenceManager?
+    private var viewContext: NSManagedObjectContext?
+    private var hasLoadedFromLibrary = false
     
     /// All stacks in the collection
     var allStacks: [RPhotoStack] {
@@ -90,6 +97,12 @@ class RPhotoStackCollection: ObservableObject, RandomAccessCollection {
         // Clear expanded state for stacks that no longer exist
         let currentStackIds = Set(newStacks.map { $0.id })
         expandedStackIds = expandedStackIds.intersection(currentStackIds)
+    }
+    
+    /// Replace raw stacks (unfiltered) and update filtered stacks
+    func setRawStacks(_ newStacks: [RPhotoStack]) {
+        rawStacks = newStacks
+        applyCurrentFilter()
     }
     
     /// Add a stack to the collection
@@ -321,6 +334,122 @@ class RPhotoStackCollection: ObservableObject, RandomAccessCollection {
         let newCollection = RPhotoStackCollection(stacks: sortedStacks)
         newCollection.expandedStackIds = self.expandedStackIds
         return newCollection
+    }
+    
+    // MARK: - Photo Library Integration
+    
+    /// Configure the collection with Core Data context and preference manager
+    /// - Parameters:
+    ///   - viewContext: Core Data context for photo preferences
+    ///   - preferenceManager: Manager for photo preferences and filtering
+    ///   - initialFilter: Initial filter to apply (default: .notDisliked)
+    func configure(
+        with viewContext: NSManagedObjectContext,
+        preferenceManager: PhotoPreferenceManager,
+        initialFilter: PhotoFilterType = .notDisliked
+    ) {
+        self.viewContext = viewContext
+        self.preferenceManager = preferenceManager
+        self.currentFilter = initialFilter
+    }
+    
+    /// Load photo assets from the photo library
+    /// - Parameter assets: Array of PHAssets from the photo library
+    func loadPhotoAssets(_ assets: [PHAsset]) async {
+        print("📷 RPhotoStackCollection: Loading \(assets.count) photo assets")
+        
+        await MainActor.run {
+            allPhotoAssets = assets
+            hasLoadedFromLibrary = true
+            
+            // Apply current filter and create stacks
+            applyCurrentFilter()
+        }
+    }
+    
+    /// Apply current filter to raw stacks and update the filtered stacks
+    private func applyCurrentFilter() {
+        guard let preferenceManager = preferenceManager else {
+            print("❌ RPhotoStackCollection: No preference manager available for filtering")
+            return
+        }
+        
+        print("📷 RPhotoStackCollection: Applying filter \\(currentFilter.displayName) to \\(allPhotoAssets.count) assets")
+        
+        // Apply preference filter to all assets
+        let filteredAssets = preferenceManager.getFilteredAssets(
+            from: allPhotoAssets, 
+            filter: currentFilter
+        )
+        
+        print("📷 RPhotoStackCollection: Filtered to \\(filteredAssets.count) assets")
+        
+        // Create stacks from filtered assets using PhotoEmbeddingService
+        Task {
+            guard let viewContext = viewContext else {
+                print("❌ RPhotoStackCollection: Missing viewContext for stack creation")
+                return
+            }
+            
+            // Use PhotoEmbeddingService to create stacks with similarity detection
+            var lastEmbeddingCount = -1
+            var hasStacksBeenCleared = false
+            var hasTriggeredEmbeddingComputation = false
+            
+            let newStacks = await PhotoEmbeddingService.shared.createPhotoStacks(
+                from: filteredAssets,
+                in: viewContext,
+                preferenceManager: preferenceManager,
+                lastEmbeddingCount: &lastEmbeddingCount,
+                hasStacksBeenCleared: &hasStacksBeenCleared,
+                hasTriggeredEmbeddingComputation: &hasTriggeredEmbeddingComputation
+            )
+            
+            await MainActor.run {
+                // Update both raw and filtered stacks
+                rawStacks = newStacks
+                stacks = newStacks
+                
+                print("📷 RPhotoStackCollection: Created \\(newStacks.count) photo stacks with filter \\(currentFilter.displayName)")
+            }
+        }
+    }
+    
+    /// Set a new filter and update the stacks accordingly
+    /// - Parameter filter: The new filter to apply
+    func setFilter(_ filter: PhotoFilterType) {
+        guard filter != currentFilter else {
+            print("📷 RPhotoStackCollection: Filter \\(filter.displayName) already applied")
+            return
+        }
+        
+        currentFilter = filter
+        applyCurrentFilter()
+    }
+    
+    /// Get the currently applied filter
+    var appliedFilter: PhotoFilterType {
+        return currentFilter
+    }
+    
+    /// Check if the collection has been loaded from the photo library
+    var hasLoaded: Bool {
+        return hasLoadedFromLibrary
+    }
+    
+    /// Get all photo assets (unfiltered)
+    func getAllPhotoAssets() -> [PHAsset] {
+        return allPhotoAssets
+    }
+    
+    /// Get raw stacks (before current filter is applied)
+    var allRawStacks: [RPhotoStack] {
+        return rawStacks
+    }
+    
+    /// Refresh the collection by re-applying the current filter
+    func refreshWithCurrentFilter() {
+        applyCurrentFilter()
     }
 }
 

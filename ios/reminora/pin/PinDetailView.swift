@@ -492,43 +492,6 @@ struct PinDetailView: View {
 
     // MARK: - Actions
 
-    private func followUser(userId: String, userName: String) {
-        print("🔗 Follow button tapped for user: \(userName) (ID: \(userId))")
-        
-        guard let currentUser = authService.currentAccount else {
-            print("🔗 ❌ No current user found")
-            return
-        }
-        
-        // Check if already following
-        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
-        
-        do {
-            let existingFollows = try viewContext.fetch(fetchRequest)
-            if !existingFollows.isEmpty {
-                print("🔗 ℹ️ Already following user: \(userName)")
-                return
-            }
-            
-            // Create new follow relationship
-            let follow = RListData(context: viewContext)
-            follow.id = UUID().uuidString
-            follow.userId = userId
-            follow.name = userName
-            follow.createdAt = Date()
-            
-            try viewContext.save()
-            print("🔗 ✅ Successfully followed user: \(userName)")
-            
-            // Show success feedback
-            let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-            impactFeedback.impactOccurred()
-            
-        } catch {
-            print("🔗 ❌ Failed to follow user: \(error)")
-        }
-    }
 
     private func showNearbyPlaces() {
         showingNearbyPlaces = true
@@ -545,7 +508,7 @@ struct PinDetailView: View {
         
         // Find or create Quick list
         let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", "Quick", currentUser.id)
+        fetchRequest.predicate = NSPredicate(format: "name == %@", "Quick")
         
         do {
             let quickLists = try viewContext.fetch(fetchRequest)
@@ -559,7 +522,6 @@ struct PinDetailView: View {
                 quickList.id = UUID().uuidString
                 quickList.name = "Quick"
                 quickList.createdAt = Date()
-                quickList.userId = currentUser.id
             }
             
             // Check if item already exists in Quick list

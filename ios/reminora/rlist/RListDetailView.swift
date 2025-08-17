@@ -431,7 +431,6 @@ struct RListDetailView: View {
     sampleList.id = "sample"
     sampleList.name = "Quick"
     sampleList.createdAt = Date()
-    sampleList.userId = "user1"
 
     return RListDetailView(list: sampleList)
         .environment(\.managedObjectContext, context)

@@ -87,7 +87,7 @@ struct QuickListView: View {
                 // For photo stacks, process each individual photo
                 var allSuccess = true
                 for asset in photoStack.assets {
-                    let success = RListService.shared.togglePhotoInQuickList(asset, context: context, userId: userId)
+                    let success = RListService.shared.togglePhotoInQuickList(asset, context: context)
                     if !success {
                         allSuccess = false
                     }

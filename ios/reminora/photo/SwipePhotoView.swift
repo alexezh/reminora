@@ -513,7 +513,7 @@ struct SwipePhotoView: View {
         
         print("🔄 Toggling Quick List for photo \(currentPhotoStack.localIdentifier), userId: \(userId), currently in list: \(wasInList)")
         
-        let success = RListService.shared.togglePhotoStackInQuickList(currentPhotoStack, context: viewContext, userId: userId)
+        let success = RListService.shared.togglePhotoStackInQuickList(currentPhotoStack, context: viewContext)
         
         print("🔄 Toggle result: \(success)")
         

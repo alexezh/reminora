@@ -248,7 +248,6 @@ struct reminoraApp: App {
                 sharedList.id = UUID().uuidString
                 sharedList.name = "Shared"
                 sharedList.createdAt = Date()
-                sharedList.userId = authService.currentAccount?.id ?? ""
                 print("🔗 ✅ Created new shared list")
             }
             

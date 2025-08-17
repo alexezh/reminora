@@ -367,7 +367,6 @@ struct NearbyLocationsView: View {
                 sharedList.id = UUID().uuidString
                 sharedList.name = "Shared"
                 sharedList.createdAt = Date()
-                sharedList.userId = AuthenticationService.shared.currentAccount?.id ?? ""
             }
             
             // Create a location entry as a PinData object with special identifier

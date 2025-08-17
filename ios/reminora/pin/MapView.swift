@@ -161,145 +161,62 @@ struct MapView: View {
         }
     }
     
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header with title
-            HStack {
-                Text("Map")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
-            .background(Color(UIColor.systemBackground))
+    private var headerView: some View {
+        HStack {
+            Text("Map")
+                .font(.largeTitle)
+                .fontWeight(.bold)
             
-            // Always visible search bar
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                    .padding(.leading, 8)
-                
-                TextField("Search locations...", text: $searchText)
-                    .textFieldStyle(PlainTextFieldStyle())
-                    .padding(.vertical, 8)
-                    .onChange(of: searchText) { _, newValue in
-                        if !newValue.isEmpty {
-                            updateSearchSuggestions(for: newValue)
-                            showingSuggestions = true
-                        } else {
-                            showingSuggestions = false
-                        }
-                    }
-                    .onSubmit {
-                        if !searchText.isEmpty {
-                            performSearch(query: searchText)
-                        }
-                    }
-                
-                if !searchText.isEmpty {
-                    Button(action: {
-                        searchText = ""
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
+        .background(Color(UIColor.systemBackground))
+    }
+    
+    private var searchBarView: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+                .padding(.leading, 8)
+            
+            TextField("Search locations...", text: $searchText)
+                .textFieldStyle(PlainTextFieldStyle())
+                .padding(.vertical, 8)
+                .onChange(of: searchText) { _, newValue in
+                    if !newValue.isEmpty {
+                        updateSearchSuggestions(for: newValue)
+                        showingSuggestions = true
+                    } else {
                         showingSuggestions = false
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
                     }
-                    .padding(.trailing, 8)
                 }
-            }
-            .background(Color(.systemGray6))
-            .cornerRadius(8)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
-            
-            // Map view - 1/4 of screen
-            GeometryReader { geometry in
-                if let userLocation = userLocation {
-                    Map(coordinateRegion: $mapRegion, annotationItems: filteredPlaces.prefix(20).map { location in
-                        MapAnnotationItem(coordinate: location.coordinate, location: location)
-                    }) { annotation in
-                        MapAnnotation(coordinate: annotation.coordinate) {
-                            let isSelected = selectedCardLocation?.id == annotation.location?.id
-                            
-                            if isSelected {
-                                // Pin icon for selected location
-                                Image(systemName: "mappin.and.ellipse")
-                                    .font(.title2)
-                                    .foregroundColor(.blue)
-                                    .background(
-                                        Circle()
-                                            .fill(Color.white)
-                                            .frame(width: 24, height: 24)
-                                    )
-                                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-                                    .onTapGesture {
-                                        if let location = annotation.location {
-                                            actionRouter.execute(.addPinFromLocation(location))
-                                        }
-                                    }
-                            } else {
-                                // Circle for unselected locations
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.red)
-                                        .frame(width: 16, height: 16)
-                                    Circle()
-                                        .stroke(Color.white, lineWidth: 2)
-                                        .frame(width: 16, height: 16)
-                                }
-                                .onTapGesture {
-                                    if let location = annotation.location {
-                                        actionRouter.execute(.addPinFromLocation(location))
-                                    }
-                                }
-                            }
-                        }
+                .onSubmit {
+                    if !searchText.isEmpty {
+                        performSearch(query: searchText)
                     }
-                    .onChange(of: mapRegion.center.latitude) { _ in
-                        saveMapRegion()
-                    }
-                    .onChange(of: mapRegion.center.longitude) { _ in
-                        saveMapRegion()
-                    }
-                    .onChange(of: mapRegion.span.latitudeDelta) { _ in
-                        saveMapRegion()
-                    }
-                    .onChange(of: mapRegion.span.longitudeDelta) { _ in
-                        saveMapRegion()
-                    }
-                    .onAppear {
-                        // Try to load last map region first
-                        loadLastMapRegion()
-                        
-                        // If no saved region, use user location
-                        if mapRegion.center.latitude == 0 && mapRegion.center.longitude == 0 {
-                            mapRegion = MKCoordinateRegion(
-                                center: userLocation,
-                                span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
-                            )
-                        }
-                    }
-                } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.2))
-                        .overlay(
-                            VStack {
-                                Image(systemName: "location.slash")
-                                    .font(.title2)
-                                    .foregroundColor(.gray)
-                                Text("Location not available")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                        )
                 }
-            }
-            .frame(height: UIScreen.main.bounds.height * 0.25)
             
-            // Search suggestions
+            if !searchText.isEmpty {
+                Button(action: {
+                    searchText = ""
+                    showingSuggestions = false
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+                .padding(.trailing, 8)
+            }
+        }
+        .background(Color(.systemGray6))
+        .cornerRadius(8)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+    }
+        
+    private var searchSuggestionsView: some View {
+        Group {
             if showingSuggestions && !searchSuggestions.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(searchSuggestions, id: \.self) { suggestion in
@@ -334,14 +251,18 @@ struct MapView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 4)
             }
-            
-            // Filter controls
-            MapFilterView(
-                selectedCategory: $selectedCategory,
-                categories: categories
-            )
-            
-            // Results count
+        }
+    }
+    
+    private var filterControlsView: some View {
+        MapFilterView(
+            selectedCategory: $selectedCategory,
+            categories: categories
+        )
+    }
+    
+    private var resultsCountView: some View {
+        Group {
             if !nearbyPlaces.isEmpty {
                 HStack {
                     Text("\(filteredPlaces.count) locations found")
@@ -353,67 +274,82 @@ struct MapView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 8)
             }
-            
-            // Locations list
-            if isLoading {
-                VStack {
-                    Spacer()
-                    ProgressView("Searching locations...")
-                    Spacer()
-                }
-            } else if nearbyPlaces.isEmpty && !searchText.isEmpty {
-                VStack {
-                    Spacer()
-                    Image(systemName: "location.slash")
-                        .font(.largeTitle)
-                        .foregroundColor(.gray)
-                    Text("No locations found")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 8)
-                    Text("Try a different search term")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-            } else if nearbyPlaces.isEmpty {
-                VStack {
-                    Spacer()
-                    Image(systemName: "magnifyingglass")
-                        .font(.largeTitle)
-                        .foregroundColor(.gray)
-                    Text("Search for locations")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 8)
-                    Text("Enter a location name or type to get started")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(filteredPlaces, id: \.id) { place in
-                            MapLocationCard(
-                                place: place,
-                                isSelected: selectedCardLocation?.id == place.id,
-                                onShareTap: { sharePlace(place) },
-                                onPinTap: { 
-                                    actionRouter.execute(.addPinFromLocation(place))
-                                },
-                                onLocationTap: { 
-                                    selectedCardLocation = place
-                                    showLocationOnMap(place) 
-                                },
-                                onNavigateTap: { sharePlace(place) }
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 20)
-                }
-            }
+        }
+    }
+    
+    private var locationsListView: some View {
+        Group {
+//            if isLoading {
+//                VStack {
+//                    Spacer()
+//                    ProgressView("Searching locations...")
+//                    Spacer()
+//                }
+//            } else if nearbyPlaces.isEmpty && !searchText.isEmpty {
+//                VStack {
+//                    Spacer()
+//                    Image(systemName: "location.slash")
+//                        .font(.largeTitle)
+//                        .foregroundColor(.gray)
+//                    Text("No locations found")
+//                        .font(.headline)
+//                        .foregroundColor(.secondary)
+//                        .padding(.top, 8)
+//                    Text("Try a different search term")
+//                        .font(.caption)
+//                        .foregroundColor(.secondary)
+//                    Spacer()
+//                }
+//            } else if nearbyPlaces.isEmpty {
+//                VStack {
+//                    Spacer()
+//                    Image(systemName: "magnifyingglass")
+//                        .font(.largeTitle)
+//                        .foregroundColor(.gray)
+//                    Text("Search for locations")
+//                        .font(.headline)
+//                        .foregroundColor(.secondary)
+//                        .padding(.top, 8)
+//                    Text("Enter a location name or type to get started")
+//                        .font(.caption)
+//                        .foregroundColor(.secondary)
+//                    Spacer()
+//                }
+//            } else {
+//                ScrollView {
+//                    LazyVStack(spacing: 12) {
+//                        ForEach(filteredPlaces, id: \.id) { place in
+//                            MapLocationCard(
+//                                place: place,
+//                                isSelected: selectedCardLocation?.id == place.id,
+//                                onShareTap: { sharePlace(place) },
+//                                onPinTap: { 
+//                                    actionRouter.execute(.addPinFromLocation(place))
+//                                },
+//                                onLocationTap: { 
+//                                    selectedCardLocation = place
+//                                    showLocationOnMap(place) 
+//                                },
+//                                onNavigateTap: { sharePlace(place) }
+//                            )
+//                        }
+//                    }
+//                    .padding(.horizontal, 16)
+//                    .padding(.bottom, 20)
+//                }
+//            }
+        }
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            headerView
+            searchBarView
+            mapViewSection
+            //searchSuggestionsView
+            //filterControlsView
+            //resultsCountView
+            //locationsListView
         }
         .padding(.bottom, LayoutConstants.totalToolbarHeight)
         .onAppear {
@@ -497,6 +433,91 @@ struct MapView: View {
     }
     
     // MARK: - Location Management
+    
+    private var mapViewSection: some View { 
+        Group {
+            if let userLocation = userLocation {
+                Map(coordinateRegion: $mapRegion, annotationItems: filteredPlaces.prefix(20).map { location in
+                    MapAnnotationItem(coordinate: location.coordinate, location: location)
+                }) { annotation in
+                    MapAnnotation(coordinate: annotation.coordinate) {
+                        let isSelected = selectedCardLocation?.id == annotation.location?.id
+                        
+//                        if isSelected {
+//                            // Pin icon for selected location
+//                            Image(systemName: "mappin.and.ellipse")
+//                                .font(.title2)
+//                                .foregroundColor(.blue)
+//                                .background(
+//                                    Circle()
+//                                        .fill(Color.white)
+//                                        .frame(width: 24, height: 24)
+//                                )
+//                                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+//                                .onTapGesture {
+//                                    if let location = annotation.location {
+//                                        actionRouter.execute(.addPinFromLocation(location))
+//                                    }
+//                                }
+//                        } else {
+//                            // Circle for unselected locations
+//                            ZStack {
+//                                Circle()
+//                                    .fill(Color.red)
+//                                    .frame(width: 16, height: 16)
+//                                Circle()
+//                                    .stroke(Color.white, lineWidth: 2)
+//                                    .frame(width: 16, height: 16)
+//                            }
+//                            .onTapGesture {
+//                                if let location = annotation.location {
+//                                    actionRouter.execute(.addPinFromLocation(location))
+//                                }
+//                            }
+//                        }
+                    }
+                }
+                .onChange(of: mapRegion.center.latitude) {
+                    saveMapRegion()
+                }
+                .onChange(of: mapRegion.center.longitude) {
+                    saveMapRegion()
+                }
+                .onChange(of: mapRegion.span.latitudeDelta) {
+                    saveMapRegion()
+                }
+                .onChange(of: mapRegion.span.longitudeDelta) {
+                    saveMapRegion()
+                }
+                .onAppear {
+                    // Try to load last map region first
+                    loadLastMapRegion()
+                    
+                    // If no saved region, use user location
+                    if mapRegion.center.latitude == 0 && mapRegion.center.longitude == 0 {
+                        mapRegion = MKCoordinateRegion(
+                            center: userLocation,
+                            span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+                        )
+                    }
+                }
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.2))
+                    .overlay(
+                        VStack {
+                            Image(systemName: "location.slash")
+                                .font(.title2)
+                                .foregroundColor(.gray)
+                            Text("Location not available")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                    )
+            }
+        }
+        .frame(height: UIScreen.main.bounds.height * 0.25)
+    }
     
     private func isLocationFavorited(_ location: LocationInfo) -> Bool {
         return locationPreferenceService.isLocationFavorited(location, context: viewContext)
@@ -927,7 +948,6 @@ struct MapView: View {
                 newList.id = UUID().uuidString
                 newList.name = listName
                 newList.createdAt = Date()
-                newList.userId = userId
                 // TODO: Add searchString property to Core Data model
                 // newList.searchString = searchString.isEmpty ? nil : searchString
                 

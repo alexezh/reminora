@@ -10,7 +10,7 @@ import Photos
 import AVKit
 
 struct ClipEditorView: View {
-    let initialAssets: [PHAsset]
+    let initialAssets: [RPhotoStack]
     let onDismiss: () -> Void
     
     @Environment(\.clipEditor) private var clipEditor

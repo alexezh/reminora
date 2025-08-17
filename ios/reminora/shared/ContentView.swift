@@ -90,8 +90,7 @@ struct AddPinFromPhotoData: Hashable {
 }
 
 struct AddPinFromLocationData: Hashable {
-    let locationName: String
-    let locationCoordinate: CLLocationCoordinate2D
+    let location: LocationInfo;
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(locationName)
@@ -126,18 +125,6 @@ struct AllListsData: Hashable {
     }
     
     static func == (lhs: AllListsData, rhs: AllListsData) -> Bool {
-        lhs.userId == rhs.userId
-    }
-}
-
-struct QuickListData: Hashable {
-    let userId: String
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(userId)
-    }
-    
-    static func == (lhs: QuickListData, rhs: QuickListData) -> Bool {
         lhs.userId == rhs.userId
     }
 }
@@ -242,7 +229,7 @@ struct ContentView: View {
     @State private var selectedPhotoStack: RPhotoStack?
     
     // Navigation data for moved views
-    @State private var navigationLocation: LocationInfo?
+    //@State private var navigationLocation: LocationInfo?
     @State private var navigationTargetAsset: PHAsset?
     
     // Navigation data for migrated sheet types
@@ -296,18 +283,13 @@ struct ContentView: View {
                 }
                 .navigationDestination(for: AddPinFromLocationData.self) { _ in
                     // AddPinFromLocationView
-                    if let location = navigationLocation {
-                        AddPinFromLocationView(
-                            location: location,
-                            onDismiss: {
-                                navigationPath.removeLast()
-                            }
-                        )
-                        .navigationBarHidden(true)
-                    } else {
-                        Text("Location not available")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
+                    AddPinFromLocationView(
+                        location: for.location,
+                        onDismiss: {
+                            navigationPath.removeLast()
+                        }
+                    )
+                    .navigationBarHidden(true)
                 }
                 .navigationDestination(for: SimilarPhotosData.self) { _ in
                     // SimilarPhotosGridView
@@ -587,26 +569,12 @@ struct ContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECard"))) { notification in
-            if let asset = notification.object as? PHAsset {
-                print("🎨 ContentView: Creating ECard for single asset: \(asset.localIdentifier)")
-                eCardEditor.startEditing(with: [asset])
+            if let stack = notification.object as? RPhotoStack {
+                print("🎨 ContentView: Creating ECard for single asset: \(stack.localIdentifier)")
+                eCardEditor.startEditing(with: [stack])
                 // Clear ecard tab stack and switch to it (fresh start for each ecard)
                 clearTabNavigationStack(.ecard)
                 navigateToTab(.ecard)
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECardFromSelected"))) { notification in
-            if let identifiers = notification.object as? Set<String> {
-                print("🎨 ContentView: Creating ECard for \(identifiers.count) selected assets")
-                let fetchOptions = PHFetchOptions()
-                let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: Array(identifiers), options: fetchOptions)
-                let assets = (0..<fetchResult.count).compactMap { fetchResult.object(at: $0) }
-                if !assets.isEmpty {
-                    eCardEditor.startEditing(with: assets)
-                    // Clear ecard tab stack and switch to it (fresh start for each ecard)
-                    clearTabNavigationStack(.ecard)
-                    navigateToTab(.ecard)
-                }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToAddPinFromPhoto"))) { notification in
@@ -628,7 +596,6 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToQuickList"))) { _ in
             print("📝 ContentView: Navigating to Quick List")
-            let userId = authService.currentAccount?.id ?? ""
             navigateToQuickList(userId: userId)
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToNearbyPhotos"))) { notification in
@@ -789,8 +756,6 @@ struct ContentView: View {
     }
     
     func navigateToAddPinFromLocation(location: LocationInfo) {
-        // Store the location
-        navigationLocation = location
         
         // Navigate using AddPinFromLocationData
         let addPinData = AddPinFromLocationData(
@@ -814,8 +779,8 @@ struct ContentView: View {
         navigationPath.append(allListsData)
     }
     
-    func navigateToQuickList(userId: String) {
-        let quickListData = QuickListData(userId: userId)
+    func navigateToQuickList() {
+        let quickListData = QuickListData()
         navigationPath.append(quickListData)
     }
     
@@ -923,30 +888,7 @@ struct ContentView: View {
             UniversalActionSheetModel.shared.setContext(.photos)
             
         case .map: // Map Route - Full toolbar with navigation buttons
-            let mapButtons = [
-                ToolbarButtonConfig(
-                    id: "photos",
-                    title: "Photos",
-                    systemImage: "photo",
-                    actionType: .switchToTab("Photo"),
-                    color: .blue
-                ),
-                ToolbarButtonConfig(
-                    id: "pins",
-                    title: "Pins",
-                    systemImage: "mappin.and.ellipse",
-                    actionType: .switchToTab("Pin"),
-                    color: .red
-                ),
-                ToolbarButtonConfig(
-                    id: "lists",
-                    title: "Lists",
-                    systemImage: "list.bullet.circle",
-                    actionType: .switchToTab("Lists"),
-                    color: .purple
-                )
-            ]
-            toolbarManager.setCustomToolbar(buttons: mapButtons)
+            toolbarManager.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.map)
             
         case .pin: // Pins Route - Show FAB only

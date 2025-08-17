@@ -32,6 +32,7 @@ struct UserProfileView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
+    @ObservedObject private var userProfileService = UserProfileService.shared
 
     @State private var userProfile: UserProfile?
     @State private var isLoading = true
@@ -229,25 +230,7 @@ struct UserProfileView: View {
             if isCurrentUser {
                 following = false
             } else {
-                // First check local follow status
-                let localFollowing = await checkLocalFollowStatus()
-                
-                // Try to sync with API and use local as fallback
-                do {
-                    let apiFollowing = try await APIService.shared.isFollowing(userId: userId)
-                    
-                    // If API status differs from local, sync local to match API
-                    if apiFollowing != localFollowing {
-                        print("🔄 Syncing follow status: API=\(apiFollowing), Local=\(localFollowing)")
-                        await persistFollowStatus(apiFollowing)
-                        following = apiFollowing
-                    } else {
-                        following = localFollowing
-                    }
-                } catch {
-                    print("API unavailable for follow status, using local: \(localFollowing)")
-                    following = localFollowing
-                }
+                following = userProfileService.isFollowing(userId: userId)
             }
 
             // Load user content (pins and comments)
@@ -278,13 +261,13 @@ struct UserProfileView: View {
         Task {
             do {
                 if isFollowing {
-                    try await APIService.shared.unfollowUser(userId: userId)
-                    // Persist unfollow to local storage
-                    await persistFollowStatus(false)
+                    try await userProfileService.unfollowUser(userId: userId)
                 } else {
-                    try await APIService.shared.followUser(userId: userId)
-                    // Persist follow to local storage
-                    await persistFollowStatus(true)
+                    try await userProfileService.followUser(
+                        userId: userId,
+                        userName: userName,
+                        displayName: userProfile?.display_name
+                    )
                 }
 
                 await MainActor.run {
@@ -292,71 +275,11 @@ struct UserProfileView: View {
                     self.isFollowActionLoading = false
                 }
             } catch {
-                print("Failed to toggle follow (API unavailable): \(error)")
-                
-                // In offline mode, persist locally and toggle UI state
-                let newFollowStatus = !isFollowing
-                await persistFollowStatus(newFollowStatus)
+                print("Failed to toggle follow: \(error)")
                 
                 await MainActor.run {
-                    self.isFollowing = newFollowStatus
                     self.isFollowActionLoading = false
-                    print("Follow status changed locally (offline mode): \(newFollowStatus)")
                 }
-            }
-        }
-    }
-    
-    private func persistFollowStatus(_ following: Bool) async {
-        await MainActor.run {
-            guard let currentUser = AuthenticationService.shared.currentAccount else { return }
-            
-            let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
-            
-            do {
-                let existingFollows = try viewContext.fetch(fetchRequest)
-                
-                if following {
-                    // Add follow relationship if not exists
-                    if existingFollows.isEmpty {
-                        let follow = RListData(context: viewContext)
-                        follow.id = UUID().uuidString
-                        follow.userId = userId
-                        follow.name = userName
-                        follow.createdAt = Date()
-                        print("💾 Created follow relationship for user: \(userName)")
-                    }
-                } else {
-                    // Remove follow relationship
-                    for follow in existingFollows {
-                        viewContext.delete(follow)
-                        print("💾 Removed follow relationship for user: \(userName)")
-                    }
-                }
-                
-                try viewContext.save()
-                print("💾 Follow status persisted locally: \(following)")
-                
-            } catch {
-                print("❌ Failed to persist follow status: \(error)")
-            }
-        }
-    }
-    
-    private func checkLocalFollowStatus() async -> Bool {
-        return await MainActor.run {
-            let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
-            
-            do {
-                let existingFollows = try viewContext.fetch(fetchRequest)
-                let isFollowing = !existingFollows.isEmpty
-                print("📱 Local follow status for \(userId): \(isFollowing)")
-                return isFollowing
-            } catch {
-                print("❌ Failed to check local follow status: \(error)")
-                return false
             }
         }
     }

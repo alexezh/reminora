@@ -1,0 +1,42 @@
+<!-- 
+This XML needs to be added to the Core Data model (places.xcdatamodeld) 
+Add this entity to the latest model version (places 7.xcdatamodel) or create a new version.
+
+To add this to Xcode:
+1. Open places.xcdatamodeld in Xcode
+2. Create a new model version (Editor > Add Model Version) or use existing places 7
+3. Add Entity > Name it "UserFollowing"
+4. Add the following attributes with these exact specifications:
+-->
+
+<entity name="UserFollowing" representedClassName="UserFollowing" syncable="YES" codeGenerationType="class">
+    <attribute name="id" attributeType="String"/>
+    <attribute name="userId" attributeType="String"/>
+    <attribute name="userName" optional="YES" attributeType="String"/>
+    <attribute name="displayName" optional="YES" attributeType="String"/>
+    <attribute name="followedAt" attributeType="Date" usesScalarValueType="NO"/>
+    <attribute name="unfollowedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    <attribute name="isActive" attributeType="Boolean" usesScalarValueType="YES" defaultValueString="YES"/>
+    <attribute name="syncedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+    
+    <!-- Indexes for performance -->
+    <fetchIndex name="byIdIndex">
+        <fetchIndexElement property="id" type="Binary" order="ascending"/>
+    </fetchIndex>
+    <fetchIndex name="byUserIdIndex">
+        <fetchIndexElement property="userId" type="Binary" order="ascending"/>
+    </fetchIndex>
+    <fetchIndex name="byIsActiveIndex">
+        <fetchIndexElement property="isActive" type="Binary" order="ascending"/>
+    </fetchIndex>
+    <fetchIndex name="byFollowedAtIndex">
+        <fetchIndexElement property="followedAt" type="Binary" order="descending"/>
+    </fetchIndex>
+</entity>
+
+<!-- 
+After adding the entity to Core Data:
+1. Set the current model version to the new version
+2. Rebuild the project to generate the UserFollowing class
+3. The UserFollowing+CoreDataClass.swift and UserFollowing+CoreDataProperties.swift files should match what we created
+-->

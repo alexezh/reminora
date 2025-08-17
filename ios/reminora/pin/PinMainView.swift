@@ -13,6 +13,7 @@ struct PinMainView: View {
   @StateObject private var authService = AuthenticationService.shared
   @StateObject private var cloudSyncService = CloudSyncService.shared
   @StateObject private var pinFilterService = PinFilterService.shared
+  @ObservedObject private var userProfileService = UserProfileService.shared
 
   @FetchRequest(
     sortDescriptors: [NSSortDescriptor(keyPath: \PinData.dateAdded, ascending: true)],
@@ -362,8 +363,8 @@ struct PinMainView: View {
     print("🔄 PinMainView: Starting sync of following users")
     
     do {
-      // Get list of users being followed from local Core Data (background operation)
-      let followedUsers = await getFollowedUsers()
+      // Get list of users being followed from UserProfileService
+      let followedUsers = await userProfileService.getFollowingUsers()
       print("🔄 PinMainView: Found \(followedUsers.count) followed users")
       
       // Sync pins for each followed user (background operation)
@@ -373,10 +374,10 @@ struct PinMainView: View {
             do {
               if let userId = followedUser.userId {
                 let _ = try await self.cloudSyncService.syncUserPins(userId: userId, limit: 20)
-                print("✅ PinMainView: Successfully synced pins for user: \(followedUser.name ?? "unknown")")
+                print("✅ PinMainView: Successfully synced pins for user: \(followedUser.displayNameOrUsername)")
               }
             } catch {
-              print("❌ PinMainView: Failed to sync user \(followedUser.name ?? "unknown"): \(error)")
+              print("❌ PinMainView: Failed to sync user \(followedUser.displayNameOrUsername): \(error)")
             }
           }
         }
@@ -398,28 +399,6 @@ struct PinMainView: View {
     }
   }
   
-  private func getFollowedUsers() async -> [RListData] {
-    // Perform Core Data operations on background queue to avoid UI blocking
-    return await withCheckedContinuation { continuation in
-      Task.detached {
-        let backgroundContext = PersistenceController.shared.container.newBackgroundContext()
-        backgroundContext.perform {
-          let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
-          fetchRequest.predicate = NSPredicate(format: "userId != nil AND userId != ''")
-          fetchRequest.sortDescriptors = [NSSortDescriptor(key: "name", ascending: true)]
-          
-          do {
-            let users = try backgroundContext.fetch(fetchRequest)
-            print("📱 PinMainView: Found \(users.count) followed users in local database")
-            continuation.resume(returning: users)
-          } catch {
-            print("❌ PinMainView: Failed to fetch followed users: \(error)")
-            continuation.resume(returning: [])
-          }
-        }
-      }
-    }
-  }
   
   private func getLocationFromPlace(_ place: PinData) -> CLLocation? {
     if let locationData = place.value(forKey: "coordinates") as? Data,

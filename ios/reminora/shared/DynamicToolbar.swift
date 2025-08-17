@@ -27,23 +27,6 @@ struct ToolbarButtonConfig: Identifiable, Equatable {
                lhs.isFAB == rhs.isFAB
     }
     
-    // Router-based initializer (preferred)
-    init(
-        id: String,
-        title: String,
-        systemImage: String,
-        isEnabled: Bool = true,
-        color: Color = .primary,
-        isFAB: Bool = false
-    ) {
-        self.id = id
-        self.title = title
-        self.systemImage = systemImage
-        self.isEnabled = isEnabled
-        self.color = color
-        self.isFAB = isFAB
-    }
-    
     // Legacy initializer for backward compatibility
     init(
         id: String,

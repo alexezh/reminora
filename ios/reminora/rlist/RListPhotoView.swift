@@ -115,15 +115,6 @@ struct RListPhotoView: View {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(.white)
-                        } else if isPartiallySelected {
-                            // Partially selected (orange with minus)
-                            Circle()
-                                .fill(Color.orange)
-                                .frame(width: 20, height: 20)
-                            
-                            Image(systemName: "minus")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.white)
                         } else {
                             // Empty checkbox
                             Circle()
@@ -172,18 +163,9 @@ struct RListPhotoView: View {
     // MARK: - Computed Properties
     
     private var isSelected: Bool {
-        if photoStack.isSinglePhoto {
-            return selectedAssetService.isPhotoSelected(photoStack.primaryAsset.localIdentifier)
-        } else {
-            return photoStack.isFullySelected(selectedAssets: selectedAssetService.selectedPhotoIdentifiers)
-        }
+        return selectedAssetService.isPhotoSelected(photoStack)
     }
-    
-    private var isPartiallySelected: Bool {
-        return !photoStack.isSinglePhoto && photoStack.isPartiallySelected(selectedAssets: selectedAssetService.selectedPhotoIdentifiers)
-    }
-    
-    
+        
     // MARK: - Helper Methods
     
     private func setupView() {

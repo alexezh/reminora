@@ -279,76 +279,76 @@ struct MapView: View {
     
     private var locationsListView: some View {
         Group {
-            if isLoading {
-                VStack {
-                    Spacer()
-                    ProgressView("Searching locations...")
-                    Spacer()
-                }
-            } else if nearbyPlaces.isEmpty && !searchText.isEmpty {
-                VStack {
-                    Spacer()
-                    Image(systemName: "location.slash")
-                        .font(.largeTitle)
-                        .foregroundColor(.gray)
-                    Text("No locations found")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 8)
-                    Text("Try a different search term")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-            } else if nearbyPlaces.isEmpty {
-                VStack {
-                    Spacer()
-                    Image(systemName: "magnifyingglass")
-                        .font(.largeTitle)
-                        .foregroundColor(.gray)
-                    Text("Search for locations")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 8)
-                    Text("Enter a location name or type to get started")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(filteredPlaces, id: \.id) { place in
-                            MapLocationCard(
-                                place: place,
-                                isSelected: selectedCardLocation?.id == place.id,
-                                onShareTap: { sharePlace(place) },
-                                onPinTap: { 
-                                    actionRouter.execute(.addPinFromLocation(place))
-                                },
-                                onLocationTap: { 
-                                    selectedCardLocation = place
-                                    showLocationOnMap(place) 
-                                },
-                                onNavigateTap: { sharePlace(place) }
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 20)
-                }
-            }
+//            if isLoading {
+//                VStack {
+//                    Spacer()
+//                    ProgressView("Searching locations...")
+//                    Spacer()
+//                }
+//            } else if nearbyPlaces.isEmpty && !searchText.isEmpty {
+//                VStack {
+//                    Spacer()
+//                    Image(systemName: "location.slash")
+//                        .font(.largeTitle)
+//                        .foregroundColor(.gray)
+//                    Text("No locations found")
+//                        .font(.headline)
+//                        .foregroundColor(.secondary)
+//                        .padding(.top, 8)
+//                    Text("Try a different search term")
+//                        .font(.caption)
+//                        .foregroundColor(.secondary)
+//                    Spacer()
+//                }
+//            } else if nearbyPlaces.isEmpty {
+//                VStack {
+//                    Spacer()
+//                    Image(systemName: "magnifyingglass")
+//                        .font(.largeTitle)
+//                        .foregroundColor(.gray)
+//                    Text("Search for locations")
+//                        .font(.headline)
+//                        .foregroundColor(.secondary)
+//                        .padding(.top, 8)
+//                    Text("Enter a location name or type to get started")
+//                        .font(.caption)
+//                        .foregroundColor(.secondary)
+//                    Spacer()
+//                }
+//            } else {
+//                ScrollView {
+//                    LazyVStack(spacing: 12) {
+//                        ForEach(filteredPlaces, id: \.id) { place in
+//                            MapLocationCard(
+//                                place: place,
+//                                isSelected: selectedCardLocation?.id == place.id,
+//                                onShareTap: { sharePlace(place) },
+//                                onPinTap: { 
+//                                    actionRouter.execute(.addPinFromLocation(place))
+//                                },
+//                                onLocationTap: { 
+//                                    selectedCardLocation = place
+//                                    showLocationOnMap(place) 
+//                                },
+//                                onNavigateTap: { sharePlace(place) }
+//                            )
+//                        }
+//                    }
+//                    .padding(.horizontal, 16)
+//                    .padding(.bottom, 20)
+//                }
+//            }
         }
     }
     
     var body: some View {
         VStack(spacing: 0) {
             headerView
-//            searchBarView
+            searchBarView
             mapViewSection
-//            searchSuggestionsView
-//            filterControlsView
-//            resultsCountView
+            searchSuggestionsView
+            filterControlsView
+            resultsCountView
             locationsListView
         }
         .padding(.bottom, LayoutConstants.totalToolbarHeight)
@@ -441,40 +441,11 @@ struct MapView: View {
                     MapAnnotationItem(coordinate: location.coordinate, location: location)
                 }) { annotation in
                     MapAnnotation(coordinate: annotation.coordinate) {
-                        let isSelected = selectedCardLocation?.id == annotation.location?.id
-                        
-                        if isSelected {
-                            // Pin icon for selected location
-                            Image(systemName: "mappin.and.ellipse")
-                                .font(.title2)
-                                .foregroundColor(.blue)
-                                .background(
-                                    Circle()
-                                        .fill(Color.white)
-                                        .frame(width: 24, height: 24)
-                                )
-                                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-                                .onTapGesture {
-                                    if let location = annotation.location {
-                                        actionRouter.execute(.addPinFromLocation(location))
-                                    }
-                                }
-                        } else {
-                            // Circle for unselected locations
-                            ZStack {
-                                Circle()
-                                    .fill(Color.red)
-                                    .frame(width: 16, height: 16)
-                                Circle()
-                                    .stroke(Color.white, lineWidth: 2)
-                                    .frame(width: 16, height: 16)
-                            }
-                            .onTapGesture {
-                                if let location = annotation.location {
-                                    actionRouter.execute(.addPinFromLocation(location))
-                                }
-                            }
-                        }
+                        MyMapAnnotation(
+                            annotation: annotation,
+                            isSelected: selectedCardLocation?.id == annotation.location?.id,
+                            actionRouter: actionRouter
+                        )
                     }
                 }
                 .onChange(of: mapRegion.center.latitude) {
@@ -1030,6 +1001,49 @@ struct MapAnnotationItem: Identifiable {
     init(coordinate: CLLocationCoordinate2D, location: LocationInfo? = nil) {
         self.coordinate = coordinate
         self.location = location
+    }
+}
+
+// MARK: - MyMapAnnotation
+
+struct MyMapAnnotation: View {
+    let annotation: MapAnnotationItem
+    let isSelected: Bool
+    let actionRouter: ActionRouter
+    
+    var body: some View {
+        if isSelected {
+            // Pin icon for selected location
+            Image(systemName: "mappin.and.ellipse")
+                .font(.title2)
+                .foregroundColor(.blue)
+                .background(
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 24, height: 24)
+                )
+                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                .onTapGesture {
+                    if let location = annotation.location {
+                        actionRouter.addPinFromLocation(location)
+                    }
+                }
+        } else {
+            // Circle for unselected locations
+            ZStack {
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: 16, height: 16)
+                Circle()
+                    .stroke(Color.white, lineWidth: 2)
+                    .frame(width: 16, height: 16)
+            }
+            .onTapGesture {
+                if let location = annotation.location {
+                    actionRouter.addPinFromLocation(location)
+                }
+            }
+        }
     }
 }
 

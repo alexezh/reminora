@@ -10,11 +10,9 @@ import Photos
 import AVKit
 
 struct ClipEditorView: View {
-    let initialAssets: [RPhotoStack]
     let onDismiss: () -> Void
     
     @Environment(\.clipEditor) private var clipEditor
-    @Environment(\.clipManager) private var clipManager
     @Environment(\.toolbarManager) private var toolbarManager
     @State private var viewMode: ClipEditorMode = .list
     @State private var showingSettings = false
@@ -120,12 +118,12 @@ struct ClipEditorView: View {
     private var listModeView: some View {
         VStack(spacing: 16) {
             // Vertical list of slides
-            if !clipEditor.currentAssets.isEmpty {
+            if !clipEditor.currentPhotos.isEmpty {
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(Array(clipEditor.currentAssets.enumerated()), id: \.element.localIdentifier) { index, asset in
+                        ForEach(Array(clipEditor.currentPhotos.enumerated()), id: \.element.localIdentifier) { index, stack in
                             ClipSlideRow(
-                                asset: asset,
+                                stack: stack,
                                 index: index,
                                 clip: clipEditor.currentClip,
                                 onRemove: {
@@ -509,8 +507,7 @@ struct ClipEditorView: View {
     
     private func setupInitialState() {
         if !clipEditor.hasActiveSession {
-            initialAssets = clipEditor.getCurrentAssets()
-            clipEditor.startEditing(with: initialAssets)
+            clipEditor.startEditing(with: clipEditor.getCurrentAssets())
         }
     }
     
@@ -568,7 +565,7 @@ enum ClipEditorMode {
 }
 
 struct ClipSlideRow: View {
-    let asset: PHAsset
+    let stack: RPhotoStack
     let index: Int
     let clip: Clip?
     let onRemove: () -> Void
@@ -731,7 +728,7 @@ struct ClipSlideRow: View {
         }
         .sheet(isPresented: $showingEditDialog) {
             SlideEditDialog(
-                asset: asset,
+                asset: stack.primaryAsset,
                 index: index,
                 clip: clip,
                 onSave: { duration, transition, effect in
@@ -749,7 +746,7 @@ struct ClipSlideRow: View {
         options.isSynchronous = false
         
         imageManager.requestImage(
-            for: asset,
+            for: stack.primaryAsset,
             targetSize: CGSize(width: 160, height: 160),
             contentMode: .aspectFill,
             options: options

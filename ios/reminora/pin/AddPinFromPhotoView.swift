@@ -14,7 +14,7 @@ import MapKit
 import CoreLocation
 
 struct AddPinFromPhotoView: View {
-    let asset: PHAsset
+    let stack: RPhotoStack
     let onDismiss: () -> Void
     
     @Environment(\.managedObjectContext) private var viewContext
@@ -40,7 +40,7 @@ struct AddPinFromPhotoView: View {
         }
         
         // Create default location from photo coordinates if available
-        if let location = asset.location {
+        if let location = stack.location {
             let defaultLocation = LocationInfo(
                 id: "photo_location",
                 name: placeName ?? (city != nil && country != nil ? "\(city!), \(country!)" : country ?? "Photo Location"),
@@ -235,7 +235,7 @@ struct AddPinFromPhotoView: View {
         }
         .onAppear {
             loadImage()
-            if let location = asset.location {
+            if let location = stack.location {
                 print("📍 AddPinFromPhoto: Photo has GPS location: \(location.coordinate)")
                 reverseGeocodeLocation(location)
             } else {
@@ -250,8 +250,8 @@ struct AddPinFromPhotoView: View {
         .sheet(isPresented: $showingLocationSelector) {
             NavigationView {
                 NearbyLocationsView(
-                    searchLocation: asset.location?.coordinate ?? CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194), // Default to San Francisco if no GPS
-                    locationName: placeName ?? (asset.location != nil ? "this location" : "nearby locations"),
+                    searchLocation: stack.location?.coordinate ?? CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194), // Default to San Francisco if no GPS
+                    locationName: placeName ?? (stack.location != nil ? "this location" : "nearby locations"),
                     isSelectMode: true,
                     selectedLocations: $selectedLocations
                 )
@@ -272,7 +272,7 @@ struct AddPinFromPhotoView: View {
     }
     
     private func loadImage() {
-        guard !asset.localIdentifier.isEmpty else {
+        guard !stack.localIdentifier.isEmpty else {
             print("❌ AddPinFromPhotoView: Cannot load image - invalid asset")
             return
         }
@@ -285,8 +285,8 @@ struct AddPinFromPhotoView: View {
         options.resizeMode = .fast
         
         imageManager.requestImage(
-            for: asset, 
-            targetSize: CGSize(width: 400, height: 400), 
+            for: stack.primaryAsset,
+            targetSize: CGSize(width: 400, height: 400),
             contentMode: .aspectFill, 
             options: options
         ) { loadedImage, info in
@@ -316,7 +316,7 @@ struct AddPinFromPhotoView: View {
         options.isSynchronous = false
         options.deliveryMode = .highQualityFormat
         
-        imageManager.requestImage(for: asset, targetSize: CGSize(width: 1024, height: 1024), contentMode: .aspectFit, options: options) { image, _ in
+        imageManager.requestImage(for: stack.primaryAsset, targetSize: CGSize(width: 1024, height: 1024), contentMode: .aspectFit, options: options) { image, _ in
             guard let image = image,
                   let imageData = image.jpegData(compressionQuality: 0.8) else {
                 DispatchQueue.main.async {
@@ -331,7 +331,7 @@ struct AddPinFromPhotoView: View {
                     
                     let place = try await cloudSyncService.savePinAndSyncToCloud(
                         imageData: imageData,
-                        location: asset.location,
+                        location: stack.location,
                         caption: caption,
                         isPrivate: isPrivate,
                         locations: currentLocations.isEmpty ? nil : currentLocations,

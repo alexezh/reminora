@@ -14,15 +14,13 @@ import SwiftUI
 // MARK: - All RLists View
 struct AllRListsView: View {
     let context: NSManagedObjectContext
-    let userId: String
     let onPhotoStackTap: ((RPhotoStack) -> Void)?
     let onPinTap: ((PinData) -> Void)?
     
     @Environment(\.toolbarManager) private var toolbarManager
     
-    init(context: NSManagedObjectContext, userId: String, onPhotoStackTap: ((RPhotoStack) -> Void)? = nil, onPinTap: ((PinData) -> Void)? = nil) {
+    init(context: NSManagedObjectContext, onPhotoStackTap: ((RPhotoStack) -> Void)? = nil, onPinTap: ((PinData) -> Void)? = nil) {
         self.context = context
-        self.userId = userId
         self.onPhotoStackTap = onPhotoStackTap
         self.onPinTap = onPinTap
     }
@@ -118,7 +116,6 @@ struct AllRListsView: View {
         .sheet(isPresented: $showingQuickList) {
             QuickListView(
                 context: context,
-                userId: userId,
                 onPhotoStackTap: onPhotoStackTap ?? { _ in },
                 onPinTap: onPinTap ?? { _ in },
                 onLocationTap: nil
@@ -185,9 +182,9 @@ struct AllRListsView: View {
             // Sync any new photos added via RListItemData back to the Clip
             let updatedClip = syncRListItemsToClip(clip, listId: userList.id ?? "")
             
-            // Update the clip in ClipManager if there were changes
+            // Update the clip in ClipEditor if there were changes
             if updatedClip.assetIdentifiers != clip.assetIdentifiers {
-                ClipManager.shared.updateClip(updatedClip)
+                ClipEditor.shared.updateRListEntry(for: updatedClip)
                 clip = updatedClip
                 print("📹 AllRListsView: Synced \(updatedClip.assetIdentifiers.count - clip.assetIdentifiers.count) new photos to clip")
             }
@@ -247,7 +244,6 @@ struct AllRListsView: View {
         
         // Fetch all user lists for this user
         let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "userId == %@", userId)
         fetchRequest.sortDescriptors = [
             NSSortDescriptor(key: "createdAt", ascending: false)
         ]
@@ -307,7 +303,6 @@ struct AllRListsView: View {
                 quickList.name = "Quick"
                 quickList.createdAt = Date()
                 needsSave = true
-                print("📝 Creating Quick List for user: \(userId)")
             }
             
             // Create Shared List if it doesn't exist
@@ -317,14 +312,10 @@ struct AllRListsView: View {
                 sharedList.name = "Shared"
                 sharedList.createdAt = Date()
                 needsSave = true
-                print("📝 Creating Shared List for user: \(userId)")
             }
             
             if needsSave {
                 try context.save()
-                print("✅ Created missing system lists for user: \(userId)")
-            } else {
-                print("✅ System lists already exist for user: \(userId) - Quick: \(existingNames.contains("Quick")), Shared: \(existingNames.contains("Shared"))")
             }
         } catch {
             print("❌ Failed to ensure system lists: \(error)")

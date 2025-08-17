@@ -140,6 +140,7 @@ struct AllListsData: Hashable {
     }
     
     static func == (lhs: AllListsData, rhs: AllListsData) -> Bool {
+        return true;
     }
 }
 
@@ -218,6 +219,7 @@ struct QuickListData: Hashable {
     }
     
     static func == (lhs: QuickListData, rhs: QuickListData) -> Bool {
+        return true;
     }
 }
 
@@ -243,7 +245,6 @@ struct ContentView: View {
     @StateObject private var eCardTemplateService = ECardTemplateService.shared
     @StateObject private var eCardEditor = ECardEditor.shared
     @StateObject private var clipEditor = ClipEditor.shared
-    @StateObject private var clipManager = ClipManager.shared
     @StateObject private var actionSheetModel = UniversalActionSheetModel.shared
     @State private var isActionSheetScrolling = false
     
@@ -287,7 +288,6 @@ struct ContentView: View {
         .environment(\.eCardTemplateService, eCardTemplateService)
         .environment(\.eCardEditor, eCardEditor)
         .environment(\.clipEditor, clipEditor)
-        .environment(\.clipManager, clipManager)
         .environment(\.photoLibraryService, PhotoLibraryService.shared)
         .sheet(isPresented: $toolbarManager.showActionSheet) {
             UniversalActionSheet(
@@ -710,8 +710,7 @@ struct ContentView: View {
             PinMainView()
         case .lists:
             AllRListsView(
-                context: viewContext,
-                userId: authService.currentAccount?.id ?? ""
+                context: viewContext
             )
         case .profile:
             ProfileView()
@@ -764,7 +763,7 @@ struct ContentView: View {
             
         case .addPinFromPhoto(let data):
             AddPinFromPhotoView(
-                asset: data.stack,
+                stack: data.stack,
                 onDismiss: {
                     navigationPath.removeLast()
                 }
@@ -789,14 +788,12 @@ struct ContentView: View {
             
         case .allLists(let data):
             AllRListsView(
-                context: viewContext,
-                userId: data.userId
+                context: viewContext
             )
             
         case .quickList(let data):
             RListService.createQuickListView(
                 context: viewContext,
-                userId: data.userId,
                 onPhotoStackTap: { photoStack in
                     navigationPath.removeLast() // Close current view
                     print("📷 Quick List photo stack tapped: \(photoStack.count) photos")
@@ -870,7 +867,6 @@ struct ContentView: View {
             if let assets = navigationClipAssets {
                 NavigationView {
                     ClipEditorView(
-                        initialAssets: assets,
                         onDismiss: {
                             navigationPath.removeLast()
                         }

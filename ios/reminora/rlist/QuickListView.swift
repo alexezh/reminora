@@ -14,7 +14,6 @@ import SwiftUI
 // MARK: - Quick List View
 struct QuickListView: View {
     let context: NSManagedObjectContext
-    let userId: String
     let onPhotoStackTap: (RPhotoStack) -> Void
     let onPinTap: (PinData) -> Void
     let onLocationTap: ((LocationInfo) -> Void)?
@@ -72,7 +71,7 @@ struct QuickListView: View {
     
     private func loadItems() async {
         isLoading = true
-        let loadedItems = await RListService.shared.getQuickListItems(context: context, userId: userId)
+        let loadedItems = await RListService.shared.getQuickListItems(context: context)
         print("🔍 QuickListView loaded \(loadedItems.count) items")
         await MainActor.run {
             self.items = loadedItems

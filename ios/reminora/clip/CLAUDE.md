@@ -33,9 +33,8 @@ Clip editor feature for creating videos from a sequence of pictures with transit
 ## Architecture
 
 ### State Management
-- **ClipEditor**: Centralized state manager with persistence and session management
-- **ClipManager**: Handles all clip CRUD operations and data persistence
-- **Environment Integration**: Both services injected via SwiftUI environment
+- **ClipEditor**: Centralized state manager with persistence, session management, and RList integration
+- **Environment Integration**: ClipEditor injected via SwiftUI environment
 
 ### Data Flow
 1. **Creation**: Start with selected PHAssets from photo library
@@ -100,19 +99,19 @@ ClipEditor.shared.generateVideo { result in
 }
 ```
 
-### Clip Manager Operations
+### Clip Management Operations
 ```swift
-let clipManager = ClipManager.shared
-
-// Get all clips
-let clips = clipManager.getAllClips()
+let clipEditor = ClipEditor.shared
 
 // Add new clip
 let newClip = Clip(name: "Summer Trip", assets: assets)
-clipManager.addClip(newClip)
+clipEditor.addClip(newClip)
 
 // Delete clip
-clipManager.deleteClip(id: clipId)
+clipEditor.deleteClip(id: clipId)
+
+// Update clip RList entry
+clipEditor.updateRListEntry(for: clip)
 ```
 
 ## Technical Details
@@ -175,8 +174,8 @@ clipManager.deleteClip(id: clipId)
 ## Design Patterns
 
 ### Service-Based Architecture
-- **ClipManager** handles all data persistence and CRUD operations
-- **ClipEditor** manages editing state and video generation
+- **ClipEditor** handles all data persistence, CRUD operations, and video generation
+- **RList Integration** managed directly within ClipEditor for clips storage
 - **Environment injection** for consistent access across views
 
 ### Error Handling

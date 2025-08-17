@@ -76,7 +76,6 @@ struct RListDetailView: View {
                 // Use RListService for Quick List to get mixed content
                 QuickListView(
                     context: viewContext,
-                    userId: getCurrentUserId(),
                     onPhotoStackTap: { photoStack in
                         // Navigate to SwipePhotoView using NavigationStack
                         let tempCollection = RPhotoStackCollection(stacks: [photoStack])

@@ -9,13 +9,14 @@ import Foundation
 import Photos
 import SwiftUI
 import AVFoundation
+import CoreData
 
 // MARK: - Clip Editor State Manager
 
 class ClipEditor: ObservableObject {
     @Published var isActive: Bool = false
     @Published var currentClip: Clip?
-    @Published var currentAssets: [RPhotoStack] = []
+    @Published var currentPhotos: [RPhotoStack] = []
     @Published var isGenerating: Bool = false
     @Published var generationProgress: Float = 0.0
     
@@ -34,12 +35,15 @@ class ClipEditor: ObservableObject {
     /// Start clip editing session with assets
     func startEditing(with stacks: [RPhotoStack]) {
         DispatchQueue.main.async {
-            let clipName = ClipManager.shared.createClipName(from: stacks)
+            let clipName = self.createClipName(from: stacks)
             let newClip = Clip(name: clipName, assets: stacks)
             
             self.currentClip = newClip
-            self.currentAssets = stacks
+            self.currentPhotos = stacks
             self.isActive = true
+            
+            // Create RList entry for the new clip
+            self.createRListEntry(for: newClip)
             self.persistState()
             
             // Set the current editor in ActionSheet model
@@ -53,7 +57,7 @@ class ClipEditor: ObservableObject {
     func startEditing(clip: Clip) {
         DispatchQueue.main.async {
             self.currentClip = clip
-            self.currentAssets = clip.getAssets()
+            self.currentPhotos = clip.getAssets()
             self.isActive = true
             self.persistState()
             
@@ -68,7 +72,7 @@ class ClipEditor: ObservableObject {
     func endEditing() {
         DispatchQueue.main.async {
             self.currentClip = nil
-            self.currentAssets = []
+            self.currentPhotos = []
             self.isActive = false
             self.isGenerating = false
             self.generationProgress = 0.0
@@ -88,7 +92,18 @@ class ClipEditor: ObservableObject {
     
     /// Get current assets for ContentView integration
     func getCurrentAssets() -> [RPhotoStack] {
-        return currentAssets
+        return currentPhotos
+    }
+    
+    /// Add a new clip to storage
+    func addClip(_ clip: Clip) {
+        createRListEntry(for: clip)
+    }
+    
+    /// Delete a clip by ID
+    func deleteClip(id: UUID) {
+        deleteRListEntry(for: id)
+        print("📹 ClipEditor: Deleted clip with id \(id)")
     }
     
     /// Save current clip
@@ -96,10 +111,10 @@ class ClipEditor: ObservableObject {
         guard var clip = currentClip else { return }
         
         DispatchQueue.main.async {
-            clip.assetIdentifiers = self.currentAssets.map { $0.localIdentifier }
+            clip.assetIdentifiers = self.currentPhotos.map { $0.localIdentifier }
             clip.markAsModified()
             
-            ClipManager.shared.updateClip(clip)
+            self.updateRListEntry(for: clip)
             self.currentClip = clip
             self.persistState()
             
@@ -125,20 +140,11 @@ class ClipEditor: ObservableObject {
         }
     }
     
-    /// Add assets to current clip
-    func addAssets(_ assets: [PHAsset]) {
-        DispatchQueue.main.async {
-            self.currentAssets.append(contentsOf: assets)
-            self.saveClip()
-            print("📹 ClipEditor: Added \(assets.count) assets to clip")
-        }
-    }
-    
     /// Remove asset from current clip
     func removeAsset(at index: Int) {
         DispatchQueue.main.async {
-            guard index < self.currentAssets.count else { return }
-            self.currentAssets.remove(at: index)
+            guard index < self.currentPhotos.count else { return }
+            self.currentPhotos.remove(at: index)
             self.saveClip()
             print("📹 ClipEditor: Removed asset at index \(index)")
         }
@@ -147,9 +153,9 @@ class ClipEditor: ObservableObject {
     /// Reorder assets in current clip
     func moveAsset(from sourceIndex: Int, to destinationIndex: Int) {
         DispatchQueue.main.async {
-            guard sourceIndex < self.currentAssets.count && destinationIndex < self.currentAssets.count else { return }
-            let asset = self.currentAssets.remove(at: sourceIndex)
-            self.currentAssets.insert(asset, at: destinationIndex)
+            guard sourceIndex < self.currentPhotos.count && destinationIndex < self.currentPhotos.count else { return }
+            let asset = self.currentPhotos.remove(at: sourceIndex)
+            self.currentPhotos.insert(asset, at: destinationIndex)
             self.saveClip()
             print("📹 ClipEditor: Moved asset from \(sourceIndex) to \(destinationIndex)")
         }
@@ -164,7 +170,7 @@ class ClipEditor: ObservableObject {
             return
         }
         
-        guard !currentAssets.isEmpty else {
+        guard !currentPhotos.isEmpty else {
             completion(.failure(ClipError.noAssets))
             return
         }
@@ -235,7 +241,7 @@ class ClipEditor: ObservableObject {
         var currentTime = CMTime.zero
         let frameDuration = CMTime(seconds: clip.duration, preferredTimescale: 600)
         
-        for (index, asset) in currentAssets.enumerated() {
+        for (index, stack) in currentPhotos.enumerated() {
             dispatchGroup.enter()
             
             // Load image from asset
@@ -246,7 +252,7 @@ class ClipEditor: ObservableObject {
             options.isSynchronous = true
             
             imageManager.requestImage(
-                for: asset,
+                for: stack.primaryAsset,
                 targetSize: videoSize,
                 contentMode: .aspectFill,
                 options: options
@@ -273,7 +279,7 @@ class ClipEditor: ObservableObject {
                 currentTime = CMTimeAdd(currentTime, frameDuration)
                 
                 DispatchQueue.main.async {
-                    self.generationProgress = Float(index + 1) / Float(self.currentAssets.count)
+                    self.generationProgress = Float(index + 1) / Float(self.currentPhotos.count)
                 }
             }
         }
@@ -514,14 +520,14 @@ class ClipEditor: ObservableObject {
         
         guard let clipIdString = userDefaults.string(forKey: currentClipIdKey),
               let clipId = UUID(uuidString: clipIdString),
-              let clip = ClipManager.shared.getClip(id: clipId) else {
+              let clip = getClip(id: clipId) else {
             clearPersistedState()
             return
         }
         
         DispatchQueue.main.async {
             self.currentClip = clip
-            self.currentAssets = clip.getAssets()
+            self.currentPhotos = clip.getAssets()
             self.isActive = true
             
             // Restore editor state in ActionSheet model
@@ -534,6 +540,147 @@ class ClipEditor: ObservableObject {
     private func clearPersistedState() {
         userDefaults.removeObject(forKey: currentClipIdKey)
         userDefaults.removeObject(forKey: isActiveKey)
+    }
+    
+    // MARK: - Utility
+    
+    private func createClipName(from assets: [RPhotoStack]) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        
+        if let firstAsset = assets.first,
+           let creationDate = firstAsset.primaryAsset.creationDate {
+            return "Clip - \(formatter.string(from: creationDate))"
+        } else {
+            return "Clip - \(formatter.string(from: Date()))"
+        }
+    }
+    
+    private func getClip(id: UUID) -> Clip? {
+        let context = PersistenceController.shared.container.viewContext
+        
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "id == %@ AND kind == %@", id.uuidString, "clip")
+        
+        do {
+            let results = try context.fetch(fetchRequest)
+            if let rlistData = results.first,
+               let jsonString = rlistData.data,
+               let jsonData = jsonString.data(using: .utf8) {
+                let decoder = JSONDecoder()
+                let clip = try decoder.decode(Clip.self, from: jsonData)
+                return clip
+            }
+        } catch {
+            print("❌ ClipEditor: Failed to get clip: \(error)")
+        }
+        
+        return nil
+    }
+    
+    // MARK: - RList Integration
+    
+    private func createRListEntry(for clip: Clip) {
+        let context = PersistenceController.shared.container.viewContext
+        
+        // Create the RList entry
+        let rlist = RListData(context: context)
+        rlist.id = clip.id.uuidString
+        rlist.name = clip.name
+        rlist.kind = "clip"
+        rlist.createdAt = clip.createdAt
+        rlist.modifiedAt = clip.modifiedAt
+        
+        // Store clip data as JSON
+        do {
+            let encoder = JSONEncoder()
+            let clipData = try encoder.encode(clip)
+            rlist.data = String(data: clipData, encoding: .utf8)
+        } catch {
+            print("❌ ClipEditor: Failed to encode clip data: \(error)")
+        }
+        
+        // Create RListItemData entries for each photo
+        for (index, assetId) in clip.assetIdentifiers.enumerated() {
+            let item = RListItemData(context: context)
+            item.id = UUID().uuidString
+            item.listId = clip.id.uuidString
+            item.placeId = assetId // Using asset ID as place ID for clips
+            item.addedAt = Date()
+        }
+        
+        // Save the context
+        do {
+            try context.save()
+            print("📹 ClipEditor: Created RList entry for clip '\(clip.name)'")
+        } catch {
+            print("❌ ClipEditor: Failed to save RList entry: \(error)")
+        }
+    }
+    
+    func updateRListEntry(for clip: Clip) {
+        let context = PersistenceController.shared.container.viewContext
+        
+        // Find the existing RList entry
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "id == %@ AND kind == %@", clip.id.uuidString, "clip")
+        
+        do {
+            let results = try context.fetch(fetchRequest)
+            if let rlist = results.first {
+                // Update the JSON data
+                let encoder = JSONEncoder()
+                let clipData = try encoder.encode(clip)
+                rlist.data = String(data: clipData, encoding: .utf8)
+                rlist.name = clip.name
+                rlist.modifiedAt = clip.modifiedAt
+                
+                // Save the changes
+                try context.save()
+                print("📹 ClipEditor: Updated RList entry for clip '\(clip.name)'")
+            }
+        } catch {
+            print("❌ ClipEditor: Failed to update RList entry: \(error)")
+        }
+    }
+    
+    private func deleteRListEntry(for clipId: UUID) {
+        let context = PersistenceController.shared.container.viewContext
+        
+        // Delete RList entry
+        let rlistRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
+        rlistRequest.predicate = NSPredicate(format: "id == %@ AND kind == %@", clipId.uuidString, "clip")
+        
+        do {
+            let results = try context.fetch(rlistRequest)
+            for rlist in results {
+                context.delete(rlist)
+            }
+        } catch {
+            print("❌ ClipEditor: Failed to fetch RList entry for deletion: \(error)")
+        }
+        
+        // Delete RListItemData entries
+        let itemsRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
+        itemsRequest.predicate = NSPredicate(format: "listId == %@", clipId.uuidString)
+        
+        do {
+            let results = try context.fetch(itemsRequest)
+            for item in results {
+                context.delete(item)
+            }
+        } catch {
+            print("❌ ClipEditor: Failed to fetch RListItemData entries for deletion: \(error)")
+        }
+        
+        // Save the context
+        do {
+            try context.save()
+            print("📹 ClipEditor: Deleted RList entry for clip \(clipId)")
+        } catch {
+            print("❌ ClipEditor: Failed to save after RList deletion: \(error)")
+        }
     }
 }
 

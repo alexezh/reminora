@@ -300,11 +300,11 @@ class RListService: ObservableObject {
     // MARK: - Quick List Content
 
     /// Gets all items in the Quick List as RListViewItems
-    func getQuickListItems(context: NSManagedObjectContext, userId: String) async
+    func getQuickListItems(context: NSManagedObjectContext) async
         -> [any RListViewItem]
     {
         let quickList = getOrCreateQuickList(in: context)
-        print("🔍 Quick List ID: \(quickList.id ?? "nil"), User ID: \(userId)")
+        print("🔍 Quick List ID: \(quickList.id ?? "nil")")
 
         // Get all list items for this list
         let fetchRequest: NSFetchRequest<RListItemData> = RListItemData.fetchRequest()
@@ -860,14 +860,12 @@ extension RListService {
     /// Creates an RListView configured for the Quick List
     static func createQuickListView(
         context: NSManagedObjectContext,
-        userId: String,
         onPhotoStackTap: @escaping (RPhotoStack) -> Void,
         onPinTap: @escaping (PinData) -> Void,
         onLocationTap: ((LocationInfo) -> Void)? = nil
     ) -> some View {
         QuickListView(
             context: context,
-            userId: userId,
             onPhotoStackTap: onPhotoStackTap,
             onPinTap: onPinTap,
             onLocationTap: onLocationTap

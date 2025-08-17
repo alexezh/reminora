@@ -80,17 +80,15 @@ enum NavigationDestination: Hashable {
 // MARK: - Navigation Data Structures
 
 struct PhotoViewData: Hashable {
-    let photoStackCollectionId: String
-    let initialStackId: String
+    let photoStackCollection: RPhotoStackCollection
+    let photo: RPhotoStack
     
     func hash(into hasher: inout Hasher) {
-        hasher.combine(photoStackCollectionId)
-        hasher.combine(initialStackId)
+        hasher.combine(photo.localIdentifier)
     }
     
     static func == (lhs: PhotoViewData, rhs: PhotoViewData) -> Bool {
-        lhs.photoStackCollectionId == rhs.photoStackCollectionId && 
-        lhs.initialStackId == rhs.initialStackId
+        lhs.photo.localIdentifier == rhs.photo.localIdentifier
     }
 }
 
@@ -247,11 +245,7 @@ struct ContentView: View {
     @StateObject private var clipEditor = ClipEditor.shared
     @StateObject private var actionSheetModel = UniversalActionSheetModel.shared
     @State private var isActionSheetScrolling = false
-    
-    // Shared photo navigation data
-    @State private var sharedPhotoStackCollection: RPhotoStackCollection?
-    @State private var selectedPhotoStack: RPhotoStack?
-    
+        
     // Navigation data for moved views
     //@State private var navigationLocation: LocationInfo?
     @State private var navigationTargetAsset: PHAsset?
@@ -497,11 +491,9 @@ struct ContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToPhotoView"))) { notification in
-            if let navigationData = notification.object as? [String: Any],
-               let photoStackCollection = navigationData["photoStackCollection"] as? RPhotoStackCollection,
-               let initialStack = navigationData["initialStack"] as? RPhotoStack {
+            if let navigationData = notification.object as? PhotoViewData {
                 print("📷 ContentView: Navigating to SwipePhotoView")
-                navigateToPhotoView(photoStackCollection: photoStackCollection, initialStack: initialStack)
+                navigateToPhotoView(photoData: navigationData)
             }
         }
     }
@@ -598,16 +590,7 @@ struct ContentView: View {
         }
     }
     
-    func navigateToPhotoView(photoStackCollection: RPhotoStackCollection, initialStack: RPhotoStack) {
-        // Store the shared data
-        sharedPhotoStackCollection = photoStackCollection
-        selectedPhotoStack = initialStack
-        
-        // Navigate using NavigationDestination enum
-        let photoData = PhotoViewData(
-            photoStackCollectionId: UUID().uuidString, // Just use a UUID since we're storing the actual collection
-            initialStackId: initialStack.id
-        )
+    func navigateToPhotoView(photoData: PhotoViewData) {
         
         // Use animation when navigating to photo view - try center scale animation
         withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0)) {
@@ -738,28 +721,19 @@ struct ContentView: View {
         case .tab(let route):
             rootView(for: route)
             
-        case .photoView(_):
+        case .photoView(let photoData):
             // SwipePhotoView for photo viewing
-            if let collection = sharedPhotoStackCollection,
-               let initialStack = selectedPhotoStack {
-                SwipePhotoView(
-                    photoStackCollection: collection,
-                    initialStack: initialStack,
-                    onDismiss: {
-                        navigationPath.removeLast()
-                        // Refresh filter to remove disliked photos from view
-                        NotificationCenter.default.post(name: NSNotification.Name("RefreshPhotoFilter"), object: nil)
-                        // Restore toolbar state
-                        NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
-                    }
-                )
-                .animation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0), value: navigationPath)
-            } else {
-                Text("Photo not available")
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.black)
-            }
+            SwipePhotoView(
+                photoStackCollection: photoData.photoStackCollection,
+                initialStack: photoData.photo,
+                onDismiss: {
+                    navigationPath.removeLast()
+                    // Refresh filter to remove disliked photos from view
+                    NotificationCenter.default.post(name: NSNotification.Name("RefreshPhotoFilter"), object: nil)
+                    // Restore toolbar state
+                    NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
+                })
+            .animation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0), value: navigationPath)
             
         case .addPinFromPhoto(let data):
             AddPinFromPhotoView(

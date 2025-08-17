@@ -366,32 +366,77 @@ class ECardTemplateService: ObservableObject {
         }
 
         // Update text elements in DOM
+        guard !textAssignments.isEmpty else {
+            print("📝 ECardTemplateService: No text assignments to process")
+            // Continue with image generation
+            let finalImage = svgkImage.uiImage
+            return finalImage
+        }
+        
         for (slotId, text) in textAssignments {
             print("🎨 ECardTemplateService: Updating text slot \(slotId) with: '\(text)'")
             
+            // Add safety check for empty slot ID
+            guard !slotId.isEmpty else {
+                print("⚠️ ECardTemplateService: Skipping empty slot ID")
+                continue
+            }
+            
             if let textElement = domDocument.getElementById(slotId) {
                 print("🎨 ECardTemplateService: Found text element \(slotId), type: \(type(of: textElement))")
+                
+                // Additional safety check for the element
+                guard textElement.isKind(of: NSObject.self) else {
+                    print("⚠️ ECardTemplateService: Text element \(slotId) is not an NSObject")
+                    continue
+                }
                 
                 // Use DOM manipulation to update text content
                 let elementObj = textElement as AnyObject
                 
                 // Try multiple approaches to ensure text is updated
+                var textUpdateSuccessful = false
+                
                 if elementObj.responds(to: Selector(("setTextContent:"))) {
                     let _ = elementObj.perform(Selector(("setTextContent:")), with: text)
                     print("✅ ECardTemplateService: Updated textContent via setTextContent: for \(slotId)")
-                } else {
-                    // Fallback to setValue for textContent
-                    elementObj.setValue?(text, forKey: "textContent")
-                    print("✅ ECardTemplateService: Updated textContent via setValue for \(slotId)")
+                    textUpdateSuccessful = true
+                } else if elementObj.responds(to: Selector(("setValue:forKey:"))) {
+                    // Safer approach: Check if setValue method exists before calling
+                    do {
+                        elementObj.setValue(text, forKey: "textContent")
+                        print("✅ ECardTemplateService: Updated textContent via setValue for \(slotId)")
+                        textUpdateSuccessful = true
+                    } catch {
+                        print("⚠️ ECardTemplateService: setValue for textContent failed: \(error)")
+                    }
                 }
                 
-                // Also set innerHTML as additional backup
-                elementObj.setValue?(text, forKey: "innerHTML")
+                // Also set innerHTML as additional backup if setValue is available
+                if elementObj.responds(to: Selector(("setValue:forKey:"))) {
+                    do {
+                        elementObj.setValue(text, forKey: "innerHTML")
+                        print("✅ ECardTemplateService: Updated innerHTML for \(slotId)")
+                    } catch {
+                        print("⚠️ ECardTemplateService: setValue for innerHTML failed: \(error)")
+                    }
+                }
                 
                 // Force text content refresh using nodeValue property if available
-                if let firstChildValue = elementObj.value(forKey: "firstChild") {
-                    (firstChildValue as AnyObject).setValue?(text, forKey: "nodeValue")
-                    print("✅ ECardTemplateService: Updated nodeValue for first child of \(slotId)")
+                do {
+                    if let firstChildValue = elementObj.value(forKey: "firstChild") {
+                        let firstChildObj = firstChildValue as AnyObject
+                        if firstChildObj.responds(to: Selector(("setValue:forKey:"))) {
+                            firstChildObj.setValue(text, forKey: "nodeValue")
+                            print("✅ ECardTemplateService: Updated nodeValue for first child of \(slotId)")
+                        }
+                    }
+                } catch {
+                    print("⚠️ ECardTemplateService: nodeValue update failed: \(error)")
+                }
+                
+                if !textUpdateSuccessful {
+                    print("❌ ECardTemplateService: Failed to update text for \(slotId) - element may not support text updates")
                 }
                 
             } else {

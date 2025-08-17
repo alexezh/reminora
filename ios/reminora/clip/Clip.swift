@@ -39,13 +39,13 @@ struct Clip: Identifiable, Codable {
     }
     
     // Get PHAssets from stored identifiers
-    func getAssets() -> [PHAsset] {
+    func getAssets() -> [RPhotoStack] {
         let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: assetIdentifiers, options: nil)
         var assets: [PHAsset] = []
         fetchResult.enumerateObjects { asset, _, _ in
             assets.append(asset)
         }
-        return assets
+        return assets.map{ RPhotoStack(asset: $0) }
     }
     
     // Total video duration
@@ -167,64 +167,29 @@ struct AudioTrack: Identifiable, Codable {
 
 class ClipManager: ObservableObject {
     static let shared = ClipManager()
-    
-    @Published private var clips: [Clip] = []
-    private let userDefaults = UserDefaults.standard
-    private let clipsKey = "ClipManager.clips"
-    
-    private init() {
-        loadClips()
-    }
-    
+        
     // MARK: - Public Interface
-    
-    func getAllClips() -> [Clip] {
-        return clips.sorted { $0.modifiedAt > $1.modifiedAt }
-    }
     
     func getClip(id: UUID) -> Clip? {
         return clips.first { $0.id == id }
     }
     
     func addClip(_ clip: Clip) {
-        clips.append(clip)
-        saveClips()
-        
         // Also create an RList entry for the clip
         createRListEntry(for: clip)
-        
-        print("📹 ClipManager: Added clip '\(clip.name)' with \(clip.assetIdentifiers.count) images")
     }
     
     func updateClip(_ clip: Clip) {
-        if let index = clips.firstIndex(where: { $0.id == clip.id }) {
-            var updatedClip = clip
-            updatedClip.markAsModified()
-            clips[index] = updatedClip
-            saveClips()
-            
-            // Also update the RList entry with new JSON data
-            updateRListEntry(for: updatedClip)
-            
-            print("📹 ClipManager: Updated clip '\(clip.name)'")
-        }
+        // Also update the RList entry with new JSON data
+        updateRListEntry(for: updatedClip)
     }
     
     func deleteClip(id: UUID) {
-        clips.removeAll { $0.id == id }
-        saveClips()
-        
         // Also delete the RList entry
         deleteRListEntry(for: id)
         
         print("📹 ClipManager: Deleted clip with id \(id)")
     }
-    
-    func deleteClip(_ clip: Clip) {
-        deleteClip(id: clip.id)
-    }
-    
-    // MARK: - RList Integration
     
     private func createRListEntry(for clip: Clip) {
         let context = PersistenceController.shared.container.viewContext
@@ -328,42 +293,15 @@ class ClipManager: ObservableObject {
         }
     }
     
-    // MARK: - Persistence
-    
-    private func saveClips() {
-        do {
-            let data = try JSONEncoder().encode(clips)
-            userDefaults.set(data, forKey: clipsKey)
-            print("📹 ClipManager: Saved \(clips.count) clips to preferences")
-        } catch {
-            print("❌ ClipManager: Failed to save clips: \(error)")
-        }
-    }
-    
-    private func loadClips() {
-        guard let data = userDefaults.data(forKey: clipsKey) else {
-            print("📹 ClipManager: No saved clips found")
-            return
-        }
-        
-        do {
-            clips = try JSONDecoder().decode([Clip].self, from: data)
-            print("📹 ClipManager: Loaded \(clips.count) clips from preferences")
-        } catch {
-            print("❌ ClipManager: Failed to load clips: \(error)")
-            clips = []
-        }
-    }
-    
     // MARK: - Utility
     
-    func createClipName(from assets: [PHAsset]) -> String {
+    func createClipName(from assets: [RPhotoStack]) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
         
         if let firstAsset = assets.first,
-           let creationDate = firstAsset.creationDate {
+           let creationDate = firstAsset.primaryAsset.creationDate {
             return "Clip - \(formatter.string(from: creationDate))"
         } else {
             return "Clip - \(formatter.string(from: Date()))"

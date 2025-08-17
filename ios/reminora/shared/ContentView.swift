@@ -60,6 +60,23 @@ func tabIndexToRoute(_ index: Int) -> AppTab {
     }
 }
 
+// MARK: - Navigation Destination Enum
+
+enum NavigationDestination: Hashable {
+    case tab(AppTab)
+    case photoView(PhotoViewData)
+    case addPinFromPhoto(AddPinFromPhotoData)
+    case addPinFromLocation(AddPinFromLocationData)
+    case similarPhotos(SimilarPhotosData)
+    case allLists(AllListsData)
+    case quickList(QuickListData)
+    case duplicatePhotos(DuplicatePhotosData)
+    case nearbyPhotos(NearbyPhotosData)
+    case nearbyLocations(NearbyLocationsData)
+    case eCardEditor(ECardEditorData)
+    case clipEditor(ClipEditorData)
+}
+
 // MARK: - Navigation Data Structures
 
 struct PhotoViewData: Hashable {
@@ -90,18 +107,18 @@ struct AddPinFromPhotoData: Hashable {
 }
 
 struct AddPinFromLocationData: Hashable {
-    let location: LocationInfo;
+    let location: LocationInfo
     
     func hash(into hasher: inout Hasher) {
-        hasher.combine(locationName)
-        hasher.combine(locationCoordinate.latitude)
-        hasher.combine(locationCoordinate.longitude)
+        hasher.combine(location.name)
+        hasher.combine(location.coordinate.latitude)
+        hasher.combine(location.coordinate.longitude)
     }
     
     static func == (lhs: AddPinFromLocationData, rhs: AddPinFromLocationData) -> Bool {
-        lhs.locationName == rhs.locationName &&
-        lhs.locationCoordinate.latitude == rhs.locationCoordinate.latitude &&
-        lhs.locationCoordinate.longitude == rhs.locationCoordinate.longitude
+        lhs.location.name == rhs.location.name &&
+        lhs.location.coordinate.latitude == rhs.location.coordinate.latitude &&
+        lhs.location.coordinate.longitude == rhs.location.coordinate.longitude
     }
 }
 
@@ -118,14 +135,11 @@ struct SimilarPhotosData: Hashable {
 }
 
 struct AllListsData: Hashable {
-    let userId: String
-    
     func hash(into hasher: inout Hasher) {
-        hasher.combine(userId)
+        hasher.combine(0)
     }
     
     static func == (lhs: AllListsData, rhs: AllListsData) -> Bool {
-        lhs.userId == rhs.userId
     }
 }
 
@@ -198,6 +212,15 @@ struct ClipEditorData: Hashable {
     }
 }
 
+struct QuickListData: Hashable {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(0)
+    }
+    
+    static func == (lhs: QuickListData, rhs: QuickListData) -> Bool {
+    }
+}
+
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -244,165 +267,9 @@ struct ContentView: View {
             // Root view based on current route
             rootView(for: currentTab)
                 .navigationBarHidden(true)
-                .navigationDestination(for: AppTab.self) { route in
-                    destinationView(for: route)
+                .navigationDestination(for: NavigationDestination.self) { destination in
+                    destinationView(for: destination)
                         .navigationBarHidden(true)
-                }
-                .navigationDestination(for: PhotoViewData.self) { _ in
-                    // SwipePhotoView for photo viewing
-                    if let collection = sharedPhotoStackCollection,
-                       let initialStack = selectedPhotoStack {
-                        SwipePhotoView(
-                            photoStackCollection: collection,
-                            initialStack: initialStack,
-                            onDismiss: {
-                                navigationPath.removeLast()
-                                // Refresh filter to remove disliked photos from view
-                                NotificationCenter.default.post(name: NSNotification.Name("RefreshPhotoFilter"), object: nil)
-                                // Restore toolbar state
-                                NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
-                            }
-                        )
-                        .navigationBarHidden(true)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0), value: navigationPath)
-                    } else {
-                        Text("Photo not available")
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .background(Color.black)
-                    }
-                }
-                .navigationDestination(for: AddPinFromPhotoData.self) { _ in
-                    AddPinFromPhotoView(
-                        asset: for.stack,
-                        onDismiss: {
-                            navigationPath.removeLast()
-                        }
-                    )
-                    .navigationBarHidden(true)
-                }
-                .navigationDestination(for: AddPinFromLocationData.self) { _ in
-                    // AddPinFromLocationView
-                    AddPinFromLocationView(
-                        location: for.location,
-                        onDismiss: {
-                            navigationPath.removeLast()
-                        }
-                    )
-                    .navigationBarHidden(true)
-                }
-                .navigationDestination(for: SimilarPhotosData.self) { _ in
-                    // SimilarPhotosGridView
-                    if let targetAsset = navigationTargetAsset {
-                        SimilarPhotosGridView(targetAsset: targetAsset)
-                            .navigationBarHidden(true)
-                    } else {
-                        Text("Target asset not available")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                }
-                .navigationDestination(for: AllListsData.self) { data in
-                    // AllRListsView
-                    AllRListsView(
-                        context: viewContext,
-                        userId: data.userId
-                    )
-                    .navigationBarHidden(true)
-                }
-                .navigationDestination(for: QuickListData.self) { data in
-                    // QuickListView
-                    RListService.createQuickListView(
-                        context: viewContext,
-                        userId: data.userId,
-                        onPhotoStackTap: { photoStack in
-                            navigationPath.removeLast() // Close current view
-                            print("📷 Quick List photo stack tapped: \(photoStack.count) photos")
-                        },
-                        onPinTap: { place in
-                            // Replace current view with pin detail
-                            navigationPath.removeLast() // Remove QuickList
-                            sheetStack.push(.pinDetail(place: place, allPlaces: []))
-                        }
-                    )
-                    .navigationBarHidden(true)
-                }
-                .navigationDestination(for: DuplicatePhotosData.self) { _ in
-                    // SimilarPhotoView for duplicates
-                    if let targetAsset = navigationTargetAsset {
-                        SimilarPhotoView(targetAsset: targetAsset)
-                            .navigationBarHidden(true)
-                    } else {
-                        Text("Target asset not available")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                }
-                .navigationDestination(for: NearbyPhotosData.self) { _ in
-                    // NearbyPhotosGridView
-                    if let centerLocation = navigationNearbyPhotosCenter {
-                        NavigationView {
-                            NearbyPhotosGridView(
-                                centerLocation: centerLocation,
-                                onDismiss: {
-                                    navigationPath.removeLast()
-                                }
-                            )
-                            .navigationBarTitleDisplayMode(.inline)
-                        }
-                        .navigationBarHidden(true)
-                    } else {
-                        Text("Center location not available")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                }
-                .navigationDestination(for: NearbyLocationsData.self) { _ in
-                    // NearbyLocationsView
-                    if let searchLocation = navigationNearbyLocationsSearch,
-                       let locationName = navigationNearbyLocationsName {
-                        NearbyLocationsView(
-                            searchLocation: searchLocation,
-                            locationName: locationName,
-                            isSelectMode: false,
-                            selectedLocations: .constant([])
-                        )
-                        .navigationBarHidden(true)
-                    } else {
-                        Text("Location data not available")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                }
-                .navigationDestination(for: ECardEditorData.self) { _ in
-                    // ECardEditorView
-                    if let assets = navigationECardAssets {
-                        NavigationView {
-                            ECardEditorView(
-                                initialAssets: assets,
-                                onDismiss: {
-                                    navigationPath.removeLast()
-                                }
-                            )
-                        }
-                        .navigationBarHidden(true)
-                    } else {
-                        Text("Assets not available")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                }
-                .navigationDestination(for: ClipEditorData.self) { _ in
-                    // ClipEditorView
-                    if let assets = navigationClipAssets {
-                        NavigationView {
-                            ClipEditorView(
-                                initialAssets: assets,
-                                onDismiss: {
-                                    navigationPath.removeLast()
-                                }
-                            )
-                        }
-                        .navigationBarHidden(true)
-                    } else {
-                        Text("Assets not available")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
                 }
         }
         .onChange(of: currentTab) { _, newRoute in
@@ -591,12 +458,11 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToAllLists"))) { _ in
             print("📝 ContentView: Navigating to All Lists")
-            let userId = authService.currentAccount?.id ?? ""
-            navigateToAllLists(userId: userId)
+            navigateToAllLists()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToQuickList"))) { _ in
             print("📝 ContentView: Navigating to Quick List")
-            navigateToQuickList(userId: userId)
+            navigateToQuickList()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToNearbyPhotos"))) { notification in
             if let centerLocation = notification.object as? CLLocationCoordinate2D {
@@ -737,7 +603,7 @@ struct ContentView: View {
         sharedPhotoStackCollection = photoStackCollection
         selectedPhotoStack = initialStack
         
-        // Navigate using a simple PhotoViewData with center-scale animation
+        // Navigate using NavigationDestination enum
         let photoData = PhotoViewData(
             photoStackCollectionId: UUID().uuidString, // Just use a UUID since we're storing the actual collection
             initialStackId: initialStack.id
@@ -745,64 +611,60 @@ struct ContentView: View {
         
         // Use animation when navigating to photo view - try center scale animation
         withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0)) {
-            navigationPath.append(photoData)
+            navigationPath.append(NavigationDestination.photoView(photoData))
         }
     }
     
     func navigateToAddPinFromPhoto(asset: RPhotoStack) {
-        // Navigate using AddPinFromPhotoData
-        let addPinData = AddPinFromPhotoData(assetIdentifier: asset.localIdentifier)
-        navigationPath.append(addPinData)
+        // Navigate using NavigationDestination enum
+        let addPinData = AddPinFromPhotoData(stack: asset)
+        navigationPath.append(NavigationDestination.addPinFromPhoto(addPinData))
     }
     
     func navigateToAddPinFromLocation(location: LocationInfo) {
-        
-        // Navigate using AddPinFromLocationData
-        let addPinData = AddPinFromLocationData(
-            locationName: location.name,
-            locationCoordinate: location.coordinate
-        )
-        navigationPath.append(addPinData)
+        // Navigate using NavigationDestination enum
+        let addPinData = AddPinFromLocationData(location: location)
+        navigationPath.append(NavigationDestination.addPinFromLocation(addPinData))
     }
     
     func navigateToSimilarPhotos(targetAsset: PHAsset) {
         // Store the target asset
         navigationTargetAsset = targetAsset
         
-        // Navigate using SimilarPhotosData
+        // Navigate using NavigationDestination enum
         let similarData = SimilarPhotosData(targetAssetIdentifier: targetAsset.localIdentifier)
-        navigationPath.append(similarData)
+        navigationPath.append(NavigationDestination.similarPhotos(similarData))
     }
     
-    func navigateToAllLists(userId: String) {
-        let allListsData = AllListsData(userId: userId)
-        navigationPath.append(allListsData)
+    func navigateToAllLists() {
+        let allListsData = AllListsData()
+        navigationPath.append(NavigationDestination.allLists(allListsData))
     }
     
     func navigateToQuickList() {
         let quickListData = QuickListData()
-        navigationPath.append(quickListData)
+        navigationPath.append(NavigationDestination.quickList(quickListData))
     }
     
     func navigateToDuplicatePhotos(targetAsset: PHAsset) {
         // Store the target asset
         navigationTargetAsset = targetAsset
         
-        // Navigate using DuplicatePhotosData
+        // Navigate using NavigationDestination enum
         let duplicateData = DuplicatePhotosData(targetAssetIdentifier: targetAsset.localIdentifier)
-        navigationPath.append(duplicateData)
+        navigationPath.append(NavigationDestination.duplicatePhotos(duplicateData))
     }
     
     func navigateToNearbyPhotos(centerLocation: CLLocationCoordinate2D) {
         // Store the center location
         navigationNearbyPhotosCenter = centerLocation
         
-        // Navigate using NearbyPhotosData
+        // Navigate using NavigationDestination enum
         let nearbyData = NearbyPhotosData(
             centerLatitude: centerLocation.latitude,
             centerLongitude: centerLocation.longitude
         )
-        navigationPath.append(nearbyData)
+        navigationPath.append(NavigationDestination.nearbyPhotos(nearbyData))
     }
     
     func navigateToNearbyLocations(searchLocation: CLLocationCoordinate2D, locationName: String) {
@@ -810,31 +672,31 @@ struct ContentView: View {
         navigationNearbyLocationsSearch = searchLocation
         navigationNearbyLocationsName = locationName
         
-        // Navigate using NearbyLocationsData
+        // Navigate using NavigationDestination enum
         let nearbyLocationsData = NearbyLocationsData(
             searchLatitude: searchLocation.latitude,
             searchLongitude: searchLocation.longitude,
             locationName: locationName
         )
-        navigationPath.append(nearbyLocationsData)
+        navigationPath.append(NavigationDestination.nearbyLocations(nearbyLocationsData))
     }
     
     func navigateToECardEditor(assets: [PHAsset]) {
         // Store the assets
         navigationECardAssets = assets
         
-        // Navigate using ECardEditorData
+        // Navigate using NavigationDestination enum
         let eCardData = ECardEditorData(assetIdentifiers: assets.map { $0.localIdentifier })
-        navigationPath.append(eCardData)
+        navigationPath.append(NavigationDestination.eCardEditor(eCardData))
     }
     
     func navigateToClipEditor(assets: [PHAsset]) {
         // Store the assets
         navigationClipAssets = assets
         
-        // Navigate using ClipEditorData
+        // Navigate using NavigationDestination enum
         let clipData = ClipEditorData(assetIdentifiers: assets.map { $0.localIdentifier })
-        navigationPath.append(clipData)
+        navigationPath.append(NavigationDestination.clipEditor(clipData))
     }
     
     @ViewBuilder
@@ -863,7 +725,6 @@ struct ContentView: View {
             )
         case .clip:
             ClipEditorView(
-                initialAssets: clipEditor.getCurrentAssets(),
                 onDismiss: {
                     clipEditor.endEditing()
                     navigateToTab(.photo) // Return to photos after dismissing
@@ -873,8 +734,153 @@ struct ContentView: View {
     }
     
     @ViewBuilder
-    private func destinationView(for route: AppTab) -> some View {
-        rootView(for: route)
+    private func destinationView(for destination: NavigationDestination) -> some View {
+        switch destination {
+        case .tab(let route):
+            rootView(for: route)
+            
+        case .photoView(_):
+            // SwipePhotoView for photo viewing
+            if let collection = sharedPhotoStackCollection,
+               let initialStack = selectedPhotoStack {
+                SwipePhotoView(
+                    photoStackCollection: collection,
+                    initialStack: initialStack,
+                    onDismiss: {
+                        navigationPath.removeLast()
+                        // Refresh filter to remove disliked photos from view
+                        NotificationCenter.default.post(name: NSNotification.Name("RefreshPhotoFilter"), object: nil)
+                        // Restore toolbar state
+                        NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
+                    }
+                )
+                .animation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0), value: navigationPath)
+            } else {
+                Text("Photo not available")
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.black)
+            }
+            
+        case .addPinFromPhoto(let data):
+            AddPinFromPhotoView(
+                asset: data.stack,
+                onDismiss: {
+                    navigationPath.removeLast()
+                }
+            )
+            
+        case .addPinFromLocation(let data):
+            AddPinFromLocationView(
+                location: data.location,
+                onDismiss: {
+                    navigationPath.removeLast()
+                }
+            )
+            
+        case .similarPhotos(_):
+            // SimilarPhotosGridView
+            if let targetAsset = navigationTargetAsset {
+                SimilarPhotosGridView(targetAsset: targetAsset)
+            } else {
+                Text("Target asset not available")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            
+        case .allLists(let data):
+            AllRListsView(
+                context: viewContext,
+                userId: data.userId
+            )
+            
+        case .quickList(let data):
+            RListService.createQuickListView(
+                context: viewContext,
+                userId: data.userId,
+                onPhotoStackTap: { photoStack in
+                    navigationPath.removeLast() // Close current view
+                    print("📷 Quick List photo stack tapped: \(photoStack.count) photos")
+                },
+                onPinTap: { place in
+                    // Replace current view with pin detail
+                    navigationPath.removeLast() // Remove QuickList
+                    sheetStack.push(.pinDetail(place: place, allPlaces: []))
+                }
+            )
+            
+        case .duplicatePhotos(_):
+            // SimilarPhotoView for duplicates
+            if let targetAsset = navigationTargetAsset {
+                SimilarPhotoView(targetAsset: targetAsset)
+            } else {
+                Text("Target asset not available")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            
+        case .nearbyPhotos(_):
+            // NearbyPhotosGridView
+            if let centerLocation = navigationNearbyPhotosCenter {
+                NavigationView {
+                    NearbyPhotosGridView(
+                        centerLocation: centerLocation,
+                        onDismiss: {
+                            navigationPath.removeLast()
+                        }
+                    )
+                    .navigationBarTitleDisplayMode(.inline)
+                }
+            } else {
+                Text("Center location not available")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            
+        case .nearbyLocations(_):
+            // NearbyLocationsView
+            if let searchLocation = navigationNearbyLocationsSearch,
+               let locationName = navigationNearbyLocationsName {
+                NearbyLocationsView(
+                    searchLocation: searchLocation,
+                    locationName: locationName,
+                    isSelectMode: false,
+                    selectedLocations: .constant([])
+                )
+            } else {
+                Text("Location data not available")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            
+        case .eCardEditor(_):
+            // ECardEditorView
+            if let assets = navigationECardAssets {
+                NavigationView {
+                    ECardEditorView(
+                        initialAssets: assets,
+                        onDismiss: {
+                            navigationPath.removeLast()
+                        }
+                    )
+                }
+            } else {
+                Text("Assets not available")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            
+        case .clipEditor(_):
+            // ClipEditorView
+            if let assets = navigationClipAssets {
+                NavigationView {
+                    ClipEditorView(
+                        initialAssets: assets,
+                        onDismiss: {
+                            navigationPath.removeLast()
+                        }
+                    )
+                }
+            } else {
+                Text("Assets not available")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
     }
     
     // MARK: - Toolbar Management

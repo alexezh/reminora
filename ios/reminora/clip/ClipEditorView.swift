@@ -509,6 +509,7 @@ struct ClipEditorView: View {
     
     private func setupInitialState() {
         if !clipEditor.hasActiveSession {
+            initialAssets = clipEditor.getCurrentAssets()
             clipEditor.startEditing(with: initialAssets)
         }
     }

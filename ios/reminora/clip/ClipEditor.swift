@@ -15,7 +15,7 @@ import AVFoundation
 class ClipEditor: ObservableObject {
     @Published var isActive: Bool = false
     @Published var currentClip: Clip?
-    @Published var currentAssets: [PHAsset] = []
+    @Published var currentAssets: [RPhotoStack] = []
     @Published var isGenerating: Bool = false
     @Published var generationProgress: Float = 0.0
     
@@ -34,12 +34,11 @@ class ClipEditor: ObservableObject {
     /// Start clip editing session with assets
     func startEditing(with stacks: [RPhotoStack]) {
         DispatchQueue.main.async {
-            let assets = stacks.map { $0.primaryAsset }
-            let clipName = ClipManager.shared.createClipName(from: assets)
-            let newClip = Clip(name: clipName, assets: assets)
+            let clipName = ClipManager.shared.createClipName(from: stacks)
+            let newClip = Clip(name: clipName, assets: stacks)
             
             self.currentClip = newClip
-            self.currentAssets = assets
+            self.currentAssets = stacks
             self.isActive = true
             self.persistState()
             
@@ -88,7 +87,7 @@ class ClipEditor: ObservableObject {
     }
     
     /// Get current assets for ContentView integration
-    func getCurrentAssets() -> [PHAsset] {
+    func getCurrentAssets() -> [RPhotoStack] {
         return currentAssets
     }
     

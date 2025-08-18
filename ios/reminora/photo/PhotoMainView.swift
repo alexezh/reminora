@@ -198,11 +198,7 @@ struct PhotoMainView: View {
                     updateToolbar()
                 } else {
                     // Navigate to SwipePhotoView using NavigationStack
-                    let navigationData: [String: Any] = [
-                        "photoStackCollection": photoLibraryService.photoStackCollection,
-                        "initialStack": photoStack
-                    ]
-                    NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
+                    ActionRouter.shared.openPhotoView(collection: photoLibraryService.photoStackCollection, photo: photoStack)
                 }
             },
             onPinTap: { _ in
@@ -257,13 +253,6 @@ struct PhotoMainView: View {
                 // Handle search filter application
                 print("🔍 Applying search filter: \(filterData)")
                 // You can implement the actual filter logic here
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECard"))) {
-            notification in
-            if let asset = notification.object as? PHAsset {
-                print("🎨 Creating ECard for single asset: \(asset.localIdentifier)")
-                NotificationCenter.default.post(name: NSNotification.Name("NavigateToECardEditor"), object: [asset])
             }
         }
         .onChange(of: isCoreDataReady) { _, isReady in

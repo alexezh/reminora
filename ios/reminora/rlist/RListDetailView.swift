@@ -79,11 +79,7 @@ struct RListDetailView: View {
                     onPhotoStackTap: { photoStack in
                         // Navigate to SwipePhotoView using NavigationStack
                         let tempCollection = RPhotoStackCollection(stacks: [photoStack])
-                        let navigationData: [String: Any] = [
-                            "photoStackCollection": tempCollection,
-                            "initialStack": photoStack
-                        ]
-                        NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
+                        ActionRouter.shared.openPhotoView(collection: tempCollection, photo: photoStack)
                     },
                     onPinTap: { place in
                         // Show PinDetailView for pin
@@ -102,11 +98,7 @@ struct RListDetailView: View {
                     onPhotoStackTap: { photoStack in
                         // Navigate to SwipePhotoView using NavigationStack
                         let tempCollection = RPhotoStackCollection(stacks: [photoStack])
-                        let navigationData: [String: Any] = [
-                            "photoStackCollection": tempCollection,
-                            "initialStack": photoStack
-                        ]
-                        NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
+                        ActionRouter.shared.openPhotoView(collection: tempCollection, photo: photoStack)
                     },
                     onPinTap: { place in
                         // Show PinDetailView for pin
@@ -124,11 +116,7 @@ struct RListDetailView: View {
                     onPhotoStackTap: { photoStack in
                         // Navigate to SwipePhotoView using NavigationStack
                         let tempCollection = RPhotoStackCollection(stacks: [photoStack])
-                        let navigationData: [String: Any] = [
-                            "photoStackCollection": tempCollection,
-                            "initialStack": photoStack
-                        ]
-                        NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
+                        ActionRouter.shared.openPhotoView(collection: tempCollection, photo: photoStack)
                     },
                     onPinTap: { place in
                         // Show PinDetailView for pin

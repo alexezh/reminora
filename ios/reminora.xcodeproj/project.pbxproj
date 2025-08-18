@@ -93,6 +93,7 @@
 				cloud/CLAUDE.md,
 				ecard/CLAUDE.md,
 				Info.plist,
+				onion/CLAUDE.md,
 				photo/CLAUDE.md,
 				pin/CLAUDE.md,
 				rlist/CLAUDE.md,

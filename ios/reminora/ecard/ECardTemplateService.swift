@@ -102,7 +102,7 @@ class ECardTemplateService: ObservableObject {
         return templates.filter { $0.category == category }
     }
 
-    func getTemplateForAssets(_ assets: [PHAsset]) -> ECardTemplate? {
+    func getTemplateForAssets(_ assets: [RPhotoStack]) -> ECardTemplate? {
         loadTemplatesIfNeeded()
         // Return default template since all templates now handle both orientations
         return getTemplate(id: "polaroid_classic") ?? templates.first

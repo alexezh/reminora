@@ -997,11 +997,7 @@ struct NearbyPhotosMainView: View {
                                         onTap: {
                                             // Navigate to SwipePhotoView using NavigationStack
                                             let tempCollection = RPhotoStackCollection(stacks: [stack])
-                                            let navigationData: [String: Any] = [
-                                                "photoStackCollection": tempCollection,
-                                                "initialStack": stack
-                                            ]
-                                            NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
+                                            ActionRouter.shared.openPhotoView(collection: tempCollection, photo: stack)
                                         }
                                     )
                                     .frame(width: squareSize, height: squareSize)

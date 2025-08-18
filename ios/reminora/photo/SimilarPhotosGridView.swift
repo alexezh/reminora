@@ -57,11 +57,7 @@ struct SimilarPhotosGridView: View {
                                     // Navigate to SwipePhotoView using NavigationStack
                                     let singlePhotoStack = RPhotoStack(assets: [asset])
                                     let tempCollection = RPhotoStackCollection(stacks: [singlePhotoStack])
-                                    let navigationData: [String: Any] = [
-                                        "photoStackCollection": tempCollection,
-                                        "initialStack": singlePhotoStack
-                                    ]
-                                    NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
+                                    ActionRouter.shared.openPhotoView(collection: tempCollection, photo: singlePhotoStack)
                                 }
                             }
                         }

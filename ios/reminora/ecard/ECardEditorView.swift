@@ -10,7 +10,7 @@ import Photos
 import WebKit
 
 struct ECardEditorView: View {
-    let initialAssets: [PHAsset]
+    let initialAssets: [RPhotoStack]
     let onDismiss: () -> Void
     
     @Environment(\.eCardTemplateService) private var templateService
@@ -86,7 +86,7 @@ struct ECardEditorView: View {
                 ImagePickerView(
                     availableAssets: initialAssets,
                     onImageSelected: { asset in
-                        assignImage(asset: asset, to: slot)
+                        assignImage(asset: asset.primaryAsset, to: slot)
                         showingImagePicker = false
                     },
                     onDismiss: {
@@ -440,8 +440,8 @@ private struct TemplateCard: View {
 // MARK: - Image Picker View
 
 private struct ImagePickerView: View {
-    let availableAssets: [PHAsset]
-    let onImageSelected: (PHAsset) -> Void
+    let availableAssets: [RPhotoStack]
+    let onImageSelected: (RPhotoStack) -> Void
     let onDismiss: () -> Void
     
     private let columns = [

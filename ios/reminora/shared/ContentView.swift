@@ -79,147 +79,8 @@ enum NavigationDestination: Hashable {
 
 // MARK: - Navigation Data Structures
 
-struct PhotoViewData: Hashable {
-    let photoStackCollection: RPhotoStackCollection
-    let photo: RPhotoStack
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(photo.localIdentifier)
-    }
-    
-    static func == (lhs: PhotoViewData, rhs: PhotoViewData) -> Bool {
-        lhs.photo.localIdentifier == rhs.photo.localIdentifier
-    }
-}
 
-struct AddPinFromPhotoData: Hashable {
-    let stack: RPhotoStack
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(stack.localIdentifier)
-    }
-    
-    static func == (lhs: AddPinFromPhotoData, rhs: AddPinFromPhotoData) -> Bool {
-        lhs.stack.localIdentifier == rhs.stack.localIdentifier
-    }
-}
 
-struct AddPinFromLocationData: Hashable {
-    let location: LocationInfo
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(location.name)
-        hasher.combine(location.coordinate.latitude)
-        hasher.combine(location.coordinate.longitude)
-    }
-    
-    static func == (lhs: AddPinFromLocationData, rhs: AddPinFromLocationData) -> Bool {
-        lhs.location.name == rhs.location.name &&
-        lhs.location.coordinate.latitude == rhs.location.coordinate.latitude &&
-        lhs.location.coordinate.longitude == rhs.location.coordinate.longitude
-    }
-}
-
-struct SimilarPhotosData: Hashable {
-    let targetAssetIdentifier: String
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(targetAssetIdentifier)
-    }
-    
-    static func == (lhs: SimilarPhotosData, rhs: SimilarPhotosData) -> Bool {
-        lhs.targetAssetIdentifier == rhs.targetAssetIdentifier
-    }
-}
-
-struct AllListsData: Hashable {
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(0)
-    }
-    
-    static func == (lhs: AllListsData, rhs: AllListsData) -> Bool {
-        return true;
-    }
-}
-
-struct DuplicatePhotosData: Hashable {
-    let targetAssetIdentifier: String
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(targetAssetIdentifier)
-    }
-    
-    static func == (lhs: DuplicatePhotosData, rhs: DuplicatePhotosData) -> Bool {
-        lhs.targetAssetIdentifier == rhs.targetAssetIdentifier
-    }
-}
-
-struct NearbyPhotosData: Hashable {
-    let centerLatitude: Double
-    let centerLongitude: Double
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(centerLatitude)
-        hasher.combine(centerLongitude)
-    }
-    
-    static func == (lhs: NearbyPhotosData, rhs: NearbyPhotosData) -> Bool {
-        lhs.centerLatitude == rhs.centerLatitude && 
-        lhs.centerLongitude == rhs.centerLongitude
-    }
-}
-
-struct NearbyLocationsData: Hashable {
-    let searchLatitude: Double
-    let searchLongitude: Double
-    let locationName: String
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(searchLatitude)
-        hasher.combine(searchLongitude)
-        hasher.combine(locationName)
-    }
-    
-    static func == (lhs: NearbyLocationsData, rhs: NearbyLocationsData) -> Bool {
-        lhs.searchLatitude == rhs.searchLatitude &&
-        lhs.searchLongitude == rhs.searchLongitude &&
-        lhs.locationName == rhs.locationName
-    }
-}
-
-struct ECardEditorData: Hashable {
-    let assetIdentifiers: [String]
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(assetIdentifiers)
-    }
-    
-    static func == (lhs: ECardEditorData, rhs: ECardEditorData) -> Bool {
-        lhs.assetIdentifiers == rhs.assetIdentifiers
-    }
-}
-
-struct ClipEditorData: Hashable {
-    let assetIdentifiers: [String]
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(assetIdentifiers)
-    }
-    
-    static func == (lhs: ClipEditorData, rhs: ClipEditorData) -> Bool {
-        lhs.assetIdentifiers == rhs.assetIdentifiers
-    }
-}
-
-struct QuickListData: Hashable {
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(0)
-    }
-    
-    static func == (lhs: QuickListData, rhs: QuickListData) -> Bool {
-        return true;
-    }
-}
 
 
 struct ContentView: View {
@@ -254,8 +115,6 @@ struct ContentView: View {
     @State private var navigationNearbyPhotosCenter: CLLocationCoordinate2D?
     @State private var navigationNearbyLocationsSearch: CLLocationCoordinate2D?
     @State private var navigationNearbyLocationsName: String?
-    @State private var navigationECardAssets: [PHAsset]?
-    @State private var navigationClipAssets: [PHAsset]?
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -473,15 +332,15 @@ struct ContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToECardEditor"))) { notification in
-            if let assets = notification.object as? [PHAsset] {
-                print("🎨 ContentView: Navigating to ECard Editor with \(assets.count) assets")
-                navigateToECardEditor(assets: assets)
+            if let cardData = notification.object as? ECardEditorData {
+                print("🎨 ContentView: Navigating to ECard Editor")
+                navigationPath.append(NavigationDestination.eCardEditor(cardData))
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToClipEditor"))) { notification in
-            if let assets = notification.object as? [PHAsset] {
-                print("🎬 ContentView: Navigating to Clip Editor with \(assets.count) assets")
-                navigateToClipEditor(assets: assets)
+            if let clipData = notification.object as? ClipEditorData {
+                print("🎬 ContentView: Navigating to Clip Editor")
+                navigationPath.append(NavigationDestination.clipEditor(clipData))
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToDuplicatePhotos"))) { notification in
@@ -663,25 +522,7 @@ struct ContentView: View {
         )
         navigationPath.append(NavigationDestination.nearbyLocations(nearbyLocationsData))
     }
-    
-    func navigateToECardEditor(assets: [PHAsset]) {
-        // Store the assets
-        navigationECardAssets = assets
-        
-        // Navigate using NavigationDestination enum
-        let eCardData = ECardEditorData(assetIdentifiers: assets.map { $0.localIdentifier })
-        navigationPath.append(NavigationDestination.eCardEditor(eCardData))
-    }
-    
-    func navigateToClipEditor(assets: [PHAsset]) {
-        // Store the assets
-        navigationClipAssets = assets
-        
-        // Navigate using NavigationDestination enum
-        let clipData = ClipEditorData(assetIdentifiers: assets.map { $0.localIdentifier })
-        navigationPath.append(NavigationDestination.clipEditor(clipData))
-    }
-    
+            
     @ViewBuilder
     private func rootView(for route: AppTab) -> some View {
         switch route {
@@ -724,7 +565,7 @@ struct ContentView: View {
         case .photoView(let photoData):
             // SwipePhotoView for photo viewing
             SwipePhotoView(
-                photoStackCollection: photoData.photoStackCollection,
+                photoStackCollection: photoData.collection,
                 initialStack: photoData.photo,
                 onDismiss: {
                     navigationPath.removeLast()
@@ -820,35 +661,25 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             
-        case .eCardEditor(_):
+        case .eCardEditor(let cardData):
             // ECardEditorView
-            if let assets = navigationECardAssets {
-                NavigationView {
-                    ECardEditorView(
-                        initialAssets: assets,
-                        onDismiss: {
-                            navigationPath.removeLast()
-                        }
-                    )
-                }
-            } else {
-                Text("Assets not available")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            NavigationView {
+                ECardEditorView(
+                    initialAssets: cardData.stacks,
+                    onDismiss: {
+                        navigationPath.removeLast()
+                    }
+                )
             }
             
-        case .clipEditor(_):
+        case .clipEditor(let clipData):
             // ClipEditorView
-            if let assets = navigationClipAssets {
-                NavigationView {
-                    ClipEditorView(
-                        onDismiss: {
-                            navigationPath.removeLast()
-                        }
-                    )
-                }
-            } else {
-                Text("Assets not available")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            NavigationView {
+                ClipEditorView(
+                    onDismiss: {
+                        navigationPath.removeLast()
+                    }
+                )
             }
         }
     }

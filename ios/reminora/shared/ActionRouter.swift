@@ -66,6 +66,14 @@ class ActionRouter: ObservableObject {
         NotificationCenter.default.post(name: NSNotification.Name("QuickListUpdated"), object: stack)
     }
     
+    public func openPhotoView(collection: RPhotoStackCollection, photo: RPhotoStack) {
+        let navigationData = PhotoViewData(
+            collection: collection,
+            photo: photo
+        )
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToPhotoView"), object: navigationData)
+    }
+    
     public func findSimilar(_ asset: [RPhotoStack]) {
         if asset.count == 0 {
             return;
@@ -81,16 +89,16 @@ class ActionRouter: ObservableObject {
         NotificationCenter.default.post(name: NSNotification.Name("NavigateToDuplicatePhotos"), object: asset)
     }
     
-    public func makeECard(_ assets: [RPhotoStack]) {
-        if assets.isEmpty {
+    public func makeECard(_ stacks: [RPhotoStack]) {
+        if stacks.isEmpty {
             print("🎯 ActionRouter: No assets available for ECard")
             return
         }
         
         // Start ECard editing session and navigate to ECardEditor
-        ECardEditor.shared.startEditing(with: assets)
-        NotificationCenter.default.post(name: NSNotification.Name("NavigateToECardEditor"), object: assets)
-        print("🎯 ActionRouter: Started ECard editing with \(assets.count) assets")
+        ECardEditor.shared.startEditing(with: stacks)
+        NotificationCenter.default.post(name: NSNotification.Name("NavigateToECardEditor"), object: ECardEditorData(stacks: stacks))
+        print("🎯 ActionRouter: Started ECard editing with \(stacks.count) assets")
     }
     
     public func makeClip(_ assets: [RPhotoStack]) {

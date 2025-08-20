@@ -9,6 +9,7 @@ import Foundation
 import UIKit
 import CoreGraphics
 import CoreImage
+import SwiftUI
 
 // MARK: - Rendering Configuration
 

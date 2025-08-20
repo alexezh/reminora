@@ -79,8 +79,8 @@ class ECardEditor: ObservableObject {
     }
     
     /// Get current editing assets
-    func getCurrentAssets() -> [PHAsset] {
-        return currentAssets.map { $0.primaryAsset }
+    func getCurrentAssets() -> [RPhotoStack] {
+        return currentAssets
     }
     
     /// Set current template and persist state

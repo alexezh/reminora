@@ -456,7 +456,7 @@ private struct ImagePickerView: View {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 2) {
                     ForEach(Array(availableAssets.enumerated()), id: \.element.localIdentifier) { index, asset in
-                        ImagePickerCell(asset: asset) {
+                        ImagePickerCell(asset: asset.primaryAsset) {
                             onImageSelected(asset)
                         }
                     }

@@ -175,6 +175,9 @@ struct SwipePhotoView: View {
             HStack {
                 // Navigation-style back button
                 Button(action: {
+                    // Send notifications to restore toolbar and scroll position
+                    NotificationCenter.default.post(name: NSNotification.Name("RestoreScrollPosition"), object: nil)
+                    NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
                     onDismiss()
                 }) {
                     Image(systemName: "chevron.left")
@@ -233,6 +236,8 @@ struct SwipePhotoView: View {
                         },
                         onVerticalPull: {
                             // Handle vertical pull to dismiss
+                            NotificationCenter.default.post(name: NSNotification.Name("RestoreScrollPosition"), object: nil)
+                            NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
                             onDismiss()
                         }
                     ) { index in
@@ -387,6 +392,8 @@ struct SwipePhotoView: View {
                     }
                 } else {
                     // Close the entire view
+                    NotificationCenter.default.post(name: NSNotification.Name("RestoreScrollPosition"), object: nil)
+                    NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
                     onDismiss()
                 }
             }

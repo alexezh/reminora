@@ -222,9 +222,9 @@ struct ContentView: View {
                     break
                 case .clip:
                     // Clip editor is handled via sheet presentation
-                    print("🎨 ContentView: Clip editor opened via sheet")
+                    navigateToTab(.clip)
                     break
-                case .collage, .videoEditor:
+                case .collage:
                     // Future editor types can be handled here
                     print("🎨 ContentView: Editor type \(editorType.displayName) not yet implemented")
                 }

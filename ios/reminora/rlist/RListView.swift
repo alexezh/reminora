@@ -116,9 +116,13 @@ struct RListView: View {
     let isSelectionMode: Bool
     @Environment(\.selectedAssetService) private var selectedAssetService
     
+    // Scroll position tracking
+    @Binding var scrollPosition: String?
+    
     init(
         dataSource: RListDataSource,
         isSelectionMode: Bool = false,
+        scrollPosition: Binding<String?> = .constant(nil),
         onPhotoStackTap: @escaping (RPhotoStack) -> Void,
         onPinTap: @escaping (PinData) -> Void,
         onLocationTap: ((LocationInfo) -> Void)? = nil,
@@ -127,6 +131,7 @@ struct RListView: View {
     ) {
         self.dataSource = dataSource
         self.isSelectionMode = isSelectionMode
+        self._scrollPosition = scrollPosition
         self.onPhotoStackTap = onPhotoStackTap
         self.onPinTap = onPinTap
         self.onLocationTap = onLocationTap
@@ -152,7 +157,7 @@ struct RListView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .padding()
                 } else {
-                    ForEach(Array(arrangeFlatItemsInRows().enumerated()), id: \.offset) { _, row in
+                    ForEach(Array(arrangeFlatItemsInRows().enumerated()), id: \.offset) { index, row in
                         RListRowView(
                             row: row,
                             isSelectionMode: isSelectionMode,
@@ -162,6 +167,11 @@ struct RListView: View {
                             onDeleteItem: onDeleteItem,
                             onUserTap: onUserTap
                         )
+                        .id("row_\(index)") // Add unique ID for scroll position tracking
+                        .onAppear {
+                            // Update scroll position as user scrolls
+                            scrollPosition = "row_\(index)"
+                        }
                     }
                 }
             }

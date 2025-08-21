@@ -30,7 +30,6 @@ enum EditorType: String, CaseIterable {
     case eCard = "ECard"
     case clip = "Clip"
     case collage = "Collage"
-    case videoEditor = "Video Editor"
     
     var displayName: String {
         return self.rawValue
@@ -44,8 +43,6 @@ enum EditorType: String, CaseIterable {
             return "video.circle"
         case .collage:
             return "square.grid.2x2"
-        case .videoEditor:
-            return "video"
         }
     }
 }

@@ -168,14 +168,11 @@ struct RListView: View {
                             onUserTap: onUserTap
                         )
                         .id("row_\(index)") // Add unique ID for scroll position tracking
-                        .onAppear {
-                            // Update scroll position as user scrolls
-                            scrollPosition = "row_\(index)"
-                        }
                     }
                 }
             }
         }
+        .scrollPosition(id: $scrollPosition)
         .task {
             await loadData()
         }

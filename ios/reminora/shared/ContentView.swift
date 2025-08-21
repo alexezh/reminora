@@ -288,15 +288,6 @@ struct ContentView: View {
                 navigateToDuplicatePhotos(targetAsset: firstAsset)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("MakeECard"))) { notification in
-            if let stack = notification.object as? RPhotoStack {
-                print("🎨 ContentView: Creating ECard for single asset: \(stack.localIdentifier)")
-                eCardEditor.startEditing(with: [stack])
-                // Clear ecard tab stack and switch to it (fresh start for each ecard)
-                clearTabNavigationStack(.ecard)
-                navigateToTab(.ecard)
-            }
-        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToAddPinFromPhoto"))) { notification in
             if let asset = notification.object as? RPhotoStack {
                 print("📍 ContentView: Navigating to AddPinFromPhoto for asset: \(asset.localIdentifier)")
@@ -334,7 +325,8 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToECardEditor"))) { notification in
             if let cardData = notification.object as? ECardEditorData {
                 print("🎨 ContentView: Navigating to ECard Editor")
-                navigationPath.append(NavigationDestination.eCardEditor(cardData))
+                clearTabNavigationStack(.ecard)
+                navigateToTab(.ecard)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("NavigateToClipEditor"))) { notification in

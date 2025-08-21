@@ -111,15 +111,15 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "42722F46-439A-4865-A3A3-0FFFB5A9DA0C"
+            uuid = "47FA8933-0E0C-49BD-B892-1134255C30F4"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "reminora/shared/ContentView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "297"
-            endingLineNumber = "297"
+            startingLineNumber = "328"
+            endingLineNumber = "328"
             landmarkName = "body"
             landmarkType = "24">
          </BreakpointContent>

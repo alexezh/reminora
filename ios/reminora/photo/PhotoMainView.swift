@@ -190,53 +190,47 @@ struct PhotoMainView: View {
     }
     
     private var photoListView: some View {
-        ScrollViewReader { proxy in
-            RListView(
-                dataSource: .photoLibrary(photoLibraryService.photoStackCollection),
-                isSelectionMode: isSelectionMode,
-                scrollPosition: $scrollPosition,
-                onPhotoStackTap: { photoStack in
-                    if isSelectionMode {
-                        // Select all photos in the stack
-                        if !selectedAssetService.isPhotoSelected(photoStack) {
-                            selectedAssetService.addSelectedPhoto(photoStack)
-                        }
-                        updateToolbar()
-                    } else {
-                        // Save current scroll position before navigating to SwipePhotoView
-                        savedScrollPosition = scrollPosition
-                        print("💾 PhotoMainView: Saved scroll position: \(savedScrollPosition ?? "nil")")
-                        
-                        // Navigate to SwipePhotoView using NavigationStack
-                        ActionRouter.shared.openPhotoView(collection: photoLibraryService.photoStackCollection, photo: photoStack)
+        RListView(
+            dataSource: .photoLibrary(photoLibraryService.photoStackCollection),
+            isSelectionMode: isSelectionMode,
+            scrollPosition: $scrollPosition,
+            onPhotoStackTap: { photoStack in
+                if isSelectionMode {
+                    // Select all photos in the stack
+                    if !selectedAssetService.isPhotoSelected(photoStack) {
+                        selectedAssetService.addSelectedPhoto(photoStack)
                     }
-                },
-                onPinTap: { _ in
-                    // Not used in photo library view
-                },
-                onLocationTap: { _ in
-                    // Not used in photo library view
-                }
-            )
-            .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RestoreScrollPosition"))) { _ in
-                // Restore scroll position when returning from SwipePhotoView
-                if let savedPosition = savedScrollPosition {
-                    print("📜 PhotoMainView: Restoring scroll position to: \(savedPosition)")
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        proxy.scrollTo(savedPosition, anchor: .top)
-                    }
-                    // Clear saved position after restoring
-                    savedScrollPosition = nil
+                    updateToolbar()
                 } else {
-                    print("📜 PhotoMainView: No saved scroll position to restore")
+                    // Save current scroll position
+                    savedScrollPosition = scrollPosition
+                    print("💾 PhotoMainView: Saved scroll position: \(savedScrollPosition ?? "none") for photo \(photoStack.id)")
+                    
+                    // Navigate to SwipePhotoView using NavigationStack
+                    ActionRouter.shared.openPhotoView(collection: photoLibraryService.photoStackCollection, photo: photoStack)
                 }
+            },
+            onPinTap: { _ in
+                // Not used in photo library view
+            },
+            onLocationTap: { _ in
+                // Not used in photo library view
             }
-            .onChange(of: scrollPosition) { _, newPosition in
-                // Track scroll position changes for debugging
-                if let newPos = newPosition {
-                    print("📍 PhotoMainView: Scroll position updated to: \(newPos)")
-                }
+        )
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("RestoreScrollPosition"))) { _ in
+            // Restore scroll position when returning from SwipePhotoView
+            if let savedPosition = savedScrollPosition {
+                print("📜 PhotoMainView: Restoring scroll position to: \(savedPosition)")
+                scrollPosition = savedPosition
+                // Clear saved position after restoring
+                savedScrollPosition = nil
+            } else {
+                print("📜 PhotoMainView: No saved scroll position to restore")
             }
+        }
+        .onChange(of: scrollPosition) { _, newPosition in
+            // Track scroll position changes for debugging
+            print("📍 PhotoMainView: Scroll position changed to: \(newPosition ?? "nil")")
         }
     }
     

@@ -41,7 +41,9 @@ open reminora.xcodeproj
    - `AuthenticationService.swift` - User authentication and session management
    - `CloudSyncService.swift` - Synchronization between local and cloud data
    - `APIService.swift` - HTTP API client and networking
+   - `PinSharingService.swift` - Centralized deep link handling and pin sharing functionality
    - `UserProfileView.swift` - User profile management and following
+   - `ProfileView.swift` - User profile display with debug deep link testing
 
 3. **Pin Management (`ios/reminora/pin/`)**
    - `PinDetailView.swift` - Detailed pin view with address management
@@ -87,6 +89,7 @@ The app uses Core Data (iOS) with main entities:
 - **Reverse Geocoding**: Automatically extracts place names, cities, and countries from GPS coordinates
 - **Address Management**: Multi-address support for pins with location picker
 - **Social Features**: User following, pin sharing, comments, and user profiles
+- **Deep Link Support**: Comprehensive deep link handling for shared pins with proper ownership tracking
 - **Map Interaction**: Interactive map with pin clustering and detailed pin views
 - **Photo Management**: Smart photo library integration with EXIF data extraction and AI-powered similarity detection
 - **LazySnapPager**: Optimized photo swiping with robust spring animations for smooth transitions
@@ -125,6 +128,7 @@ The app uses Core Data (iOS) with main entities:
 - **FIX IMPLEMENTED**: Use `NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)` in onDismiss
 - ContentView listens for "RestoreToolbar" notification and calls `setupToolbarForTab(selectedTab)`
 - This ensures the correct toolbar configuration is restored for the current tab after SwipePhotoView dismissal
+- **Scroll Position Preservation**: Uses `NotificationCenter.default.post(name: NSNotification.Name("RestoreScrollPosition"), object: nil)` to restore exact scroll position in PhotoMainView using SwiftUI's native `.scrollPosition(id:)` system
 
 **LazySnapPager Improvements:**
 - **Robust Snapping**: Fixed image snapping with optimized spring animation parameters
@@ -223,6 +227,16 @@ The app is built around key singleton services that manage global state and func
 - **Usage**: `ActionRouter.shared.execute(ActionType)`
 - **Configuration**: Requires setup with SheetStack, SelectionService, ToolbarManager
 - **Benefits**: Decoupled action handling, testable architecture
+
+**9. PinSharingService (`cloud/PinSharingService.swift`)**
+- **Purpose**: Centralized deep link handling and pin sharing functionality
+- **Usage**: `PinSharingService.shared`
+- **Key Methods**:
+  - `handleReminoraLink(URL)` - Process deep links from external sources
+  - `sharePin(PinData)` - Share pins with external users
+  - `isSharedFromOtherUser(PinData)` - Check if pin came from another user
+- **Ownership Tracking**: Maintains `originalUserId`, `originalUsername`, `originalDisplayName` for shared pins
+- **Integration**: Used by reminoraApp.swift and ProfileView for deep link processing
 
 ### Service Integration Patterns
 

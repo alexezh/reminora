@@ -6,9 +6,8 @@ Photo library access, viewing, management, and photo-related AI features.
 ## Contents
 
 ### Photo Viewing
-- **PhotoLibraryView.swift** - Photo library browser with thumbnail grid
-- **FullPhotoView.swift** - Full-screen photo viewer
-- **SwipePhotoView.swift** - Swipeable photo viewing interface
+- **PhotoMainView.swift** - Main photo library browser with smart stacking and scroll position preservation
+- **SwipePhotoView.swift** - Full-screen photo viewer with toolbar/scroll position restoration
 - **SwipePhotoImageView.swift** - Individual photo display component
 - **PhotoStackView.swift** - Stack-based photo navigation
 
@@ -25,7 +24,7 @@ Photo library access, viewing, management, and photo-related AI features.
 
 ## Key Features
 - Photo library integration (Photos framework)
-- Full-screen photo viewing with gestures
+- Full-screen photo viewing with gestures and proper state restoration
 - AI-powered photo similarity detection
 - Photo preference tracking (like/dislike)
 - GPS extraction from EXIF data
@@ -33,6 +32,8 @@ Photo library access, viewing, management, and photo-related AI features.
 - Image downsampling for storage
 - Machine learning embeddings for photo analysis
 - Thread-safe embedding computation with failure tracking and retry logic
+- Scroll position preservation using SwiftUI's native `.scrollPosition(id:)` system
+- Smart photo stacking with similarity detection and boundary-aware navigation
 
 ## UI/UX Guidelines
 
@@ -42,6 +43,9 @@ Photo library access, viewing, management, and photo-related AI features.
 - Include proper transitions: `.transition(.asymmetric(insertion: .scale(scale: 0.1).combined(with: .opacity), removal: .scale(scale: 0.1).combined(with: .opacity)))`
 - Background MUST be `Color.black.ignoresSafeArea(.all)` for true full-screen experience
 - **MUST hide navigation bar and toolbar** with `.navigationBarHidden(true)` to prevent ContentView toolbar showing
+- **MUST restore toolbar and scroll position on dismiss** using NotificationCenter notifications:
+  - `NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)`
+  - `NotificationCenter.default.post(name: NSNotification.Name("RestoreScrollPosition"), object: nil)`
 
 ### Favorite Button Behavior (MUST MAINTAIN)
 - Favorite button in SwipePhotoView MUST toggle native iOS favorite status using `PHAssetChangeRequest`
@@ -67,11 +71,17 @@ Photo library access, viewing, management, and photo-related AI features.
     }
 }
 
-// ✅ CORRECT - SwipePhotoView with hidden toolbar
+// ✅ CORRECT - SwipePhotoView with hidden toolbar and state restoration
 var body: some View {
     ZStack {
         Color.black.ignoresSafeArea(.all)
         // ... photo content
+        Button("Close") {
+            // Restore toolbar and scroll position before dismissing
+            NotificationCenter.default.post(name: NSNotification.Name("RestoreScrollPosition"), object: nil)
+            NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
+            onDismiss()
+        }
     }
     .navigationBarHidden(true)  // Hide ContentView toolbar
 }

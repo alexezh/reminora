@@ -6,7 +6,7 @@ List management system for organizing and sharing collections of places and phot
 ## Contents
 
 ### Core List Views
-- **RListView.swift** - Main list interface with unified photo/pin display system
+- **RListView.swift** - Main list interface with unified photo/pin display system and scroll position tracking
 - **RListDetailView.swift** - Detailed view of a specific list with items
 - **AllRListsView.swift** - Browse all available lists
 - **RListExampleView.swift** - Example/template list implementations
@@ -88,3 +88,5 @@ The photo system has been unified and simplified:
 - Integration with Core Data storage
 - Unified photo stack system with smart layout
 - Enhanced selection indicators and visual feedback
+- Scroll position preservation with `.scrollPosition(id:)` binding
+- Row-based ID tracking for precise scroll restoration (`"row_\(index)"`)

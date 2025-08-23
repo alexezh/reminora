@@ -54,14 +54,14 @@ struct AddPinFromLocationData: Hashable {
 }
 
 struct SimilarPhotosData: Hashable {
-    let targetAssetIdentifier: String
+    let targetAsset: PHAsset
     
     func hash(into hasher: inout Hasher) {
-        hasher.combine(targetAssetIdentifier)
+        hasher.combine(targetAsset.localIdentifier)
     }
     
     static func == (lhs: SimilarPhotosData, rhs: SimilarPhotosData) -> Bool {
-        lhs.targetAssetIdentifier == rhs.targetAssetIdentifier
+        lhs.targetAsset.localIdentifier == rhs.targetAsset.localIdentifier
     }
 }
 
@@ -76,46 +76,44 @@ struct AllListsData: Hashable {
 }
 
 struct DuplicatePhotosData: Hashable {
-    let targetAssetIdentifier: String
+    let targetAsset: PHAsset
     
     func hash(into hasher: inout Hasher) {
-        hasher.combine(targetAssetIdentifier)
+        hasher.combine(targetAsset.localIdentifier)
     }
     
     static func == (lhs: DuplicatePhotosData, rhs: DuplicatePhotosData) -> Bool {
-        lhs.targetAssetIdentifier == rhs.targetAssetIdentifier
+        lhs.targetAsset.localIdentifier == rhs.targetAsset.localIdentifier
     }
 }
 
 struct NearbyPhotosData: Hashable {
-    let centerLatitude: Double
-    let centerLongitude: Double
+    let centerLocation: CLLocationCoordinate2D
     
     func hash(into hasher: inout Hasher) {
-        hasher.combine(centerLatitude)
-        hasher.combine(centerLongitude)
+        hasher.combine(centerLocation.latitude)
+        hasher.combine(centerLocation.longitude)
     }
     
     static func == (lhs: NearbyPhotosData, rhs: NearbyPhotosData) -> Bool {
-        lhs.centerLatitude == rhs.centerLatitude &&
-        lhs.centerLongitude == rhs.centerLongitude
+        lhs.centerLocation.latitude == rhs.centerLocation.latitude &&
+        lhs.centerLocation.longitude == rhs.centerLocation.longitude
     }
 }
 
 struct NearbyLocationsData: Hashable {
-    let searchLatitude: Double
-    let searchLongitude: Double
+    let searchLocation: CLLocationCoordinate2D
     let locationName: String
     
     func hash(into hasher: inout Hasher) {
-        hasher.combine(searchLatitude)
-        hasher.combine(searchLongitude)
+        hasher.combine(searchLocation.latitude)
+        hasher.combine(searchLocation.longitude)
         hasher.combine(locationName)
     }
     
     static func == (lhs: NearbyLocationsData, rhs: NearbyLocationsData) -> Bool {
-        lhs.searchLatitude == rhs.searchLatitude &&
-        lhs.searchLongitude == rhs.searchLongitude &&
+        lhs.searchLocation.latitude == rhs.searchLocation.latitude &&
+        lhs.searchLocation.longitude == rhs.searchLocation.longitude &&
         lhs.locationName == rhs.locationName
     }
 }

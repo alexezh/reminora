@@ -359,48 +359,6 @@ struct SwipePhotoView: View {
 
     // MARK: - Scroll Gesture Handlers
     
-    private func handleScrollGesture(value: DragGesture.Value, geometry: GeometryProxy) {
-        // Handle vertical scroll gestures - we don't need to manually track offset since ScrollView handles it
-        // This is just for feedback during drag
-    }
-    
-    private func handleScrollEnd(value: DragGesture.Value, geometry: GeometryProxy, scrollTo: @escaping (AnyHashable, UnitPoint) -> Void) {
-        let translation = value.translation
-        let velocity = value.velocity.height
-        
-        // Only handle gestures that are primarily vertical
-        let isVerticalSwipe = abs(translation.height) > abs(translation.width) * 1.5
-        
-        if isVerticalSwipe {
-            // Handle swipe up
-            if translation.height < -100 || velocity < -500 {
-                if !showingMap && currentPhotoStack.location != nil {
-                    // Show map and hide thumbnails
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                        scrollTo("map", .top)
-                        showingMap = true
-                    }
-                }
-            }
-            // Handle swipe down
-            else if translation.height > 100 || velocity > 500 {
-                if showingMap {
-                    // Close map and show thumbnails
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                        scrollTo("photo", .top)
-                        showingMap = false
-                    }
-                } else {
-                    // Close the entire view
-                    NotificationCenter.default.post(name: NSNotification.Name("RestoreScrollPosition"), object: nil)
-                    NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
-                    onDismiss()
-                }
-            }
-        }
-    }
-    
-    
     private func toggleFavorite() {
         print("Toggling favorite for photo at index \(currentIndex)")
         

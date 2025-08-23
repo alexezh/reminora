@@ -1,6 +1,7 @@
 import Foundation
 import CoreData
 import CoreLocation
+import UIKit
 
 struct PinShareResponse: Codable {
     let id: String
@@ -267,6 +268,240 @@ class PinSharingService: ObservableObject {
         // }
         
         return (userId: userId, userName: username)
+    }
+    
+    // MARK: - Deep Link Handling
+    
+    func handleReminoraLink(_ url: URL) {
+        print("🔗 PinSharingService.handleReminoraLink called with: \(url)")
+        
+        guard url.scheme == "reminora",
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: true) else {
+            print("🔗 ❌ Failed to parse URL components")
+            return
+        }
+        
+        print("🔗 URL components: \(components)")
+        print("🔗 Path components: \(url.pathComponents)")
+        
+        // Handle different link types
+        if url.pathComponents.contains("place") {
+            print("🔗 ✅ Found 'place' in path, calling handlePlaceLink")
+            handlePlaceLink(components)
+        } else {
+            print("🔗 ❌ No 'place' found in path components: \(url.pathComponents)")
+        }
+    }
+    
+    private func handlePlaceLink(_ components: URLComponents) {
+        print("🔗 handlePlaceLink called with components: \(components)")
+        
+        guard let queryItems = components.queryItems else {
+            print("🔗 ❌ No query items found")
+            return
+        }
+        
+        print("🔗 Query items: \(queryItems)")
+        
+        guard let name = queryItems.first(where: { $0.name == "name" })?.value,
+              let latString = queryItems.first(where: { $0.name == "lat" })?.value,
+              let lonString = queryItems.first(where: { $0.name == "lon" })?.value,
+              let lat = Double(latString),
+              let lon = Double(lonString) else {
+            print("🔗 ❌ Failed to parse required parameters:")
+            print("🔗    name: \(queryItems.first(where: { $0.name == "name" })?.value ?? "nil")")
+            print("🔗    lat: \(queryItems.first(where: { $0.name == "lat" })?.value ?? "nil")")
+            print("🔗    lon: \(queryItems.first(where: { $0.name == "lon" })?.value ?? "nil")")
+            return
+        }
+        
+        // Extract owner information (optional)
+        let ownerId = queryItems.first(where: { $0.name == "ownerId" })?.value ?? ""
+        let ownerHandle = queryItems.first(where: { $0.name == "ownerHandle" })?.value ?? ""
+        
+        print("🔗 ✅ Parsed parameters:")
+        print("🔗    name: \(name)")
+        print("🔗    lat: \(lat)")
+        print("🔗    lon: \(lon)")
+        print("🔗    ownerId: \(ownerId)")
+        print("🔗    ownerHandle: \(ownerHandle)")
+        
+        // Extract place ID from path if available
+        let pathComponents = components.url?.pathComponents ?? []
+        var originalPlaceId: String?
+        if pathComponents.count > 2 && pathComponents[1] == "place" {
+            originalPlaceId = pathComponents[2]
+        }
+        
+        print("🔗 Path components: \(pathComponents)")
+        print("🔗 Original place ID: \(originalPlaceId ?? "nil")")
+        
+        // Create a new place and add it to the shared list
+        let context = PersistenceController.shared.container.viewContext
+        
+        print("🔗 Creating new place...")
+        // Create the place
+        let newPlace = PinData(context: context)
+        newPlace.dateAdded = Date()
+        newPlace.post = name
+        newPlace.url = "Shared via Reminora link"
+        newPlace.isPrivate = false  // Shared places are public by default
+        
+        // Set owner information for shared pins
+        if !ownerId.isEmpty {
+            newPlace.originalUserId = ownerId
+            print("🔗 ✅ Set originalUserId: \(ownerId)")
+        }
+        if !ownerHandle.isEmpty {
+            newPlace.originalUsername = ownerHandle
+            newPlace.originalDisplayName = ownerHandle
+            print("🔗 ✅ Set originalUsername and originalDisplayName: \(ownerHandle)")
+        }
+        
+        print("🔗 ✅ Created new place with name: \(name)")
+        
+        // Try to copy image data from original place if available
+        if let placeId = originalPlaceId,
+           let originalPlace = findPlace(withId: placeId, context: context) {
+            newPlace.imageData = originalPlace.imageData
+            // Keep the original creation date if available
+            if let originalDate = originalPlace.dateAdded {
+                newPlace.dateAdded = originalDate
+            }
+            print("🔗 ✅ Successfully copied image data from original place")
+        } else {
+            print("🔗 ⚠️ Could not find original place, creating placeholder")
+            // Create a placeholder image for shared places when original can't be found
+            newPlace.imageData = createPlaceholderImageData()
+        }
+        
+        // Store location
+        let location = CLLocation(latitude: lat, longitude: lon)
+        if let locationData = try? NSKeyedArchiver.archivedData(withRootObject: location, requiringSecureCoding: false) {
+            newPlace.setValue(locationData, forKey: "coordinates")
+        }
+        
+        // Find or create the shared list
+        let fetchRequest: NSFetchRequest<RListData> = RListData.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "name == %@ AND userId == %@", "Shared", authService.currentAccount?.id ?? "")
+        
+        do {
+            print("🔗 Fetching shared lists...")
+            let sharedLists = try context.fetch(fetchRequest)
+            let sharedList: RListData
+            
+            if let existingList = sharedLists.first {
+                print("🔗 ✅ Found existing shared list: \(existingList.name ?? "Unknown")")
+                sharedList = existingList
+            } else {
+                print("🔗 Creating new shared list...")
+                // Create shared list
+                sharedList = RListData(context: context)
+                sharedList.id = UUID().uuidString
+                sharedList.name = "Shared"
+                sharedList.createdAt = Date()
+                print("🔗 ✅ Created new shared list")
+            }
+            
+            print("🔗 Adding place to shared list...")
+            // Add item to shared list
+            let listItem = RListItemData(context: context)
+            listItem.id = UUID().uuidString
+            listItem.placeId = newPlace.objectID.uriRepresentation().absoluteString
+            listItem.addedAt = Date()
+            listItem.listId = sharedList.id ?? ""
+            
+            print("🔗 Saving to Core Data...")
+            try context.save()
+            print("🔗 ✅ Successfully added shared place to Shared list: \(name)")
+            
+            // Debug: Verify the owner information was set correctly
+            print("🔍 DEBUG: Final place properties:")
+            print("🔍 DEBUG: originalUserId = '\(newPlace.originalUserId ?? "nil")'")
+            print("🔍 DEBUG: originalUsername = '\(newPlace.originalUsername ?? "nil")'")
+            print("🔍 DEBUG: originalDisplayName = '\(newPlace.originalDisplayName ?? "nil")'")
+            print("🔍 DEBUG: post = '\(newPlace.post ?? "nil")'")
+            print("🔍 DEBUG: url = '\(newPlace.url ?? "nil")'")
+            
+            // Navigate to the shared place
+            DispatchQueue.main.async {
+                self.navigateToSharedPlace(newPlace)
+            }
+            
+        } catch {
+            print("🔗 ❌ Failed to add shared place: \(error)")
+        }
+    }
+    
+    private func navigateToSharedPlace(_ place: PinData) {
+        print("🔗 navigateToSharedPlace called for: \(place.post ?? "Unknown")")
+        
+        // Post a notification to trigger navigation in ContentView
+        NotificationCenter.default.post(
+            name: NSNotification.Name("NavigateToSharedPlace"),
+            object: place
+        )
+        
+        print("🔗 ✅ Posted navigation notification")
+    }
+    
+    private func findPlace(withId placeId: String, context: NSManagedObjectContext) -> PinData? {
+        // Try to find the place using Core Data URI
+        if let url = URL(string: placeId),
+           let objectID = context.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: url) {
+            return try? context.existingObject(with: objectID) as? PinData
+        }
+        return nil
+    }
+    
+    private func createPlaceholderImageData() -> Data? {
+        // Create a simple placeholder image
+        let size = CGSize(width: 400, height: 300)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        
+        let image = renderer.image { context in
+            // Fill with a gradient background
+            let colors = [UIColor.systemBlue.cgColor, UIColor.systemTeal.cgColor]
+            let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors as CFArray, locations: nil)!
+            
+            context.cgContext.drawLinearGradient(
+                gradient,
+                start: CGPoint(x: 0, y: 0),
+                end: CGPoint(x: size.width, y: size.height),
+                options: []
+            )
+            
+            // Add a map pin icon
+            let pinSize: CGFloat = 80
+            let pinRect = CGRect(
+                x: (size.width - pinSize) / 2,
+                y: (size.height - pinSize) / 2,
+                width: pinSize,
+                height: pinSize
+            )
+            
+            UIColor.white.setFill()
+            let pinPath = UIBezierPath(ovalIn: pinRect)
+            pinPath.fill()
+            
+            // Add text
+            let text = "📍 Shared Place"
+            let font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: UIColor.white
+            ]
+            let textSize = text.size(withAttributes: attributes)
+            let textRect = CGRect(
+                x: (size.width - textSize.width) / 2,
+                y: size.height - 40,
+                width: textSize.width,
+                height: textSize.height
+            )
+            text.draw(in: textRect, withAttributes: attributes)
+        }
+        
+        return image.jpegData(compressionQuality: 0.8)
     }
     
     // MARK: - Private Methods

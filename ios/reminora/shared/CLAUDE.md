@@ -6,12 +6,13 @@ Shared UI components, navigation system, and core services used throughout the i
 ## Contents
 
 ### Navigation & UI Framework
-- **ContentView.swift** - Main app controller with custom navigation system
+- **ContentView.swift** - Main app controller with custom navigation system and conditional navigation bar handling
 - **DynamicToolbar.swift** - Flexible bottom toolbar with FAB and regular buttons
 - **UniversalActionSheet.swift** - Context-sensitive action sheet system
 - **UniversalActionSheetModel.swift** - Action sheet context state management
 - **ActionRouter.swift** - Centralized action handling with dependency injection
 - **LayoutConstants.swift** - Shared layout constants for consistent UI
+- **LazySnapPager.swift** - Optimized horizontal photo paging with robust spring animations
 
 ### Sheet Management
 - **SheetRouter.swift** - Centralized sheet presentation routing
@@ -32,6 +33,8 @@ Shared UI components, navigation system, and core services used throughout the i
 - **Dynamic Toolbar**: Context-aware toolbar that adapts to current view
 - **Universal FAB**: "R" circle button present on all screens, opens action sheet
 - **Tab Management**: Manual tab switching with proper state restoration
+- **Conditional Navigation Bar**: Smart navigation bar visibility based on destination type
+- **Scroll Position Preservation**: Exact scroll position restoration using SwiftUI's `.scrollPosition(id:)` system
 
 ### Action System
 - **Context-Based Actions**: ActionSheet adapts to current context (.photos, .quickList, etc.)
@@ -93,6 +96,8 @@ ActionRouter.shared.execute(.custom("actionId") {
 - **Toolbar Transitions**: Spring animations for toolbar changes
 - **ActionSheet**: Standard iOS sheet presentation with proper detents
 - **State Changes**: Smooth animations for selection and navigation states
+- **LazySnapPager**: Optimized spring animation with `response: 0.4, dampingFraction: 0.8, blendDuration: 0`
+- **Photo Transitions**: Memory-efficient 3-image rendering (previous/current/next) with threshold-based swipe detection
 
 ## Important Notes
 
@@ -100,6 +105,8 @@ ActionRouter.shared.execute(.custom("actionId") {
 - **Centralized Services**: SelectionService, ActionRouter, SheetStack are singletons
 - **Environment Integration**: Services injected via SwiftUI environment
 - **Context Synchronization**: ActionSheet context must be kept in sync with view state
+- **Notification System**: Uses NotificationCenter for cross-component communication (RestoreToolbar, RestoreScrollPosition)
+- **Scroll Position Tracking**: RListView binds scroll position to parent views for restoration
 
 ### Performance Considerations
 - **Lazy Loading**: ActionSheet content loads only when needed

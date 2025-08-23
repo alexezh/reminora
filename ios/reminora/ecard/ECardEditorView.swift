@@ -140,8 +140,8 @@ struct ECardEditorView: View {
     // MARK: - Preview Section
     
     private func previewSection(template: ECardTemplate) -> some View {
-        // SVG Preview with dynamic sizing based on template aspect ratio
-        SVGPreviewView(
+        // Onion-based preview with real-time rendering
+        OnionECardPreview(
             template: template,
             imageAssignments: eCardEditor.imageAssignments,
             textAssignments: eCardEditor.textAssignments,
@@ -269,16 +269,20 @@ struct ECardEditorView: View {
     private func saveECard() {
         guard let template = eCardEditor.currentTemplate else { return }
         
-        // Use ECardEditor to generate the image
-        ECardEditor.shared.generateECardImage(
-            template: template,
-            imageAssignments: eCardEditor.imageAssignments,
-            textAssignments: eCardEditor.textAssignments
-        ) { result in
-            DispatchQueue.main.async {
-                                
-                switch result {
-                case .success(let image):
+        // Use Onion renderer to generate the image
+        Task {
+            do {
+                let scene = try await ECardToOnionConverter.shared.createScene(
+                    from: template,
+                    imageAssignments: eCardEditor.imageAssignments,
+                    textAssignments: eCardEditor.textAssignments,
+                    size: CGSize(width: 800, height: 1000)
+                )
+                
+                let result = try await OnionRenderer.shared.renderHighQuality(scene: scene, format: .jpeg)
+                let image = result.image
+                
+                await MainActor.run {
                     // Check if similar ECard already exists
                     self.checkForExistingECard(newImage: image) { shouldOverride in
                         if shouldOverride {
@@ -288,8 +292,10 @@ struct ECardEditorView: View {
                             self.showingOverrideConfirmation = true
                         }
                     }
-                case .failure(let error):
-                    print("❌ Failed to generate ECard: \(error)")
+                }
+            } catch {
+                await MainActor.run {
+                    print("❌ Failed to generate ECard with Onion: \(error)")
                 }
             }
         }
@@ -376,13 +382,12 @@ private struct TemplateCard: View {
     let isSelected: Bool
     let action: () -> Void
     
-    @Environment(\.eCardTemplateService) private var templateService
     @State private var thumbnailImage: UIImage?
     
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
-                // SVG Template preview
+                // Onion-rendered template preview
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color(.systemGray6))
@@ -423,15 +428,23 @@ private struct TemplateCard: View {
     }
     
     private func generateThumbnail() {
-        DispatchQueue.global(qos: .userInitiated).async {
-            // Use the real SVG rendering from ECardTemplateService for authentic thumbnails
-            if let svgThumbnail = self.templateService.generateThumbnail(
-                for: self.template,
-                size: CGSize(width: 80, height: 100)
-            ) {
-                DispatchQueue.main.async {
-                    self.thumbnailImage = svgThumbnail
+        Task {
+            do {
+                // Create empty scene with just template structure
+                let scene = try await ECardToOnionConverter.shared.createScene(
+                    from: template,
+                    imageAssignments: [:], // No images for template thumbnail
+                    textAssignments: [:], // Use placeholder text
+                    size: CGSize(width: 80, height: 100)
+                )
+                
+                let thumbnail = try await OnionRenderer.shared.renderPreview(scene: scene)
+                
+                await MainActor.run {
+                    self.thumbnailImage = thumbnail
                 }
+            } catch {
+                print("❌ TemplateCard: Failed to generate Onion thumbnail: \(error)")
             }
         }
     }
@@ -517,6 +530,164 @@ private struct ImagePickerCell: View {
         ) { loadedImage, _ in
             DispatchQueue.main.async {
                 self.image = loadedImage
+            }
+        }
+    }
+}
+
+// MARK: - Onion Preview View
+
+private struct OnionECardPreview: View {
+    let template: ECardTemplate
+    let imageAssignments: [String: PHAsset]
+    let textAssignments: [String: String]
+    let onImageSlotTapped: (ImageSlot) -> Void
+    let onTextSlotTapped: (TextSlot) -> Void
+    
+    @State private var previewImage: UIImage?
+    @State private var isRendering = false
+    @State private var renderError: Error?
+    
+    var body: some View {
+        ZStack {
+            // Background
+            Color.white
+            
+            if let previewImage = previewImage {
+                // Show rendered preview
+                Image(uiImage: previewImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .onTapGesture { location in
+                        handleTap(at: location)
+                    }
+            } else if isRendering {
+                // Show loading state
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .scaleEffect(1.2)
+                    Text("Rendering preview...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } else if renderError != nil {
+                // Show error state
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.largeTitle)
+                        .foregroundColor(.orange)
+                    Text("Preview unavailable")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                // Show placeholder
+                VStack(spacing: 12) {
+                    Image(systemName: "photo")
+                        .font(.largeTitle)
+                        .foregroundColor(.gray)
+                    Text("Loading preview...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            // Invisible tap areas for slots
+            if previewImage != nil {
+                overlayTapAreas()
+            }
+        }
+        .onChange(of: imageAssignments) { _ in
+            renderPreview()
+        }
+        .onChange(of: textAssignments) { _ in
+            renderPreview()
+        }
+        .onAppear {
+            renderPreview()
+        }
+    }
+    
+    // MARK: - Preview Rendering
+    
+    private func renderPreview() {
+        guard !isRendering else { return }
+        
+        isRendering = true
+        renderError = nil
+        
+        Task {
+            do {
+                let scene = try await ECardToOnionConverter.shared.createScene(
+                    from: template,
+                    imageAssignments: imageAssignments,
+                    textAssignments: textAssignments,
+                    size: CGSize(width: 400, height: 500) // Smaller size for preview
+                )
+                
+                let previewImg = try await OnionRenderer.shared.renderPreview(scene: scene)
+                
+                await MainActor.run {
+                    self.previewImage = previewImg
+                    self.isRendering = false
+                }
+                
+            } catch {
+                await MainActor.run {
+                    self.renderError = error
+                    self.isRendering = false
+                    print("❌ OnionECardPreview: Failed to render preview: \(error)")
+                }
+            }
+        }
+    }
+    
+    // MARK: - Tap Handling
+    
+    private func handleTap(at location: CGPoint) {
+        // Convert tap location to template coordinates
+        // This is a simplified implementation - you would need to map the tap location
+        // to the corresponding slot based on the rendered image size and slot positions
+    }
+    
+    @ViewBuilder
+    private func overlayTapAreas() -> some View {
+        GeometryReader { geometry in
+            ZStack {
+                // Create tap areas for image slots
+                ForEach(template.imageSlots) { slot in
+                    Rectangle()
+                        .fill(Color.clear)
+                        .frame(
+                            width: geometry.size.width * (slot.width / template.svgDimensions.width),
+                            height: geometry.size.height * (slot.height / template.svgDimensions.height)
+                        )
+                        .position(
+                            x: geometry.size.width * (slot.x / template.svgDimensions.width) + geometry.size.width * (slot.width / template.svgDimensions.width) / 2,
+                            y: geometry.size.height * (slot.y / template.svgDimensions.height) + geometry.size.height * (slot.height / template.svgDimensions.height) / 2
+                        )
+                        .onTapGesture {
+                            onImageSlotTapped(slot)
+                        }
+                }
+                
+                // Create tap areas for text slots
+                ForEach(template.textSlots) { slot in
+                    Rectangle()
+                        .fill(Color.clear)
+                        .frame(
+                            width: geometry.size.width * (slot.width / template.svgDimensions.width),
+                            height: geometry.size.height * (slot.height / template.svgDimensions.height)
+                        )
+                        .position(
+                            x: geometry.size.width * (slot.x / template.svgDimensions.width) + geometry.size.width * (slot.width / template.svgDimensions.width) / 2,
+                            y: geometry.size.height * (slot.y / template.svgDimensions.height) + geometry.size.height * (slot.height / template.svgDimensions.height) / 2
+                        )
+                        .onTapGesture {
+                            onTextSlotTapped(slot)
+                        }
+                }
             }
         }
     }

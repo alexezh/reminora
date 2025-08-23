@@ -109,12 +109,12 @@ struct ContentView: View {
         
     // Navigation data for moved views
     //@State private var navigationLocation: LocationInfo?
-    @State private var navigationTargetAsset: PHAsset?
+    //@State private var navigationTargetAsset: PHAsset?
     
     // Navigation data for migrated sheet types
-    @State private var navigationNearbyPhotosCenter: CLLocationCoordinate2D?
-    @State private var navigationNearbyLocationsSearch: CLLocationCoordinate2D?
-    @State private var navigationNearbyLocationsName: String?
+    //@State private var navigationNearbyPhotosCenter: CLLocationCoordinate2D?
+    //@State private var navigationNearbyLocationsSearch: CLLocationCoordinate2D?
+    //@State private var navigationNearbyLocationsName: String?
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -123,7 +123,7 @@ struct ContentView: View {
                 .navigationBarHidden(true)
                 .navigationDestination(for: NavigationDestination.self) { destination in
                     destinationView(for: destination)
-                        .navigationBarHidden(true)
+                        .navigationBarHidden(shouldHideNavigationBar(for: destination))
                 }
         }
         .onChange(of: currentTab) { _, newRoute in
@@ -462,11 +462,8 @@ struct ContentView: View {
     }
     
     func navigateToSimilarPhotos(targetAsset: PHAsset) {
-        // Store the target asset
-        navigationTargetAsset = targetAsset
-        
         // Navigate using NavigationDestination enum
-        let similarData = SimilarPhotosData(targetAssetIdentifier: targetAsset.localIdentifier)
+        let similarData = SimilarPhotosData(targetAsset: targetAsset)
         navigationPath.append(NavigationDestination.similarPhotos(similarData))
     }
     
@@ -481,35 +478,24 @@ struct ContentView: View {
     }
     
     func navigateToDuplicatePhotos(targetAsset: PHAsset) {
-        // Store the target asset
-        navigationTargetAsset = targetAsset
-        
         // Navigate using NavigationDestination enum
-        let duplicateData = DuplicatePhotosData(targetAssetIdentifier: targetAsset.localIdentifier)
+        let duplicateData = DuplicatePhotosData(targetAsset: targetAsset)
         navigationPath.append(NavigationDestination.duplicatePhotos(duplicateData))
     }
     
     func navigateToNearbyPhotos(centerLocation: CLLocationCoordinate2D) {
-        // Store the center location
-        navigationNearbyPhotosCenter = centerLocation
-        
         // Navigate using NavigationDestination enum
         let nearbyData = NearbyPhotosData(
-            centerLatitude: centerLocation.latitude,
-            centerLongitude: centerLocation.longitude
+            centerLocation: centerLocation
         )
         navigationPath.append(NavigationDestination.nearbyPhotos(nearbyData))
     }
     
     func navigateToNearbyLocations(searchLocation: CLLocationCoordinate2D, locationName: String) {
         // Store the location data
-        navigationNearbyLocationsSearch = searchLocation
-        navigationNearbyLocationsName = locationName
-        
         // Navigate using NavigationDestination enum
         let nearbyLocationsData = NearbyLocationsData(
-            searchLatitude: searchLocation.latitude,
-            searchLongitude: searchLocation.longitude,
+            searchLocation: searchLocation,
             locationName: locationName
         )
         navigationPath.append(NavigationDestination.nearbyLocations(nearbyLocationsData))
@@ -545,6 +531,19 @@ struct ContentView: View {
                     navigateToTab(.photo) // Return to photos after dismissing
                 }
             )
+        }
+    }
+    
+    private func shouldHideNavigationBar(for destination: NavigationDestination) -> Bool {
+        switch destination {
+        case .addPinFromPhoto(_):
+            return false // Show navigation bar for AddPinFromPhotoView
+        case .addPinFromLocation(_):
+            return false // Show navigation bar for AddPinFromLocationView  
+        case .photoView(_):
+            return true // Hide navigation bar for SwipePhotoView (full screen)
+        default:
+            return true // Hide navigation bar by default for other views
         }
     }
     
@@ -584,14 +583,9 @@ struct ContentView: View {
                 }
             )
             
-        case .similarPhotos(_):
+        case .similarPhotos(let data):
             // SimilarPhotosGridView
-            if let targetAsset = navigationTargetAsset {
-                SimilarPhotosGridView(targetAsset: targetAsset)
-            } else {
-                Text("Target asset not available")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+            SimilarPhotosGridView(targetAsset: data.targetAsset)
             
         case .allLists(let data):
             AllRListsView(
@@ -612,46 +606,30 @@ struct ContentView: View {
                 }
             )
             
-        case .duplicatePhotos(_):
+        case .duplicatePhotos(let data):
             // SimilarPhotoView for duplicates
-            if let targetAsset = navigationTargetAsset {
-                SimilarPhotoView(targetAsset: targetAsset)
-            } else {
-                Text("Target asset not available")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+            SimilarPhotoView(targetAsset: data.targetAsset)
             
-        case .nearbyPhotos(_):
+        case .nearbyPhotos(let data):
             // NearbyPhotosGridView
-            if let centerLocation = navigationNearbyPhotosCenter {
-                NavigationView {
-                    NearbyPhotosGridView(
-                        centerLocation: centerLocation,
-                        onDismiss: {
-                            navigationPath.removeLast()
-                        }
-                    )
-                    .navigationBarTitleDisplayMode(.inline)
-                }
-            } else {
-                Text("Center location not available")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            NavigationView {
+                NearbyPhotosGridView(
+                    centerLocation: data.centerLocation,
+                    onDismiss: {
+                        navigationPath.removeLast()
+                    }
+                )
+                .navigationBarTitleDisplayMode(.inline)
             }
             
-        case .nearbyLocations(_):
+        case .nearbyLocations(let data):
             // NearbyLocationsView
-            if let searchLocation = navigationNearbyLocationsSearch,
-               let locationName = navigationNearbyLocationsName {
-                NearbyLocationsView(
-                    searchLocation: searchLocation,
-                    locationName: locationName,
-                    isSelectMode: false,
-                    selectedLocations: .constant([])
-                )
-            } else {
-                Text("Location data not available")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+            NearbyLocationsView(
+                searchLocation: data.searchLocation,
+                locationName: data.locationName,
+                isSelectMode: false,
+                selectedLocations: .constant([])
+            )
             
         case .eCardEditor(let cardData):
             // ECardEditorView

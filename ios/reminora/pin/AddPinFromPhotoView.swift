@@ -18,6 +18,7 @@ struct AddPinFromPhotoView: View {
     let onDismiss: () -> Void
     
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.toolbarManager) private var toolbarManager
     @StateObject private var authService = AuthenticationService.shared
     @State private var image: UIImage?
     @State private var caption: String = ""
@@ -219,6 +220,7 @@ struct AddPinFromPhotoView: View {
         }
         .navigationTitle("Add Pin")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarHidden(false)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button("Cancel") {
@@ -234,6 +236,7 @@ struct AddPinFromPhotoView: View {
             }
         }
         .onAppear {
+            setupToolbar()
             loadImage()
             if let location = stack.location {
                 print("📍 AddPinFromPhoto: Photo has GPS location: \(location.coordinate)")
@@ -434,6 +437,12 @@ struct AddPinFromPhotoView: View {
         )
     }
 
+    private func setupToolbar() {
+        // Set up toolbar to show only FAB button
+        toolbarManager.setFABOnlyMode()
+        UniversalActionSheetModel.shared.setContext(.pins)
+    }
+    
     private func reverseGeocodeLocation(_ location: CLLocation) {
         isLoadingLocation = true
         let geocoder = CLGeocoder()

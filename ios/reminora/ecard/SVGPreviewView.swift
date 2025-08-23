@@ -147,21 +147,35 @@ struct SVGPreviewView: View {
                 print("🎨 SVGPreviewView: All images loaded (\(loadedImages.count)), using SVG image resolution")
                 print("🎨 SVGPreviewView: Loaded image keys: \(loadedImages.keys)")
                 
-                // Use the new image resolution approach
-                let templateService = ECardTemplateService.shared
-                if let svgImage = templateService.generateECardWithImages(
-                    template: self.template,
-                    imageAssignments: loadedImages,
-                    textAssignments: self.textAssignments,
-                ) {
-                    DispatchQueue.main.async {
-                        self.isLoading = false
-                        self.renderedImage = svgImage
-                    }
-                } else {
-                    // do not fallback
-                    DispatchQueue.main.async {
-                        self.isLoading = false
+                // Use the new template service scene creation approach
+                Task {
+                    do {
+                        // Get first available asset for scene creation
+                        guard let firstAsset = self.imageAssignments.values.first else {
+                            await MainActor.run {
+                                self.isLoading = false
+                            }
+                            return
+                        }
+                        
+                        let templateService = ECardTemplateService.shared
+                        let scene = try await templateService.createScene(
+                            from: self.template,
+                            asset: firstAsset,
+                            caption: self.textAssignments["Text1"] ?? "Caption"
+                        )
+                        
+                        let renderedImage = try await OnionRenderer.shared.renderPreview(scene: scene)
+                        
+                        await MainActor.run {
+                            self.isLoading = false
+                            self.renderedImage = renderedImage
+                        }
+                    } catch {
+                        print("❌ SVGPreviewView: Failed to render with template service: \(error)")
+                        await MainActor.run {
+                            self.isLoading = false
+                        }
                     }
                 }
             }

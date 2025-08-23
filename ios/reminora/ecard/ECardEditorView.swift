@@ -16,6 +16,9 @@ struct ECardEditorView: View {
     @Environment(\.eCardTemplateService) private var templateService
     @Environment(\.eCardEditor) private var eCardEditor
     @State private var currentECard: ECard?
+    @State private var testScene: OnionScene?
+    @State private var previewImage: UIImage?
+    @State private var renderingFailed = false
     @State private var showingImagePicker = false
     @State private var selectedImageSlot: ImageSlot?
     @State private var showingTextEditor = false
@@ -29,16 +32,22 @@ struct ECardEditorView: View {
             
             VStack(spacing: 0) {
                 // Preview and editing section
-                if let template = eCardEditor.currentTemplate {
-                    previewSection(template: template)
+                if let scene = testScene {
+                    testScenePreview(scene: scene)
                 } else {
-                    emptyStateSection
+                    Text("Loading...")
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity, maxHeight: 400)
                 }
                 
                 Spacer()
                 
-                // Template selection section at bottom
-                templateSelectionSection
+                // Save button
+                Button("Save ECard") {
+                    saveTestScene()
+                }
+                .foregroundColor(.blue)
+                .padding()
             }
             .padding(.top, 20) // Reduced space for back button
             .padding(.bottom, LayoutConstants.toolbarHeight) // Space for FAB
@@ -208,15 +217,206 @@ struct ECardEditorView: View {
     // MARK: - Helper Methods
     
     private func setupInitialState() {
-        // Only set up template if not already set (to handle persistence)
-        if eCardEditor.currentTemplate == nil {
-            // Auto-select template based on image orientation
-            if let orientedTemplate = templateService.getTemplateForAssets(initialAssets) {
-                eCardEditor.setCurrentTemplate(orientedTemplate)
-                setupECard(with: orientedTemplate)
-            } else if let firstTemplate = templateService.getAllTemplates().first {
-                eCardEditor.setCurrentTemplate(firstTemplate)
-                setupECard(with: firstTemplate)
+        // Use template service to create scene with actual image
+        guard let firstAsset = initialAssets.first?.primaryAsset,
+              let template = templateService.getTemplate(id: "polaroid_classic") else {
+            // Create fallback scene without image
+            let scene = OnionScene(name: "Polaroid", size: CGSize(width: 800, height: 1000))
+            scene.backgroundColor = "#FFFFFF"
+            testScene = scene
+            return
+        }
+        
+        Task {
+            do {
+                let scene = try await templateService.createScene(
+                    from: template,
+                    asset: firstAsset,
+                    caption: "Caption"
+                )
+                
+                await MainActor.run {
+                    testScene = scene
+                    print("✅ Set polaroid scene with actual image and \(scene.layers.count) layers")
+                    renderPreview()
+                }
+            } catch {
+                await MainActor.run {
+                    print("❌ Failed to create scene with image: \(error)")
+                    // Create fallback scene
+                    let fallbackScene = OnionScene(name: "Fallback", size: CGSize(width: 800, height: 1000))
+                    fallbackScene.backgroundColor = "#FFFFFF"
+                    testScene = fallbackScene
+                    renderPreview()
+                }
+            }
+        }
+    }
+    
+    private func createTestSceneWithImage(with photoStack: RPhotoStack) {
+        print("🎨 Creating polaroid scene with image for asset: \(photoStack.primaryAsset.localIdentifier)")
+        
+        Task {
+            do {
+                // Get default template from template service
+                guard let template = templateService.getTemplate(id: "polaroid_classic") else {
+                    throw NSError(domain: "ECardEditor", code: -1, userInfo: [NSLocalizedDescriptionKey: "Template not found"])
+                }
+                
+                let scene = try await templateService.createScene(
+                    from: template,
+                    asset: photoStack.primaryAsset,
+                    caption: "Test Caption"
+                )
+                
+                await MainActor.run {
+                    testScene = scene
+                    print("✅ Created polaroid scene with image and \(scene.layers.count) layers")
+                    
+                    // Trigger preview rendering
+                    renderPreview()
+                }
+            } catch {
+                await MainActor.run {
+                    print("❌ Failed to create polaroid scene with image: \(error)")
+                    // Create fallback scene with just rectangle
+                    let fallbackScene = OnionScene(name: "Fallback", size: CGSize(width: 800, height: 1000))
+                    fallbackScene.backgroundColor = "#FFFFFF"
+                    testScene = fallbackScene
+                    renderPreview()
+                }
+            }
+        }
+    }
+    
+    private func renderPreview() {
+        guard let scene = testScene else { return }
+        
+        Task {
+            do {
+                let renderedImage = try await OnionRenderer.shared.renderPreview(scene: scene)
+                await MainActor.run {
+                    previewImage = renderedImage
+                    print("✅ Preview rendering completed successfully")
+                }
+            } catch {
+                await MainActor.run {
+                    renderingFailed = true
+                    print("❌ Preview rendering failed: \(error)")
+                }
+            }
+        }
+    }
+    
+    private func createTestScene(with photoStack: RPhotoStack) {
+        print("🎨 Creating polaroid scene for asset: \(photoStack.primaryAsset.localIdentifier)")
+        
+        Task {
+            do {
+                // Get default template from template service
+                guard let template = templateService.getTemplate(id: "polaroid_classic") else {
+                    throw NSError(domain: "ECardEditor", code: -1, userInfo: [NSLocalizedDescriptionKey: "Template not found"])
+                }
+                
+                let scene = try await templateService.createScene(
+                    from: template,
+                    asset: photoStack.primaryAsset,
+                    caption: "Test Caption"
+                )
+                
+                await MainActor.run {
+                    testScene = scene
+                    print("✅ Created polaroid scene with \(scene.layers.count) layers, setting testScene state")
+                }
+            } catch {
+                await MainActor.run {
+                    print("❌ Failed to create polaroid scene: \(error)")
+                    // Set empty scene to get out of loading state
+                    let emptyScene = OnionScene(name: "Empty", size: CGSize(width: 800, height: 1000))
+                    testScene = emptyScene
+                }
+            }
+        }
+    }
+    
+    private func testScenePreview(scene: OnionScene) -> some View {
+        VStack(spacing: 12) {
+            if let image = previewImage {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: 400)
+                    .clipped()
+                    .background(Color.white)
+                    .cornerRadius(8)
+                    .shadow(radius: 8)
+            } else if renderingFailed {
+                Rectangle()
+                    .fill(Color.red.opacity(0.3))
+                    .overlay(
+                        Text("Rendering Failed")
+                            .foregroundColor(.white)
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: 400)
+                    .aspectRatio(scene.size.width / scene.size.height, contentMode: .fit)
+                    .clipped()
+                    .cornerRadius(8)
+                    .shadow(radius: 8)
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .overlay(
+                        VStack {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            Text("Rendering...")
+                                .foregroundColor(.white)
+                                .padding(.top, 8)
+                        }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: 400)
+                    .aspectRatio(scene.size.width / scene.size.height, contentMode: .fit)
+                    .clipped()
+                    .background(Color.white)
+                    .cornerRadius(8)
+                    .shadow(radius: 8)
+            }
+        }
+        .task {
+            print("🎨 Starting OnionRenderer.renderPreview")
+            do {
+                let renderedImage = try await OnionRenderer.shared.renderPreview(scene: scene)
+                previewImage = renderedImage
+                print("✅ OnionRenderer.renderPreview completed successfully")
+            } catch {
+                renderingFailed = true
+                print("❌ OnionRenderer.renderPreview failed: \(error)")
+            }
+        }
+    }
+    
+    private func renderScenePreview(scene: OnionScene) async {
+        do {
+            let previewImage = try await OnionRenderer.shared.renderPreview(scene: scene)
+            print("✅ Rendered test scene preview")
+        } catch {
+            print("❌ Failed to render scene preview: \(error)")
+        }
+    }
+    
+    private func saveTestScene() {
+        guard let scene = testScene else { return }
+        
+        Task {
+            do {
+                let result = try await OnionRenderer.shared.renderHighQuality(scene: scene, format: .jpeg)
+                let image = result.image
+                
+                await MainActor.run {
+                    saveImageToPhotoLibrary(image)
+                }
+            } catch {
+                print("❌ Failed to render test scene: \(error)")
             }
         }
     }
@@ -267,16 +467,16 @@ struct ECardEditorView: View {
     }
     
     private func saveECard() {
-        guard let template = eCardEditor.currentTemplate else { return }
+        guard let template = eCardEditor.currentTemplate,
+              let primaryAsset = initialAssets.first?.primaryAsset else { return }
         
-        // Use Onion renderer to generate the image
+        // Use template service to generate the scene
         Task {
             do {
-                let scene = try await ECardToOnionConverter.shared.createScene(
+                let scene = try await templateService.createScene(
                     from: template,
-                    imageAssignments: eCardEditor.imageAssignments,
-                    textAssignments: eCardEditor.textAssignments,
-                    size: CGSize(width: 800, height: 1000)
+                    asset: primaryAsset,
+                    caption: eCardEditor.textAssignments["Text1"] ?? "Caption"
                 )
                 
                 let result = try await OnionRenderer.shared.renderHighQuality(scene: scene, format: .jpeg)
@@ -295,7 +495,7 @@ struct ECardEditorView: View {
                 }
             } catch {
                 await MainActor.run {
-                    print("❌ Failed to generate ECard with Onion: \(error)")
+                    print("❌ Failed to generate ECard with template service: \(error)")
                 }
             }
         }
@@ -430,21 +630,32 @@ private struct TemplateCard: View {
     private func generateThumbnail() {
         Task {
             do {
-                // Create empty scene with just template structure
-                let scene = try await ECardToOnionConverter.shared.createScene(
-                    from: template,
-                    imageAssignments: [:], // No images for template thumbnail
-                    textAssignments: [:], // Use placeholder text
-                    size: CGSize(width: 80, height: 100)
+                // Use template service to create scene for thumbnail
+                // Create a dummy asset for thumbnail generation
+                let dummyScene = OnionScene(name: "Thumbnail", size: CGSize(width: 80, height: 100))
+                dummyScene.backgroundColor = "#FFFFFF"
+                
+                // Add placeholder layers for thumbnail
+                let borderTransform = LayerTransform(
+                    position: CGPoint(x: 5, y: 5),
+                    size: CGSize(width: 70, height: 90)
                 )
                 
-                let thumbnail = try await OnionRenderer.shared.renderPreview(scene: scene)
+                var borderLayer = GeometryLayer(name: "Border", transform: borderTransform)
+                borderLayer.shape = .rectangle
+                borderLayer.fillColor = "#FFFFFF"
+                borderLayer.strokeColor = "#E0E0E0"
+                borderLayer.strokeWidth = 1
+                borderLayer.cornerRadius = 4
+                dummyScene.addLayer(borderLayer)
+                
+                let thumbnail = try await OnionRenderer.shared.renderPreview(scene: dummyScene)
                 
                 await MainActor.run {
                     self.thumbnailImage = thumbnail
                 }
             } catch {
-                print("❌ TemplateCard: Failed to generate Onion thumbnail: \(error)")
+                print("❌ TemplateCard: Failed to generate thumbnail: \(error)")
             }
         }
     }
@@ -619,11 +830,24 @@ private struct OnionECardPreview: View {
         
         Task {
             do {
-                let scene = try await ECardToOnionConverter.shared.createScene(
+                // Get first available asset from image assignments
+                guard let firstAsset = imageAssignments.values.first else {
+                    // Create template-only scene for preview
+                    let dummyScene = OnionScene(name: "Preview", size: CGSize(width: 400, height: 500))
+                    dummyScene.backgroundColor = "#FFFFFF"
+                    
+                    let previewImg = try await OnionRenderer.shared.renderPreview(scene: dummyScene)
+                    await MainActor.run {
+                        self.previewImage = previewImg
+                        self.isRendering = false
+                    }
+                    return
+                }
+                
+                let scene = try await ECardTemplateService.shared.createScene(
                     from: template,
-                    imageAssignments: imageAssignments,
-                    textAssignments: textAssignments,
-                    size: CGSize(width: 400, height: 500) // Smaller size for preview
+                    asset: firstAsset,
+                    caption: textAssignments["Text1"] ?? "Caption"
                 )
                 
                 let previewImg = try await OnionRenderer.shared.renderPreview(scene: scene)

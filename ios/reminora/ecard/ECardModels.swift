@@ -18,6 +18,7 @@ struct ECardTemplate: Identifiable, Codable {
     let imageSlots: [ImageSlot]
     let textSlots: [TextSlot]
     let category: ECardCategory
+    let sceneBuilderName: String?
     
     // Computed properties
     var aspectRatio: Double {
@@ -31,7 +32,8 @@ struct ECardTemplate: Identifiable, Codable {
 
     init(
         id: String, name: String, svgContent: String, thumbnailName: String? = nil,
-        imageSlots: [ImageSlot], textSlots: [TextSlot] = [], category: ECardCategory = .general
+        imageSlots: [ImageSlot], textSlots: [TextSlot] = [], category: ECardCategory = .general,
+        sceneBuilderName: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -40,6 +42,7 @@ struct ECardTemplate: Identifiable, Codable {
         self.imageSlots = imageSlots
         self.textSlots = textSlots
         self.category = category
+        self.sceneBuilderName = sceneBuilderName
     }
 }
 

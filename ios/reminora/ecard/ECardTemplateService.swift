@@ -7,36 +7,9 @@
 
 import Foundation
 import Photos
-import SVGKit
 import SwiftUI
 import UIKit
 
-// MARK: - CALayer Extension for finding layers by identifier
-extension CALayer {
-    func findLayer(byIdentifier id: String) -> CALayer? {
-        if name == id { return self }
-        for sub in sublayers ?? [] {
-            if let match = sub.findLayer(byIdentifier: id) {
-                return match
-            }
-        }
-        return nil
-    }
-}
-
-// MARK: - Image Assignment Helper
-private class ECardImageAssignmentHelper {
-    private var imageAssignments: [String: UIImage] = [:]
-
-    func setImageAssignments(_ assignments: [String: UIImage]) {
-        imageAssignments = assignments
-        print("🎨 ECardImageAssignmentHelper: Updated image assignments for \(assignments.keys)")
-    }
-
-    func getImage(for slotId: String) -> UIImage? {
-        return imageAssignments[slotId]
-    }
-}
 
 // MARK: - ECard Template Service
 class ECardTemplateService: ObservableObject {
@@ -44,7 +17,6 @@ class ECardTemplateService: ObservableObject {
 
     @Published private var templates: [ECardTemplate] = []
     private var templatesLoaded = false
-    private let imageHelper = ECardImageAssignmentHelper()
     
     // Default output size for ECards
     private let size = CGSize(width: 800, height: 1000)
@@ -87,17 +59,17 @@ class ECardTemplateService: ObservableObject {
     private func loadBuiltInTemplates() {
         print("🎨 ECardTemplateService: Loading built-in templates...")
 
-        let templateDefinitions = [
-            ("polaroid_classic", "Classic Polaroid", ECardCategory.polaroid),
-            ("modern_gradient", "Modern Gradient", ECardCategory.modern),
-            ("vintage_postcard", "Vintage Postcard", ECardCategory.vintage),
-            ("restaurant_dining", "Restaurant", ECardCategory.general),
-            ("vacation_paradise", "Vacation", ECardCategory.travel),
+        let templateDefinitions: [(String, String, ECardCategory, (PHAsset, String, CGSize) async throws -> OnionScene)] = [
+            ("polaroid_classic", "Classic Polaroid", ECardCategory.polaroid, createPolaroidScene),
+            ("modern_gradient", "Modern Gradient", ECardCategory.modern, createPolaroidScene),
+            ("vintage_postcard", "Vintage Postcard", ECardCategory.vintage, createPolaroidScene),
+            ("restaurant_dining", "Restaurant", ECardCategory.general, createPolaroidScene),
+            ("vacation_paradise", "Vacation", ECardCategory.travel, createPolaroidScene),
         ]
 
-        templates = templateDefinitions.compactMap { (filename, name, category) in
+        templates = templateDefinitions.compactMap { (filename, name, category, sceneBuilder) in
             print("🎨 Loading template: \(filename)")
-            let template = createTemplateFromFile(filename, name: name, category: category)
+            let template = createTemplateFromFunction(filename, name: name, category: category, sceneBuilder: sceneBuilder)
             if template != nil {
                 print("✅ Successfully loaded: \(filename)")
             } else {
@@ -109,528 +81,118 @@ class ECardTemplateService: ObservableObject {
         print("🎨 ECardTemplateService: Loaded \(templates.count) templates")
     }
 
-    private func createTemplateFromFile(_ filename: String, name: String, category: ECardCategory)
-        -> ECardTemplate?
-    {
-        let svgContent = loadSVGFromFile(filename) ?? getFallbackSVG(filename)
-
-        guard !svgContent.isEmpty else {
-            print("⚠️ Failed to load SVG file and no fallback available: \(filename)")
-            return nil
-        }
-
-        // Parse image and text slots from SVG content
-        let imageSlots = parseImageSlots(from: svgContent)
-        let textSlots = parseTextSlots(from: svgContent)
-
-        print(
-            "🎨 Parsed \(imageSlots.count) image slots and \(textSlots.count) text slots from \(filename)"
-        )
-
+    private func createTemplateFromFunction(
+        _ id: String, 
+        name: String, 
+        category: ECardCategory, 
+        sceneBuilder: @escaping (PHAsset, String, CGSize) async throws -> OnionScene
+    ) -> ECardTemplate? {
+        
+        // Create dummy slots for compatibility
+        let imageSlot = ImageSlot(id: "Image1", x: 60, y: 60, width: 680, height: 720, cornerRadius: 0)
+        let textSlot = TextSlot(id: "Text1", x: 400, y: 850, width: 680, height: 40, fontSize: 28, placeholder: "Caption")
+        
         return ECardTemplate(
-            id: filename,
+            id: id,
             name: name,
-            svgContent: svgContent,
-            thumbnailName: "\(filename)_thumb",
-            imageSlots: imageSlots,
-            textSlots: textSlots,
-            category: category
+            svgContent: "",
+            thumbnailName: "\(id)_thumb",
+            imageSlots: [imageSlot],
+            textSlots: [textSlot],
+            category: category,
+            sceneBuilderName: "polaroid"
         )
     }
-
-    // MARK: - SVG Parsing
-
-    private func parseImageSlots(from svgContent: String) -> [ImageSlot] {
-        var imageSlots: [ImageSlot] = []
-
-        // Use SVGKit's DOM to find image elements
-        guard let svgImage = SVGKImage(data: svgContent.data(using: .utf8)),
-            let domDocument = svgImage.domDocument
-        else {
-            print("⚠️ Failed to create SVGKImage or get DOM document")
-            return imageSlots
-        }
-
-        // Look for image elements with IDs starting with "Image"
-        for i in 1...10 {  // Support up to 10 image slots
-            let imageId = "Image\(i)"
-            if let imageElement = domDocument.getElementById(imageId) {
-                // Get attributes using string access - more reliable with SVGKit
-                let x = Double(imageElement.getAttribute("x") ?? "0") ?? 0
-                let y = Double(imageElement.getAttribute("y") ?? "0") ?? 0
-                let width = Double(imageElement.getAttribute("width") ?? "0") ?? 0
-                let height = Double(imageElement.getAttribute("height") ?? "0") ?? 0
-
-                let imageSlot = ImageSlot(
-                    id: imageId,
-                    x: x,
-                    y: y,
-                    width: width,
-                    height: height,
-                    cornerRadius: 0) // SVG rx/ry could be parsed here if needed
-                imageSlots.append(imageSlot)
-                print("📍 Found image slot: \(imageId) at (\(x), \(y)) size \(width)x\(height)")
-            }
-        }
-
-        return imageSlots
-    }
-
-    private func parseTextSlots(from svgContent: String) -> [TextSlot] {
-        var textSlots: [TextSlot] = []
-
-        // Use SVGKit's DOM to find text elements
-        guard let svgImage = SVGKImage(data: svgContent.data(using: .utf8)),
-            let domDocument = svgImage.domDocument
-        else {
-            print("⚠️ Failed to create SVGKImage or get DOM document")
-            return textSlots
-        }
-
-        // Look for text elements with IDs starting with "Text"
-        for i in 1...10 {  // Support up to 10 text slots
-            let textId = "Text\(i)"
-            if let textElement = domDocument.getElementById(textId) {
-                // Get coordinate attributes - SVGKit may have different API
-                let x = Double(textElement.getAttribute("x") ?? "0") ?? 0
-                let y = Double(textElement.getAttribute("y") ?? "0") ?? 0
-                let fontSize = Double(textElement.getAttribute("font-size") ?? "16") ?? 16
-                let placeholder = textElement.textContent ?? "Text here"
-
-                // Estimate text dimensions based on font size
-                let charWidth = fontSize * 0.6
-                let estimatedWidth = charWidth * Double((placeholder as String).count) + 20
-                let width = estimatedWidth
-                let height = Double(fontSize + 10)
-
-                let textSlot = TextSlot(
-                    id: textId,
-                    x: x,
-                    y: y,
-                    width: width,
-                    height: height,
-                    fontSize: fontSize,
-                    placeholder: placeholder as String)
-                textSlots.append(textSlot)
-                print("📝 Found text slot: \(textId) at (\(x), \(y)) text: '\(placeholder)'")
-            }
-        }
-
-        return textSlots
-    }
-
-    // MARK: - SVG DOM Manipulation
-    private func loadSVGFromFile(_ filename: String) -> String? {
-        // Try loading from bundle first
-        if let path = Bundle.main.path(forResource: filename, ofType: "svg"),
-            let svgContent = try? String(contentsOfFile: path, encoding: .utf8)
-        {
-            return svgContent
-        }
-
-        // Try loading from ecard subdirectory
-        if let path = Bundle.main.path(forResource: filename, ofType: "svg", inDirectory: "ecard"),
-            let svgContent = try? String(contentsOfFile: path, encoding: .utf8)
-        {
-            return svgContent
-        }
-
-        // Try loading directly from filesystem (development)
-        let projectPath = "/Users/alexezh/prj/wahi/ios/reminora/ecard/\(filename).svg"
-        if let svgContent = try? String(contentsOfFile: projectPath, encoding: .utf8) {
-            return svgContent
-        }
-
-        print("⚠️ Could not find SVG file: \(filename)")
-        return nil
-    }
-
-    private func getFallbackSVG(_ filename: String) -> String {
-        // Return empty string - we should always load from actual SVG files
-        print("⚠️ Using fallback SVG for \(filename) - this should not happen in production")
-        return ""
-    }
-
-    // MARK: - SVG Rendering with Image Resolution
-
-    /// Generate ECard with assigned images using pure SVG DOM manipulation
-    func generateECardWithImages(
-        template: ECardTemplate,
-        imageAssignments: [String: UIImage],
-        textAssignments: [String: String] = [:]
-    ) -> UIImage? {
-        print(
-            "🎨 ECardTemplateService: Generating ECard with \(imageAssignments.count) images using pure SVG DOM manipulation"
+    
+    /// Create a polaroid-style scene with white border
+    private func createPolaroidScene(
+        with asset: PHAsset,
+        caption: String,
+        size: CGSize
+    ) async throws -> OnionScene {
+        
+        let scene = OnionScene(name: "Polaroid Scene", size: size)
+        scene.backgroundColor = "#FFFFFF"
+        
+        // Polaroid styling: thicker white border, smaller image area
+        let borderThickness: CGFloat = 60
+        let bottomTextArea: CGFloat = 120
+        
+        // Create white background border
+        let borderTransform = LayerTransform(
+            position: CGPoint(x: borderThickness * 0.5, y: borderThickness * 0.5),
+            size: CGSize(width: size.width - borderThickness, height: size.height - borderThickness)
         )
-
-        // Create SVGKImage from template content
-        guard let svgData = template.svgContent.data(using: .utf8),
-            let svgkImage = SVGKImage(data: svgData)
-        else {
-            print("⚠️ ECardTemplateService: Failed to create SVGKImage from template content")
-            return nil
-        }
-
-        // Set the desired output size and ensure proper scaling
-        svgkImage.size = size
-
-        // Force SVGKit to scale the content to fit inside the target size
-        svgkImage.scaleToFit(inside: size)
-
-        // Get DOM document for manipulation
-        guard let domDocument = svgkImage.domDocument else {
-            print("⚠️ ECardTemplateService: Failed to get DOM document")
-            return nil
-        }
-
-        // Calculate aspect ratio adjustment if there's exactly one image
-        var yScaleFactor: Double = 1.0
-        if imageAssignments.count == 1, 
-           let firstImageSlot = template.imageSlots.first,
-           let firstImage = imageAssignments[firstImageSlot.id] {
-            
-            let imageWidth = Double(firstImage.size.width)
-            let imageHeight = Double(firstImage.size.height)
-            
-            // SVG templates are created in 100x100 coordinate system (square)
-            // Adjust Y coordinates based on image aspect ratio
-            // If image is 800/600 (4:3), Y scale factor should be 600/800 = 0.75
-            yScaleFactor = imageHeight / imageWidth
-            
-            print("🎨 ECardTemplateService: Image aspect ratio adjustment - image: \(imageWidth)x\(imageHeight), Y scale factor: \(yScaleFactor)")
-            
-            // Apply Y coordinate scaling to all elements in the SVG DOM
-            adjustSVGElementYCoordinates(domDocument: domDocument, scaleFactor: yScaleFactor)
-        }
-
-        // Update image layers in CALayer tree - works regardless of DOM element type
-        if let rootLayer = svgkImage.caLayerTree {
-            for slot in template.imageSlots {
-                let slotId = slot.id
-                if let image = imageAssignments[slotId] {
-
-                    // Convert UIImage to PNG data for consistency
-                    guard let pngData = image.pngData(),
-                        let pngImage = UIImage(data: pngData)
-                    else {
-                        print("⚠️ Failed to convert image to PNG for slot \(slotId)")
-                        continue
-                    }
-
-                    // Find the CALayer for this image slot
-                    if let imageLayer = rootLayer.findLayer(byIdentifier: slotId) {
-                        // Set the CGImage directly on the layer's contents
-                        imageLayer.contents = pngImage.cgImage
-                        print(
-                            "🎨 ECardTemplateService: Set CGImage contents on CALayer for slot \(slotId)"
-                        )
-                    } else {
-                        print("⏭️ ECardTemplateService: Could not find CALayer for slot \(slotId)")
-                    }
-                }
-            }
-        } else {
-            print("⚠️ ECardTemplateService: Could not access caLayerTree from SVGKImage")
-        }
-
-        // Update text elements in DOM
-        guard !textAssignments.isEmpty else {
-            print("📝 ECardTemplateService: No text assignments to process")
-            // Continue with image generation
-            let finalImage = svgkImage.uiImage
-            return finalImage
-        }
         
-        for (slotId, text) in textAssignments {
-            print("🎨 ECardTemplateService: Updating text slot \(slotId) with: '\(text)'")
-            
-            // Add safety check for empty slot ID
-            guard !slotId.isEmpty else {
-                print("⚠️ ECardTemplateService: Skipping empty slot ID")
-                continue
-            }
-            
-            if let textElement = domDocument.getElementById(slotId) {
-                print("🎨 ECardTemplateService: Found text element \(slotId), type: \(type(of: textElement))")
-                
-                // Additional safety check for the element
-                guard textElement.isKind(of: NSObject.self) else {
-                    print("⚠️ ECardTemplateService: Text element \(slotId) is not an NSObject")
-                    continue
-                }
-                
-                // Use DOM manipulation to update text content
-                let elementObj = textElement as AnyObject
-                
-                // Try multiple approaches to ensure text is updated
-                var textUpdateSuccessful = false
-                
-                if elementObj.responds(to: Selector(("setTextContent:"))) {
-                    let _ = elementObj.perform(Selector(("setTextContent:")), with: text)
-                    print("✅ ECardTemplateService: Updated textContent via setTextContent: for \(slotId)")
-                    textUpdateSuccessful = true
-                } else if elementObj.responds(to: Selector(("setValue:forKey:"))) {
-                    // Safer approach: Check if setValue method exists before calling
-                    do {
-                        elementObj.setValue(text, forKey: "textContent")
-                        print("✅ ECardTemplateService: Updated textContent via setValue for \(slotId)")
-                        textUpdateSuccessful = true
-                    } catch {
-                        print("⚠️ ECardTemplateService: setValue for textContent failed: \(error)")
-                    }
-                }
-                
-                // Also set innerHTML as additional backup if setValue is available
-                if elementObj.responds(to: Selector(("setValue:forKey:"))) {
-                    do {
-                        elementObj.setValue(text, forKey: "innerHTML")
-                        print("✅ ECardTemplateService: Updated innerHTML for \(slotId)")
-                    } catch {
-                        print("⚠️ ECardTemplateService: setValue for innerHTML failed: \(error)")
-                    }
-                }
-                
-                // Force text content refresh using nodeValue property if available
-                do {
-                    if let firstChildValue = elementObj.value(forKey: "firstChild") {
-                        let firstChildObj = firstChildValue as AnyObject
-                        if firstChildObj.responds(to: Selector(("setValue:forKey:"))) {
-                            firstChildObj.setValue(text, forKey: "nodeValue")
-                            print("✅ ECardTemplateService: Updated nodeValue for first child of \(slotId)")
-                        }
-                    }
-                } catch {
-                    print("⚠️ ECardTemplateService: nodeValue update failed: \(error)")
-                }
-                
-                if !textUpdateSuccessful {
-                    print("❌ ECardTemplateService: Failed to update text for \(slotId) - element may not support text updates")
-                }
-                
-            } else {
-                print("❌ ECardTemplateService: Could not find text element with ID: \(slotId)")
-                // Debug: Print all available element IDs
-                debugPrintAllElementIds(domDocument: domDocument)
-            }
-        }
+        var borderLayer = GeometryLayer(name: "Polaroid Border", transform: borderTransform)
+        borderLayer.shape = .rectangle
+        borderLayer.fillColor = "#FFFFFF"
+        borderLayer.strokeColor = "#E0E0E0"
+        borderLayer.strokeWidth = 1
+        borderLayer.cornerRadius = 8
+        borderLayer.zOrder = 0
+        scene.addLayer(borderLayer)
         
-        // Force SVGKit to regenerate by clearing its internal caches
-        // This ensures DOM changes are reflected in the rendered output
-        let svgkImageObj = svgkImage as AnyObject
+        // Create image layer
+        let imageData = try await loadImageData(from: asset)
+        let imageTransform = LayerTransform(
+            position: CGPoint(x: borderThickness, y: borderThickness),
+            size: CGSize(width: size.width - (borderThickness * 2), height: size.height - borderThickness - bottomTextArea)
+        )
         
-        // Try multiple cache clearing approaches
-        if svgkImageObj.responds(to: Selector(("clearCache"))) {
-            let _ = svgkImageObj.perform(Selector(("clearCache")))
-            print("🎨 ECardTemplateService: Cleared SVGKit cache")
-        }
+        var imageLayer = ImageLayer(name: "Photo", transform: imageTransform)
+        imageLayer.imageData = imageData
+        imageLayer.contentMode = .scaleAspectFill
+        imageLayer.zOrder = 1
+        scene.addLayer(imageLayer)
         
-        if svgkImageObj.responds(to: Selector(("invalidateCache"))) {
-            let _ = svgkImageObj.perform(Selector(("invalidateCache")))
-            print("🎨 ECardTemplateService: Invalidated SVGKit cache")
-        }
+        // Create text layer in bottom white area
+        let textTransform = LayerTransform(
+            position: CGPoint(x: size.width / 2, y: size.height - (bottomTextArea / 2)),
+            size: CGSize(width: size.width - (borderThickness * 2), height: 40)
+        )
         
-        // Force re-creation of the layer tree to ensure fresh rendering
-        if svgkImageObj.responds(to: Selector(("clearCALayerTree"))) {
-            let _ = svgkImageObj.perform(Selector(("clearCALayerTree")))
-            print("🎨 ECardTemplateService: Cleared CALayer tree for fresh rendering")
-        }
-
-        // Render the final SVG using CALayer approach to ensure proper scaling and positioning
-        if let rootLayer = svgkImage.caLayerTree {
-            print("🎨 ECardTemplateService: Using CALayer rendering for final image")
-
-            let scale = UIScreen.main.scale
-            let format = UIGraphicsImageRendererFormat()
-            format.scale = scale
-            format.opaque = false
-
-            let renderer = UIGraphicsImageRenderer(size: size, format: format)
-            let renderedImage = renderer.image { context in
-                let cgContext = context.cgContext
-
-                // Clear background to white for ECard
-                cgContext.setFillColor(UIColor.white.cgColor)
-                cgContext.fill(CGRect(origin: .zero, size: size))
-
-                // Set the layer frame to match our target size and position at origin
-                rootLayer.frame = CGRect(origin: .zero, size: size)
-                rootLayer.bounds = CGRect(origin: .zero, size: size)
-
-                // Ensure the layer contents are scaled properly
-                rootLayer.contentsGravity = .resizeAspect
-                //rootLayer.isGeometryFlipped = true
-
-                // Render the layer directly
-                rootLayer.render(in: cgContext)
-            }
-
-            print("✅ ECardTemplateService: CALayer rendering completed with size \(size)")
-            return renderedImage
-        }
-
-        // Fallback to UIImage property
-        let finalImage = svgkImage.uiImage
-
-        // Resize if needed
-        if let finalImage = finalImage, finalImage.size != size {
-            let renderer = UIGraphicsImageRenderer(size: size)
-            return renderer.image { _ in
-                finalImage.draw(in: CGRect(origin: .zero, size: size))
-            }
-        }
-
-        return finalImage
-    }
-
-    // MARK: - SVG Thumbnail Generation
-
-    func generateThumbnail(
-        for template: ECardTemplate, size: CGSize = CGSize(width: 120, height: 150)
-    ) -> UIImage? {
-        print("🎨 ECardTemplateService: Generating thumbnail for template \(template.name) at size \(size)")
+        var textLayer = TextLayer(name: "Caption", transform: textTransform)
+        textLayer.text = caption
+        textLayer.fontSize = 28
+        textLayer.textColor = "#333333"
+        textLayer.textAlignment = .center
+        textLayer.zOrder = 2
+        scene.addLayer(textLayer)
         
-        // Generate SVG with no images or text assignments for clean template preview
-        guard let baseImage = generateECardWithImages(
-            template: template,
-            imageAssignments: [:],
-            textAssignments: [:]
-        ) else {
-            print("⚠️ ECardTemplateService: Failed to generate base SVG for thumbnail")
-            return nil
-        }
-        
-        // Resize the generated SVG to the requested thumbnail size if needed
-        if baseImage.size != size {
-            let renderer = UIGraphicsImageRenderer(size: size)
-            let resizedImage = renderer.image { _ in
-                baseImage.draw(in: CGRect(origin: .zero, size: size))
-            }
-            print("✅ ECardTemplateService: Generated and resized thumbnail to \(size)")
-            return resizedImage
-        }
-        
-        print("✅ ECardTemplateService: Generated thumbnail at native size")
-        return baseImage
-    }
-
-    // MARK: - Debug Helpers
-    
-    private func debugPrintElementIds(element: Any, level: Int) {
-        let elementObj = element as AnyObject
-        let indent = String(repeating: "  ", count: level)
-        
-        if let elementId = elementObj.getAttribute?("id") as? String, !elementId.isEmpty {
-            print("\(indent)- \(elementObj.localName ?? "unknown") id=\"\(elementId)\"")
-        } else {
-            print("\(indent)- \(elementObj.localName ?? "unknown") (no id)")
-        }
-        
-        // Don't traverse children for now to avoid complexity
+        return scene
     }
     
-    private func debugPrintAllElementIds(domDocument: Any) {
-        print("🔍 ECardTemplateService: Debugging available element IDs in DOM:")
-        let domDocumentObj = domDocument as AnyObject
-        
-        if let rootElement = domDocumentObj.rootElement {
-            debugPrintElementIds(element: rootElement as Any, level: 0)
+    private func loadImageData(from asset: PHAsset) async throws -> Data {
+        return try await withCheckedThrowingContinuation { continuation in
+            let imageManager = PHImageManager.default()
+            let options = PHImageRequestOptions()
+            options.isSynchronous = false
+            options.isNetworkAccessAllowed = true
+            options.deliveryMode = .highQualityFormat
+            options.resizeMode = .exact
             
-            // Try to find all elements with IDs
-            for i in 1...10 {
-                let textId = "Text\(i)"
-                if let element = domDocumentObj.getElementById?(textId) {
-                    let elementObj = element as AnyObject
-                    let textContent = elementObj.textContent as? String ?? "no content"
-                    print("  Found \(textId): '\(textContent)'")
+            imageManager.requestImageDataAndOrientation(for: asset, options: options) { data, _, _, info in
+                if let error = info?[PHImageErrorKey] as? Error {
+                    continuation.resume(throwing: error)
+                    return
                 }
                 
-                let imageId = "Image\(i)"
-                if let element = domDocumentObj.getElementById?(imageId) {
-                    print("  Found \(imageId)")
+                guard let imageData = data else {
+                    continuation.resume(throwing: NSError(domain: "ECardTemplateService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to load image data"]))
+                    return
                 }
+                
+                continuation.resume(returning: imageData)
             }
-        }
-    }
-
-    // MARK: - SVG Coordinate Adjustment
-    
-    private func adjustSVGElementYCoordinates(domDocument: Any, scaleFactor: Double) {
-        // Find all elements with y coordinates and scale them
-        // Using Any type for better compatibility with SVGKit's dynamic typing
-        if let rootElement = (domDocument as AnyObject).rootElement {
-            adjustElementYCoordinates(element: rootElement as Any, scaleFactor: scaleFactor)
         }
     }
     
-    private func adjustElementYCoordinates(element: Any, scaleFactor: Double) {
-        // Scale Y coordinates for various SVG elements using dynamic method calls
-        let elementObj = element as AnyObject
-        
-        // Try to get and set Y coordinate
-        if let yAttr = elementObj.getAttribute?("y") as? String, 
-           let yValue = Double(yAttr) {
-            let scaledY = yValue * scaleFactor
-            elementObj.setAttributeNS?("http://www.w3.org/2000/svg", qualifiedName: "y", value: String(scaledY))
-            print("🎨 Scaled Y coordinate: \(yValue) -> \(scaledY)")
-        }
-        
-        // Try to get and set CY coordinate for circles
-        if let cyAttr = elementObj.getAttribute?("cy") as? String,
-           let cyValue = Double(cyAttr) {
-            let scaledCy = cyValue * scaleFactor
-            elementObj.setAttributeNS?("http://www.w3.org/2000/svg", qualifiedName: "cy", value: String(scaledCy))
-            print("🎨 Scaled CY coordinate: \(cyValue) -> \(scaledCy)")
-        }
-        
-        // Handle transforms that might contain translate Y values
-        if let transformAttr = elementObj.getAttribute?("transform") as? String {
-            let scaledTransform = adjustTransformYCoordinates(transform: transformAttr, scaleFactor: scaleFactor)
-            if scaledTransform != transformAttr {
-                elementObj.setAttributeNS?("http://www.w3.org/2000/svg", qualifiedName: "transform", value: scaledTransform)
-                print("🎨 Scaled transform: \(transformAttr) -> \(scaledTransform)")
-            }
-        }
-        
-        // Skip recursive processing for now to avoid complex reflection
-        // TODO: Implement child element traversal if needed for specific templates
-        print("🎨 Processed element Y coordinate adjustment")
+    /// Create scene from template using its scene builder
+    func createScene(from template: ECardTemplate, asset: PHAsset, caption: String = "Caption") async throws -> OnionScene {
+        return try await createPolaroidScene(with: asset, caption: caption, size: CGSize(width: 800, height: 1000))
     }
-    
-    private func adjustTransformYCoordinates(transform: String, scaleFactor: Double) -> String {
-        // Handle translate(x, y) patterns in transform attributes
-        let translatePattern = #"translate\(([^,]+),\s*([^)]+)\)"#
-        
-        do {
-            let regex = try NSRegularExpression(pattern: translatePattern, options: [])
-            let nsString = transform as NSString
-            let results = regex.matches(in: transform, options: [], range: NSRange(location: 0, length: nsString.length))
-            
-            var adjustedTransform = transform
-            
-            // Process matches in reverse order to maintain string positions
-            for result in results.reversed() {
-                if result.numberOfRanges >= 3 {
-                    let xRange = result.range(at: 1)
-                    let yRange = result.range(at: 2)
-                    
-                    let xStr = nsString.substring(with: xRange)
-                    let yStr = nsString.substring(with: yRange)
-                    
-                    if let yValue = Double(yStr.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                        let scaledY = yValue * scaleFactor
-                        let newTranslate = "translate(\(xStr), \(scaledY))"
-                        let fullRange = result.range(at: 0)
-                        adjustedTransform = nsString.replacingCharacters(in: fullRange, with: newTranslate)
-                    }
-                }
-            }
-            
-            return adjustedTransform
-        } catch {
-            print("⚠️ Error processing transform attribute: \(error)")
-            return transform
-        }
-    }
+
 
     // MARK: - Custom Templates
     func addCustomTemplate(_ template: ECardTemplate) {

@@ -154,6 +154,7 @@ class OnionRenderer: ObservableObject {
     
     private var renderTasks: [UUID: Task<OnionRenderResult, Error>] = [:]
     private let renderQueue = DispatchQueue(label: "com.reminora.onion.render", qos: .userInitiated)
+    private let taskLock = NSLock()
     
     private init() {}
     
@@ -181,26 +182,36 @@ class OnionRenderer: ObservableObject {
                 return try await performRender(scene: scene, config: config, taskId: taskId)
             }
             
+            taskLock.lock()
             renderTasks[taskId] = task
+            taskLock.unlock()
             
             defer {
+                taskLock.lock()
                 renderTasks.removeValue(forKey: taskId)
+                taskLock.unlock()
             }
             
             return try await task.value
         } onCancel: {
-            renderTasks[taskId]?.cancel()
-            renderTasks.removeValue(forKey: taskId)
+            Task {
+                taskLock.lock()
+                renderTasks[taskId]?.cancel()
+                renderTasks.removeValue(forKey: taskId)
+                taskLock.unlock()
+            }
         }
     }
     
     /// Cancel all ongoing renders
     func cancelAllRenders() {
         DispatchQueue.main.async {
+            self.taskLock.lock()
             for task in self.renderTasks.values {
                 task.cancel()
             }
             self.renderTasks.removeAll()
+            self.taskLock.unlock()
             self.isRendering = false
             self.renderProgress = 0.0
             self.currentOperation = ""

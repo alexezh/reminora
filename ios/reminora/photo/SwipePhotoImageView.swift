@@ -91,8 +91,8 @@ struct SwipePhotoImageView: View {
                             )
                         }
                         
-                        // Update vertical offset for pull-down gesture
-                        if abs(translationY) > abs(translationX) && translationY > 0 && scale <= 1.0 {
+                        // Update vertical offset for pull-down gesture (only for significant downward movement)
+                        if abs(translationY) > abs(translationX) && translationY > 50 && scale <= 1.0 {
                             verticalOffset = min(translationY * 0.5, 200)
                         }
                     }

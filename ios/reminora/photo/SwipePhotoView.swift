@@ -221,13 +221,14 @@ struct SwipePhotoView: View {
                 headerView
                     .frame(height: LayoutConstants.headerHeight)
 
-                // Main photo area - LazySnapPager for smooth horizontal swiping
+                // Main photo area - Unified SwipePhotoImageView with integrated paging
                 if isViewReady && !photoStackCollection.isEmpty && currentIndex < photoStackCollection.count {
-                    LazySnapPager(
-                        itemCount: photoStackCollection.count,
+                    SwipePhotoImageView(
+                        photoStackCollection: photoStackCollection,
                         currentIndex: $currentIndex,
+                        isLoading: $isLoading,
                         onIndexChanged: { newIndex in
-                            print("📜 LazySnapPager: Index changed to \(newIndex)")
+                            print("📜 SwipePhotoImageView: Index changed to \(newIndex)")
                             // Update UI state when index changes
                             selectedAssetService.setCurrentPhotoStack(currentPhotoStack)
                             updateQuickListStatus()
@@ -240,14 +241,7 @@ struct SwipePhotoView: View {
                             NotificationCenter.default.post(name: NSNotification.Name("RestoreToolbar"), object: nil)
                             onDismiss()
                         }
-                    ) { index in
-                        // Render photo at given index
-                        let photoStack = photoStackCollection[index]
-                        SwipePhotoImageView(
-                            stack: photoStack, 
-                            isLoading: index == currentIndex ? $isLoading : .constant(false)
-                        )
-                    }
+                    )
                     .onTapGesture {
                         // Handle tap to expand/collapse stacks
                         let stack = currentPhotoStack

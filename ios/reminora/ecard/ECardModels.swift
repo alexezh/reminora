@@ -13,87 +13,20 @@ import SwiftUI
 struct ECardTemplate: Identifiable, Codable {
     let id: String
     let name: String
-    let svgContent: String
-    let thumbnailName: String?
-    let imageSlots: [ImageSlot]
-    let textSlots: [TextSlot]
     let category: ECardCategory
-    let sceneBuilderName: String?
     
     // Computed properties
     var aspectRatio: Double {
-        return svgDimensions.width / svgDimensions.height
-    }
-    
-    var svgDimensions: CGSize {
-        // Default SVG viewbox size - templates are assumed to be created in 100x100 coordinate system
-        return CGSize(width: 100, height: 100)
+        return 0.8 // Standard polaroid aspect ratio
     }
 
-    init(
-        id: String, name: String, svgContent: String, thumbnailName: String? = nil,
-        imageSlots: [ImageSlot], textSlots: [TextSlot] = [], category: ECardCategory = .general,
-        sceneBuilderName: String? = nil
-    ) {
+    init(id: String, name: String, category: ECardCategory = .general) {
         self.id = id
         self.name = name
-        self.svgContent = svgContent
-        self.thumbnailName = thumbnailName
-        self.imageSlots = imageSlots
-        self.textSlots = textSlots
         self.category = category
-        self.sceneBuilderName = sceneBuilderName
     }
 }
 
-// MARK: - Image Slot
-struct ImageSlot: Identifiable, Codable {
-    let id: String
-    let x: Double
-    let y: Double
-    let width: Double
-    let height: Double
-    let cornerRadius: Double
-
-    init(id: String, x: Double = 0, y: Double = 0, width: Double = 100, height: Double = 100, cornerRadius: Double = 0) {
-        self.id = id
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.cornerRadius = cornerRadius
-    }
-}
-
-// MARK: - Text Slot
-struct TextSlot: Identifiable, Codable {
-    let id: String
-    let x: Double
-    let y: Double
-    let width: Double
-    let height: Double
-    let fontSize: Double
-    let placeholder: String
-
-    init(
-        id: String, x: Double = 0, y: Double = 0, width: Double = 100, height: Double = 20, 
-        fontSize: Double = 16, placeholder: String = "Text here"
-    ) {
-        self.id = id
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.fontSize = fontSize
-        self.placeholder = placeholder
-    }
-}
-
-enum TextAlignment: String, Codable {
-    case left = "start"
-    case center = "middle"
-    case right = "end"
-}
 
 // MARK: - ECard Category
 enum ECardCategory: String, Codable, CaseIterable {

@@ -20,7 +20,6 @@ struct ECardEditorView: View {
     @State private var previewImage: UIImage?
     @State private var renderingFailed = false
     @State private var showingImagePicker = false
-    @State private var selectedImageSlot: ImageSlot?
     @State private var showingTextEditor = false
     @State private var showingOverrideConfirmation = false
     @State private var pendingECardImage: UIImage?
@@ -31,9 +30,9 @@ struct ECardEditorView: View {
             Color.black.ignoresSafeArea(.all)
             
             VStack(spacing: 0) {
-                // Preview and editing section
-                if let scene = testScene {
-                    testScenePreview(scene: scene)
+                // Preview section
+                if let template = eCardEditor.currentTemplate {
+                    previewSection(template: template)
                 } else {
                     Text("Loading...")
                         .foregroundColor(.white)
@@ -42,12 +41,8 @@ struct ECardEditorView: View {
                 
                 Spacer()
                 
-                // Save button
-                Button("Save ECard") {
-                    saveTestScene()
-                }
-                .foregroundColor(.blue)
-                .padding()
+                // Template selection section
+                templateSelectionSection
             }
             .padding(.top, 20) // Reduced space for back button
             .padding(.bottom, LayoutConstants.toolbarHeight) // Space for FAB
@@ -66,12 +61,8 @@ struct ECardEditorView: View {
             showingTextEditor = true
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ECardSelectImage"))) { _ in
-            // Find first image slot and open image picker
-            if let template = eCardEditor.currentTemplate,
-               let firstImageSlot = template.imageSlots.first {
-                selectedImageSlot = firstImageSlot
-                showingImagePicker = true
-            }
+            // Open image picker for asset selection
+            showingImagePicker = true
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("ECardSavePhoto"))) { _ in
             saveECard()
@@ -91,18 +82,16 @@ struct ECardEditorView: View {
         }
         .navigationBarHidden(true)
         .sheet(isPresented: $showingImagePicker) {
-            if let slot = selectedImageSlot {
-                ImagePickerView(
-                    availableAssets: initialAssets,
-                    onImageSelected: { asset in
-                        assignImage(asset: asset.primaryAsset, to: slot)
-                        showingImagePicker = false
-                    },
-                    onDismiss: {
-                        showingImagePicker = false
-                    }
-                )
-            }
+            ImagePickerView(
+                availableAssets: initialAssets,
+                onImageSelected: { asset in
+                    assignImage(asset: asset.primaryAsset)
+                    showingImagePicker = false
+                },
+                onDismiss: {
+                    showingImagePicker = false
+                }
+            )
         }
         .sheet(isPresented: $showingTextEditor) {
             TextEditorView(
@@ -110,7 +99,6 @@ struct ECardEditorView: View {
                     get: { eCardEditor.textAssignments },
                     set: { eCardEditor.textAssignments = $0 }
                 ),
-                textSlots: eCardEditor.currentTemplate?.textSlots ?? [],
                 onDismiss: {
                     showingTextEditor = false
                 }
@@ -154,13 +142,11 @@ struct ECardEditorView: View {
             template: template,
             imageAssignments: eCardEditor.imageAssignments,
             textAssignments: eCardEditor.textAssignments,
-            onImageSlotTapped: { slot in
-                selectedImageSlot = slot
+            onImageTapped: {
                 showingImagePicker = true
             },
-            onTextSlotTapped: { slot in
-                // Handle text editing
-                editText(for: slot)
+            onTextTapped: {
+                showingTextEditor = true
             }
         )
         .aspectRatio(template.aspectRatio, contentMode: .fit)
@@ -171,26 +157,6 @@ struct ECardEditorView: View {
         .shadow(radius: 8)
     }
     
-    // MARK: - Text Editing Section
-    
-    private func textEditingSection(template: ECardTemplate) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Text")
-                .font(.headline)
-                .foregroundColor(.primary)
-            
-            ForEach(template.textSlots) { slot in
-                VStack(alignment: .leading, spacing: 4) {
-                    TextField(slot.placeholder, text: Binding(
-                        get: { eCardEditor.textAssignments[slot.id] ?? slot.placeholder },
-                        set: { eCardEditor.textAssignments[slot.id] = $0 }
-                    ))
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                }
-            }
-        }
-        .padding(.horizontal, 16)
-    }
     
     // MARK: - Empty State
     
@@ -217,39 +183,13 @@ struct ECardEditorView: View {
     // MARK: - Helper Methods
     
     private func setupInitialState() {
-        // Use template service to create scene with actual image
-        guard let firstAsset = initialAssets.first?.primaryAsset,
-              let template = templateService.getTemplate(id: "polaroid_classic") else {
-            // Create fallback scene without image
-            let scene = OnionScene(name: "Polaroid", size: CGSize(width: 800, height: 1000))
-            scene.backgroundColor = "#FFFFFF"
-            testScene = scene
-            return
-        }
-        
-        Task {
-            do {
-                let scene = try await templateService.createScene(
-                    from: template,
-                    asset: firstAsset,
-                    caption: "Caption"
-                )
-                
-                await MainActor.run {
-                    testScene = scene
-                    print("✅ Set polaroid scene with actual image and \(scene.layers.count) layers")
-                    renderPreview()
-                }
-            } catch {
-                await MainActor.run {
-                    print("❌ Failed to create scene with image: \(error)")
-                    // Create fallback scene
-                    let fallbackScene = OnionScene(name: "Fallback", size: CGSize(width: 800, height: 1000))
-                    fallbackScene.backgroundColor = "#FFFFFF"
-                    testScene = fallbackScene
-                    renderPreview()
-                }
-            }
+        // Set default template and assign first asset
+        if let defaultTemplate = templateService.getTemplate(id: "polaroid_classic"),
+           let firstAsset = initialAssets.first?.primaryAsset {
+            eCardEditor.setCurrentTemplate(defaultTemplate)
+            eCardEditor.setImageAssignment(assetId: firstAsset.localIdentifier, for: "Image1")
+            eCardEditor.setTextAssignment(text: "Caption", for: "Text1")
+            setupECard(with: defaultTemplate)
         }
     }
     
@@ -339,62 +279,7 @@ struct ECardEditorView: View {
         }
     }
     
-    private func testScenePreview(scene: OnionScene) -> some View {
-        VStack(spacing: 12) {
-            if let image = previewImage {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: .infinity, maxHeight: 400)
-                    .clipped()
-                    .background(Color.white)
-                    .cornerRadius(8)
-                    .shadow(radius: 8)
-            } else if renderingFailed {
-                Rectangle()
-                    .fill(Color.red.opacity(0.3))
-                    .overlay(
-                        Text("Rendering Failed")
-                            .foregroundColor(.white)
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: 400)
-                    .aspectRatio(scene.size.width / scene.size.height, contentMode: .fit)
-                    .clipped()
-                    .cornerRadius(8)
-                    .shadow(radius: 8)
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .overlay(
-                        VStack {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            Text("Rendering...")
-                                .foregroundColor(.white)
-                                .padding(.top, 8)
-                        }
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: 400)
-                    .aspectRatio(scene.size.width / scene.size.height, contentMode: .fit)
-                    .clipped()
-                    .background(Color.white)
-                    .cornerRadius(8)
-                    .shadow(radius: 8)
-            }
-        }
-        .task {
-            print("🎨 Starting OnionRenderer.renderPreview")
-            do {
-                let renderedImage = try await OnionRenderer.shared.renderPreview(scene: scene)
-                previewImage = renderedImage
-                print("✅ OnionRenderer.renderPreview completed successfully")
-            } catch {
-                renderingFailed = true
-                print("❌ OnionRenderer.renderPreview failed: \(error)")
-            }
-        }
-    }
-    
+
     private func renderScenePreview(scene: OnionScene) async {
         do {
             let previewImage = try await OnionRenderer.shared.renderPreview(scene: scene)
@@ -422,15 +307,21 @@ struct ECardEditorView: View {
     }
     
     private func setupECard(with template: ECardTemplate) {
-        // Use existing image assignments from ECardEditor (which handles persistence)
+        // Assign initial assets if no existing assignments
+        if eCardEditor.imageAssignments.isEmpty, !initialAssets.isEmpty {
+            // Assign first asset for the main image
+            if let firstAsset = initialAssets.first?.primaryAsset {
+                eCardEditor.setImageAssignment(assetId: firstAsset.localIdentifier, for: "Image1")
+            }
+        }
+        
+        // Use existing image assignments from ECardEditor
         let imageIdentifiers = eCardEditor.imageAssignments.mapValues { $0.localIdentifier }
         
-        // Use existing text assignments from ECardEditor, or initialize with placeholders
+        // Initialize text assignments with default caption
         var textAssignments = eCardEditor.textAssignments
-        for textSlot in template.textSlots {
-            if textAssignments[textSlot.id] == nil {
-                textAssignments[textSlot.id] = textSlot.placeholder
-            }
+        if textAssignments["Text1"] == nil {
+            textAssignments["Text1"] = "Caption"
         }
         
         currentECard = ECard(
@@ -442,15 +333,15 @@ struct ECardEditorView: View {
         print("🎨 ECardEditorView: Setup ECard with \(imageIdentifiers.count) image assignments and \(textAssignments.count) text assignments")
     }
     
-    private func assignImage(asset: PHAsset, to slot: ImageSlot) {
-        eCardEditor.setImageAssignment(assetId: asset.localIdentifier, for: slot.id)
+    private func assignImage(asset: PHAsset) {
+        eCardEditor.setImageAssignment(assetId: asset.localIdentifier, for: "Image1")
         updateECard()
     }
     
-    private func editText(for slot: TextSlot) {
+    private func editText() {
         // Text editing is handled by the TextField in textEditingSection
         // This method could be extended for more advanced text editing
-        print("Edit text for slot: \(slot.id)")
+        print("Edit text for caption")
     }
     
     private func updateECard() {
@@ -533,29 +424,26 @@ struct ECardEditorView: View {
 
 private struct TextEditorView: View {
     @Binding var textAssignments: [String: String]
-    let textSlots: [TextSlot]
     let onDismiss: () -> Void
     
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 16) {
-                    ForEach(textSlots) { slot in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(slot.id.capitalized)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(.primary)
-                            
-                            TextField(slot.placeholder, text: Binding(
-                                get: { textAssignments[slot.id] ?? slot.placeholder },
-                                set: { textAssignments[slot.id] = $0 }
-                            ))
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .font(.system(size: max(16, CGFloat(slot.fontSize) * 1.5))) // Larger, more readable font
-                        }
-                        .padding(.horizontal, 4)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Caption")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                        
+                        TextField("Caption", text: Binding(
+                            get: { textAssignments["Text1"] ?? "Caption" },
+                            set: { textAssignments["Text1"] = $0 }
+                        ))
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .font(.system(size: 24))
                     }
+                    .padding(.horizontal, 4)
                 }
                 .padding()
             }
@@ -752,8 +640,8 @@ private struct OnionECardPreview: View {
     let template: ECardTemplate
     let imageAssignments: [String: PHAsset]
     let textAssignments: [String: String]
-    let onImageSlotTapped: (ImageSlot) -> Void
-    let onTextSlotTapped: (TextSlot) -> Void
+    let onImageTapped: () -> Void
+    let onTextTapped: () -> Void
     
     @State private var previewImage: UIImage?
     @State private var isRendering = false
@@ -879,39 +767,23 @@ private struct OnionECardPreview: View {
     private func overlayTapAreas() -> some View {
         GeometryReader { geometry in
             ZStack {
-                // Create tap areas for image slots
-                ForEach(template.imageSlots) { slot in
-                    Rectangle()
-                        .fill(Color.clear)
-                        .frame(
-                            width: geometry.size.width * (slot.width / template.svgDimensions.width),
-                            height: geometry.size.height * (slot.height / template.svgDimensions.height)
-                        )
-                        .position(
-                            x: geometry.size.width * (slot.x / template.svgDimensions.width) + geometry.size.width * (slot.width / template.svgDimensions.width) / 2,
-                            y: geometry.size.height * (slot.y / template.svgDimensions.height) + geometry.size.height * (slot.height / template.svgDimensions.height) / 2
-                        )
-                        .onTapGesture {
-                            onImageSlotTapped(slot)
-                        }
-                }
+                // Image area tap (upper 70% of the preview)
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(width: geometry.size.width, height: geometry.size.height * 0.7)
+                    .position(x: geometry.size.width / 2, y: geometry.size.height * 0.35)
+                    .onTapGesture {
+                        onImageTapped()
+                    }
                 
-                // Create tap areas for text slots
-                ForEach(template.textSlots) { slot in
-                    Rectangle()
-                        .fill(Color.clear)
-                        .frame(
-                            width: geometry.size.width * (slot.width / template.svgDimensions.width),
-                            height: geometry.size.height * (slot.height / template.svgDimensions.height)
-                        )
-                        .position(
-                            x: geometry.size.width * (slot.x / template.svgDimensions.width) + geometry.size.width * (slot.width / template.svgDimensions.width) / 2,
-                            y: geometry.size.height * (slot.y / template.svgDimensions.height) + geometry.size.height * (slot.height / template.svgDimensions.height) / 2
-                        )
-                        .onTapGesture {
-                            onTextSlotTapped(slot)
-                        }
-                }
+                // Text area tap (lower 30% of the preview)
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(width: geometry.size.width, height: geometry.size.height * 0.3)
+                    .position(x: geometry.size.width / 2, y: geometry.size.height * 0.85)
+                    .onTapGesture {
+                        onTextTapped()
+                    }
             }
         }
     }

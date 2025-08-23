@@ -40,11 +40,10 @@ class ECardEditor: ObservableObject {
             self.currentAssets = assets
             self.isActive = true
             
-            // Auto-assign first asset to first image slot if template is available
-            if let template = self.currentTemplate,
-               let firstAsset = assets.first,
-               let firstImageSlot = template.imageSlots.first {
-                self.imageAssignments[firstImageSlot.id] = firstAsset.primaryAsset
+            // Auto-assign first asset to main image if template is available
+            if self.currentTemplate != nil,
+               let firstAsset = assets.first {
+                self.imageAssignments["Image1"] = firstAsset.primaryAsset
             }
             
             self.persistState()
@@ -88,10 +87,9 @@ class ECardEditor: ObservableObject {
         DispatchQueue.main.async {
             self.currentTemplate = template
             
-            // Auto-assign first asset to first image slot if available
-            if let firstAsset = self.currentAssets.first,
-               let firstImageSlot = template.imageSlots.first {
-                self.imageAssignments[firstImageSlot.id] = firstAsset.primaryAsset
+            // Auto-assign first asset to main image if available
+            if let firstAsset = self.currentAssets.first {
+                self.imageAssignments["Image1"] = firstAsset.primaryAsset
             }
                         
             self.persistState()
@@ -160,124 +158,54 @@ class ECardEditor: ObservableObject {
         var loadedImages: [String: UIImage] = [:]
         let dispatchGroup = DispatchGroup()
         
-        // Load all assigned images asynchronously
-        for slot in template.imageSlots {
-            if let asset = imageAssignments[slot.id] {
-                dispatchGroup.enter()
-                
-                let imageManager = PHImageManager.default()
-                let options = PHImageRequestOptions()
-                options.deliveryMode = .highQualityFormat
-                options.resizeMode = .exact
-                options.isNetworkAccessAllowed = true
-                
-                imageManager.requestImage(
-                    for: asset,
-                    targetSize: CGSize(width: 800, height: 600), // High resolution
-                    contentMode: .aspectFill,
-                    options: options
-                ) { loadedImage, _ in
-                    if let loadedImage = loadedImage {
-                        loadedImages[slot.id] = loadedImage
-                    }
-                    dispatchGroup.leave()
+        // Load assigned images asynchronously
+        for (slotId, asset) in imageAssignments {
+            dispatchGroup.enter()
+            
+            let imageManager = PHImageManager.default()
+            let options = PHImageRequestOptions()
+            options.deliveryMode = .highQualityFormat
+            options.resizeMode = .exact
+            options.isNetworkAccessAllowed = true
+            
+            imageManager.requestImage(
+                for: asset,
+                targetSize: CGSize(width: 800, height: 600), // High resolution
+                contentMode: .aspectFill,
+                options: options
+            ) { loadedImage, _ in
+                if let loadedImage = loadedImage {
+                    loadedImages[slotId] = loadedImage
                 }
+                dispatchGroup.leave()
             }
         }
         
-        // Once all images are loaded, render the final ECard
+        // Once all images are loaded, render the final ECard using template service
         dispatchGroup.notify(queue: .main) {
-            self.renderECardWithImages(
-                template: template,
-                loadedImages: loadedImages,
-                textAssignments: textAssignments,
-                size: size,
-                completion: completion
-            )
-        }
-    }
-    
-    /// Render the final ECard image with loaded images and text using SVGKit
-    private func renderECardWithImages(
-        template: ECardTemplate,
-        loadedImages: [String: UIImage],
-        textAssignments: [String: String],
-        size: CGSize,
-        completion: @escaping (Result<UIImage, Error>) -> Void
-    ) {
-        // Create SVGKImage from template SVG content
-        guard let svgData = template.svgContent.data(using: .utf8),
-              let svgkImage = SVGKImage(data: svgData) else {
-            print("⚠️ Failed to create SVGKImage, falling back to manual rendering")
-            return
-        }
-        
-        // Set the desired output size
-        svgkImage.size = size
-        
-        // Get the CALayer to modify SVG elements
-        guard let svgLayer = svgkImage.caLayerTree else {
-            print("⚠️ Failed to get SVG layer tree, falling back to manual rendering")
-            return
-        }
-        
-        // Replace image placeholders with actual images
-        replaceImagePlaceholders(in: svgLayer, with: loadedImages, imageSlots: template.imageSlots, targetSize: size)
-        
-        // Replace text placeholders with actual text
-        replaceTextPlaceholders(in: svgLayer, with: textAssignments, textSlots: template.textSlots)
-        
-        // Convert to UIImage
-        let renderer = UIGraphicsImageRenderer(size: size)
-        let finalImage = renderer.image { context in
-            svgLayer.render(in: context.cgContext)
-        }
-        
-        completion(.success(finalImage))
-    }
-        
-    // MARK: - SVG Layer Manipulation Helpers
-    private func replaceImagePlaceholders(in layer: CALayer, with images: [String: UIImage], imageSlots: [ImageSlot], targetSize: CGSize) {
-        // Walk through sublayers to find image placeholders
-        walkLayerTree(layer) { sublayer in
-            // Look for layers that match our image slot IDs
-            for slot in imageSlots {
-                if let image = images[slot.id], sublayer.name == slot.id {
-                    // Replace this layer with the actual image
-                    let imageLayer = CALayer()
-                    imageLayer.contents = image.cgImage
-                    imageLayer.frame = sublayer.frame
-                    imageLayer.contentsGravity = .resizeAspectFill
-                    imageLayer.masksToBounds = true
-                                        
-                    // Replace the placeholder layer
-                    if let superlayer = sublayer.superlayer {
-                        superlayer.replaceSublayer(sublayer, with: imageLayer)
+            Task {
+                do {
+                    // Get first assigned asset for scene creation
+                    guard let firstAsset = self.imageAssignments.values.first else {
+                        completion(.failure(NSError(domain: "ECardEditor", code: -1, userInfo: [NSLocalizedDescriptionKey: "No image assigned"])))
+                        return
                     }
+                    
+                    let scene = try await ECardTemplateService.shared.createScene(
+                        from: template,
+                        asset: firstAsset,
+                        caption: textAssignments["Text1"] ?? "Caption"
+                    )
+                    
+                    let result = try await OnionRenderer.shared.renderHighQuality(scene: scene, format: .jpeg)
+                    completion(.success(result.image))
+                } catch {
+                    completion(.failure(error))
                 }
             }
         }
     }
     
-    private func replaceTextPlaceholders(in layer: CALayer, with textAssignments: [String: String], textSlots: [TextSlot]) {
-        // Walk through sublayers to find text placeholders
-        walkLayerTree(layer) { sublayer in
-            // Look for text layers that match our text slot IDs
-            for slot in textSlots {
-                if sublayer.name == slot.id, let textLayer = sublayer as? CATextLayer {
-                    let text = textAssignments[slot.id]
-                    textLayer.string = text
-                }
-            }
-        }
-    }
-    
-    private func walkLayerTree(_ layer: CALayer, visit: (CALayer) -> Void) {
-        visit(layer)
-        layer.sublayers?.forEach { sublayer in
-            walkLayerTree(sublayer, visit: visit)
-        }
-    }
     
     /// Save ECard image to photo library with override confirmation
     func saveECardToPhotoLibrary(

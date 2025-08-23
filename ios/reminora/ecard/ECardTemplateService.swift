@@ -88,19 +88,10 @@ class ECardTemplateService: ObservableObject {
         sceneBuilder: @escaping (PHAsset, String, CGSize) async throws -> OnionScene
     ) -> ECardTemplate? {
         
-        // Create dummy slots for compatibility
-        let imageSlot = ImageSlot(id: "Image1", x: 60, y: 60, width: 680, height: 720, cornerRadius: 0)
-        let textSlot = TextSlot(id: "Text1", x: 400, y: 850, width: 680, height: 40, fontSize: 28, placeholder: "Caption")
-        
         return ECardTemplate(
             id: id,
             name: name,
-            svgContent: "",
-            thumbnailName: "\(id)_thumb",
-            imageSlots: [imageSlot],
-            textSlots: [textSlot],
-            category: category,
-            sceneBuilderName: "polaroid"
+            category: category
         )
     }
     
@@ -118,10 +109,10 @@ class ECardTemplateService: ObservableObject {
         let borderThickness: CGFloat = 60
         let bottomTextArea: CGFloat = 120
         
-        // Create white background border
+        // Create white background border - using standard CoreGraphics coordinates
         let borderTransform = LayerTransform(
-            position: CGPoint(x: borderThickness * 0.5, y: borderThickness * 0.5),
-            size: CGSize(width: size.width - borderThickness, height: size.height - borderThickness)
+            position: CGPoint(x: 0, y: 0),
+            size: CGSize(width: size.width, height: size.height)
         )
         
         var borderLayer = GeometryLayer(name: "Polaroid Border", transform: borderTransform)
@@ -133,7 +124,7 @@ class ECardTemplateService: ObservableObject {
         borderLayer.zOrder = 0
         scene.addLayer(borderLayer)
         
-        // Create image layer
+        // Create image layer - positioned with proper coordinate system
         let imageData = try await loadImageData(from: asset)
         let imageTransform = LayerTransform(
             position: CGPoint(x: borderThickness, y: borderThickness),
@@ -143,12 +134,14 @@ class ECardTemplateService: ObservableObject {
         var imageLayer = ImageLayer(name: "Photo", transform: imageTransform)
         imageLayer.imageData = imageData
         imageLayer.contentMode = .scaleAspectFill
-        imageLayer.zOrder = 1
+        imageLayer.zOrder = 10  // Higher z-order to ensure it's visible
         scene.addLayer(imageLayer)
         
-        // Create text layer in bottom white area
+        print("🖼️ Created image layer with data size: \(imageData.count) bytes, z-order: \(imageLayer.zOrder)")
+        
+        // Create text layer in bottom white area - using bottom-up positioning
         let textTransform = LayerTransform(
-            position: CGPoint(x: size.width / 2, y: size.height - (bottomTextArea / 2)),
+            position: CGPoint(x: borderThickness, y: size.height - bottomTextArea + 20),
             size: CGSize(width: size.width - (borderThickness * 2), height: 40)
         )
         
@@ -157,8 +150,10 @@ class ECardTemplateService: ObservableObject {
         textLayer.fontSize = 28
         textLayer.textColor = "#333333"
         textLayer.textAlignment = .center
-        textLayer.zOrder = 2
+        textLayer.zOrder = 20  // Ensure text is on top
         scene.addLayer(textLayer)
+        
+        print("📝 Created text layer with caption: '\(caption)', z-order: \(textLayer.zOrder)")
         
         return scene
     }

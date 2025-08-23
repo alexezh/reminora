@@ -15,8 +15,8 @@ struct SVGPreviewView: View {
     let template: ECardTemplate
     let imageAssignments: [String: PHAsset]
     let textAssignments: [String: String]
-    let onImageSlotTapped: (ImageSlot) -> Void
-    let onTextSlotTapped: (TextSlot) -> Void
+    let onImageTapped: () -> Void
+    let onTextTapped: () -> Void
     
     @State private var renderedImage: UIImage?
     @State private var isLoading = false
@@ -57,10 +57,6 @@ struct SVGPreviewView: View {
             print("🎨 SVGPreviewView: onAppear - imageAssignments count: \(imageAssignments.count)")
             renderPreview()
         }
-        .onChange(of: template.id) { _, _ in
-            print("🎨 SVGPreviewView: template changed")
-            renderPreview()
-        }
         .onChange(of: imageAssignments) { oldValue, newValue in
             print("🎨 SVGPreviewView: imageAssignments changed from \(oldValue.count) to \(newValue.count)")
             renderPreview()
@@ -74,7 +70,6 @@ struct SVGPreviewView: View {
     private func renderPreview() {
         isLoading = true
         print("🎨 SVGPreviewView: Starting preview render for template \(template.name)")
-        print("🎨 SVGPreviewView: Template image slots: \(template.imageSlots.map { $0.id })")
         
         // If no image assignments, still try to render the base template
         if imageAssignments.isEmpty {
@@ -152,8 +147,16 @@ struct SVGPreviewView: View {
                     do {
                         // Get first available asset for scene creation
                         guard let firstAsset = self.imageAssignments.values.first else {
+                            print("🎨 SVGPreviewView: No image assignments - creating placeholder scene")
+                            // Create simple placeholder scene
+                            let placeholderScene = OnionScene(name: "Placeholder", size: CGSize(width: 400, height: 500))
+                            placeholderScene.backgroundColor = "#FFFFFF"
+                            
+                            let renderedImage = try await OnionRenderer.shared.renderPreview(scene: placeholderScene)
+                            
                             await MainActor.run {
                                 self.isLoading = false
+                                self.renderedImage = renderedImage
                             }
                             return
                         }
@@ -190,14 +193,10 @@ struct SVGPreviewView: View {
         // and text slot when tapped in the lower area
         let normalizedY = location.y / 375.0 // Assuming 375 height
         
-        if normalizedY < 0.7 { // Upper area - image slots
-            if let firstImageSlot = template.imageSlots.first {
-                onImageSlotTapped(firstImageSlot)
-            }
-        } else { // Lower area - text slots
-            if let firstTextSlot = template.textSlots.first {
-                onTextSlotTapped(firstTextSlot)
-            }
+        if normalizedY < 0.7 { // Upper area - image
+            onImageTapped()
+        } else { // Lower area - text
+            onTextTapped()
         }
     }
 }

@@ -31,7 +31,9 @@ struct SwipePhotoImageView: View {
     
     // Paging state
     @GestureState private var dragOffset: CGFloat = 0
+    @State private var animationOffset: CGFloat = 0
     @State private var verticalOffset: CGFloat = 0
+    @State private var isAnimating: Bool = false
     
     private var visibleIndices: [Int] {
         guard !photoStackCollection.isEmpty else { return [] }
@@ -67,7 +69,7 @@ struct SwipePhotoImageView: View {
                             .frame(width: width)
                     }
                 }
-                .offset(x: -width + dragOffset, y: verticalOffset)
+                .offset(x: -width + (isAnimating ? animationOffset : dragOffset), y: verticalOffset)
             }
             .clipped()
             .gesture(
@@ -138,6 +140,7 @@ struct SwipePhotoImageView: View {
                             let velocityX = value.velocity.width
                             let threshold: CGFloat = 50
                             var newIndex = currentIndex
+                            let translationX = value.translation.width
                             
                             if abs(translationX) > threshold || abs(velocityX) > 300 {
                                 if velocityX < -300 || (translationX < -threshold && velocityX <= 300) {
@@ -151,12 +154,33 @@ struct SwipePhotoImageView: View {
                             
                             let indexChanged = newIndex != currentIndex
                             
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)) {
-                                currentIndex = newIndex
-                            }
-                            
                             if indexChanged {
-                                onIndexChanged?(newIndex)
+                                
+                                //animationOffset = dragOffset;
+                                animationOffset = translationX
+                                isAnimating = true
+
+                                DispatchQueue.main.async {
+                                    // First animate the offset to complete the swipe motion
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)) {
+                                        // Move offset to final position for smooth transition
+                                        if newIndex > currentIndex {
+                                            // Swiping to next - move left
+                                            animationOffset = -width
+                                        } else {
+                                            // Swiping to previous - move right
+                                            animationOffset = width
+                                        }
+                                    }
+                                    
+                                    // After offset animation completes, switch index and reset offset
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                        currentIndex = newIndex
+                                        animationOffset = 0
+                                        isAnimating = false
+                                        onIndexChanged?(newIndex)
+                                    }
+                                }
                             }
                         }
                     }

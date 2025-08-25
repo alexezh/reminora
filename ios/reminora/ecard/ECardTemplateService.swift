@@ -103,32 +103,40 @@ class ECardTemplateService: ObservableObject {
     ) async throws -> OnionScene {
         
         let scene = OnionScene(name: "Polaroid Scene", size: size)
-        scene.backgroundColor = "#FFFFFF"
+        scene.backgroundColor = "#FFFFFF"  // Pure white background
+        print("🎨 Scene background color set to: \(scene.backgroundColor)")
         
-        // Polaroid styling: thicker white border, smaller image area
-        let borderThickness: CGFloat = 60
-        let bottomTextArea: CGFloat = 120
+        // Polaroid styling: reduced margins
+        let marginTop: CGFloat = size.height * 0.05    // 5% top margin
+        let marginSides: CGFloat = size.width * 0.05   // 5% side margins  
+        let marginBottom: CGFloat = size.height * 0.10 // 10% bottom margin
         
-        // Create white background border - using standard CoreGraphics coordinates
+        // Create white background with paper noise filter using position-based transform
         let borderTransform = LayerTransform(
             position: CGPoint(x: 0, y: 0),
-            size: CGSize(width: size.width, height: size.height)
+            size: size
         )
         
-        var borderLayer = GeometryLayer(name: "Polaroid Border", transform: borderTransform)
+        var borderLayer = GeometryLayer(name: "White Background", transform: borderTransform)
         borderLayer.shape = .rectangle
-        borderLayer.fillColor = "#FFFFFF"
-        borderLayer.strokeColor = "#E0E0E0"
-        borderLayer.strokeWidth = 1
-        borderLayer.cornerRadius = 8
+        borderLayer.fillColor = "#FFFFFF"  // Pure white background
+        borderLayer.strokeColor = nil // No stroke at all
+        borderLayer.strokeWidth = 0
+        borderLayer.cornerRadius = 0
         borderLayer.zOrder = 0
+        borderLayer.filters = [] // Explicitly no filters
         scene.addLayer(borderLayer)
         
-        // Create image layer - positioned with proper coordinate system
+        print("🎨 Background layer: fillColor=\(borderLayer.fillColor ?? "nil"), strokeColor=\(borderLayer.strokeColor ?? "nil"), filters=\(borderLayer.filters.count)")
+        
+        // Create image layer with new margins using position-based transform
         let imageData = try await loadImageData(from: asset)
         let imageTransform = LayerTransform(
-            position: CGPoint(x: borderThickness, y: borderThickness),
-            size: CGSize(width: size.width - (borderThickness * 2), height: size.height - borderThickness - bottomTextArea)
+            position: CGPoint(x: marginSides, y: marginTop),
+            size: CGSize(
+                width: size.width - (marginSides * 2), 
+                height: size.height - marginTop - marginBottom
+            )
         )
         
         var imageLayer = ImageLayer(name: "Photo", transform: imageTransform)
@@ -139,21 +147,25 @@ class ECardTemplateService: ObservableObject {
         
         print("🖼️ Created image layer with data size: \(imageData.count) bytes, z-order: \(imageLayer.zOrder)")
         
-        // Create text layer in bottom white area - using bottom-up positioning
+        // Create text layer at bottom using top-left coordinates
+        let imageBottom = marginTop + (size.height - marginTop - marginBottom)
+        let textY = imageBottom + 20 // 20px below image
         let textTransform = LayerTransform(
-            position: CGPoint(x: borderThickness, y: size.height - bottomTextArea + 20),
-            size: CGSize(width: size.width - (borderThickness * 2), height: 40)
+            position: CGPoint(x: marginSides, y: textY),
+            size: CGSize(width: size.width - (marginSides * 2), height: 60)
         )
         
         var textLayer = TextLayer(name: "Caption", transform: textTransform)
         textLayer.text = caption
-        textLayer.fontSize = 28
+        textLayer.fontSize = 36  // Increased font size
         textLayer.textColor = "#333333"
         textLayer.textAlignment = .center
         textLayer.zOrder = 20  // Ensure text is on top
         scene.addLayer(textLayer)
         
-        print("📝 Created text layer with caption: '\(caption)', z-order: \(textLayer.zOrder)")
+        print("📝 Created text layer with caption: '\(caption)', font size: \(textLayer.fontSize), z-order: \(textLayer.zOrder)")
+        print("📝 Text position - textY: \(textY), marginBottom: \(marginBottom), scene height: \(size.height)")
+        print("📝 Text layer position: \(textTransform.position), size: \(textTransform.size)")
         
         return scene
     }

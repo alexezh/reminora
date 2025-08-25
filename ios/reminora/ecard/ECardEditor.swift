@@ -37,13 +37,19 @@ class ECardEditor: ObservableObject {
     /// Start ECard editing session with assets
     func startEditing(with assets: [RPhotoStack]) {
         DispatchQueue.main.async {
+            // Clear all previous state for fresh start
+            self.imageAssignments = [:]
+            self.textAssignments = [:]
+            self.currentTemplate = nil
+            
+            // Set new state
             self.currentAssets = assets
             self.isActive = true
             
-            // Auto-assign first asset to main image if template is available
-            if self.currentTemplate != nil,
-               let firstAsset = assets.first {
-                self.imageAssignments["Image1"] = firstAsset.primaryAsset
+            // Auto-assign first asset to main image when template is set
+            if let firstAsset = assets.first {
+                // Template will be set by setupInitialState in ECardEditorView
+                print("🎨 ECardEditor: Will assign first asset when template is ready: \(firstAsset.primaryAsset.localIdentifier)")
             }
             
             self.persistState()
@@ -51,7 +57,7 @@ class ECardEditor: ObservableObject {
             // Set the current editor in ActionSheet model
             UniversalActionSheetModel.shared.setCurrentEditor(.eCard)
             
-            print("🎨 ECardEditor: Started editing with \(assets.count) assets")
+            print("🎨 ECardEditor: Started editing with \(assets.count) assets (fresh state)")
         }
     }
     
@@ -87,13 +93,17 @@ class ECardEditor: ObservableObject {
         DispatchQueue.main.async {
             self.currentTemplate = template
             
+            // Clear old assignments and use fresh current assets
+            self.imageAssignments = [:]
+            
             // Auto-assign first asset to main image if available
             if let firstAsset = self.currentAssets.first {
                 self.imageAssignments["Image1"] = firstAsset.primaryAsset
+                print("🎨 ECardEditor: Assigned fresh asset \(firstAsset.primaryAsset.localIdentifier) to Image1")
             }
                         
             self.persistState()
-            print("🎨 ECardEditor: Set template \(template.name) with \(self.imageAssignments.count) image assignments")
+            print("🎨 ECardEditor: Set template \(template.name) with \(self.imageAssignments.count) fresh image assignments")
         }
     }
     

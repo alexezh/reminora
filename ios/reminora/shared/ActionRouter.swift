@@ -233,11 +233,6 @@ class ActionRouter: ObservableObject {
             return (0..<fetchResult.count).compactMap { fetchResult.object(at: $0) }
         }
         
-        // If no multi-selected photos, check for current photo (SwipePhotoView scenario)
-        if let currentPhoto = selectionService.getCurrentPhoto {
-            return [currentPhoto]
-        }
-        
         return nil
     }
 }

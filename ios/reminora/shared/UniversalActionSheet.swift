@@ -15,6 +15,7 @@ struct UniversalActionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.selectedAssetService) private var selectedAssetService
     @StateObject private var actionSheetModel = UniversalActionSheetModel.shared
+    @ObservedObject private var selectionService = SelectionService.shared
     let selectedTab: String
     let onRefreshLists: () -> Void
     let onAddPin: () -> Void
@@ -148,27 +149,33 @@ struct UniversalActionSheet: View {
                 .frame(height: 0)
 
                 LazyVStack(spacing: 0) {
-                    switch actionSheetModel.context {
-                    case .photos:
-                        photosTabActions()
-                    case .map:
-                        mapTabActions()
-                    case .pins:
-                        pinsTabActions()
-                    case .lists:
-                        listsTabActions()
-                    case .quickList:
-                        quickListActions()
-                    case .profile:
-                        profileTabActions()
-                    case .swipePhoto(let stack):
-                        swipePhotoActions(stack: stack)
-                    case .pinDetail(let pin):
-                        pinDetailActions(pin: pin)
-                    case .ecard:
-                        ecardActions()
-                    case .clip:
-                        clipActions()
+                    // Check if we're in SwipePhotoView context (when SelectionService has selected photos)
+                    if !selectionService.selectedPhotos.isEmpty {
+                        swipePhotoActions()
+                    } else {
+                        switch actionSheetModel.context {
+                        case .photos:
+                            photosTabActions()
+                        case .map:
+                            mapTabActions()
+                        case .pins:
+                            pinsTabActions()
+                        case .lists:
+                            listsTabActions()
+                        case .quickList:
+                            quickListActions()
+                        case .profile:
+                            profileTabActions()
+                        case .swipePhoto:
+                            // This case should not be reached since we check SelectionService above
+                            EmptyView()
+                        case .pinDetail(let pin):
+                            pinDetailActions(pin: pin)
+                        case .ecard:
+                            ecardActions()
+                        case .clip:
+                            clipActions()
+                        }
                     }
                 }
                 .padding(.top, 8)
@@ -457,55 +464,64 @@ struct UniversalActionSheet: View {
     }
 
     @ViewBuilder
-    private func swipePhotoActions(stack: RPhotoStack) -> some View {
-        ActionListItem(
-            icon: "heart", title: "Favorite", isEnabled: true,
-            hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.toggleFavorite(stack)
+    private func swipePhotoActions() -> some View {
+        let selectedPhotosArray = selectionService.selectedPhotosArray
+        let firstPhoto = selectedPhotosArray.first
+        
+        if let firstPhoto = firstPhoto {
+            ActionListItem(
+                icon: "heart", title: "Favorite", isEnabled: true,
+                hasScrolled: $hasScrolled
+            ) {
+                dismiss()
+                ActionRouter.shared.toggleFavorite(firstPhoto)
+            }
+            ActionListItem(
+                icon: "square.and.arrow.up", title: "Share", isEnabled: true,
+                hasScrolled: $hasScrolled
+            ) {
+                dismiss()
+                ActionRouter.shared.sharePhoto(firstPhoto)
+            }
         }
-        ActionListItem(
-            icon: "square.and.arrow.up", title: "Share", isEnabled: true,
-            hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.sharePhoto(stack)
-        }
+        
         ActionListItem(
             icon: "plus.square", title: "Add to Quick List", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.addToQuickList([stack])
+            ActionRouter.shared.addToQuickList(selectedPhotosArray)
         }
         ActionListItem(
             icon: "rectangle.stack", title: "Make ECard", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.makeECard([stack])
+            ActionRouter.shared.makeECard(selectedPhotosArray)
         }
         ActionListItem(
             icon: "video.circle", title: "Make Clip", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.makeClip([stack])
+            ActionRouter.shared.makeClip(selectedPhotosArray)
         }
         ActionListItem(
             icon: "magnifyingglass", title: "Find Similar", isEnabled: true,
             hasScrolled: $hasScrolled
         ) {
             dismiss()
-            ActionRouter.shared.findSimilar([stack])
+            ActionRouter.shared.findSimilar(selectedPhotosArray)
         }
-        ActionListItem(
-            icon: "mappin.and.ellipse", title: "Add Pin", isEnabled: true,
-            hasScrolled: $hasScrolled
-        ) {
-            dismiss()
-            ActionRouter.shared.addPinFromPhoto(stack)
+        
+        if let firstPhoto = firstPhoto {
+            ActionListItem(
+                icon: "mappin.and.ellipse", title: "Add Pin", isEnabled: true,
+                hasScrolled: $hasScrolled
+            ) {
+                dismiss()
+                ActionRouter.shared.addPinFromPhoto(firstPhoto)
+            }
         }
         
         settingsAction()

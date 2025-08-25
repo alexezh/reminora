@@ -24,9 +24,8 @@ struct SwipePhotoView: View {
     @Environment(\.toolbarManager) private var toolbarManager
     @Environment(\.selectedAssetService) private var selectedAssetService
     @Environment(\.sheetStack) private var sheetStack
-    @State private var currentIndex: Int = 0
+    @ObservedObject private var selectionService = SelectionService.shared
     @State private var showingMenu = false
-    @State private var shareData: PhotoShareData?
     @State private var isLoading = false
     @State private var isPreferenceManagerReady = false
     @State private var isInQuickList = false
@@ -35,7 +34,8 @@ struct SwipePhotoView: View {
     @State private var showingActionSheet = false
     @State private var isViewReady = false // Prevent flash during initialization
     @State private var photoTransition = false // For photo transition animation
-    
+    @State private var currentIndex: Int = 0;
+
     private var preferenceManager: PhotoPreferenceManager {
         PhotoPreferenceManager(viewContext: viewContext)
     }
@@ -46,15 +46,30 @@ struct SwipePhotoView: View {
         self._photoStackCollection = ObservedObject(wrappedValue: photoStackCollection)
         self.initialStack = initialStack
         self.onDismiss = onDismiss
+        
+        // Check if there's already a selected photo in SelectionService, use that instead of initialStack
+        if let currentSelectedPhoto = SelectionService.shared.selectedPhotosArray.first,
+           let selectedIndex = photoStackCollection.firstIndex(where: { $0.localIdentifier == currentSelectedPhoto.localIdentifier }) {
+            self._currentIndex = State(initialValue: selectedIndex)
+            print("🔧 SwipePhotoView: Restored to selected photo at index \(selectedIndex)")
+        } else {
+            let initialIndex = photoStackCollection.firstIndex(where: { $0.localIdentifier == initialStack.localIdentifier }) ?? 0
+            self._currentIndex = State(initialValue: initialIndex)
+            print("🔧 SwipePhotoView: Starting with initial photo at index \(initialIndex)")
+        }
     }
     
     private var currentPhotoStack: RPhotoStack {
-        guard currentIndex >= 0 && currentIndex < photoStackCollection.count else {
-            // Create a fallback stack with the first asset or empty if no assets
-            return RPhotoStack(assets: [])
-        }
-        
-        return photoStackCollection[currentIndex]
+        return self.photoStackCollection[self.currentIndex];
+    }
+    
+    private var currentIndexBinding: Binding<Int> {
+        Binding(
+            get: { self.currentIndex },
+            set: { newIndex in
+                self.navigateToPhoto(at: newIndex)
+            }
+        )
     }
     
     // Expand a stack to show all photos
@@ -67,6 +82,27 @@ struct SwipePhotoView: View {
     private func collapseStack(_ stack: RPhotoStack?) {
         guard let stack = stack else { return }
         photoStackCollection.collapseStack(stack.id)
+    }
+    
+    // Navigate to specific photo stack
+    private func navigateToPhoto(at index: Int) {
+        guard index >= 0 && index < photoStackCollection.count else { return }
+        currentIndex = index
+        let newStack = photoStackCollection[index]
+        selectionService.setSelectedPhoto(newStack)
+        triggerPhotoTransition()
+    }
+    
+    // Navigate to next photo
+    private func navigateToNext() {
+        let nextIndex = currentIndex + 1
+        navigateToPhoto(at: nextIndex)
+    }
+    
+    // Navigate to previous photo
+    private func navigateToPrevious() {
+        let previousIndex = currentIndex - 1
+        navigateToPhoto(at: previousIndex)
     }
     
     // Trigger photo transition animation
@@ -87,18 +123,16 @@ struct SwipePhotoView: View {
     private func animateToPreviousImage() {
         guard currentIndex > 0 else { return }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)) {
-            currentIndex -= 1
+            navigateToPrevious()
         }
-        triggerPhotoTransition()
     }
     
     // Animate to next image
     private func animateToNextImage() {
         guard currentIndex < photoStackCollection.count - 1 else { return }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)) {
-            currentIndex += 1
+            navigateToNext()
         }
-        triggerPhotoTransition()
     }
     
     // MARK: - ScrollView Snap Logic (inlined to avoid type issues)
@@ -156,14 +190,14 @@ struct SwipePhotoView: View {
                let lastStackIndex = photoStackCollection.firstIndex(where: { $0.localIdentifier == lastStackAsset.localIdentifier }),
                lastStackIndex + 1 < photoStackCollection.count {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)) {
-                    currentIndex = lastStackIndex + 1
+                    navigateToPhoto(at: lastStackIndex + 1)
                 }
             }
         } else {
             // If single photo, just move to next photo
             if currentIndex + 1 < photoStackCollection.count {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0)) {
-                    currentIndex += 1
+                    navigateToNext()
                 }
             }
         }
@@ -225,15 +259,12 @@ struct SwipePhotoView: View {
                 if isViewReady && !photoStackCollection.isEmpty && currentIndex < photoStackCollection.count {
                     SwipePhotoImageView(
                         photoStackCollection: photoStackCollection,
-                        currentIndex: $currentIndex,
+                        currentIndex: currentIndexBinding,
                         isLoading: $isLoading,
                         onIndexChanged: { newIndex in
                             print("📜 SwipePhotoImageView: Index changed to \(newIndex)")
-                            // Update UI state when index changes
-                            selectedAssetService.setCurrentPhotoStack(currentPhotoStack)
-                            updateQuickListStatus()
-                            updateFavoriteStatus()
-                            updateToolbar(true)
+                            // The binding will handle updating SelectionService
+                            // UI state updates will happen via onChange(of: selectionService.getCurrentPhotoStack?.localIdentifier)
                         },
                         onVerticalPull: {
                             // Handle vertical pull to dismiss
@@ -285,8 +316,8 @@ struct SwipePhotoView: View {
                 // Thumbnails pinned above toolbar
                 ThumbnailListView(
                     photoStackCollection: photoStackCollection,
-                    currentIndex: $currentIndex,
-                    onThumbnailTap: { index in currentIndex = index },
+                    currentIndex: currentIndexBinding,
+                    onThumbnailTap: { index in navigateToPhoto(at: index) },
                     onStackExpand: expandStack,
                     onStackCollapse: collapseStack
                 )
@@ -310,22 +341,13 @@ struct SwipePhotoView: View {
             
             print("🔧 Initial state set for LazySnapPager")
             
-            UniversalActionSheetModel.shared.setContext(.swipePhoto(stack: currentPhotoStack))
-            
-            let initialAssetId = initialStack.primaryAsset.localIdentifier
-            if let initialIndex = photoStackCollection.firstIndex(where: { $0.localIdentifier == initialAssetId }) {
-                currentIndex = initialIndex
-                print("🔧 Set currentIndex to \(initialIndex) for asset \(initialAssetId)")
-            } else {
-                currentIndex = 0
-                print("🔧 Asset not found, set currentIndex to 0")
-            }
+            // Set initial selected photo in SelectionService
+            selectionService.setSelectedPhoto(currentPhotoStack)
             
             initializePreferenceManager()
             updateQuickListStatus()
             updateFavoriteStatus()
             updateToolbar(false)
-            selectedAssetService.setCurrentPhotoStack(initialStack)
             
             // Set view as ready to display
             isViewReady = true
@@ -337,16 +359,26 @@ struct SwipePhotoView: View {
                 }
             }
             
-            print("🔧 SwipePhotoView onAppear completed - currentIndex: \(currentIndex), isViewReady: \(isViewReady)")
+            let initialIndex = currentIndex
+            print("🔧 SwipePhotoView onAppear completed - initial stack set, computed currentIndex: \(initialIndex), isViewReady: \(isViewReady)")
         }
         .onDisappear {
-            selectedAssetService.setCurrentPhotoStack(nil)
+            selectionService.clearSelectedPhotos()
         }
-        .onChange(of: currentIndex) { _, _ in
-            selectedAssetService.setCurrentPhotoStack(currentPhotoStack)
+        .onChange(of: currentPhotoStack.localIdentifier) { _, _ in
+            // Update UI state when SelectionService currentPhotoStack changes
             updateQuickListStatus()
             updateFavoriteStatus()
             updateToolbar(true)
+        }
+        .onChange(of: selectionService.selectedPhotosArray) { _, newSelection in
+            // Keep currentIndex in sync with SelectionService changes from external sources
+            if let selectedPhoto = newSelection.first,
+               let newIndex = photoStackCollection.firstIndex(where: { $0.localIdentifier == selectedPhoto.localIdentifier }),
+               newIndex != currentIndex {
+                currentIndex = newIndex
+                print("🔧 SwipePhotoView: Synced currentIndex to \(newIndex) from SelectionService change")
+            }
         }
         .navigationBarHidden(true)
     }
@@ -402,9 +434,6 @@ struct SwipePhotoView: View {
         let message = "Check out this photo on Reminora!"
         print("Share message: \(message)")
         print("Share URL: \(reminoraLink)")
-        
-        shareData = PhotoShareData(message: message, link: reminoraLink)
-        print("PhotoStackView - After assignment - shareData:", shareData?.message ?? "nil", shareData?.link ?? "nil")
     }
     
     private func coordinate(for place: PinData) -> CLLocationCoordinate2D {

@@ -83,7 +83,7 @@ struct ECardEditorView: View {
         .navigationBarHidden(true)
         .sheet(isPresented: $showingImagePicker) {
             ImagePickerView(
-                availableAssets: initialAssets,
+                availableAssets: eCardEditor.currentAssets,
                 onImageSelected: { asset in
                     assignImage(asset: asset.primaryAsset)
                     showingImagePicker = false
@@ -118,8 +118,9 @@ struct ECardEditorView: View {
                             template: template,
                             isSelected: eCardEditor.currentTemplate?.id == template.id,
                             action: {
+                                print("🎨 ECardEditorView: User selected template \(template.name)")
                                 eCardEditor.setCurrentTemplate(template)
-                                setupECard(with: template)
+                                // setCurrentTemplate now handles fresh assignment, no need for setupECard
                             }
                         )
                     }
@@ -183,13 +184,19 @@ struct ECardEditorView: View {
     // MARK: - Helper Methods
     
     private func setupInitialState() {
-        // Set default template and assign first asset
+        // Set default template and assign first asset from current editor state
         if let defaultTemplate = templateService.getTemplate(id: "polaroid_classic"),
-           let firstAsset = initialAssets.first?.primaryAsset {
+           let firstAsset = eCardEditor.currentAssets.first?.primaryAsset {
+            print("🎨 Setting up template: \(defaultTemplate.name) with current asset: \(firstAsset.localIdentifier)")
             eCardEditor.setCurrentTemplate(defaultTemplate)
             eCardEditor.setImageAssignment(assetId: firstAsset.localIdentifier, for: "Image1")
             eCardEditor.setTextAssignment(text: "Caption", for: "Text1")
             setupECard(with: defaultTemplate)
+            print("🎨 Setup complete - imageAssignments: \(eCardEditor.imageAssignments.count)")
+        } else {
+            print("❌ Failed to get template or current assets from editor")
+            print("   Template available: \(templateService.getTemplate(id: "polaroid_classic") != nil)")
+            print("   Current assets count: \(eCardEditor.currentAssets.count)")
         }
     }
     
@@ -308,9 +315,9 @@ struct ECardEditorView: View {
     
     private func setupECard(with template: ECardTemplate) {
         // Assign initial assets if no existing assignments
-        if eCardEditor.imageAssignments.isEmpty, !initialAssets.isEmpty {
+        if eCardEditor.imageAssignments.isEmpty, !eCardEditor.currentAssets.isEmpty {
             // Assign first asset for the main image
-            if let firstAsset = initialAssets.first?.primaryAsset {
+            if let firstAsset = eCardEditor.currentAssets.first?.primaryAsset {
                 eCardEditor.setImageAssignment(assetId: firstAsset.localIdentifier, for: "Image1")
             }
         }
@@ -359,7 +366,7 @@ struct ECardEditorView: View {
     
     private func saveECard() {
         guard let template = eCardEditor.currentTemplate,
-              let primaryAsset = initialAssets.first?.primaryAsset else { return }
+              let primaryAsset = eCardEditor.currentAssets.first?.primaryAsset else { return }
         
         // Use template service to generate the scene
         Task {
@@ -653,10 +660,11 @@ private struct OnionECardPreview: View {
             Color.white
             
             if let previewImage = previewImage {
-                // Show rendered preview
+                // Show rendered preview with vertical flip for correct orientation
                 Image(uiImage: previewImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
+                    .scaleEffect(x: 1, y: -1) // Flip vertically for correct orientation
                     .onTapGesture { location in
                         handleTap(at: location)
                     }
@@ -697,13 +705,20 @@ private struct OnionECardPreview: View {
                 overlayTapAreas()
             }
         }
+        .onChange(of: template.id) { _ in
+            print("🎨 OnionECardPreview: Template changed to \(template.name)")
+            renderPreview()
+        }
         .onChange(of: imageAssignments) { _ in
+            print("🎨 OnionECardPreview: Image assignments changed")
             renderPreview()
         }
         .onChange(of: textAssignments) { _ in
+            print("🎨 OnionECardPreview: Text assignments changed")
             renderPreview()
         }
         .onAppear {
+            print("🎨 OnionECardPreview: View appeared for template \(template.name)")
             renderPreview()
         }
     }
@@ -716,10 +731,13 @@ private struct OnionECardPreview: View {
         isRendering = true
         renderError = nil
         
+        print("🎨 OnionECardPreview: Starting render with \(imageAssignments.count) image assignments")
+        
         Task {
             do {
                 // Get first available asset from image assignments
                 guard let firstAsset = imageAssignments.values.first else {
+                    print("🎨 OnionECardPreview: No image assignments - creating placeholder scene")
                     // Create template-only scene for preview
                     let dummyScene = OnionScene(name: "Preview", size: CGSize(width: 400, height: 500))
                     dummyScene.backgroundColor = "#FFFFFF"
@@ -732,17 +750,20 @@ private struct OnionECardPreview: View {
                     return
                 }
                 
+                print("🎨 OnionECardPreview: Creating scene with asset: \(firstAsset.localIdentifier)")
                 let scene = try await ECardTemplateService.shared.createScene(
                     from: template,
                     asset: firstAsset,
                     caption: textAssignments["Text1"] ?? "Caption"
                 )
                 
+                print("🎨 OnionECardPreview: Scene created with \(scene.layers.count) layers, rendering...")
                 let previewImg = try await OnionRenderer.shared.renderPreview(scene: scene)
                 
                 await MainActor.run {
                     self.previewImage = previewImg
                     self.isRendering = false
+                    print("✅ OnionECardPreview: Render completed successfully")
                 }
                 
             } catch {

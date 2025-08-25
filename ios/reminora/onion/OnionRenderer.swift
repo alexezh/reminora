@@ -260,9 +260,7 @@ class OnionRenderer: ObservableObject {
         let image = try renderer.image { context in
             let cgContext = context.cgContext
             
-            // Flip coordinate system to match UIKit (origin at top-left)
-            cgContext.translateBy(x: 0, y: config.size.height)
-            cgContext.scaleBy(x: 1, y: -1)
+            // Use standard top-left coordinate system for consistent layer positioning
             
             // Set background
             cgContext.setFillColor(config.backgroundColor.cgColor)

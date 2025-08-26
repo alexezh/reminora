@@ -60,6 +60,15 @@ func tabIndexToRoute(_ index: Int) -> AppTab {
     }
 }
 
+extension ToolbarManager {
+    var showActionSheetBinding: Binding<Bool> {
+        Binding(
+            get: { self.showActionSheet },
+            set: { self.showActionSheet = $0 }
+        )
+    }
+}
+
 // MARK: - Navigation Destination Enum
 
 enum NavigationDestination: Hashable {
@@ -98,8 +107,7 @@ struct ContentView: View {
     
     // Per-tab navigation stack storage
     @State private var tabNavigationStacks: [AppTab: NavigationPath] = [:]
-    @StateObject private var toolbarManager = ToolbarManager()
-    @StateObject private var selectedAssetService = SelectionService.shared
+    //@StateObject private var toolbarManager = ToolbarManager()
     @StateObject private var sheetStack = SheetStack.shared
     @StateObject private var eCardTemplateService = ECardTemplateService.shared
     @StateObject private var eCardEditor = ECardEditor.shared
@@ -116,6 +124,10 @@ struct ContentView: View {
     //@State private var navigationNearbyLocationsSearch: CLLocationCoordinate2D?
     //@State private var navigationNearbyLocationsName: String?
 
+//        .onChange(of: selectedAssetService) { newValue in
+//            print("selectedAssetService changed → \(newValue)")
+//        }
+        
     var body: some View {
         NavigationStack(path: $navigationPath) {
             // Root view based on current route
@@ -135,14 +147,19 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SwitchToClipEditor"))) { _ in
             navigateToTab(.clip)
         }
-        .environment(\.toolbarManager, toolbarManager)
-        .environment(\.selectedAssetService, selectedAssetService)
+        .onChange(of: navigationPath) {
+            print("navigationPath fired → selectedAssetService is changing")
+        }
+        .onChange(of: currentTab) {
+            print("currentTab fired → selectedAssetService is changing")
+        }
+        //.environment(\.toolbarManager, toolbarManager)
         .environment(\.sheetStack, sheetStack)
         .environment(\.eCardTemplateService, eCardTemplateService)
         .environment(\.eCardEditor, eCardEditor)
         .environment(\.clipEditor, clipEditor)
         .environment(\.photoLibraryService, PhotoLibraryService.shared)
-        .sheet(isPresented: $toolbarManager.showActionSheet) {
+        .sheet(isPresented: ToolbarManager.shared.showActionSheetBinding) {
             UniversalActionSheet(
                 selectedTab: currentTab.rawValue,
                 onRefreshLists: {
@@ -174,14 +191,14 @@ struct ContentView: View {
         }
         .overlay(alignment: .bottom) {
             // Custom dynamic toolbar (show when enabled)
-            if toolbarManager.showCustomToolbar {
+            if ToolbarManager.shared.showCustomToolbar {
                 DynamicToolbar(
-                    buttons: toolbarManager.customButtons,
+                    buttons: ToolbarManager.shared.customButtons,
                     position: .bottom,
                     backgroundColor: Color(.systemBackground),
-                    isVisible: toolbarManager.showCustomToolbar,
-                    version: toolbarManager.version,
-                    showOnlyFAB: toolbarManager.showOnlyFAB
+                    isVisible: ToolbarManager.shared.showCustomToolbar,
+                    version: ToolbarManager.shared.version,
+                    showOnlyFAB: ToolbarManager.shared.showOnlyFAB
                 )
                 .ignoresSafeArea(.container, edges: .bottom) // Extend to bottom edge
             }
@@ -198,8 +215,8 @@ struct ContentView: View {
             // Configure ActionRouter with services
             ActionRouter.shared.configure(
                 sheetStack: sheetStack,
-                selectionService: selectedAssetService,
-                toolbarManager: toolbarManager
+                selectionService: SelectionService.shared,
+                toolbarManager: ToolbarManager.shared
             )
             
             // Start background embedding computation for all photos
@@ -661,31 +678,31 @@ struct ContentView: View {
         
         switch route {
         case .photo: // Photos Route - FAB only
-            toolbarManager.setFABOnlyMode()
+            ToolbarManager.shared.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.photos)
             
         case .map: // Map Route - Full toolbar with navigation buttons
-            toolbarManager.setFABOnlyMode()
+            ToolbarManager.shared.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.map)
             
         case .pin: // Pins Route - Show FAB only
-            toolbarManager.setFABOnlyMode()
+            ToolbarManager.shared.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.pins)
             
         case .lists: // Lists Route - Show FAB only
-            toolbarManager.setFABOnlyMode()
+            ToolbarManager.shared.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.lists)
             
         case .profile: // Profile Route - FAB only for now
-            toolbarManager.setFABOnlyMode()
+            ToolbarManager.shared.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.profile)
             
         case .ecard: // ECard Editor Route - FAB only for now
-            toolbarManager.setFABOnlyMode()
+            ToolbarManager.shared.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.ecard)
             
         case .clip: // Clip Editor Route - FAB only for now
-            toolbarManager.setFABOnlyMode()
+            ToolbarManager.shared.setFABOnlyMode()
             UniversalActionSheetModel.shared.setContext(.clip)
         }
     }

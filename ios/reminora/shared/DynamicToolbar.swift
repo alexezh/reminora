@@ -203,6 +203,8 @@ extension ToolbarProvider {
 // MARK: - Toolbar Manager Environment
 
 class ToolbarManager: ObservableObject {
+    static let shared = ToolbarManager()
+
     @Published var customButtons: [ToolbarButtonConfig] = []
     @Published var showCustomToolbar = false
     @Published var version = 0

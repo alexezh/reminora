@@ -48,15 +48,8 @@ struct SwipePhotoView: View {
         self.onDismiss = onDismiss
         
         // Check if there's already a selected photo in SelectionService, use that instead of initialStack
-        if let currentSelectedPhoto = SelectionService.shared.selectedPhotosArray.first,
-           let selectedIndex = photoStackCollection.firstIndex(where: { $0.localIdentifier == currentSelectedPhoto.localIdentifier }) {
-            self._currentIndex = State(initialValue: selectedIndex)
-            print("🔧 SwipePhotoView: Restored to selected photo at index \(selectedIndex)")
-        } else {
-            let initialIndex = photoStackCollection.firstIndex(where: { $0.localIdentifier == initialStack.localIdentifier }) ?? 0
-            self._currentIndex = State(initialValue: initialIndex)
-            print("🔧 SwipePhotoView: Starting with initial photo at index \(initialIndex)")
-        }
+        self.currentIndex = photoStackCollection.firstIndex(where: { $0.localIdentifier == initialStack.localIdentifier }) ?? 0
+        print("index \(self.currentIndex)")
     }
     
     private var currentPhotoStack: RPhotoStack {

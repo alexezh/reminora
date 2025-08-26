@@ -43,7 +43,8 @@ class ActionRouter: ObservableObject {
     }
     
     public func showActionSheet() {
-        toolbarManager?.showActionSheet = true
+        // Use broadcast event instead of direct property access
+        NotificationCenter.default.post(name: NSNotification.Name("FABPressed"), object: nil)
     }
     
     public func archivePhoto() {

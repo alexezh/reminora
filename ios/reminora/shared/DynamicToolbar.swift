@@ -208,7 +208,6 @@ class ToolbarManager: ObservableObject {
     @Published var customButtons: [ToolbarButtonConfig] = []
     @Published var showCustomToolbar = false
     @Published var version = 0
-    @Published var showActionSheet = false
     @Published var showOnlyFAB = false // Show only the FAB button, hide toolbar background and other buttons
     
     init() {
@@ -221,7 +220,10 @@ class ToolbarManager: ObservableObject {
             id: "universal_fab",
             title: "",
             systemImage: "r.circle.fill",
-            action: { ActionRouter.shared.showActionSheet() },
+            action: { 
+                // Broadcast FAB pressed event instead of directly calling ActionRouter
+                NotificationCenter.default.post(name: NSNotification.Name("FABPressed"), object: nil)
+            },
             color: .blue,
             isFAB: true
         )

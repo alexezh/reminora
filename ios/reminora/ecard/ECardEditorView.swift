@@ -120,7 +120,10 @@ struct ECardEditorView: View {
                             action: {
                                 print("🎨 ECardEditorView: User selected template \(template.name)")
                                 eCardEditor.setCurrentTemplate(template)
-                                // setCurrentTemplate now handles fresh assignment, no need for setupECard
+                                // Ensure text assignment is set after template change
+                                if eCardEditor.textAssignments["Text1"] == nil {
+                                    eCardEditor.setTextAssignment(text: "Caption", for: "Text1")
+                                }
                             }
                         )
                     }
@@ -189,9 +192,8 @@ struct ECardEditorView: View {
            let firstAsset = eCardEditor.currentAssets.first?.primaryAsset {
             print("🎨 Setting up template: \(defaultTemplate.name) with current asset: \(firstAsset.localIdentifier)")
             eCardEditor.setCurrentTemplate(defaultTemplate)
-            eCardEditor.setImageAssignment(assetId: firstAsset.localIdentifier, for: "Image1")
+            // setCurrentTemplate already handles image assignment automatically
             eCardEditor.setTextAssignment(text: "Caption", for: "Text1")
-            setupECard(with: defaultTemplate)
             print("🎨 Setup complete - imageAssignments: \(eCardEditor.imageAssignments.count)")
         } else {
             print("❌ Failed to get template or current assets from editor")
@@ -660,11 +662,9 @@ private struct OnionECardPreview: View {
             Color.white
             
             if let previewImage = previewImage {
-                // Show rendered preview with vertical flip for correct orientation
                 Image(uiImage: previewImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .scaleEffect(x: 1, y: -1) // Flip vertically for correct orientation
                     .onTapGesture { location in
                         handleTap(at: location)
                     }
@@ -719,7 +719,10 @@ private struct OnionECardPreview: View {
         }
         .onAppear {
             print("🎨 OnionECardPreview: View appeared for template \(template.name)")
-            renderPreview()
+            // Small delay to allow assignments to settle
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                renderPreview()
+            }
         }
     }
     

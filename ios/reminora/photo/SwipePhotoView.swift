@@ -355,9 +355,6 @@ struct SwipePhotoView: View {
             let initialIndex = currentIndex
             print("🔧 SwipePhotoView onAppear completed - initial stack set, computed currentIndex: \(initialIndex), isViewReady: \(isViewReady)")
         }
-        .onDisappear {
-            selectionService.clearSelectedPhotos()
-        }
         .onChange(of: currentPhotoStack.localIdentifier) { _, _ in
             // Update UI state when SelectionService currentPhotoStack changes
             updateQuickListStatus()

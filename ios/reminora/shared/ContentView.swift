@@ -60,15 +60,6 @@ func tabIndexToRoute(_ index: Int) -> AppTab {
     }
 }
 
-extension ToolbarManager {
-    var showActionSheetBinding: Binding<Bool> {
-        Binding(
-            get: { self.showActionSheet },
-            set: { self.showActionSheet = $0 }
-        )
-    }
-}
-
 // MARK: - Navigation Destination Enum
 
 enum NavigationDestination: Hashable {
@@ -114,20 +105,8 @@ struct ContentView: View {
     @StateObject private var clipEditor = ClipEditor.shared
     @StateObject private var actionSheetModel = UniversalActionSheetModel.shared
     @State private var isActionSheetScrolling = false
-        
-    // Navigation data for moved views
-    //@State private var navigationLocation: LocationInfo?
-    //@State private var navigationTargetAsset: PHAsset?
-    
-    // Navigation data for migrated sheet types
-    //@State private var navigationNearbyPhotosCenter: CLLocationCoordinate2D?
-    //@State private var navigationNearbyLocationsSearch: CLLocationCoordinate2D?
-    //@State private var navigationNearbyLocationsName: String?
+    @State private var showActionSheet = false
 
-//        .onChange(of: selectedAssetService) { newValue in
-//            print("selectedAssetService changed → \(newValue)")
-//        }
-        
     var body: some View {
         NavigationStack(path: $navigationPath) {
             // Root view based on current route
@@ -147,19 +126,12 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("SwitchToClipEditor"))) { _ in
             navigateToTab(.clip)
         }
-        .onChange(of: navigationPath) {
-            print("navigationPath fired → selectedAssetService is changing")
-        }
-        .onChange(of: currentTab) {
-            print("currentTab fired → selectedAssetService is changing")
-        }
-        //.environment(\.toolbarManager, toolbarManager)
         .environment(\.sheetStack, sheetStack)
         .environment(\.eCardTemplateService, eCardTemplateService)
         .environment(\.eCardEditor, eCardEditor)
         .environment(\.clipEditor, clipEditor)
         .environment(\.photoLibraryService, PhotoLibraryService.shared)
-        .sheet(isPresented: ToolbarManager.shared.showActionSheetBinding) {
+        .sheet(isPresented: $showActionSheet) {
             UniversalActionSheet(
                 selectedTab: currentTab.rawValue,
                 onRefreshLists: {
@@ -229,6 +201,11 @@ struct ContentView: View {
             // Restore toolbar when returning from overlay views
             print("🔧 ContentView: Restoring toolbar for current route \(currentTab.displayName)")
             setupToolbarForRoute(currentTab)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("FABPressed"))) { _ in
+            // Handle FAB button press by showing the action sheet
+            print("🔧 ContentView: FAB pressed - showing action sheet")
+            showActionSheet = true
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenCurrentEditor"))) { notification in
             if let editorType = notification.object as? EditorType {

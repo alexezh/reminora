@@ -84,6 +84,10 @@ struct TextLayer: OnionLayer {
         // Apply opacity
         context.setAlpha(transform.opacity)
         
+        // Fix text coordinate system - Core Text uses flipped coordinates
+        context.translateBy(x: 0, y: transform.size.height)
+        context.scaleBy(x: 1, y: -1)
+        
         // Create attributed string
         let attributedString = createAttributedString()
         

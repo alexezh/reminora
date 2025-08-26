@@ -78,15 +78,26 @@ struct ImageLayer: OnionLayer {
         // Apply opacity
         context.setAlpha(transform.opacity)
         
-        // Calculate draw rect based on content mode
-        let drawRect = calculateDrawRect(for: image.size, in: CGRect(origin: .zero, size: transform.size))
+        // Calculate draw rect based on content mode - use the original image size for correct aspect ratio
+        let imageSize = CGSize(width: image.size.width, height: image.size.height)
+        let drawRect = calculateDrawRect(for: imageSize, in: CGRect(origin: .zero, size: transform.size))
         
         // Apply filters to image if needed
         let filteredImage = applyFilters(to: image)
         
-        // Draw the image
+        // Handle image orientation by applying appropriate transform before drawing
         if let cgImage = filteredImage.cgImage {
-            context.draw(cgImage, in: drawRect)
+            context.saveGState()
+            
+            // Apply orientation correction transform
+            let orientationTransform = getOrientationTransform(for: image.imageOrientation, in: drawRect)
+            context.concatenate(orientationTransform)
+            
+            // Draw the image with orientation correction
+            let correctedDrawRect = getCorrectedDrawRect(for: image.imageOrientation, originalRect: drawRect)
+            context.draw(cgImage, in: correctedDrawRect)
+            
+            context.restoreGState()
         }
     }
     
@@ -196,5 +207,67 @@ struct ImageLayer: OnionLayer {
         // For now, return the original image
         // Full filter implementation would require Core Image integration
         return image
+    }
+    
+    private func getOrientationTransform(for orientation: UIImage.Orientation, in drawRect: CGRect) -> CGAffineTransform {
+        var transform = CGAffineTransform.identity
+        let center = CGPoint(x: drawRect.midX, y: drawRect.midY)
+        
+        switch orientation {
+        case .down, .downMirrored:
+            // Rotate 180 degrees
+            transform = transform.translatedBy(x: center.x, y: center.y)
+            transform = transform.rotated(by: CGFloat.pi)
+            transform = transform.translatedBy(x: -center.x, y: -center.y)
+            
+        case .left, .leftMirrored:
+            // Rotate 90 degrees counter-clockwise
+            transform = transform.translatedBy(x: center.x, y: center.y)
+            transform = transform.rotated(by: -CGFloat.pi / 2)
+            transform = transform.translatedBy(x: -center.x, y: -center.y)
+            
+        case .right, .rightMirrored:
+            // Rotate 90 degrees clockwise
+            transform = transform.translatedBy(x: center.x, y: center.y)
+            transform = transform.rotated(by: CGFloat.pi / 2)
+            transform = transform.translatedBy(x: -center.x, y: -center.y)
+            
+        default:
+            break
+        }
+        
+        // Handle mirroring
+        switch orientation {
+        case .upMirrored, .downMirrored:
+            transform = transform.translatedBy(x: center.x, y: 0)
+            transform = transform.scaledBy(x: -1, y: 1)
+            transform = transform.translatedBy(x: -center.x, y: 0)
+            
+        case .leftMirrored, .rightMirrored:
+            transform = transform.translatedBy(x: 0, y: center.y)
+            transform = transform.scaledBy(x: 1, y: -1)
+            transform = transform.translatedBy(x: 0, y: -center.y)
+            
+        default:
+            break
+        }
+        
+        return transform
+    }
+    
+    private func getCorrectedDrawRect(for orientation: UIImage.Orientation, originalRect: CGRect) -> CGRect {
+        // For rotated orientations, we may need to adjust the draw rect
+        switch orientation {
+        case .left, .right, .leftMirrored, .rightMirrored:
+            // For 90-degree rotations, swap width and height
+            return CGRect(
+                x: originalRect.origin.x + (originalRect.width - originalRect.height) / 2,
+                y: originalRect.origin.y + (originalRect.height - originalRect.width) / 2,
+                width: originalRect.height,
+                height: originalRect.width
+            )
+        default:
+            return originalRect
+        }
     }
 }

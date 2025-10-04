@@ -1,7 +1,7 @@
 # Reminora
 
 Reminora began as a geotagged photo sharing app with list management and social features.
-It has since evolved into a focused, privacy-friendly tool for everyday photo and video management, built around the idea of lists — lightweight, flexible collections inspired by Lightroom Quick Lists.
+It has since evolved into a focused, privacy-friendly tool for everyday photo and video management, built around the idea of lists — lightweight, flexible collections inspired by Lightroom Quick Lists. 
 
 Reminora helps you capture, organize, and rediscover moments without the overhead of traditional gallery apps or the complexity of pro editors.
 
@@ -10,16 +10,19 @@ Reminora helps you capture, organize, and rediscover moments without the overhea
 - Geotag support: explore photos by place and memory context.
 - Lightweight and private: built for personal use, not social media.
 
+Reminora is a second iteration of [kouki2](https://github.com/alexezh/kouki2) focusing on phone as a primary device
+
 ## Features
 
-- 📸 Photo sharing with location data
-- 🗺️ Interactive map interface
-- 📋 List management (Quick lists, Shared lists)
-- 💬 Comments and social features
-- 🔗 Deep linking for sharing
-- 🔐 OAuth authentication (Apple, Google)
-- 📱 iOS and Android apps
-- ☁️ Cloudflare Workers backend
+- Photo sharing with location data
+- Interactive map interface
+- List management (Quick lists, Shared lists)
+- Comments and social features
+- Deep linking for sharing
+- AI similar photo detection
+- OAuth authentication (Apple, Google)
+- iOS and Android apps
+- Cloudflare Workers backend
 
 ## Quick Start
 
